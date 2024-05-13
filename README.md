@@ -9,11 +9,32 @@
 
 A repository to house Post-Secondary Supply Model (PSSM) code base.
 
-### Usage
-
-This repo stores all data on the LAN and makes use of [safepaths](https://github.com/bcgov/safepaths).
-
 ### To Run
+
+This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder. To connect to SQL Servers, we also require a configuration file to connect securely to various required databases, and use [config](https://rstudio.github.io/config/) to read in the configuration. 
+
+To connect securely to a database, the following snippet of code may be used:
+
+```r
+library(DBI)
+library(odbc)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+
+df
+```
 
 
 ### Getting Help or Reporting an Issue
