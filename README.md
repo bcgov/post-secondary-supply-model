@@ -50,7 +50,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 ### License
 
 ```
-Copyright 2021 Province of British Columbia
+Copyright 2024 Province of British Columbia
 
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 you may not use this file except in compliance with the License.
