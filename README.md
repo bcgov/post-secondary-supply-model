@@ -11,7 +11,27 @@ A repository to house Post-Secondary Supply Model (PSSM) code base.
 
 ### To Run
 
-This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder. To connect to SQL Servers, we also require a configuration file to connect securely to various required databases, and use [config](https://rstudio.github.io/config/) to read in the configuration. 
+This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder. After installing safepaths, use the write the following code at your console
+
+```r
+library(safepaths)
+
+# specify the path to LAN drive (do this in your console)
+path <- "DRIVELETTER:/folder"
+set_network_path(path)
+```
+
+Then add this snippet into your scripts to securely read and write to a LAN drive:
+
+```r
+library(safepaths)
+
+# now use safepaths anywhere in your code script!
+path <- get_network_path(path)
+write.csv(mydataframe, path)
+```
+
+To connect to SQL Servers, we also require a configuration file to connect securely to various required databases, and use [config](https://rstudio.github.io/config/) to read in the configuration. 
 
 To connect securely to a database, the following snippet of code may be used:
 
