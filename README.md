@@ -11,7 +11,7 @@ A repository to house Post-Secondary Supply Model (PSSM) code base.
 
 ### To Run
 
-This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder. After installing safepaths, use the write the following code at your console
+This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder. After installing safepaths, write the following code at your console
 
 ```r
 library(safepaths)
