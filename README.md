@@ -29,7 +29,7 @@ To securely read and write to a LAN drive, the following snippet of code may be 
 library(safepaths)
 
 # Use safepaths anywhere in your code script!
-path <- get_network_path(path)
+path <- get_network_path()
 write.csv(mydataframe, path)
 ```
 
