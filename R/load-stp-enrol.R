@@ -4,7 +4,7 @@ library(odbc)
 library(DBI)
 library(safepaths)
 
-# ------------ Configure LAN Paths and DB Connection ------------
+# ----------------- Configure LAN Paths and DB Connection ----------------------
 # set_network_path("<path_to_2023_project_folder>") # I wonder if this can be set in config file
 lan <- get_network_path()
 stp_2023 <- glue::glue("{lan}/data/stp/test_data")  # change test_data to partitioned_data or whatever makes sense
@@ -23,7 +23,7 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---------------------- Partition -------------------------------
+# ----------------------------- Partition --------------------------------------
 enrol_schema <- 
   schema(PSI_PEN = string(),
        PSI_BIRTHDATE = string(),
@@ -100,23 +100,16 @@ invisible(lapply(fls[2:18],
                  schema = enrol_schema, 
                  append = TRUE))
 
-# alternatively: invisible(lapply....)
-# each partition takes ~ 5 min to write to SQL Server, mid-morning on a weekday.  Slightly faster yesterday evening, on pre-2011 data.
 
-# How we can define the schema from R
-fls <- list.files("parquet", full.names = TRUE, recursive = TRUE)[8]
-open_dataset(fl) %>% collect() %>% data.frame() -> tbl
-dbDataType(con, tbl)
-
-# ---------------------------------- USER-DEFINED FUNCTIONS ------------------------------------------
+# ---------------------------------- USER-DEFINED FUNCTIONS --------------------
 # open partitioned file and write to decimal
 # option to use dbWriteTable(con, name = Id(schema = enrol_schema, table = nm), value = df, append = append)
-# also, dbWriteTableArrow takes a schema()
+
 # some fiddling still needs to be done here
 write_to_decimal <- function(fl, con, schema, append = FALSE, format = "parquet"){
   nm <- glue::glue("{basename(dirname(fl))}")
   df <- open_dataset(fl, format = format, schema = enrol_schema) %>% collect()
-  dbWriteTableArrow(con, name = nm, nanoarrow::as_nanoarrow_array_stream(df))
+  dbWriteTableArrow(con, name = nm, nanoarrow::as_nanoarrow_array_stream(df)) # also, dbWriteTableArrow takes a schema()
   print(glue::glue("Processing {nm}"))
 }
 
