@@ -93,8 +93,12 @@ enrol_csv |>
 
 # ----------- Read partitioned data and write to PSSM 2023  --------------------
 fls <- list.files(glue::glue("{stp_2023}/csv"), full.names = TRUE, recursive = TRUE)
-write_to_decimal(fls[1], con, schema = enrol_schema, format = "parquet")
-invisible(lapply(fls[3:18], write_to_decimal, con = con, append = TRUE))
+write_to_decimal(fls[1], con, schema = enrol_schema)
+invisible(lapply(fls[2:18], 
+                 write_to_decimal, 
+                 con = con,  
+                 schema = enrol_schema, 
+                 append = TRUE))
 
 # alternatively: invisible(lapply....)
 # each partition takes ~ 5 min to write to SQL Server, mid-morning on a weekday.  Slightly faster yesterday evening, on pre-2011 data.
@@ -108,6 +112,7 @@ dbDataType(con, tbl)
 # open partitioned file and write to decimal
 # option to use dbWriteTable(con, name = Id(schema = enrol_schema, table = nm), value = df, append = append)
 # also, dbWriteTableArrow takes a schema()
+# some fiddling still needs to be done here
 write_to_decimal <- function(fl, con, schema, append = FALSE, format = "parquet"){
   nm <- glue::glue("{basename(dirname(fl))}")
   df <- open_dataset(fl, format = format, schema = enrol_schema) %>% collect()
