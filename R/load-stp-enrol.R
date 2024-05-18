@@ -1,9 +1,7 @@
 # ------------------------------------------------------------------------------
-# It partitions older STP data to parquet format, and then writes to decimal.  
-# It could handle csv as well, I just ran into some issues with csv so converted 
-# to parquet. Right now it works on ~20% of the full 2019 data, there is full 
-# dataset in 2017 project folder that could be tested as well.  Keeping in mind, 
-# the 2023 data will be larger again.
+# STP data partitioned to parquet or csv format, and then written to decimal.  
+# Curent state - the script takes ~20% of the full 2019 data, but could be tested
+# full dataset in 2017 project folder. Keeping in mind,the 2023 data will be larger
 # ------------------------------------------------------------------------------
 
 library(arrow)
@@ -13,7 +11,7 @@ library(DBI)
 library(safepaths)
 
 # ----------------- Configure LAN Paths and DB Connection ----------------------
-# set_network_path("<path_to_2023_project_folder>") # I wonder if this can be set in config file
+# set_network_path("<path_to_2023_project_folder>") # Can this be set in config file?
 lan <- get_network_path()
 stp_2023 <- glue::glue("{lan}/data/stp/partitioned")
 dir.create(glue::glue("{lan}/data/stp/partitioned"))
@@ -94,7 +92,7 @@ enrol_csv <- open_dataset(
 )
 
 # partition by school year and write to disk in .csv format
-# note: arrow drops the grouping variable from the data, so I created one
+# note: arrow drops the grouping variable so defined one we won't use in analysis
 enrol_csv |>
   mutate(SCHOOL_YEAR = str_replace(PSI_SCHOOL_YEAR, "/", "-")) |>
   group_by(SCHOOL_YEAR) |>
