@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------------------
+# It partitions older STP data to parquet format, and then writes to decimal.  
+# It could handle csv as well, I just ran into some issues with csv so converted 
+# to parquet. Right now it works on ~20% of the full 2019 data, there is full 
+# dataset in 2017 project folder that could be tested as well.  Keeping in mind, 
+# the 2023 data will be larger again.
+# ------------------------------------------------------------------------------
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -7,7 +15,8 @@ library(safepaths)
 # ----------------- Configure LAN Paths and DB Connection ----------------------
 # set_network_path("<path_to_2023_project_folder>") # I wonder if this can be set in config file
 lan <- get_network_path()
-stp_2023 <- glue::glue("{lan}/data/stp/test_data")  # change test_data to partitioned_data or whatever makes sense
+stp_2023 <- glue::glue("{lan}/data/stp/partitioned")
+dir.create(glue::glue("{lan}/data/stp/partitioned"))
 
 # some manual tweaking needed here but only needed for testing anyways.  
 i <- grepl("2019-2020", list.files(dirname(lan)))
@@ -22,6 +31,7 @@ con <- dbConnect(odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
+
 
 # ----------------------------- Partition --------------------------------------
 enrol_schema <- 
@@ -86,13 +96,13 @@ enrol_csv <- open_dataset(
 # partition by school year and write to disk in .csv format
 # note: arrow drops the grouping variable from the data, so I created one
 enrol_csv |>
-  mutate(PSI_SCHOOL_YEAR = str_replace(PSI_SCHOOL_YEAR, "/", "-")) |>
-  group_by(PSI_SCHOOL_YEAR) |>
-  write_dataset(path = glue::glue("{stp_2023}/csv"), format = "csv", hive_style = TRUE)
-# Note: option to write to parquet - just need to play with this to figure out what will work
+  mutate(SCHOOL_YEAR = str_replace(PSI_SCHOOL_YEAR, "/", "-")) |>
+  group_by(SCHOOL_YEAR) |>
+  write_dataset(path = glue::glue("{stp_2023}/parquet"), format = "parquet", hive_style = TRUE)
+# Note: option to write to csv - just need to play with it to figure out what will work best
 
 # ----------- Read partitioned data and write to PSSM 2023  --------------------
-fls <- list.files(glue::glue("{stp_2023}/csv"), full.names = TRUE, recursive = TRUE)
+fls <- list.files(glue::glue("{stp_2023}/parquet"), full.names = TRUE, recursive = TRUE)
 write_to_decimal(fls[1], con, schema = enrol_schema)
 invisible(lapply(fls[2:18], 
                  write_to_decimal, 
