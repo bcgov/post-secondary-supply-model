@@ -1,11 +1,11 @@
-# ______________________________________________________________________________
+# ******************************************************************************
 # STP data written to decimal.  
 # Current state - the script takes 100% of the full 2019 data, keeping in mind
 # the 2023 data will be larger
 # STP credential data loads with a few data type conversion problems: 
 #   querying SQL data returns PSI_CREDENTIAL_PROGRAM_DESC as a quoted string
 # dates are uploaded format YY-MM-DD instead of YYYY-MM-DD
-# ______________________________________________________________________________
+# ******************************************************************************
 
 library(arrow)
 library(tidyverse)
