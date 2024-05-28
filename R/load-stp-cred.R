@@ -58,36 +58,8 @@ data <- open_dataset(
   format = "tsv"
 )
 
-# partition by school year and write to disk in .csv format
-# note: arrow drops the grouping variable so defined one we won't use in analysis
-
-data |>
-  mutate(SCHOOL_YEAR = str_replace(PSI_SCHOOL_YEAR, "/", "-")) |>
-  group_by(SCHOOL_YEAR) |>
-  write_dataset(path = glue::glue("{stp_2023}/csv"), format = "csv", hive_style = TRUE)
-# Note: option to write to csv - just need to play with it to figure out what will work best#time: 3:37PM
-
-# ----------- Read partitioned data and write to PSSM 2023  --------------------
-fls <- list.files(glue::glue("{stp_2023}/parquet"), full.names = TRUE, recursive = TRUE)
-write_to_decimal(fls[1], con, schema = enrol_schema)
-invisible(lapply(fls[2:18], 
-                 write_to_decimal, 
-                 con = con,  
-                 schema = enrol_schema, 
-                 append = TRUE))
-
-
-# ---------------------------------- USER-DEFINED FUNCTIONS --------------------
-# open partitioned file and write to decimal
-# option to use dbWriteTable(con, name = Id(schema = enrol_schema, table = nm), value = df, append = append)
-
-# some fiddling still needs to be done here
-write_to_decimal <- function(fl, con, schema, append = FALSE, format = "parquet"){
-  nm <- glue::glue("{basename(dirname(fl))}")
-  df <- open_dataset(fl, format = format, schema = enrol_schema) %>% collect()
-  dbWriteTableArrow(con, name = nm, nanoarrow::as_nanoarrow_array_stream(df)) # also, dbWriteTableArrow takes a schema()
-  print(glue::glue("Processing {nm}"))
-}
+dbWriteTableArrow(con, name = "STP_Credential", nanoarrow::as_nanoarrow_array_stream(data)) # also, dbWriteTableArrow takes a schema()
+print(glue::glue("Processing STP_Credential"))
 
 
 
