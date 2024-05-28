@@ -1,10 +1,12 @@
-# ------------------------------------------------------------------------------
+# ______________________________________________________________________________
 # STP data written to decimal.  
-# Curent state - the script takes 100% of the full 2019 data, keeping in mind,the 2023 data will be larger
+# Current state - the script takes 100% of the full 2019 data, keeping in mind
+# the 2023 data will be larger
 # STP credential data loads with a few data type conversion problems: 
 #   querying SQL data returns PSI_CREDENTIAL_PROGRAM_DESC as a quoted string
 # dates are uploaded format YY-MM-DD instead of YYYY-MM-DD
-# ------------------------------------------------------------------------------
+# ______________________________________________________________________________
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -12,7 +14,7 @@ library(DBI)
 library(safepaths)
 library(config)
 
-# ----------------- Configure LAN Paths and DB Connection ----------------------
+# ---- Configure LAN Paths and DB Connection ----
 # set_network_path("<path_to_2023_project_folder>") # Can this be set in config file?
 lan <- get_network_path()
 stp_2023 <- glue::glue("{lan}/data/stp/partitioned")
@@ -33,7 +35,7 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 
-# ----------------------------- Define Schema --------------------------------------
+# ---- Define Schema ----
 schema <- 
   schema(PTY_ID = string(),
          CREDENTIAL_AWARD_DATE= string(),
@@ -51,13 +53,14 @@ schema <-
          ENCRYPTED_TRUE_PEN= string(),
          STP_ALT_ID= string())
 
-# read in tab-delimited data from text file
+# ---- read tab-delimited data
 data <- open_dataset(
   sources = raw_data, 
   col_types = schema,
   format = "tsv"
 )
 
+# ---- write to decimal
 dbWriteTableArrow(con, name = "STP_Credential", nanoarrow::as_nanoarrow_array_stream(data)) # also, dbWriteTableArrow takes a schema()
 print(glue::glue("Processing STP_Credential"))
 
