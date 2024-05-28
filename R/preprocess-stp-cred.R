@@ -4,8 +4,8 @@ library(odbc)
 library(DBI)
 library(safepaths)
 
-# ----------------- Configure LAN Paths and DB Connection ----------------------
-# set_network_path("<path_to_2023_project_folder>") # Can this be set in config file?
+# ---- Configure LAN Paths and DB Connection -----
+# set_network_path("<path_to_2023_project_folder>")
 lan <- get_network_path()
 
 # set connection string to decimal
@@ -16,9 +16,14 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-strSQL <- "SELECT COUNT (*) AS n_null_epens
-  FROM STP_Credential_2019
-  WHERE STP_Credential.ENCRYPTED_TRUE_PEN =''"
+source("./sql/preprocess-stp-cred.R")
 
-dbGetQuery(con, strSQL)
+# ---- Run Queries -------------------------------
+dbGetQuery(con, qry00a_check_null_epens)
+dbGetQuery(con, qry00b_check_unique_epens)
+dbGetQuery(con, qry00c_CreateIDinSTPCredential)
+dbGetQuery(con, qry00d_SetPKeyinSTPCredential)
+dbGetQuery(con, qry01_ExtractAllID_into_STP_Credential_Record_Type)
+
+
 
