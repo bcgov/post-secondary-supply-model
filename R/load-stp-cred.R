@@ -1,12 +1,10 @@
 # ******************************************************************************
-# STP data written to decimal.  
-# Current state - the script takes 100% of the full 2019 data, keeping in mind
-# the 2023 data will be larger
+# Load STP credential data from staging area in LAN project folder, to decimal.  
+# Requested data to be in tab-separated text file
 # STP credential data loads with a few data type conversion problems: 
-#   querying SQL data returns PSI_CREDENTIAL_PROGRAM_DESC as a quoted string
-# dates are uploaded format YY-MM-DD instead of YYYY-MM-DD
+#   - querying SQL data returns PSI_CREDENTIAL_PROGRAM_DESC as a quoted string
+#   - dates are uploaded format YY-MM-DD instead of YYYY-MM-DD
 # ******************************************************************************
-
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -15,18 +13,15 @@ library(safepaths)
 library(config)
 
 # ---- Configure LAN Paths and DB Connection ----
-# set_network_path("<path_to_2023_project_folder>") # Can this be set in config file?
 lan <- get_network_path()
-stp_2023 <- glue::glue("{lan}/data/stp/partitioned")
-dir.create(glue::glue("{lan}/data/stp/partitioned"))
+stp_2023 <- glue::glue("{lan}/data/stp/")
 
-# some manual tweaking needed here but only needed for testing anyways.  
+## ----- Raw data file (remove if not needed) ---- 
 i <- grepl("2019-2020", list.files(dirname(lan)))
 stp_2019 <- glue::glue("{list.files(dirname(lan), full.names = TRUE)[i]}/Data/STP")
-
 raw_data <- glue::glue("{stp_2019}/STP_Credential.txt")
 
-# set connection string to decimal
+## ----- Connection to decimal ----
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
@@ -53,16 +48,17 @@ schema <-
          ENCRYPTED_TRUE_PEN= string(),
          STP_ALT_ID= string())
 
-# ---- read tab-delimited data
+# ---- Write to decimal ----
 data <- open_dataset(
   sources = raw_data, 
   col_types = schema,
   format = "tsv"
 )
 
-# ---- write to decimal
-dbWriteTableArrow(con, name = "STP_Credential", nanoarrow::as_nanoarrow_array_stream(data)) # also, dbWriteTableArrow takes a schema()
 print(glue::glue("Processing STP_Credential"))
+dbWriteTableArrow(con, name = "STP_Credential", 
+                  nanoarrow::as_nanoarrow_array_stream(data)) # also, dbWriteTableArrow takes a schema()
+
 
 
 
