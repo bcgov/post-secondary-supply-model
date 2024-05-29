@@ -3,8 +3,6 @@
 # Curent state - the script takes ~20% of the full 2019 data, but could be tested
 # full dataset in 2017 project folder. Keeping in mind,the 2023 data will be larger
 # ******************************************************************************
-
-
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -13,18 +11,16 @@ library(safepaths)
 library(config)
 
 # ---- Configure LAN Paths and DB Connection ----
-# set_network_path("<path_to_2023_project_folder>") # Can this be set in config file?
 lan <- get_network_path()
-stp_2023 <- glue::glue("{lan}/data/stp/partitioned")
-dir.create(glue::glue("{lan}/data/stp/partitioned"))
+stp_2023 <- glue::glue("{lan}/data/stp/")
 
-# some manual tweaking needed here but only needed for testing anyways.  
+## ----- Raw data file (remove if not needed) ----
 i <- grepl("2019-2020", list.files(dirname(lan)))
 stp_2019 <- glue::glue("{list.files(dirname(lan), full.names = TRUE)[i]}/Data/STP")
-
 raw_data <- glue::glue("{stp_2019}/STP_EXTRACT_20201803_5.txt")
 
-# set connection string to decimal
+## ----- Connection to decimal ----
+
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
@@ -32,8 +28,8 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-
 # ---- Define Schema ----
+
 schema <- 
   schema(PSI_PEN = string(),
        PSI_BIRTHDATE = string(),
@@ -86,36 +82,37 @@ schema <-
        PSI_ENTRY_STATUS = string(),
        OVERALL_ABORIGINAL_STATUS = string())
 
-# ---- read tab-delimited data
-data <- open_dataset(
-  sources = raw_data, 
-  col_types = schema,
-  format = "tsv"
-)
+# ---- Write to decimal ----
 
-# ---- partition by school year
-# arrow drops the grouping variable so need to define this one. Remove in PSSM2023 later.
-data |>
-  mutate(SCHOOL_YEAR = str_replace(PSI_SCHOOL_YEAR, "/", "-")) |>
-  group_by(SCHOOL_YEAR) |>
-  write_dataset(path = glue::glue("{stp_2023}/parquet"), format = "parquet", hive_style = TRUE)
+fls <- list.files(stp_2023, full.names = TRUE, recursive = TRUE)
 
-# ---- write to decimal
-fls <- list.files(glue::glue("{stp_2023}/parquet"), full.names = TRUE, recursive = TRUE)
+# first file creates a table in SSMS
 write_to_decimal(fls[1], con, schema = schema)
-invisible(lapply(fls[2:18], 
+
+# append the remainder to table in SSMS
+invisible(lapply(fls[2:length(fls)], 
                  write_to_decimal, 
                  con = con,  
                  schema = schema, 
                  append = TRUE))
 
 
-# ---- functions ----
-write_to_decimal <- function(fl, con, schema, append = FALSE, format = "parquet"){
-  nm <- glue::glue("{basename(dirname(fl))}")
-  df <- open_dataset(fl, format = format, schema = schema) %>% collect()
-  dbWriteTableArrow(con, name = nm, nanoarrow::as_nanoarrow_array_stream(df)) # also, dbWriteTableArrow takes a schema()
-  print(glue::glue("Processing {nm}"))
+# ---- Functions ----
+
+write_to_decimal <- function(flnm, con, schema, append = FALSE, format = "tsv"){
+  
+  tblnm <- glue::glue("{basename(dirname(flnm))}")
+  print(glue::glue("Processing {tblnm}..."))
+  
+  # read tab-delimited raw-data file
+  data <- open_dataset(sources = raw_data,
+                     format = format, 
+                     schema = schema)
+  
+  dbWriteTableArrow(con, 
+                    name = tblnm, 
+                    nanoarrow::as_nanoarrow_array_stream(data)) # dbWriteTableArrow takes optional schema()
+  
 }
 
 
