@@ -20,7 +20,6 @@ stp_2019 <- glue::glue("{list.files(dirname(lan), full.names = TRUE)[i]}/Data/ST
 raw_data <- glue::glue("{stp_2019}/STP_EXTRACT_20201803_5.txt")
 
 ## ----- Connection to decimal ----
-
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
@@ -29,7 +28,6 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 # ---- Define Schema ----
-
 schema <- 
   schema(PSI_PEN = string(),
        PSI_BIRTHDATE = string(),
@@ -83,7 +81,6 @@ schema <-
        OVERALL_ABORIGINAL_STATUS = string())
 
 # ---- Write to decimal ----
-
 fls <- list.files(stp_2023, full.names = TRUE, recursive = TRUE)
 
 # first file creates a table in SSMS
@@ -98,7 +95,6 @@ invisible(lapply(fls[2:length(fls)],
 
 
 # ---- Functions ----
-
 write_to_decimal <- function(flnm, con, schema, append = FALSE, format = "tsv"){
   
   tblnm <- glue::glue("{basename(dirname(flnm))}")
