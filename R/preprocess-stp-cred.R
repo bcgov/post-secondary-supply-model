@@ -5,7 +5,6 @@ library(DBI)
 library(safepaths)
 
 # ---- Configure LAN Paths and DB Connection -----
-# set_network_path("<path_to_2023_project_folder>")
 lan <- get_network_path()
 
 # set connection string to decimal
