@@ -1,7 +1,7 @@
 # ******************************************************************************
-# STP data partitioned to parquet or csv format, and then written to decimal.  
-# Curent state - the script takes ~20% of the full 2019 data, but could be tested
-# full dataset in 2017 project folder. Keeping in mind,the 2023 data will be larger
+# Load STP enrolment data from staging area in LAN project folder, to decimal.  
+# Requested data to be in tab-separated text files partitioned by school year.
+# The hope if that smaller datasets are more easily processed by R and SMSS
 # ******************************************************************************
 library(arrow)
 library(tidyverse)
