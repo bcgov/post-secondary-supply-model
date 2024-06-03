@@ -11,7 +11,7 @@ library(tidyverse)
 library(RODBC)
 library(config)
 
-source("./sql/stp-dacso_program_matching_2019_20.R")
+source("./sql/dacso_program_matching.R")
 
 #---- Connect to Outcomes Database ----
 connection <- config::get("connection")$outcomes_dacso
@@ -49,5 +49,21 @@ sqlQuery(con, "ALTER TABLE Updated_DACSO_Programs_in_2020_with_links ADD COLUMN 
 sqlQuery(con, qry_DACSO_updated_programs_linked_STP_d)
 sqlQuery(con, qry_DACSO_updated_programs_linked_STP_e)
 
+# update STP xwalk with updated CPC info
+sqlQuery(con, qry_Update_DACSO_STP_XWALK_Updated_CPCS)
+
+# ---- check remaining DACSO updated CPCS for match to STP program
+sqlQuery(con, qry_make_Remaining_DACSO_Updated_CPCS)
+sqlQuery(con, qry_append_updated_cpcs_not_previously_matched)
+
+# ---- DACSO programs with updated CIPS ----
+# Open up the Infoware_Programs table to see which CPCs had an updated CIP in the latest year 
+# Check the NOTES column to find out because this is where Sheila makes a note if the CIP was updated for a program.
+# Manual Method: search on the CPC nad update the CIPs manually in the XWALK table and put a “Yes” in the Updated_DACSO_CIP2015 column in the XWALK table
+# Alternativly something like: 
+sqlQuery(con, qry_Check_InfowarePrograms_Updated_CIPS_a)
+
+
+sqlQuery(con, "SELECT * FROM infoware_programs_updatecips_2020")
 
 close(con)
