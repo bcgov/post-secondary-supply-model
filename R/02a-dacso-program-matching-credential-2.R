@@ -1,6 +1,4 @@
-# ---- Required INFOWARE TABLES
-# dbo_STP_Credential_Non_Dup_Programs_DACSO  
-
+# dbo_STP_Credential_Non_Dup_Programs_DACSO (created in previous step and imported from SSMS)
 # INFOWARE_PROGRAMS_HIST_PRGMID_XREF
 # INFOWARE_C_OUTC_CLEAN_SHORT_RESP - I don't think we need this one
 # INFOWARE_L_CIP_2DIGITS_CIP2016
