@@ -1,16 +1,10 @@
-# ---- Required INFOWARE TABLES
+# ---- Required Tables (Access) ----
 # INFOWARE_PROGRAMS_HIST_PRGMID_XREF
 # INFOWARE_L_CIP_2DIGITS_CIP2016
 # INFOWARE_L_CIP_4DIGITS_CIP2016
 # INFOWARE_L_CIP_6DIGITS_CIP2016
 # INFOWARE_PROGRAMS
 # DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
-
-# DACSO_Programs_Seen_02_to_18                           
-# dbo_STP_Credential_Non_Dup_Programs_DACSO               
-# STP_Credential_Non_Dup_Programs_DACSO_CIPS_CHANGED_2018 
-# tbl_STP_PSI_CODE_INST_CD_Lookup    
-# tbl_SubmCd_Lookup  
 
 library(tidyverse)
 library(RODBC)
@@ -21,8 +15,6 @@ source("./sql/02a-dacso_program_matching.R")
 #---- Connect to Outcomes Database ----
 connection <- config::get("connection")$outcomes_dacso
 con <- odbcDriverConnect(connection)
-
-sqlTables(con,  tableType = c("TABLE")) %>% pull(TABLE_NAME) # tableType = "SYNONYM" gives tables linked to ORACLE
 
 # ---- Make new XWALK from last years XWALK----
 sqlQuery(con, "SELECT * INTO DACSO_STP_ProgramsCIP4_XWALK_ALL_2020 FROM DACSO_STP_ProgramsCIP4_XWALK_ALL_2018;") #creates DACSO_STP_ProgramsCIP4_XWALK_ALL_2020
