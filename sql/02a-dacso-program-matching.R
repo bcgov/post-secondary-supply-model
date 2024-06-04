@@ -95,6 +95,31 @@ qry_Check_InfowarePrograms_Updated_CIPS_c <-
 
 # ******************************************************************************
 # ---- STP Credential ----
+qry_Credential_Non_Dup_Add_Columns <- "ALTER TABLE [dbo].[Credential_Non_Dup]
+ADD OUTCOMES_CIP_CODE_4 varchar(4),
+ OUTCOMES_CIP_CODE_4_NAME varchar(255),
+ FINAL_CIP_CODE_4 varchar(4),
+ FINAL_CIP_CODE_4_NAME varchar(255),
+ FINAL_CIP_CODE_2 varchar(2),
+ FINAL_CIP_CODE_2_NAME varchar(255),
+ FINAL_CIP_CLUSTER_CODE varchar(10),
+ FINAL_CIP_CLUSTER_NAME varchar(255),
+ STP_CIP_CODE_4 varchar(4),
+ STP_CIP_CODE_4_NAME varchar(255);"
+
+qry_DASCO_STP_Credential_Programs <- "
+SELECT        PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, PSI_CREDENTIAL_CATEGORY, 
+                         OUTCOMES_CRED, OUTCOMES_CIP_CODE_4, OUTCOMES_CIP_CODE_4_NAME, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME, FINAL_CIP_CODE_2, 
+                         FINAL_CIP_CODE_2_NAME, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME, STP_CIP_CODE_4, STP_CIP_CODE_4_NAME, COUNT(*) AS Expr1
+INTO              STP_Credential_Non_Dup_Programs_DACSO
+FROM            Credential_Non_Dup
+GROUP BY PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, PSI_CREDENTIAL_CATEGORY, 
+                         OUTCOMES_CRED, OUTCOMES_CIP_CODE_4, OUTCOMES_CIP_CODE_4_NAME, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME, FINAL_CIP_CODE_2, 
+                         FINAL_CIP_CODE_2_NAME, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME, STP_CIP_CODE_4, STP_CIP_CODE_4_NAME
+HAVING        (OUTCOMES_CRED = 'DACSO');"
+
+
+
 
 qry_Check_CIP_Changes_STP_Cred_Non_Dup_DACSO <- 
 "SELECT dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CODE, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_PROGRAM_CODE, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_PROGRAM_DESC, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_CIP, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_LEVEL, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_CATEGORY, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_4, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_4_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_2, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_2_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CRED, dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CIP_CODE_4, dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CIP_CODE_4_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CODE_4, dbo_STP_Credential_Non_Dup_Programs_DACSO.Research_University_Flag, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CODE_4_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CODE_2, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CODE_2_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CLUSTER_CODE, dbo_STP_Credential_Non_Dup_Programs_DACSO.FINAL_CIP_CLUSTER_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.Expr1, dbo_STP_Credential_Non_Dup_Programs_DACSO.Already_Matched, dbo_STP_Credential_Non_Dup_Programs_DACSO.New_Auto_Match, dbo_STP_Credential_Non_Dup_Programs_DACSO.New_Manual_Match, dbo_STP_Credential_Non_Dup_Programs_DACSO.COCI_INST_CD, dbo_STP_Credential_Non_Dup_Programs_DACSO.DACSO_PRGM_ID_FINAL, INFOWARE_PROGRAMS.PRGM_INST_CD, INFOWARE_PROGRAMS.PRGM_LCPC_CD, INFOWARE_PROGRAMS.PRGM_INST_PROGRAM_NAME INTO STP_Credential_Non_Dup_Programs_DACSO_CIPS_CHANGED_2018
@@ -106,8 +131,6 @@ qry_Check_for_ChangedCIPS <-
 FROM dbo_STP_Credential_Non_Dup_Programs_DACSO
 GROUP BY dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CODE, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_PROGRAM_CODE, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_PROGRAM_DESC, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_CIP, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_LEVEL, dbo_STP_Credential_Non_Dup_Programs_DACSO.PSI_CREDENTIAL_CATEGORY, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_4, dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_4_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CIP_CODE_4, dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CIP_CODE_4_NAME, dbo_STP_Credential_Non_Dup_Programs_DACSO.Research_University_Flag
 HAVING (((dbo_STP_Credential_Non_Dup_Programs_DACSO.STP_CIP_CODE_4)<>[dbo_STP_Credential_Non_Dup_Programs_DACSO].[OUTCOMES_CIP_CODE_4]) AND ((dbo_STP_Credential_Non_Dup_Programs_DACSO.OUTCOMES_CIP_CODE_4) Is Not Null) AND ((dbo_STP_Credential_Non_Dup_Programs_DACSO.Research_University_Flag) Is Null));"
-
-
 
 
 
