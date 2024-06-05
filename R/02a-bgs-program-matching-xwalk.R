@@ -14,7 +14,6 @@ source("./sql/02a-bgs-program-matching.R")
 
 #---- Connect to Outcomes Database ----
 connection <- config::get("connection")$outcomes_bgs
-connection <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=//Client/W$/PSSM/21-825-8 Post-Secondary Supply Model 2019-2020/BGS Data Snapshot for PSSM 2019-2020.accdb"
 con <- odbcDriverConnect(connection)
 
 sqlQuery(con, "SELECT COUNT(*) FROM INFOWARE_BGS_DIST_12_161")
