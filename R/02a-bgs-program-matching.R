@@ -1,8 +1,5 @@
 # ---- Required Tables (Access) ----
-# infoware_bgs_dist_15_19
-# infoware_bgs_dist_13_17
-# infoware_bgs_dist_20_22 (or one with later years)
-# infoware_bgs_cohort_info
+# See student outcomes raw data documentation
 # Credential_non_Dup 
 
 # DACSO_STP_ProgramsCIP4_XWALK_ALL_2018

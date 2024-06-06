@@ -1,9 +1,5 @@
 # ---- Required Tables (Access) ----
-# INFOWARE_PROGRAMS_HIST_PRGMID_XREF
-# INFOWARE_L_CIP_2DIGITS_CIP2016
-# INFOWARE_L_CIP_4DIGITS_CIP2016
-# INFOWARE_L_CIP_6DIGITS_CIP2016
-# INFOWARE_PROGRAMS
+# See student outcomes raw data documentation
 # DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
 
 library(tidyverse)
