@@ -5,7 +5,8 @@ library(DBI)
 library(safepaths)
 
 # ---- Configure LAN Paths and DB Connection -----
-lan <- get_network_path()
+lan < - safepaths::get_network_path()
+source(glue("{lan}/development/sql/git-to-source/credential-preprocessing.R"))
 
 # set connection string to decimal
 db_config <- config::get("decimal")
