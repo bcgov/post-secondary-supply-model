@@ -1,11 +1,7 @@
 # ---- Required Tables ----
-# INFOWARE_BGS_COHORT_INFO
-# INFOWARE_BGS_DIST_xx_yy
+# See outcomes surveys raw data documentation
 # T_BGS_Data_Final (from last runs PSSM)
-# several other smaller tables which appear to be derived in earlier steps
 
-# INFOWARE_BGS_PROGRAMS
-#
 library(tidyverse)
 library(RODBC)
 library(config)
