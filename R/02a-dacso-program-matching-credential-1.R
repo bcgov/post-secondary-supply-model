@@ -7,7 +7,8 @@ library(DBI)
 library(config)
 library(RODBC)
 
-source("./sql/02a-dacso-program-matching.R")
+lan < - safepaths::get_network_path()
+source(glue("{lan}/development/sql/git-to-source/02a-dacso-program-matching.R"))
 
 #---- Connect to Decimal ----
 db_config <- config::get("decimal")

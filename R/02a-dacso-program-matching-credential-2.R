@@ -7,7 +7,8 @@ library(tidyverse)
 library(RODBC)
 library(config)
 
-source("./sql/02a-dacso-program-matching.R")
+lan < - safepaths::get_network_path()
+source(glue("{lan}/development/sql/git-to-source/02a-dacso-program-matching.R"))
 
 #---- Connect to Outcomes Database ----
 connection <- config::get("connection")$outcomes_dacso

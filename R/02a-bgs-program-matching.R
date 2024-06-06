@@ -14,7 +14,8 @@ library(config)
 library(odbc)
 library(DBI)
 
-source("./sql/02a-bgs-program-matching.R")
+lan < - safepaths::get_network_path()
+source(glue("{lan}/development/sql/git-to-source/02a-bgs-program-matching.R"))
 
 #---- Connect to Outcomes Database ----
 connection <- config::get("connection")$outcomes_bgs
