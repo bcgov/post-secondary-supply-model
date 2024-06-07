@@ -1,5 +1,9 @@
 # ---- Required Tables ----
-# See outcomes surveys raw data documentation
+# Primary Outcomes tables: See raw data documentation
+# tbl_age
+# tbl_age_groups
+
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -13,5 +17,10 @@ source(glue("{lan}/development/sql/gh-source/02b-pssm-cohorts-appso.R"))
 connection <- config::get("connection")$outcomes_cohorts
 con <- odbcDriverConnect(connection)
 
-                
+# appso data from primary db
+sqlQuery(con, APPSO_DATA_01_Final)  
+
+# aggregated counts from primary db
+sqlQuery(con, APPSO_Graduates)
+
 close(con)

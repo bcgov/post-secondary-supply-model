@@ -1,6 +1,9 @@
 # ---- Required Tables ----
-# See outcomes surveys raw data documentation
+# Primary Outcomes tables: See raw data documentation
+# T_BGS_INST_Recode
 # T_BGS_Data_Final (from last runs PSSM)
+# dbo_T_BGS_DATA_Final_for_OutcomesMatching2020
+# BGS_Current_Region_Data
 
 library(tidyverse)
 library(RODBC)

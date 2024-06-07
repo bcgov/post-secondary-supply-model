@@ -1,5 +1,9 @@
 # ---- Required Tables ----
-# See outcomes surveys raw data documentation
+# Primary Outcomes tables: See raw data documentation
+# tbl_Age 
+# tbl_Age_Groups
+
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -13,5 +17,10 @@ source(glue("{lan}/development/sql/gh-source/02b-pssm-cohorts-trd.R"))
 connection <- config::get("connection")$outcomes_cohorts
 con <- odbcDriverConnect(connection)
 
+# trd data from primary db
+sqlQuery(con, `000_TRD_DATA_01`)  
+
+# aggregated counts from primary db
+sqlQuery(con, `000_TRD_Graduates`)
                 
 close(con)

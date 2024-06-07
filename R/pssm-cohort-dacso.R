@@ -1,5 +1,10 @@
 # ---- Required Tables ----
-# See outcomes surveys raw data documentation
+# Primary Outcomes tables: See raw data documentation
+# t_dacso_data_part_1_stepa
+# t_pssm_credential_grouping
+# tbl_age
+# tbl_age_groups 
+
 library(tidyverse)
 library(RODBC)
 library(config)
