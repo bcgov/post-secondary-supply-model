@@ -15,13 +15,13 @@ library(janitor)
 lan <- get_network_path()
 ptib <- glue::glue("{lan}/data/ptib/")
 
-## ----- Raw data file  ----
+# ---- Raw data file  ----
 raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
 
-## ----- Read raw data  ----
+# ---- Read raw data  ----
 raw_data <- read_xlsx(raw_data_file, sheet = 1, skip = 2)
 
-## ----- Clean data ----
+# ---- Clean data ----
 cleaned_data <- raw_data %>% 
   clean_names() %>% 
   rename(year = calendar_year,
@@ -60,7 +60,7 @@ cleaned_data <- raw_data %>%
 chk_cips <- cleaned_data %>% filter(cip != cip3) %>% distinct(cip, cip3, program) %>% arrange(cip3)
 cleaned_data %>% filter(nchar(cip3) != 7 | is.na(cip3)) ## double check for number of characters and nas
 
-## ----- Aggregate data ----
+# ---- Aggregate data ----
 data <- cleaned_data %>%
   group_by(year, credential, cip3, age_group, immigration_status) %>%
   summarize(sum_of_graduates = sum(graduates, na.rm = TRUE),
@@ -69,7 +69,7 @@ data <- cleaned_data %>%
             .groups = "drop") %>%
   rename(cip = cip3)
 
-## ----- Connection to decimal ----
+# ---- Connection to decimal ----
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
@@ -77,7 +77,7 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---- Define Schema ----
+# ---- Define schema ----
 schema <-
   schema(year = float(),
          credential = string(),
@@ -93,5 +93,6 @@ dbWriteTableArrow(con,
                   name = "PTIB_Credentials",
                   nanoarrow::as_nanoarrow_array_stream(data))
 
-
-## dbRemoveTable(con, "PTIB_Credentials") ## remove table for testing
+# ---- Testing ----
+## dbReadTable(con, "PTIB_Credentials")
+## dbRemoveTable(con, "PTIB_Credentials") 
