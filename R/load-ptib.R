@@ -8,7 +8,7 @@ library(odbc)
 library(DBI)
 library(safepaths)
 library(config)
-library(xlsx)
+library(readxl)
 
 # ---- Configure LAN Paths and DB Connection ----
 lan <- get_network_path()
@@ -18,7 +18,7 @@ ptib <- glue::glue("{lan}/data/ptib/")
 raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
 
 ## ----- Read raw data  ----
-raw_data <- read.xlsx(raw_data_file, sheetIndex = 1, startRow = 3) %>% 
+raw_data <- read_xlsx(raw_data_file, sheet = 1, skip = 2) %>% 
   janitor::clean_names() %>% 
   rename(year = calendar_year,
          graduates = credential_1) ## fairly sure this is the case since this 
