@@ -17,10 +17,10 @@ source(glue("{lan}/development/sql/gh-source/02b-pssm-cohorts-appso.R"))
 connection <- config::get("connection")$outcomes_cohorts
 con <- odbcDriverConnect(connection)
 
-# appso data from primary db
+# appso data from primary tables
 sqlQuery(con, APPSO_DATA_01_Final)  
 
-# aggregated counts from primary db
+# aggregated counts from primary tables
 sqlQuery(con, APPSO_Graduates)
 
 close(con)

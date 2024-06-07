@@ -18,5 +18,9 @@ source(glue("{lan}/development/sql/gh-source/02b-pssm-cohorts-dacso.R"))
 connection <- config::get("connection")$outcomes_cohorts
 con <- odbcDriverConnect(connection)
 
+# dacso data from primary tables
+sqlQuery(con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
+sqlQuery(con, DACSO_Q003_DACSO_DATA_Part_1_stepB)
+sqlQuery(con, DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed)
                 
 close(con)

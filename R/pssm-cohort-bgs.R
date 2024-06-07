@@ -18,7 +18,10 @@ source(glue("{lan}/development/sql/gh-source/02b-pssm-cohort-bgs.R"))
 connection <- config::get("connection")$outcomes_cohorts
 con <- odbcDriverConnect(connection)
 
+# appso data from primary tables
 sqlQuery(con, BGS_Q001_BGS_Data_2018_2019)
+
+# ...
 sqlQuery(con, BGS_Q001b_INST_Recode)
 sqlQuery(con, BGS_Q001c_Update_CIPs_After_Program_Matching)
 sqlQuery(con, BGS_Q002_LCP4_CRED)
