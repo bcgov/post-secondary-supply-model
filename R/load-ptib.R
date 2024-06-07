@@ -9,6 +9,7 @@ library(DBI)
 library(safepaths)
 library(config)
 library(readxl)
+library(janitor)
 
 # ---- Configure LAN Paths and DB Connection ----
 lan <- get_network_path()
@@ -18,19 +19,55 @@ ptib <- glue::glue("{lan}/data/ptib/")
 raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
 
 ## ----- Read raw data  ----
-raw_data <- read_xlsx(raw_data_file, sheet = 1, skip = 2) %>% 
-  janitor::clean_names() %>% 
+raw_data <- read_xlsx(raw_data_file, sheet = 1, skip = 2)
+
+## ----- Clean data ----
+cleaned_data <- raw_data %>% 
+  clean_names() %>% 
   rename(year = calendar_year,
-         graduates = credential_1) ## fairly sure this is the case since this 
-                                   ## column is equal to total_enrolments - enrolments_not_graduated
+         credential = credential_6,
+         age_group = age_range,
+         graduates = credential_8) %>% ## column is equal to total_enrolments - enrolments_not_graduated
+  ## The cip column reads in wonky from excel and needs to be cleaned.
+  ## Start by extracting the 2 digits left of the decimal.
+  ## In cases where there is only 1 digit, remove the decimal from the extracted string,
+  ## then pad with zeros to the left to make it 2 characters.
+  mutate(cip1 = str_sub(cip, end = 2) %>%
+           str_remove_all("\\.") %>% 
+           str_pad(width = "2", side = "left", pad = "0"),
+  ## For digits to the right of the decimal,
+  ## extract strings in the format of a decimal followed by numbers, with an optional second decimal.
+  ## If there are no decimals in the cip code, set to 0 (as this returns NA).
+  ## Remove any second decimals.
+  ## Convert the string to numeric and round to fix floating point values,
+  ## then change back to character and remove the "0." that was added by converting to numeric.
+  ## Finally pad with zeros to the right to make it 4 characters long.
+         cip2 = ifelse(!is.na(str_extract(cip, "(\\.[:digit:]*)+")),
+                       str_extract(cip, "(\\.[:digit:]*)+"),
+                       0) %>%
+           str_replace_all("(\\.[:digit:]*)\\.", "\\1") %>%
+           as.numeric() %>%
+           round_half_up(digits = 4) %>%
+           as.character() %>%
+           str_remove_all("^0\\.") %>%
+           str_pad(width = 4, side = "right", pad = "0"),
+  ## Combine left and right cleaned values.
+         cip3 = paste(cip1, cip2, sep = "."))
+
+## Compare adjusted cip codes with the statistics canada definitions here:
+## https://www.statcan.gc.ca/en/subjects/standard/cip/2016/index
+## A csv version is saved as cip-cpe-2016-structure-eng.csv in the data/PTIB folder.
+chk_cips <- cleaned_data %>% filter(cip != cip3) %>% distinct(cip, cip3, program) %>% arrange(cip3)
+cleaned_data %>% filter(nchar(cip3) != 7 | is.na(cip3)) ## double check for number of characters and nas
 
 ## ----- Aggregate data ----
-data <- raw_data %>%
-  group_by(year, credential, cip, age_group, immigration_status) %>%
+data <- cleaned_data %>%
+  group_by(year, credential, cip3, age_group, immigration_status) %>%
   summarize(sum_of_graduates = sum(graduates, na.rm = TRUE),
             sum_of_enrolments = sum(enrolments_not_graduated, na.rm = TRUE),
             sum_of_total_enrolments = sum(total_enrolments, na.rm = TRUE),
-            .groups = "drop")
+            .groups = "drop") %>%
+  rename(cip = cip3)
 
 ## ----- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -57,4 +94,4 @@ dbWriteTableArrow(con,
                   nanoarrow::as_nanoarrow_array_stream(data))
 
 
-## dbRemoveTable(con, "PTIB_Enrolment") ## remove table for testing
+## dbRemoveTable(con, "PTIB_Credentials") ## remove table for testing
