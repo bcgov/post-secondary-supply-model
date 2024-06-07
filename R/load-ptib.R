@@ -15,7 +15,7 @@ lan <- get_network_path()
 ptib <- glue::glue("{lan}/data/ptib/")
 
 ## ----- Raw data file  ----
-raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats 2024.05.31.xlsx")
+raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
 
 ## ----- Read raw data  ----
 raw_data <- read.xlsx(raw_data_file, sheetIndex = 1, startRow = 3) %>% 
