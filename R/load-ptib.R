@@ -77,21 +77,13 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---- Define schema ----
-schema <-
-  schema(year = float(),
-         credential = string(),
-         cip = string(),
-         age_group = string(),
-         immigration_status = string(),
-         sum_of_graduates = float(),
-         sum_of_enrolments = float(),
-         sum_of_total_enrolments = float())
-
 # ---- Write to decimal ----
 dbWriteTableArrow(con,
                   name = "PTIB_Credentials",
                   nanoarrow::as_nanoarrow_array_stream(data))
+
+# ---- Disconnect ----
+dbDisconnect(con)
 
 # ---- Testing ----
 ## dbReadTable(con, "PTIB_Credentials")
