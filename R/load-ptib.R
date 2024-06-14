@@ -31,7 +31,7 @@ cleaned_data <- raw_data %>%
   rename(year = calendar_year,
          credential = credential_6,
          age_group = age_range,
-         graduates = credential_8) %>% ## column is equal to total_enrolments - enrolments_not_graduated
+         graduates = credential_8) %>% ## column is total_enrolments - enrolments_not_graduated
   ## The cip column reads in wonky from excel and needs to be cleaned.
   ## Start by extracting the 2 digits left of the decimal.
   ## In cases where there is only 1 digit, remove the decimal from the extracted string,
@@ -57,12 +57,6 @@ cleaned_data <- raw_data %>%
            str_pad(width = 4, side = "right", pad = "0"),
   ## Combine left and right cleaned values.
          cip3 = paste(cip1, cip2, sep = "."))
-
-## Compare adjusted cip codes with the statistics canada definitions here:
-## https://www.statcan.gc.ca/en/subjects/standard/cip/2016/index
-## A csv version is saved as cip-cpe-2016-structure-eng.csv in the data/PTIB folder.
-chk_cips <- cleaned_data %>% filter(cip != cip3) %>% distinct(cip, cip3, program) %>% arrange(cip3)
-cleaned_data %>% filter(nchar(cip3) != 7 | is.na(cip3)) ## double check for number of characters and nas
 
 # ---- Aggregate data ----
 data <- cleaned_data %>%
