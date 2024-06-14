@@ -7,19 +7,15 @@ library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
-library(safepaths)
 library(config)
 
-# ---- Configure LAN Paths and DB Connection ----
-lan <- get_network_path()
-stp_2023 <- glue::glue("{lan}/data/stp/")
+# ---- Configure LAN and file paths ----
+lan <- config::get("lan")
 
-## ----- Raw data file (remove if not needed) ----
-i <- grepl("2019-2020", list.files(dirname(lan)))
-stp_2019 <- glue::glue("{list.files(dirname(lan), full.names = TRUE)[i]}/Data/STP")
-raw_data <- glue::glue("{stp_2019}/STP_EXTRACT_20201803_5.txt")
+fls <- list.files(glue::glue("{lan}/data/stp/STP_ISA_PSSM"), full.names = TRUE, recursive = FALSE)
+fls <- fls[grepl("STP_ENROLMENT", fls)]
 
-## ----- Connection to decimal ----
+# ---- Connection to decimal ----
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
@@ -33,33 +29,33 @@ schema <-
        PSI_BIRTHDATE = string(),
        PSI_GENDER = string(),
        PSI_STUDENT_NUMBER = string(),
-       PSI_STUD_POSTAL_CD_FRST_CNTACT = string(),
+       PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT = string(),
        TRUE_PEN = string(),
        ENCRYPTED_TRUE_PEN = string(),
-       PTY_ID = string(),
        STP_ALT_ID = string(),
        LAST_SEEN_BIRTHDATE = string(),
        LAST_SEEN_GENDER = string(),
        BC_K_12_STUDENT_EVER = string(),
-       LAST_SEEN_ABOR_EVER_FLAG = string(),
+       LAST_SEEN_INDIGENOUS_EVER_BACKDATED = string(), # data codes also different
        LAST_SEEN_SCHOOL_YEAR = string(),
        LAST_SEEN_DISTRICT_NUMBER = string(),
-       LAST_SEEN_DISTRICT_LONG_NAME = string(),
+       LAST_SEEN_DISTRICT_NAME = string(),
        LAST_SEEN_STUDENT_GRADE = string(),
-       LAST_SEEN_SP_NEED_CODE = string(),
+       LAST_SEEN_SPECIAL_NEED_CODE = string(),
        GRAD_YEAR_MONTH = string(),
-       GRAD_DISTRICT_NUMBER = string(),
-       GRAD_DISTRICT_LONG_NAME = string(),
-       GRAD_COLLEGE_REGION = string(),
-       GRADUATION_CREDENTIAL_NAME = string(),
-       AGPA_PCT = string(),
+       AT_GRAD_DISTRICT_NUMBER = string(),
+       AT_GRAD_DISTRICT_NAME = string(),
+       AT_GRAD_CURRENT_COLLEGE_REGION_NAME = string(),
+       AT_GRAD_CURRENT_COLLEGE_REGION_NUMBER = string(),
+       CREDENTIAL_NAME = string(),
+       AGPA_PERCENT = string(),
        ATTENDING_PSI_OUTSIDE_BC = string(),
-       LAST_SEEN_HOME_LANG = string(),
-       LAST_SEEN_NON_RES_FLAG = string(),
+       LAST_SEEN_HOME_LANGUAGE = string(),
+       LAST_SEEN_RESIDENCY = string(),
        PSI_SCHOOL_YEAR = string(),
-       PSI_REG_TERM = string(),
-       PSI_STUD_POSTAL_CD_CURR = string(),
-       PSI_ABORIGINAL_STATUS = string(),
+       PSI_REGISTRATION_TERM = string(),
+       PSI_STUDENT_POSTAL_CODE_CURRENT = string(),
+       PSI_INDIGENOUS_STATUS = string(),
        PSI_NEW_STUDENT_FLAG = string(),
        PSI_ENROLMENT_SEQUENCE = string(),
        PSI_CODE = string(),
@@ -67,50 +63,46 @@ schema <-
        PSI_FULL_NAME = string(),
        PSI_BASIS_OF_ADMISSION = string(),
        PSI_MIN_START_DATE = string(),
-       PSI_CREDENTIAL_PROGRAM_DESC = string(),
+       PSI_CREDENTIAL_PROGRAM_DESCRIPTION = string(),
        PSI_PROGRAM_CODE = string(),
        PSI_PROGRAM_EFFECTIVE_DATE = string(),
        PSI_CIP_CODE = string(),
-       EFFECTIVE_DATE = string(),
        PSI_FACULTY = string(),
-       PSI_CE_CRS_ONLY = string(),
+       PSI_CONTINUING_EDUCATION_COURSE_ONLY = string(),
        PSI_CREDENTIAL_CATEGORY = string(),
        PSI_VISA_STATUS = string(),
        PSI_STUDY_LEVEL = string(),
        PSI_ENTRY_STATUS = string(),
-       OVERALL_ABORIGINAL_STATUS = string())
+       OVERALL_INDIGENOUS_STATUS = string()
+      )
 
 # ---- Write to decimal ----
-fls <- list.files(stp_2023, full.names = TRUE, recursive = TRUE)
-
-# first file creates a table in SSMS
-write_to_decimal(fls[1], con, schema = schema)
-
-# append the remainder to table in SSMS
-invisible(lapply(fls[2:length(fls)], 
+invisible(lapply(fls[1], 
                  write_to_decimal, 
                  con = con,  
                  schema = schema, 
                  append = TRUE))
 
-
 # ---- Functions ----
 write_to_decimal <- function(flnm, con, schema, append = FALSE, format = "tsv"){
   
-  tblnm <- glue::glue("{basename(dirname(flnm))}")
-  print(glue::glue("Processing {tblnm}..."))
+  tblnm <- tools::file_path_sans_ext(basename(flnm))
+  cat(glue::glue("Processing {tblnm}: {Sys.time()} ..."))
+  cat()
   
-  # read tab-delimited raw-data file
-  data <- open_dataset(sources = raw_data,
+  data <- open_dataset(sources = flnm,
                      format = format, 
-                     schema = schema)
+                     schema = schema, 
+                     skip = 1)
   
-  dbWriteTableArrow(con, 
-                    name = tblnm, 
-                    nanoarrow::as_nanoarrow_array_stream(data)) # dbWriteTableArrow takes optional schema()
+  DBI::dbWriteTableArrow(con, 
+                    name = "STP_Enrolment", 
+                    nanoarrow::as_nanoarrow_array_stream(data), 
+                    append = append)
+  
+  cat(glue::glue("...completed {Sys.time()}"))
+  cat("\n")
   
 }
-
-
 
 
