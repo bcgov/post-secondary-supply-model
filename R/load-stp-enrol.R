@@ -15,8 +15,6 @@ lan <- config::get("lan")
 fls <- list.files(glue::glue("{lan}/data/stp/STP_ISA_PSSM"), full.names = TRUE, recursive = FALSE)
 fls <- fls[grepl("STP_ENROLMENT", fls)]
 
-sample <- glue::glue("{lan}/data/stp/STP_ISA_PSSM/sample/STP_ENROLMENT_2023_SAMPLE.dsv")
-
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 con <- dbConnect(odbc(),
@@ -79,37 +77,32 @@ schema <-
       )
 
 # ---- Write to decimal ----
-# first file creates a table in SSMS
-write_to_decimal(flnm = fls[1], con, schema = schema)
-
-# append the remainder to table in SSMS
-invisible(lapply(fls, 
+invisible(lapply(fls[1], 
                  write_to_decimal, 
                  con = con,  
                  schema = schema, 
                  append = TRUE))
 
-
 # ---- Functions ----
 write_to_decimal <- function(flnm, con, schema, append = FALSE, format = "tsv"){
   
   tblnm <- tools::file_path_sans_ext(basename(flnm))
-  cat(glue::glue("Processing {tblnm}..."))
+  cat(glue::glue("Processing {tblnm}: {Sys.time()} ..."))
+  cat()
   
-  # read tab-delimited raw-data file
   data <- open_dataset(sources = flnm,
                      format = format, 
                      schema = schema, 
                      skip = 1)
   
   DBI::dbWriteTableArrow(con, 
-                    name = tblnm, 
+                    name = "STP_Enrolment", 
                     nanoarrow::as_nanoarrow_array_stream(data), 
                     append = append)
-  cat("...done\n")
+  
+  cat(glue::glue("...completed {Sys.time()}"))
+  cat("\n")
   
 }
-
-
 
 
