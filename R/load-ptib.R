@@ -75,7 +75,3 @@ dbWriteTableArrow(con,
 
 # ---- Disconnect ----
 dbDisconnect(con)
-
-# ---- Testing ----
-## dbReadTable(con, "PTIB_Credentials")
-## dbRemoveTable(con, "PTIB_Credentials") 
