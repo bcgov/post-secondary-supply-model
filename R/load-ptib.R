@@ -12,7 +12,7 @@ library(readxl)
 library(janitor)
 
 # ---- Configure LAN Paths and DB Connection ----
-lan <- get_network_path()
+lan <- config::get("lan")
 ptib <- glue::glue("{lan}/data/ptib/")
 
 # ---- Raw data file  ----
