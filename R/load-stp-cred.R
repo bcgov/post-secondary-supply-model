@@ -60,6 +60,8 @@ cat(glue::glue("...completed {Sys.time()}"))
 cat("\n")
 
 
+# ---- Disconnect ----
+dbDisconnect(con)
 
 
 

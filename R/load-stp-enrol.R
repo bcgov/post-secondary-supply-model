@@ -105,4 +105,6 @@ write_to_decimal <- function(flnm, con, schema, append = FALSE, format = "tsv"){
   
 }
 
+# ---- Disconnect ----
+dbDisconnect(con)
 
