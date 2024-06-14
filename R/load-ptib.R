@@ -12,7 +12,7 @@ library(janitor)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-raw_data_file <- glue::glue("{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
+raw_data_file <- glue::glue("{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats 2024.05.31.xlsx")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -30,7 +30,6 @@ cleaned_data <- raw_data %>%
   clean_names() %>% 
   rename(year = calendar_year,
          credential = credential_6,
-         age_group = age_range,
          graduates = credential_8) %>% ## column is total_enrolments - enrolments_not_graduated
   ## The cip column reads in wonky from excel and needs to be cleaned.
   ## Start by extracting the 2 digits left of the decimal.
