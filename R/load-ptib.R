@@ -1,7 +1,6 @@
 # ******************************************************************************
 # Load PTIB enrolment data from staging area in LAN project folder, to decimal.  
-# Raw data is in excel.
-# Some cleaning done to handle cip codes read in as strings
+# Raw data is in excel so some cleaning req'd to handle cip code conversion issues
 # ******************************************************************************
 library(arrow)
 library(tidyverse)
