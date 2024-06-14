@@ -6,17 +6,21 @@ library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
-library(safepaths)
 library(config)
 library(readxl)
 library(janitor)
 
-# ---- Configure LAN Paths and DB Connection ----
+# ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-ptib <- glue::glue("{lan}/data/ptib/")
+raw_data_file <- glue::glue("{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
 
-# ---- Raw data file  ----
-raw_data_file <- glue::glue("{ptib}/PTIB 2021 and 2022 Enrolment Data for BC Stats.xlsx")
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
 
 # ---- Read raw data  ----
 raw_data <- read_xlsx(raw_data_file, sheet = 1, skip = 2)
@@ -69,13 +73,6 @@ data <- cleaned_data %>%
             .groups = "drop") %>%
   rename(cip = cip3)
 
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
 
 # ---- Write to decimal ----
 dbWriteTableArrow(con,
