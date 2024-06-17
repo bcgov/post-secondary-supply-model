@@ -13,6 +13,8 @@ library(safepaths)
 library(config)
 
 # ---- Configure LAN Paths and DB Connection ----
+lan <- config::get("lan")
+raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 
 # ----- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -21,6 +23,10 @@ con <- dbConnect(odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
+
+# ---- Read raw data  ----
+#raw_data <- read_csv(raw_data_file) # won't run due to funky apostrophe in header
+raw_data <- read_csv(raw_data_file,locale=locale(encoding="latin1"))
 
 # ---- Define Schema ----
 
