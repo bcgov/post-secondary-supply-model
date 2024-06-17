@@ -9,8 +9,7 @@ library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
-library(safepaths)
-library(config)
+library(janitor)
 
 # ---- Configure LAN Paths and DB Connection ----
 lan <- config::get("lan")
