@@ -46,9 +46,7 @@ dbWriteTableArrow(con,
 dbReadTable(con, "STAT_CAN")
 
 # ---- Testing ----
-dbRemoveTable(con, "STAT_CAN") 
-
-# ---- Light QA ----
+#dbRemoveTable(con, "STAT_CAN") 
 
 # ---- Disconnect ----
 dbDisconnect(con)
