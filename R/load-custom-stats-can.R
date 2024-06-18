@@ -11,7 +11,7 @@ library(odbc)
 library(DBI)
 library(janitor)
 
-# ---- Configure LAN Paths and DB Connection ----
+# ---- Configure LAN Paths ----
 lan <- config::get("lan")
 raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 
@@ -30,7 +30,17 @@ raw_data <- read_csv(raw_data_file,locale=locale(encoding="latin1"))
 # ---- Define Schema ----
 
 # ---- Write to decimal ----
+dbWriteTableArrow(con,
+                  name = "STAT_CAN",
+                  nanoarrow::as_nanoarrow_array_stream(data))
 
 # ---- Read from decimal ----
+dbReadTable(con, "STAT_CAN")
+
+# ---- Testing ----
+dbRemoveTable(con, "STAT_CAN") 
 
 # ---- Light QA ----
+
+# ---- Disconnect ----
+dbDisconnect(con)
