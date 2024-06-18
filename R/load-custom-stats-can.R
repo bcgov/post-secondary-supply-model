@@ -27,7 +27,15 @@ con <- dbConnect(odbc(),
 #raw_data <- read_csv(raw_data_file) # won't run due to funky apostrophe in header
 raw_data <- read_csv(raw_data_file,locale=locale(encoding="latin1"))
 
-# ---- Define Schema ----
+# ---- Clean data ----
+data <- raw_data %>% 
+  clean_names() %>% 
+  rename(age_group = age,
+         occupation_NOC = occupation,
+         masters_degree_and_earned_doctorate = master_s_degree_and_earned_doctorate # funky apostrophe header name
+  ) %>% 
+  # fix the geography column en-dashes
+  mutate(geography = str_replace(geography,"\u0096","-"))
 
 # ---- Write to decimal ----
 dbWriteTableArrow(con,
