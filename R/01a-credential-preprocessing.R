@@ -2,11 +2,10 @@ library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
-library(safepaths)
 
 # ---- Configure LAN Paths and DB Connection -----
-lan <- safepaths::get_network_path()
-source(glue::glue("{lan}/development/sql/git-to-source/01a-credential-preprocessing.R"))
+lan <- config::get("lan")
+source(glue::glue("{lan}/development/sql/gh-source/01a-credential-preprocessing/01a-credential-preprocessing.R"))
 
 # set connection string to decimal
 db_config <- config::get("decimal")
@@ -15,8 +14,6 @@ con <- dbConnect(odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
-
-source("./sql/credential-preprocessing.R")
 
 # ---- Run Queries -----
 dbGetQuery(con, qry00a_check_null_epens)
