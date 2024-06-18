@@ -1,8 +1,8 @@
 # ******************************************************************************
 # Aligns CIP codes between DAC survey and STP data
 # Required Tables
-# See student outcomes raw data documentation
-# DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
+#   See student outcomes raw data documentation
+#   DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
 # ******************************************************************************
 library(tidyverse)
 library(RODBC)
