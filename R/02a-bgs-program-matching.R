@@ -1,9 +1,11 @@
-# ---- Required Tables (Access) ----
-# See student outcomes raw data documentation
-# Credential_non_Dup 
-
-# DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
-# INFOWARE_PROGRAMS_HIST_PRGMID_XREF
+# ******************************************************************************
+# Aligns CIP codes between BGS survey and STP data
+# Required Tables (Access)
+#   See student outcomes raw data documentation
+#   Credential_non_Dup 
+#   DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
+#   INFOWARE_PROGRAMS_HIST_PRGMID_XREF
+# ******************************************************************************
 
 library(tidyverse)
 library(RODBC)
@@ -11,7 +13,7 @@ library(config)
 library(odbc)
 library(DBI)
 
-lan < - safepaths::get_network_path()
+lan < - config::get("lan")
 source(glue("{lan}/development/sql/git-to-source/02a-bgs-program-matching.R"))
 
 #---- Connect to Outcomes Database ----
