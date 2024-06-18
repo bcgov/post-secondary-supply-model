@@ -1,5 +1,9 @@
-# ---- Required Tables (SSMS) ----
-# Credential_Non_Dup
+# ******************************************************************************
+# Aligns CIP codes between DAC survey and STP data
+# Required Tables
+#   See student outcomes raw data documentation
+#   Credential_non_Dup 
+# ******************************************************************************
 
 library(odbc)
 library(tidyverse)
@@ -7,7 +11,7 @@ library(DBI)
 library(config)
 library(RODBC)
 
-lan < - safepaths::get_network_path()
+lan < - config::get("lan")
 source(glue("{lan}/development/sql/git-to-source/02a-dacso-program-matching.R"))
 
 #---- Connect to Decimal ----

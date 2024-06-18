@@ -1,13 +1,15 @@
-# ---- Required Tables (Access) ----
+# ******************************************************************************
+# Aligns CIP codes between DAC survey and STP data
+# Required Tables
 # See student outcomes raw data documentation
 # DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
-
+# ******************************************************************************
 library(tidyverse)
 library(RODBC)
 library(config)
 library(glue)
 
-lan < - safepaths::get_network_path()
+lan < - config::get("lan")
 source(glue("{lan}/development/sql/git-to-source/02a-dacso-program-matching.R"))
 
 #---- Connect to Outcomes Database ----

@@ -1,13 +1,15 @@
-# ---- Required Tables (Access) ---- 
-# dbo_STP_Credential_Non_Dup_Programs_DACSO
-# tbl_STP_PSI_CODE_INST_CD_Lookup 
-# DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
-
+# ******************************************************************************
+# Aligns CIP codes between DAC survey and STP data
+# Required Tables
+#   dbo_STP_Credential_Non_Dup_Programs_DACSO
+#   tbl_STP_PSI_CODE_INST_CD_Lookup 
+#   DACSO_STP_ProgramsCIP4_XWALK_ALL_2018
+# ******************************************************************************
 library(tidyverse)
 library(RODBC)
 library(config)
 
-lan < - safepaths::get_network_path()
+lan < - config::get("lan")
 source(glue("{lan}/development/sql/git-to-source/02a-dacso-program-matching.R"))
 
 #---- Connect to Outcomes Database ----
