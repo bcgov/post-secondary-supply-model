@@ -99,5 +99,3 @@ dbExecute(con, qry03j_Update_RecommendationForCert)
 
 dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
 
-
-
