@@ -22,7 +22,7 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 # ---- Read raw data  ----
-raw_data <- read_csv(raw_data_file,locale=locale(encoding="latin1"))
+raw_data <- read_csv(raw_data_file, locale = locale(encoding = "latin1"))
 
 # ---- Clean data ----
 data <- raw_data %>% 
