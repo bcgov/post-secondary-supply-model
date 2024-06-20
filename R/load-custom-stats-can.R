@@ -1,7 +1,5 @@
 # ******************************************************************************
 # Load custom Statistics Canada data from staging area in LAN project folder, to decimal.  
-# note: the following data type conversion problems have been seen
-#   - dates are uploaded format YY-MM-DD instead of YYYY-MM-DD
 # ******************************************************************************
 
 # ---- libraries and global variables
