@@ -39,6 +39,7 @@ dbExecute(con, qry00d_SetPKeyinSTPEnrolment)
 # ---- Reformat yy-mm-dd to yyyy-mm-dd
 # Create temporary table
 dbExecute(con, qrydates_create_tmp_table)
+dbExecute(con, qrydates_add_cols)
 
 # Add first two digits to dates in the convert variables
 dbExecute(con, qrydates_convert1)
@@ -47,11 +48,18 @@ dbExecute(con, qrydates_convert3)
 dbExecute(con, qrydates_convert4)
 dbExecute(con, qrydates_convert5)
 dbExecute(con, qrydates_convert6)
+dbExecute(con, qrydates_convert7)
+dbExecute(con, qrydates_convert8)
+dbExecute(con, qrydates_convert9)
+dbExecute(con, qrydates_convert10)
+dbExecute(con, qrydates_convert11)
+dbExecute(con, qrydates_convert12)
 
-dbExecute(con, qrydates_update_stp_credential1)
-dbExecute(con, qrydates_update_stp_credential2)
-dbExecute(con, "DROP TABLE tmp_ConvertDateFormatCredential")
-
+dbExecute(con, qrydates_update1)
+dbExecute(con, qrydates_update2)
+dbExecute(con, qrydates_update3)
+dbExecute(con, qrydates_update4)
+dbExecute(con, "DROP TABLE tmp_ConvertDateFormat")
 
 # ---- Process by Record Type ----
 # Record Status codes:
@@ -66,3 +74,11 @@ dbExecute(con, "DROP TABLE tmp_ConvertDateFormatCredential")
 # 8 = Recommendation for Certification 
 
 # Create lookup table for ID/Record Status and populate with ID column and EPEN 
+dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
+
+# Find records with Record_Status = 0 and update look up table
+dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
+
+# Find records with Record_Status = 1 and update look up table
+dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
+dbExecute(con, qry02c_Update_Drop_No_PEN_or_No_STUID)
