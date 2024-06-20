@@ -22,7 +22,6 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 # ---- Read raw data  ----
-#raw_data <- read_csv(raw_data_file) # won't run due to funky apostrophe in header
 raw_data <- read_csv(raw_data_file,locale=locale(encoding="latin1"))
 
 # ---- Clean data ----
@@ -42,9 +41,6 @@ dbWriteTableArrow(con,
 
 # ---- Read from decimal ----
 dbReadTable(con, "STAT_CAN")
-
-# ---- Testing ----
-#dbRemoveTable(con, "STAT_CAN") 
 
 # ---- Disconnect ----
 dbDisconnect(con)
