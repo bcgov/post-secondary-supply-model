@@ -17,3 +17,13 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
+# ---- Required Tables ----
+# Stat Can data: See raw data documentation
+# STAT_CAN
+dbExistsTable(con, "STAT_CAN")
+
+# ---- Read from decimal ----
+stat_can_data_raw <- dbReadTable(con, "STAT_CAN")
+
+# ---- Disconnect ----
+dbDisconnect(con)
