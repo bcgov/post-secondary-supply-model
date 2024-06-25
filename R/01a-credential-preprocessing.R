@@ -19,7 +19,7 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---- A few checks ----
+# ---- Check Required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_CREDENTIAL"')))
 dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_Enrolment"')))
