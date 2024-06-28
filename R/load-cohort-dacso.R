@@ -29,7 +29,7 @@ T_PSSM_Credential_Grouping <- readr::read_csv(glue::glue("{lan}/data/student-out
   janitor::clean_names(case = "all_caps")
 
 # dacso data from primary tables
-t_dacso_data_part_1_stepa <- dbGetQuery(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
+t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
 infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean_short_resp")
 infoware_c_outc_clean2 <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean2")
 
@@ -40,8 +40,13 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
+
+dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
 dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean2", value = infoware_c_outc_clean2)
-dbWriteTable(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
+dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
+dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
+dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
 
 dbDisconnect(decimal_con)
 
