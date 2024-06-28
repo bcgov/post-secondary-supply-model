@@ -20,6 +20,8 @@ con <- dbConnect(odbc(),
 
 # ---- Check Required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
+
+# I don't think we need this in this workflow ---V
 #dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 #dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialGrouping"')))
 #dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialRank"')))
@@ -74,34 +76,34 @@ dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
 dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
 dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
 dbExecute(con, qry02c_Update_Drop_No_PEN_Or_No_STUID)
-
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry02a_Record_With_PEN_Or_STUID];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_No_PEN_or_No_STUID];"))   
 
 # ----- Find records with Record_Status = 2 and update look up table -----
 dbExecute(con, qry03a_Drop_Record_Developmental)
 dbExecute(con, qry03b_Update_Drop_Record_Developmental)
-
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental];"))   
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental];"))
 
 # ----- Find records with Record_Status = 6 and update look up table -----
 dbExecute(con, qry03c_Drop_Skills_Based)
 
 ## ---- Manual Work
 # a manual check required of programs that are considered skills based.  Overall this list should make sense.
-# requires a think as to how to include in a pipeline
 res <- dbGetQuery(con, "
                 SELECT PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, 
                        PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
                 FROM  Drop_Skills_Based
                 GROUP BY PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY;")
-
 dbExecute(con, "ALTER TABLE Drop_Skills_Based ADD KEEP nvarchar(2) NULL;")
 dbExecute(con, qry03da_Keep_TeachEd)
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Skills_Based];")) 
+
 dbExecute(con, qry03d_1_Drop_Continuing_Ed)
 dbExecute(con, qry03d_2_Update_Drop_Continuing_Ed)
-dbExecute(con, qry03d_3_Drop_More_Continuing_Ed) # <-- Workflow counts begin to deviate here
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd];"))
+
+dbExecute(con, qry03d_3_Drop_More_Continuing_Ed) 
 dbExecute(con, qry03d_4_Updated_Drop_ContinuingEdMore)
 dbExecute(con, qry03e_Keep_Skills_Based)
 dbExecute(con, "ALTER TABLE Keep_Skills_Based ADD EXCLUDE nvarchar(2) NULL;")
@@ -109,29 +111,31 @@ dbExecute(con, qry03ea_Exclude_Skills_Based_Programs)
 
 ## ---- Manual work ----
 # investigate programs that are considered skills based - requires a think as to how to include in a pipeline
-keep_skills_based <- dbReadTable(con, "Keep_Skills_Based")
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
+# keep_skills_based <- dbReadTable(con, "Keep_Skills_Based")
 # readr::write_csv(glue::glue("{lan}/development/csv/gh-source/01c-keep-skills-based-with-exclusions.csv"))
 keep_skills_based <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/01c-keep-skills-based-with-exclusions.csv"), 
                               col_types = cols(.default = col_character()), 
                               na = c("", "NA", "NULL"))
+
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
 dbWriteTable(con, name = "Keep_Skills_Based", keep_skills_based)
 
-dbExecute(con, qry03f_Update_Keep_Record_Skills_Based)
-dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based)
-dbExecute(con, qry03g_create_table_SkillsBasedCourses)
+dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) # counts differ a bit from documentation (2019)
+dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based)  # counts differ a bit from documentation (2019)
+
+dbExecute(con, qry03g_create_table_SkillsBasedCourses) # counts differ a bit from documentation (2019)
 dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
+
+## ---- Manual work ----
 dbExecute(con, qry03g_b_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
 dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
 dbExecute(con, qry03g_c2_Update_More_Selkirk)
-dbExecute(con, qry03g_d_EnrolCoursesSeen) # It doesn't seem that this table is used for anything.
-dbExecute(con, qry03h_create_table_Suspect_Skills_Based) # <-- returns fewer records than documented (for 2019).  
-dbExecute(con, qry03i_Find_Suspect_Skills_Based) # <-- returns more records than documented (for 2019).  
-dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) # <-- affects 0 rows??  
-dbExecute(con, qry03j_Update_Suspect_Skills_Based) # <-- returns fewer records than documented (for 2019).  
+dbExecute(con, qry03g_d_EnrolCoursesSeen) # The data in this table doesn't appear to be used for anything.
+dbExecute(con, qry03h_create_table_Suspect_Skills_Based) #  counts differ significantly from documentation (2019)
+dbExecute(con, qry03i_Find_Suspect_Skills_Based) # counts differ significantly from documentation (2019)
+dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) # affects 0 rows??  
+dbExecute(con, qry03j_Update_Suspect_Skills_Based) # # counts differ from documentation (2019)
 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Skills_Based];")) 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd];"))  
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd_More];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_MoreSkillsBased_to_Keep];"))  
