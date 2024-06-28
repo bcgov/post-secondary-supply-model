@@ -29,8 +29,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           password = db_config$password)
 
 # ---- Read raw data and disconnect ----
-source(glue("{lan}/data/student-outcomes/sql/Q000_TRD_DATA_01.sql"))
-source(glue("{lan}/data/student-outcomes/sql/Q000_TRD_Graduates.sql"))
+source(glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
 
 Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
 Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
