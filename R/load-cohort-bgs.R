@@ -1,35 +1,72 @@
-# ---- Required Tables ----
-# Primary Outcomes tables: See raw data documentation
-# T_BGS_INST_Recode
-# T_BGS_Data_Final (from last runs PSSM)
-# dbo_T_BGS_DATA_Final_for_OutcomesMatching2020
-# BGS_Current_Region_Data
-
 library(tidyverse)
 library(RODBC)
 library(config)
-library(glue)
 library(DBI)
+library(RJDBC)
 
-#lan <- safepaths::get_network_path()
-source(glue("{lan}/development/sql/gh-source/02b-pssm-cohort-bgs.R"))
+# ---- Configure LAN and file paths ----
+db_config <- config::get("pdbtrn")
+jdbc_driver_config <- config::get("jdbc")
+lan <- config::get("lan")
 
-#---- Connect to Outcomes Database ----
-connection <- config::get("connection")$outcomes_cohorts
-con <- odbcDriverConnect(connection)
+# ---- Connection to outcomes ----
+jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
+                   classPath = jdbc_driver_config$path)
 
-# appso data from primary tables
-sqlQuery(con, BGS_Q001_BGS_Data_2018_2019)
+outcomes_con <- dbConnect(drv = jdbcDriver, 
+                          url = db_config$url,
+                          user = db_config$user,
+                          password = db_config$password)
 
-# ...
-sqlQuery(con, BGS_Q001b_INST_Recode)
-sqlQuery(con, BGS_Q001c_Update_CIPs_After_Program_Matching)
-sqlQuery(con, BGS_Q002_LCP4_CRED)
-sqlQuery(con, BGS_Q003b_Add_CURRENT_REGION_PSSM)
-sqlQuery(con, BGS_Q003b_Add_CURRENT_REGION_PSSM2)
-sqlQuery(con, BGS_Q003c_Derived_And_Weights)
-sqlQuery(con, BGS_Q005_1b1_Delete_Cohort)
-sqlQuery(con, BGS_Q005_1b2_Cohort_Recoded)
-sqlQuery(con, BGS_Q99A_ENDDT_IMPUTED)
-                
-close(con)
+# ---- Read raw data and disconnect ----
+source(glue::glue("{lan}/data/student-outcomes/sql/BGS_Q001_BGS_Data.sql"))
+
+T_BGS_INST_Recode <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_INST_Recode.csv"), 
+      col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+
+# for 2023:
+T_BGS_Data <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_Data_Final.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps") %>%
+  select(-c(ID, SUBM_CD)) %>%
+  rename("NOC" = NOC_CD_2016)
+          
+# BGS_Data_2020_2023 <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2020_2023)
+BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2020_2023)  %>%
+  janitor::clean_names(case = "all_caps") %>%
+  rename("FULL_TM_WRK" = FULL_TM, 
+         "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
+         "IN_LBR_FRC" = LBR_FRC_LABOUR_MARKET,
+         "EMPLOYED" = LBR_FRC_CURRENTLY_EMPLOYED,
+         "UNEMPLOYED" = LBR_FRC_UNEMPLOYED,
+         "TRAINING_RELATED" = E10_IN_TRAINING_RELATED_JOB, 
+         "TOOK_FURTH_ED" = D01_R1) %>%
+  mutate(CURRENT_ACTIVITY = case_when(
+    (EMPLOYED == 1 & D02_R1_CURRENTLY_STUDYING == 0) ~ 1, 
+    (EMPLOYED == 0 & D02_R1_CURRENTLY_STUDYING == 1) ~ 2, 
+    (EMPLOYED == 0 & D02_R1_CURRENTLY_STUDYING == 0) ~ 3,
+    (EMPLOYED == 1 & D02_R1_CURRENTLY_STUDYING == 1) ~ 4,
+    TRUE ~ 0
+  )) %>%
+  mutate(SURVEY_YEAR = stringr::str_replace(SUBM_CD, "^C_Outc", "20")) %>%
+  mutate(AGE_17_34 = if_else(between(AGE, 17, 34), 1, 0)) %>%
+  mutate(CURRENT_REGION_PSSM_CODE = NA, 
+         OLD_LABOUR_SUPPLY = NA) %>%
+  select(-c(D02_R1_CURRENTLY_STUDYING, SUBM_CD))
+
+T_BGS_Data <- rbind(BGS_Data_Update, T_BGS_Data)
+
+dbDisconnect(outcomes_con)
+
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
+dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
+dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
+
+dbDisconnect(decimal_con)
