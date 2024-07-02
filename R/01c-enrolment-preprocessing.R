@@ -173,13 +173,25 @@ dbExecute(con, "ALTER TABLE [STP_Enrolment_Valid]
                 ADD CONSTRAINT ValidEnrolmentPK_ID
                 PRIMARY KEY (ID);")
 
-# ---- Min Enrolment Date ----
+# Manual Work
+# check for records in STP_Enrolment_Valid associated with > 1 EPEN or those missing a pen and fix.
+dbExecute(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*)
+                FROM (
+	              SELECT PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN
+	                FROM  STP_Enrolment_Valid
+	                GROUP BY  PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN) T
+                GROUP BY  T.PSI_CODE, T.PSI_STUDENT_NUMBER
+                HAVING COUNT(*) <> 1")
+
+# ---- Min Enrolment ----
+# Find first enrollment record for each student per school year (by ENCRYPTED_TRUE_PEN)
 dbExecute(con, qry09a_MinEnrolmentPEN)
 dbExecute(con, qry09b_MinEnrolmentPEN)
 dbExecute(con, qry09c_MinEnrolmentPEN)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry09a_MinEnrolmentPEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry09b_MinEnrolmentPEN];"))
 
+# Find first enrollment record for each student per school year,(PSI_CODE/PSI_STUDENT_NUMBER combo for students records with null ENCRYPTED_TRUE_PEN's)
 dbExecute(con, qry10a_MinEnrolmentSTUID)
 dbExecute(con, qry10b_MinEnrolmentSTUID)
 dbExecute(con, qry10c_MinEnrolmentSTUID)
