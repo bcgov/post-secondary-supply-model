@@ -17,13 +17,15 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
+my_schema <- config::get("myschema")
+
 # ---- Required Tables ----
 # Stat Can data: See raw data documentation
 # STAT_CAN
-dbExistsTable(con, "STAT_CAN")
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STAT_CAN"')))
 
 # ---- Read from decimal ----
-stat_can_data_raw <- dbReadTable(con, "STAT_CAN")
+stat_can_data_raw <- dbReadTable(con, SQL(glue::glue('"{my_schema}"."STAT_CAN"')))
 
 # ---- Disconnect ----
 dbDisconnect(con)
