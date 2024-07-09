@@ -10,7 +10,6 @@ source(glue::glue("{lan}/development/sql/gh-source/01a-credential-preprocessing/
 
 # set connection string to decimal
 db_config <- config::get("decimal")
-db_schema <- config::get("myschema")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(odbc(),
