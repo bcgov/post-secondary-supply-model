@@ -51,6 +51,9 @@ stat_can_data <- stat_can_data_raw %>%
 stat_can_data %>% filter(region=="missing") # expect 0 rows
 stat_can_data %>% count(region,geography) # review regions
 
+# review age groups and major fields total variable names
+stat_can_data %>% count(age_group); stat_can_data %>% count(major_field_cip)
+
 # filter out totals from age and study fields
 stat_can_data <- stat_can_data %>%
   filter(age_group != "Total - population 17 to 64 years old" & major_field_cip != "Total - Major Field of study (BC Program Cluster aggregation of CIP 2016)")
