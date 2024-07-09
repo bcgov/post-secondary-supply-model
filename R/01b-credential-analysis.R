@@ -6,13 +6,11 @@ library(DBI)
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/01b-credential-analysis.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/01b-credential-ranking.R"))
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-sup-vars-from-enrolment.R"))
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
 con <- dbConnect(odbc(),
                  Driver = db_config$driver,
