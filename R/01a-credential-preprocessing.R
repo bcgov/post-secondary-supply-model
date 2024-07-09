@@ -10,7 +10,7 @@ source(glue::glue("{lan}/development/sql/gh-source/01a-credential-preprocessing/
 
 # set connection string to decimal
 db_config <- config::get("decimal")
-db_schema <- config::get("dbschema")
+db_schema <- config::get("myschema")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(odbc(),
@@ -20,9 +20,9 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 # ---- Check Required Tables etc. ----
-dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_CREDENTIAL"')))
-dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{db_schema}"."STP_Enrolment"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbGetQuery(con, qry00a_check_null_epens)
 dbGetQuery(con, qry00b_check_unique_epens)
 
@@ -75,6 +75,7 @@ dbExecute(con, qry03b_Update_Drop_Record_Developmental)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")) 
 
 # Create a subset of potential Record_Status = 6 records that have not already assigned a record status
+# 
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
 dbExecute(con, qry03c_Drop_Skills_Based)
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
