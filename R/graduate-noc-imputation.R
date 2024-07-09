@@ -58,3 +58,10 @@ stat_can_data %>% count(age_group); stat_can_data %>% count(major_field_cip)
 stat_can_data <- stat_can_data %>%
   filter(age_group != "Total - population 17 to 64 years old" & major_field_cip != "Total - Major Field of study (BC Program Cluster aggregation of CIP 2016)")
 
+# ---- Declare credential variables of interest ----
+above_bach_var <- "university_certificate_or_diploma_above_bachelor_level"
+pdeg_var <- "degree_in_medicine_dentistry_veterinary_medicine_or_optometry"
+combined_masters_doctorate_var <- "masters_degree_and_earned_doctorate"
+masters_var <- "masters_degree"
+doctorate_var <- "earned_doctorate"
+total_var <- "total_highest_certificate_diploma_or_degree"
