@@ -65,3 +65,15 @@ combined_masters_doctorate_var <- "masters_degree_and_earned_doctorate"
 masters_var <- "masters_degree"
 doctorate_var <- "earned_doctorate"
 total_var <- "total_highest_certificate_diploma_or_degree"
+
+# run graduate noc by region ----
+lan <- config::get("lan")
+regions <- stat_can_data %>% pull(region) %>% unique()
+
+for(i in regions) {
+  print(i)
+  newcounts_fn=glue::glue("{lan}/data/statcan/output/",i," - new counts.csv")
+  summary_fn=glue::glue("{lan}/data/statcan/output/",i," - summary.csv")
+  data <- stat_can_data %>% filter(region==i)
+  source(here::here("R","noc-imputation.R"))
+}
