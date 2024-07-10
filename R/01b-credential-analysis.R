@@ -9,6 +9,7 @@ source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/01b-c
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-sup-vars-from-enrolment.R"))
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"))
 source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-non-dup-psi_visa_status.R"))
+source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/credential-ranking.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -25,6 +26,7 @@ dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_RecordType"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_RecordType"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 dbExecute(con, qry_Credential_view_initial) 
@@ -58,9 +60,9 @@ dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step5")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
-dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED")
+# dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED") Error message: Cannot drop the table 'RW_TEST_CRED_NULLEPENS_MATCHED', because it does not exist or you do not have permission. 
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
-dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE")
+dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
 dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
 dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
@@ -145,8 +147,10 @@ dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step7")
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning34)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning35)
 dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step6")
+dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
+dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
 
-# ---- Finished Gender Cleaning ----# 
+# ---- Birthdate Cleaning ----# 
 dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
 # dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank) - I think the logic is wrong here though
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD LAST_SEEN_BIRTHDATE DATE")
@@ -154,8 +158,10 @@ dbExecute(con, "ALTER TABLE CredentialSupVarsFromEnrolment ADD LAST_SEEN_BIRTHDA
 dbExecute(con, qry04a1_UpdateCredentialSupVarsBirthdate) 
 dbExecute(con, qry04a2_UpdateCredentialSupVarsBirthdate) 
 dbExecute(con, qry04a3_UpdateCredentialSupVarsBirthdate) 
+dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
 
 dbExecute(con, qry04b_UpdateCredentiaSupVarsGender)
+dbExecute(con, "DROP TABLE CredentialSupVars_Gender")
 dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, qry04c_RecreateCredentialViewWithSupVars)
 dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup)
@@ -270,11 +276,10 @@ dbExecute(con, "DROP TABLE CREDAgeDistributionbyGender")
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD PSI_VISA_STATUS varchar(50)")
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_1)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_2)
-dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
 dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
 dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
-dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step2;")
-dbExecute(con, "DROP TABLE Credential_Non_Dup_VisaStatus_Cleaning_Step1")
+#dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step2;")
+#dbExecute(con, "DROP TABLE Credential_Non_Dup_VisaStatus_Cleaning_Step1")
 
 dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID_FOR_HIGHESTRANK VARCHAR(255) NULL")
 dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID_FOR_HIGHESTRANK = ENCRYPTED_TRUE_PEN 
@@ -292,6 +297,7 @@ dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tblcredential_laterawarded")
 
+
 dbExecute(con, qry19_UpdateDelayDate)
 dbExecute(con, "DROP TABLE tblCredential_DelayEffect")
 
@@ -307,9 +313,11 @@ dbExecute(con, qry13b_UpdateDelayedCredDate)
 #dbExecute(con, qry13b_UpdateDelayedCredDate_Exclude_LatestYr)
 
 dbExecute(con, qry14_ResearchUniversity)
-dbExecute(con, qry14_ResearchUniversity_Exclude_LatestYr)
+#dbExecute(con, qry14_ResearchUniversity_Exclude_LatestYr)
+
 dbExecute(con, qry15_OutcomeCredential)
 dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
+
 dbExecute(con, qry20a_1Credential_By_Year_AgeGroup)
 dbExecute(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
 dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
@@ -322,34 +330,25 @@ dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DA
 dbExecute(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
 dbExecute(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
 dbExecute(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
-dbExecute(con, qry99_Developmental_investigation)
 dbExecute(con, qryCreateIDinSTPCredential)
 dbExecute(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
 
 # ---- Clean Up ----
-
 dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, "DROP TABLE credential_non_dup")
 dbExecute(con, "DROP VIEW tblCredential_HighestRank")
-
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
 dbExecute(con, "DROP TABLE CredentialSupVars")
-dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
-dbExecute(con, "DROP TABLE CredentialSupVars_Gender")
-dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
-dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
+
+
 
 #dbExecute(con, "DROP VIEW Credential_Remove_Dup")
-#dbExecute(con, "DROP TABLE MinEnrolmentSupVar")
+
 #dbExecute(con, "DROP VIEW MinEnrolment")
 
 #dbExecute(con, "DROP TABLE STP_Enrolment_Record_Type")
 #dbExecute(con, "DROP TABLE STP_Credential_Record_Type")
-
-
-
-
 
 
 
