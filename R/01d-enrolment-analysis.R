@@ -35,6 +35,7 @@ dbExecute(con, qry01e_MinEnrolmentSupVar)
 # ---- Create MinEnrolment View ---
 # created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
 dbExecute(con, qry_CreateMinEnrolmentView)
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbExecute(con, qry02a_UpdateAgeAtEnrol)
 dbExecute(con, qry02b_UpdateAGAtEnrol)
 
@@ -213,12 +214,7 @@ dbGetQuery(con, qry09c_MinEnrolment_Domestic)
 dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbExecute(con, glue::glue("DROP VIEW [{my_schema}].MinEnrolment;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].GenderDistribution;"))
-
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))   
 dbDisconnect(con)
 
 
