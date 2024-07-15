@@ -31,7 +31,7 @@ dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 dbExecute(con, qry_Credential_view_initial) 
 
-# ---- Make Credential Sup Vars From Enrolment Here ----
+# ---- Make Credential Sup Vars Enrolment ----
 # Create a list of EPENs/max school year/enrolment ID's from the Enrolment_valid table 
 dbExecute(con, qry01_CredentialSupVars_From_Enrolment) # for valid EPENS pull max school year
 dbExecute(con, qry02_CredentialSupVars_From_Enrolment) # bring in more enrolment information for the most recent school year 
@@ -40,6 +40,9 @@ dbExecute(con, qry04_CredentialSupVars_From_Enrolment) # ... more enrolment info
 dbExecute(con, qry05_CredentialSupVars_From_Enrolment) # bring in credential record status from Credential View
 dbExecute(con, qry06_CredentialSupVars_From_Enrolment)
 dbExecute(con, "ALTER TABLE CredentialSupVarsFromEnrolment ADD CONSTRAINT PK_CredSupVarsfromEnrol_ID PRIMARY KEY (EnrolmentID);")
+
+#try to match on psi code/sn
+# method 1
 dbExecute(con, "SELECT PSI_CODE, PSI_STUDENT_NUMBER INTO RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE from Credential
                 WHERE ENCRYPTED_TRUE_PEN NOT IN (
 	              SELECT ENCRYPTED_TRUE_PEN
@@ -64,16 +67,19 @@ dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
+# ---- Birthdate Cleaning ----
+
+# ---- Make Credential Sup Vars ----
 dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
 dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
 dbExecute(con, "ALTER TABLE [CredentialSupVars] ADD CONSTRAINT PK_CredSupVars_ID PRIMARY KEY (ID);")
-
 dbExecute(con, qry01b_CredentialSupVarsFromEnrol_1) # add some columns to CredSupVarsEnrol
 dbExecute(con, qry01b_CredentialSupVarsFromEnrol_2) # bring in data from STP_Enrolment 
 dbExecute(con, qry01b_CredentialSupVarsFromEnrol_3) # Empty strings ' ' in psi_birthdate_cleaned were cast to 1900-01-01 in date format. 
 
 # flag STP_Credential_Record_Type records with PSI_CREDENTIAL_CATEGORY = 'DEVELOPMENTAL CREDENTIAL' 'OTHER' 'NONE' 'SHORT CERTIFICATE'
 dbExecute(con, qry02a_DropCredCategory) 
+dbExecute(con, "ALTER TABLE  STP_Credential_Record_Type ADD DropCredCategory NVARCHAR(50) NULL")
 dbExecute(con, qry02b_DeleteCredCategory)
 dbExecute(con, "DROP TABLE Drop_Credential_Category")
 
@@ -81,6 +87,7 @@ dbExecute(con, "DROP TABLE Drop_Credential_Category")
 # ** this will have to be changed to 2023-09-01
 dbExecute(con, qry03a1_ConvertAwardDate) # data type conversion
 dbExecute(con, qry03b_DropPartialYear) 
+dbExecute(con, "ALTER TABLE  STP_Credential_Record_Type ADD DropPartialYear NVARCHAR(50) NULL")
 dbExecute(con, qry03c_DeletePartialYear)
 dbExecute(con, "DROP TABLE Drop_Partial_Year")
 
@@ -150,7 +157,7 @@ dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step6")
 dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
 
-# ---- Birthdate Cleaning ----# 
+# ---- Last seen birthdate cleaning ----
 dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
 # dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank) - I think the logic is wrong here though
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD LAST_SEEN_BIRTHDATE DATE")
