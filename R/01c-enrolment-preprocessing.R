@@ -35,7 +35,12 @@ dbGetQuery(con, qry00b_check_unique_epens)
 dbExecute(con, qry00c_CreateIDinSTPEnrolment)
 dbExecute(con, qry00d_SetPKeyinSTPEnrolment)
 
+
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
+# check the date variables and see what format they were read in as
+dbGetQuery(con, "SELECT TOP 100 PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE, PSI_PROGRAM_EFFECTIVE_DATE, PSI_MIN_START_DATE FROM STP_Enrolment;")
+
+# if necessary, run the following queries to convert from yy-mm-dd to yyyy-mm-dd
 dbExecute(con, qrydates_create_tmp_table)
 dbExecute(con, qrydates_add_cols)
 dbExecute(con, qrydates_convert1)
@@ -50,13 +55,16 @@ dbExecute(con, qrydates_convert9)
 dbExecute(con, qrydates_convert10)
 dbExecute(con, qrydates_convert11)
 dbExecute(con, qrydates_convert12)
-
 dbExecute(con, qrydates_update1)
 dbExecute(con, qrydates_update2)
 dbExecute(con, qrydates_update3)
 dbExecute(con, qrydates_update4)
-
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))  
+
+# ---- Create Record Type Table ----
+
+# Create lookup table for ID/Record Status and populate with ID column and EPEN 
+dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
 
 # Record Status codes:
 # 0 = Good
@@ -68,9 +76,6 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))
 # 6 = Skills Based
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification 
-
-# Create lookup table for ID/Record Status and populate with ID column and EPEN 
-dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
 
 # ----- Find records with Record_Status = 1 and update look up table -----
 dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
@@ -94,6 +99,7 @@ res <- dbGetQuery(con, "
                        PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
                 FROM  Drop_Skills_Based
                 GROUP BY PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY;")
+
 dbExecute(con, "ALTER TABLE Drop_Skills_Based ADD KEEP nvarchar(2) NULL;")
 dbExecute(con, qry03da_Keep_TeachEd)
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
@@ -120,9 +126,10 @@ keep_skills_based <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
 dbWriteTable(con, name = "Keep_Skills_Based", keep_skills_based)
 
+# PSSM2019: Exclude contains character strings "Y" and "NULL".  
+# PSSM2023: Exclude contains same values, but NULL instead of "NULL"
 dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) # counts differ a bit from documentation (2019)
 dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based)  # counts differ a bit from documentation (2019)
-
 dbExecute(con, qry03g_create_table_SkillsBasedCourses) # counts differ a bit from documentation (2019)
 dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
 
@@ -130,7 +137,7 @@ dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL
 dbExecute(con, qry03g_b_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
 dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
 dbExecute(con, qry03g_c2_Update_More_Selkirk)
-dbExecute(con, qry03g_d_EnrolCoursesSeen) # The data in this table doesn't appear to be used for anything.
+#dbExecute(con, qry03g_d_EnrolCoursesSeen) # The data in this table doesn't appear to be used for anything and has a long completion time.
 dbExecute(con, qry03h_create_table_Suspect_Skills_Based) #  counts differ significantly from documentation (2019)
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) # counts differ significantly from documentation (2019)
 dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) # affects 0 rows??  
@@ -175,13 +182,20 @@ dbExecute(con, "ALTER TABLE [STP_Enrolment_Valid]
 
 # Manual Work
 # check for records in STP_Enrolment_Valid associated with > 1 EPEN or those missing a pen and fix.
-dbExecute(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*)
+dbGetQuery(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*)
                 FROM (
 	              SELECT PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN
 	                FROM  STP_Enrolment_Valid
 	                GROUP BY  PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN) T
                 GROUP BY  T.PSI_CODE, T.PSI_STUDENT_NUMBER
                 HAVING COUNT(*) <> 1")
+
+# I removed the code to update column "ENROLMENT_SEQUENCE_FIXED_FLAG" and EPEN_FIXED_FLAG in STP_Enrolment_Valid bc
+# this is just a handful of records and it isn't referenced in any of these remaining queries
+dbExecute(con, qry08b_Fix_EPEN_in_STP_Enrolment_Valid)
+# conditioned on PSI_ENROLMENT_SEQUENCE_FIX, which isn't in data - can't run query
+#dbExecute(con, qry08c_Fix_Enrol_Sequence_in_STP_Enrolment_Valid) 
+
 
 # ---- Min Enrolment ----
 # Find first enrollment record for each student per school year (by ENCRYPTED_TRUE_PEN)
@@ -223,6 +237,7 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry13b_FirstEnrolme
 
 dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
 dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
+dbExecute(con, qry14c_Update_FirstEnrolmentNA)
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))

@@ -30,18 +30,19 @@ dbExecute(con, qry00c_CreateIDinSTPCredential)
 dbExecute(con, qry00d_SetPKeyinSTPCredential)
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd
+# check the date variables and see what format they were read in as
+dbGetQuery(con, "SELECT TOP 100 CREDENTIAL_AWARD_DATE, PSI_PROGRAM_EFFECTIVE_DATE FROM STP_Credential;")
+
+# if necessary, run the following queries to convert from yy-mm-dd to yyyy-mm-dd
 # Create temporary table
 dbExecute(con, qrydates_create_tmp_table)
 dbExecute(con, qrydates_add_cols)
-
-# Add first two digits to dates in the convert variables
 dbExecute(con, qrydates_convert1)
 dbExecute(con, qrydates_convert2)
 dbExecute(con, qrydates_convert3)
 dbExecute(con, qrydates_convert4)
 dbExecute(con, qrydates_convert5)
 dbExecute(con, qrydates_convert6)
-
 dbExecute(con, qrydates_update_stp_credential1)
 dbExecute(con, qrydates_update_stp_credential2)
 dbExecute(con, "DROP TABLE tmp_ConvertDateFormatCredential")
@@ -74,7 +75,6 @@ dbExecute(con, qry03b_Update_Drop_Record_Developmental)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")) 
 
 # Create a subset of potential Record_Status = 6 records that have not already assigned a record status
-# 
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
 dbExecute(con, qry03c_Drop_Skills_Based)
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
@@ -92,11 +92,15 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_EnrolmentSkillsBase
  
 # ---- Find records with Record_Status = 7 and update look up table ----
 dbExecute(con, qry03g_Drop_Developmental_Credential_CIPS)
-dbExecute(con, "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD KEEP NVARCHAR(2)")
-## ---- Manual Work ----
+dbExecute(con, "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD Keep NVARCHAR(2)")
+
+#  ---- Manual Work Finding Developmental CIPS ----
+# Check the following programs against the outcomes programs table to see if any have a non-developmental CIP.
+# If so, they should not be flagged as a developmental CIP to exclude. (set keep = 'Y')
 data <- dbReadTable(con, "Drop_Developmental_PSI_CREDENTIAL_CIPS", col_types = cols(.default = col_character()))
-data <- data %>% mutate(KEEP = NA) # or use excel, utils::data.entry or whatever
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CREDENTIAL_CIPS];")) 
+
+# set flag manually, or look see if there's a flag in the outcomes programs table to pull from
 dbWriteTable(con, name = "Drop_Developmental_PSI_CREDENTIAL_CIPS", data)
 
 ## ---- Back to Workflow ----
@@ -109,9 +113,8 @@ dbExecute(con, qry03j_Update_RecommendationForCert)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_RecommendForCert];")) 
 
 # ---- Investigate This Query ----
-# dbExecute(con, qry03k_Drop_Developmental_CIPS) # are these run?
-# dbExecute(con, qry03k_Update_ID_for_Drop_Dev_Credential_CIP) # are these run?
-# dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[];")) 
+# dbExecute(con, qry03k_Drop_Developmental_CIPS) # this one isn't used anywhere
+# dbExecute(con, qry03k_Update_ID_for_Drop_Dev_Credential_CIP) # might be from enrolment pre-processing workflow
 
 dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
 
