@@ -5,7 +5,9 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
+lan_2019 <- config::get("lan_2019")
 source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
+source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/pssm-birthdate-cleaning.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -23,6 +25,7 @@ dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"')))
 
+
 # ---- Extract MinEnrolment records and delete Skill Based Suspect records ---- 
 dbExecute(con, qry01a_MinEnrolmentSupVar)
 dbExecute(con, "ALTER table MinEnrolmentSupVar ADD CONSTRAINT PK_MinEnrolSupVarsID PRIMARY KEY (ID)")
@@ -32,12 +35,15 @@ dbExecute(con, qry01d1_MinEnrolmentSupVar)
 dbExecute(con, qry01d2_MinEnrolmentSupVar)
 dbExecute(con, qry01e_MinEnrolmentSupVar)
 
+# ---- TODO ----
+# there are some columns in MinEnrolSupVar that are filled in in pssm2019
+
 # ---- Create MinEnrolment View ---
 # created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
 dbExecute(con, qry_CreateMinEnrolmentView)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbExecute(con, qry02a_UpdateAgeAtEnrol)
-dbExecute(con, qry02b_UpdateAGAtEnrol)
+dbExecute(con, qry02b_UpdateAGAtEnrol) 
 
 # ---- Find gender for distinct non-null EPENs/{CODE_NUMBER}'s  ---- 
 dbExecute(con, qry04a1_UpdateMinEnrolment_Gender)
@@ -215,6 +221,7 @@ dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
 dbExecute(con, glue::glue("DROP VIEW [{my_schema}].MinEnrolment;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbDisconnect(con)
 
 

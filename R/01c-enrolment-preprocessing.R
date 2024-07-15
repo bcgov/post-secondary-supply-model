@@ -227,6 +227,59 @@ dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
 
+# ---- Clean Birthdates ----
+dbExecute(con, qry01_BirthdateCleaning)
+dbExecute(con, qry02_BirthdateCleaning)
+dbExecute(con, qry03_BirthdateCleaning)
+dbExecute(con, qry04_BirthdateCleaning)
+dbExecute(con, "ALTER table tmp_MaxPSIBirthdate ADD NumBirthdateRecords INT NULL")
+dbExecute(con, "ALTER table tmp_MinPSIBirthdate ADD NumBirthdateRecords INT NULL")
+dbExecute(con, qry05_BirthdateCleaning)
+dbExecute(con, qry06_BirthdateCleaning)
+dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
+                ADD MinPSIBirthdate NVARCHAR(50) NULL,
+                    NumMinBirthdateRecords INT NULL,
+                    MaxPSIBirthdate NVARCHAR(50) NULL,
+                    NumMaxBirthdateRecords INT NULL,
+                    LastSeenBirthdate NVARCHAR(50) NULL,
+                    MaxOrMin_MostCommon NVARCHAR(50) NULL,
+                    UseMaxOrMin_FINAL NVARCHAR(50) NULL,
+                    psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry07a_BirthdateCleaning)
+dbExecute(con, qry07b_BirthdateCleaning)
+dbExecute(con, qry08_BirthdateCleaning)
+
+# ----- Manual Cleaning -----
+data <- readr::read_csv(glue::glue("{lan_2019}/Development/SQL Server/Preprocessing/tmp_Clean_MaxMinBirthDate.csv"), col_types = cols(.default = col_character()))
+dbWriteTable(con, "tmp_Clean_MaxMinBirthDate", data)
+dbExecute(con, qry09_BirthdateCleaning)
+dbExecute(con, qry10_BirthdateCleaning)
+dbExecute(con, qry11_BirthdateCleaning)
+dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry12_BirthdateCleaning)
+dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
+dbExecute(con, "DROP TABLE tmp_MaxPSIBirthdate")
+dbExecute(con, qry13_BirthdateCleaning)
+dbExecute(con, qry14_BirthdateCleaning)
+dbExecute(con, qry15_BirthdateCleaning)
+dbExecute(con, "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry16_BirthdateCleaning)
+dbExecute(con, qry17_BirthdateCleaning)
+dbExecute(con, qry18_BirthdateCleaning)
+dbExecute(con, qry19_BirthdateCleaning)
+dbExecute(con, qry20_BirthdateCleaning)
+dbGetQuery(con, qry21_BirthdateCleaning)
+dbExecute(con, "DROP TABLE tmp_BirthDate")
+dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
+dbExecute(con, "DROP TABLE tmp_Clean_MaxMinBirthDate")
+dbExecute(con, "DROP TABLE tmp_NullBirthdate")
+dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
+dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
+dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
+# TO DO: a large number of null psi_birthdates at this point.
+
+
+
 # ---- Clean Up ----
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))   
