@@ -7,7 +7,6 @@ library(DBI)
 lan <- config::get("lan")
 lan_2019 <- config::get("lan_2019")
 source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/pssm-birthdate-cleaning.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -25,7 +24,6 @@ dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"')))
 
-
 # ---- Extract MinEnrolment records and delete Skill Based Suspect records ---- 
 dbExecute(con, qry01a_MinEnrolmentSupVar)
 dbExecute(con, "ALTER table MinEnrolmentSupVar ADD CONSTRAINT PK_MinEnrolSupVarsID PRIMARY KEY (ID)")
@@ -38,7 +36,7 @@ dbExecute(con, qry01e_MinEnrolmentSupVar)
 # ---- Create MinEnrolment View ---
 # created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
 dbExecute(con, qry_CreateMinEnrolmentView)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
+
 dbExecute(con, qry02a_UpdateAgeAtEnrol)
 dbExecute(con, qry02b_UpdateAGAtEnrol) 
 
