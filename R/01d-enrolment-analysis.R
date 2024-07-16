@@ -35,9 +35,6 @@ dbExecute(con, qry01d1_MinEnrolmentSupVar)
 dbExecute(con, qry01d2_MinEnrolmentSupVar)
 dbExecute(con, qry01e_MinEnrolmentSupVar)
 
-# ---- TODO ----
-# there are some columns in MinEnrolSupVar that are filled in in pssm2019
-
 # ---- Create MinEnrolment View ---
 # created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
 dbExecute(con, qry_CreateMinEnrolmentView)
