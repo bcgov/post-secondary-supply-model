@@ -59,7 +59,6 @@ dbGetQuery(con, "SELECT * FROM tmp_MinEnrolment_EPEN_Gender
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"))
 
 # Using Concatenated_ID instead of EPEN for the next set of queries.
-
 # ---- Assign one gender/student ---- 
 dbExecute(con, qry04c_tmp_MinEnrolment_GenderDups)
 dbExecute(con, qry04d1_tmp_MinEnrolment_GenderDups_PickGender)
@@ -68,7 +67,6 @@ dbExecute(con, qry04d3_tmp_MinEnrolment_GenderDups_PickGender)
 dbExecute(con, qry04d4_tmp_MinEnrolment_GenderDups_PickGender)
 dbExecute(con, qry04d5_tmp_MinEnrolment_GenderDups_PickGender)
 dbExecute(con, qry04d6_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d7_tmp_MinEnrolment_GenderDups_PickGender)
 
 dbExecute(con, qry04e1_UpdateMinEnrolment_EPEN_GenderDups)
 dbExecute(con, qry04e2_UpdateMinEnrolment_EPEN_GenderDups)
@@ -77,6 +75,7 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"))
 
 dbExecute(con, qry05a1_Extract_No_Gender)
 dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
@@ -84,7 +83,8 @@ dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
 # ---- impute gender  ---- 
 # impute gender into records associated with unknown/blank/NULL gender
 # this is currently done in an Excel worksheet but can be moved to code here
-dbExecute(con, qry05a2_Show_Gender_Distribution)
+# Development\SQL Server\CredentialAnalysis\AgeGenderDistribution (2017)
+dbGetQuery(con, qry05a2_Show_Gender_Distribution)
 dbExecute(con, qry06a1_Assign_TopID_Gender)
 dbExecute(con, qry06a2_Assign_TopID_Gender2)
 dbExecute(con, qry06a3_CorrectGender1)
@@ -210,7 +210,7 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender;"))
 dbExecute(con, qry08_UpdateAGAtEnrol)
 
 # ---- Final Distributions ----
-dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
+dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code) %>% View()
 dbGetQuery(con, qry09c_MinEnrolment_Domestic)
 dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
