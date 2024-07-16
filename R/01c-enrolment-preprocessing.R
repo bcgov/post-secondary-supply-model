@@ -5,8 +5,10 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
+lan_2019 <- config::get("lan_2019")
 source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/01c-enrolment-preprocessing-sql.R"))
 source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/convert-date-scripts.R"))
+source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/pssm-birthdate-cleaning.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -20,12 +22,6 @@ con <- dbConnect(odbc(),
 
 # ---- Check Required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-
-# I don't think we need this in this workflow ---V
-#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
-#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialGrouping"')))
-#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialRank"')))
-#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
 
 ## ---- Null values ----
 dbGetQuery(con, qry00a_check_null_epens)
@@ -77,6 +73,10 @@ dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification 
 
+
+# ---- Define lookup table for ID/Record Status and populate with ID column and EPEN 
+dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
+
 # ----- Find records with Record_Status = 1 and update look up table -----
 dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
 dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
@@ -124,21 +124,29 @@ keep_skills_based <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source
                               na = c("", "NA", "NULL"))
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
-dbWriteTable(con, name = "Keep_Skills_Based", keep_skills_based)
+dbWriteTable(con, name = "Keep_Skills_Based", keep_skills_based, overwrite = TRUE)
 
-# PSSM2019: Exclude contains character strings "Y" and "NULL".  
-# PSSM2023: Exclude contains same values, but NULL instead of "NULL"
-dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) # counts differ a bit from documentation (2019)
-dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based)  # counts differ a bit from documentation (2019)
+dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) # counts differ slightly from documentation (2019) see documentation for rationale
+dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based) # counts differ slightly from documentation (2019) see documentation for rationale
+
+
 dbExecute(con, qry03g_create_table_SkillsBasedCourses) # counts differ a bit from documentation (2019)
 dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
 
-## ---- Manual work ----
-dbExecute(con, qry03g_b_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
-dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based) # <-- documentation suggests investigation but discovered zero records in both past two model runs. 
+# ---- Manual work ----
+# This section is questionable as it finds no records. Noted in 2019 documentation
+dbExecute(con, qry03g_b_Keep_More_Skills_Based) # documentation suggests investigation but discovered zero records in both past two model runs. 
+dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based) # documentation suggests investigation but discovered zero records in both past two model runs. 
 dbExecute(con, qry03g_c2_Update_More_Selkirk)
-#dbExecute(con, qry03g_d_EnrolCoursesSeen) # The data in this table doesn't appear to be used for anything and has a long completion time.
-dbExecute(con, qry03h_create_table_Suspect_Skills_Based) #  counts differ significantly from documentation (2019)
+
+dbExecute(con, qry03g_d_EnrolCoursesSeen) # The data in this table doesn't appear to be used for anything.
+
+# ---- Error check needed here ----
+# counts differ significantly from documentation (2019) but I think we are fine here as we should be filtering out these records. 
+# The set difference is the result set from  qry03c_Drop_Skills_Based.
+# The update query may have been run later, or the courses may be filtered later.
+dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
+
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) # counts differ significantly from documentation (2019)
 dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) # affects 0 rows??  
 dbExecute(con, qry03j_Update_Suspect_Skills_Based) # # counts differ from documentation (2019)
@@ -215,9 +223,9 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry10a_MinEnrolment
 dbExecute(con, qry11a_Update_MinEnrolmentPEN)
 dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
 dbExecute(con, qry11c_Update_MinEnrolment_NA)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11a_Update_MinEnrolmentPEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11b_Update_MinEnrolmentPEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11c_Update_MinEnrolmentPEN];"))
+#dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11a_Update_MinEnrolmentPEN];"))
+#dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11b_Update_MinEnrolmentPEN];"))
+#dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11c_Update_MinEnrolmentPEN];"))
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[MinEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[MinEnrolment_ID_STUID];"))
@@ -241,6 +249,57 @@ dbExecute(con, qry14c_Update_FirstEnrolmentNA)
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
+
+# ---- Clean Birthdates ----
+dbExecute(con, qry01_BirthdateCleaning)
+dbExecute(con, qry02_BirthdateCleaning)
+dbExecute(con, qry03_BirthdateCleaning)
+dbExecute(con, qry04_BirthdateCleaning)
+dbExecute(con, "ALTER table tmp_MaxPSIBirthdate ADD NumBirthdateRecords INT NULL")
+dbExecute(con, "ALTER table tmp_MinPSIBirthdate ADD NumBirthdateRecords INT NULL")
+dbExecute(con, qry05_BirthdateCleaning)
+dbExecute(con, qry06_BirthdateCleaning)
+dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
+                ADD MinPSIBirthdate NVARCHAR(50) NULL,
+                    NumMinBirthdateRecords INT NULL,
+                    MaxPSIBirthdate NVARCHAR(50) NULL,
+                    NumMaxBirthdateRecords INT NULL,
+                    LastSeenBirthdate NVARCHAR(50) NULL,
+                    MaxOrMin_MostCommon NVARCHAR(50) NULL,
+                    UseMaxOrMin_FINAL NVARCHAR(50) NULL,
+                    psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry07a_BirthdateCleaning)
+dbExecute(con, qry07b_BirthdateCleaning)
+dbExecute(con, qry08_BirthdateCleaning)
+
+# ----- Manual Cleaning -----
+data <- readr::read_csv(glue::glue("{lan_2019}/Development/SQL Server/Preprocessing/tmp_Clean_MaxMinBirthDate.csv"), col_types = cols(.default = col_character()))
+dbWriteTable(con, "tmp_Clean_MaxMinBirthDate", data)
+dbExecute(con, qry09_BirthdateCleaning)
+dbExecute(con, qry10_BirthdateCleaning)
+dbExecute(con, qry11_BirthdateCleaning)
+#dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry12_BirthdateCleaning)
+dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
+dbExecute(con, "DROP TABLE tmp_MaxPSIBirthdate")
+dbExecute(con, qry13_BirthdateCleaning)
+dbExecute(con, qry14_BirthdateCleaning)
+dbExecute(con, qry15_BirthdateCleaning)
+dbExecute(con, "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+dbExecute(con, qry16_BirthdateCleaning)
+dbExecute(con, qry17_BirthdateCleaning)
+dbExecute(con, qry18_BirthdateCleaning)
+dbExecute(con, qry19_BirthdateCleaning)
+dbExecute(con, qry20_BirthdateCleaning)
+dbGetQuery(con, qry21_BirthdateCleaning)
+dbExecute(con, "DROP TABLE tmp_BirthDate")
+dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
+dbExecute(con, "DROP TABLE tmp_Clean_MaxMinBirthDate")
+dbExecute(con, "DROP TABLE tmp_NullBirthdate")
+dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
+dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
+dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
+# TO DO: a large number of null psi_birthdates at this point.
 
 # ---- Clean Up ----
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
