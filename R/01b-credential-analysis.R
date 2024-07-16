@@ -67,8 +67,6 @@ dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
-# ---- Birthdate Cleaning ----
-
 # ---- Make Credential Sup Vars ----
 dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
 dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
@@ -193,6 +191,7 @@ dbExecute(con, "ALTER TABLE CRED_Extract_No_Gender_Unique ADD MultiCredFlag varc
 dbExecute(con, qry07a2d_Update_MultiCredFlag)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
 dbExecute(con, qry07b_GenderDistribution)
+View(dbGetQuery(con, qry07b_GenderDistribution))
 
 # ---- Transfer Excel Spreadsheet (Development\SQL Server\CredentialAnalysis) calcs here --- *
 # ---- This section can be replaced with R code easily
@@ -237,6 +236,8 @@ dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
 
 # ---- Credential Ranking was done in Access. 
 dbExecute(con, qry08_Create_Credential_Ranking_View_Exclude_LatestYr)
+#note: initially received an error here.  I reloaded the one query and it was fine.  
+# Check there are no other queries with this name
 res <- dbGetQuery(con, qry11a_RankByDateRank) # Access queries
 
 res <- res %>% 
@@ -271,7 +272,7 @@ dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
 dbExecute(con, qry09b_ExtractNoAgeUnique)
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age_Unique ADD PRIMARY KEY (id);")
 dbExecute(con, qry09c_Create_CREDAgeDistributionGender)
-dbExecute(con, qry09d_ShowAgeGenderDistribution)
+dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
 
 dbExecute(con, qry10_Update_Extract_No_Age)
 dbExecute(con, qry11a_UpdateAgeAtGrad)
@@ -302,7 +303,7 @@ dbExecute(con, qry18d_ExtrLaterAwarded)
 dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_2")
 dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
-dbExecute(con, "DROP TABLE tblcredential_laterawarded")
+#dbExecute(con, "DROP TABLE tblcredential_laterawarded")
 
 
 dbExecute(con, qry19_UpdateDelayDate)
@@ -323,22 +324,22 @@ dbExecute(con, qry14_ResearchUniversity)
 #dbExecute(con, qry14_ResearchUniversity_Exclude_LatestYr)
 
 dbExecute(con, qry15_OutcomeCredential)
-dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
+#dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
 
-dbExecute(con, qry20a_1Credential_By_Year_AgeGroup)
-dbExecute(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
-dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
-dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs)
-dbExecute(con, qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO)
-dbExecute(con, qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbExecute(con, qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs)
-dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbExecute(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbExecute(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
-dbExecute(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
-dbExecute(con, qryCreateIDinSTPCredential)
-dbExecute(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
+dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
+dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
+dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
+dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs)
+dbGetQuery(con, qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO)
+dbGetQuery(con, qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+dbGetQuery(con, qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+dbGetQuery(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs)
+dbGetQuery(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
+dbGetQuery(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
+dbGetQuery(con, qryCreateIDinSTPCredential)
+dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
 
 # ---- Clean Up ----
