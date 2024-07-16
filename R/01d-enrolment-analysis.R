@@ -5,7 +5,6 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
-lan_2019 <- config::get("lan_2019")
 source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
 
 db_config <- config::get("decimal")
@@ -43,6 +42,7 @@ dbExecute(con, qry02b_UpdateAGAtEnrol)
 # ---- Find gender for distinct non-null EPENs/{CODE_NUMBER}'s  ---- 
 dbExecute(con, qry04a1_UpdateMinEnrolment_Gender)
 dbExecute(con, qry04a2_UpdateMinEnrolment_Gender)
+
 dbExecute(con, qry04b1_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b2_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b3_tmp_MinEnrolment_Gender)
@@ -84,12 +84,23 @@ dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
 # impute gender into records associated with unknown/blank/NULL gender
 # this is currently done in an Excel worksheet but can be moved to code here
 # Development\SQL Server\CredentialAnalysis\AgeGenderDistribution (2017)
-dbGetQuery(con, qry05a2_Show_Gender_Distribution)
+dbExecute(con, qry05a2_Show_Gender_Distribution)
+gender <- dbGetQuery(con, "SELECT * FROM  GenderDistribution")
+unknwn <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
+#enter top_n into query definitions that follow
+gender %>% mutate(PropDist = NumEnrolled/sum(NumEnrolled), 
+                    top_n = PropDist*unknwn)
+
 dbExecute(con, qry06a1_Assign_TopID_Gender)
 dbExecute(con, qry06a2_Assign_TopID_Gender2)
 dbExecute(con, qry06a3_CorrectGender1)
+
 # The next two queries assign a gender to a small subset of records which 
-# are not first enrolments. The number of updated records does not match those reported in documentation.  
+# are not first enrolments. The number of updated records does not match those reported in documentation. 
+unknwn <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender"))
+#enter top_n into query definitions that follow
+gender %>% mutate(PropDist = NumEnrolled/sum(NumEnrolled), 
+                  top_n = PropDist*unknwn)
 dbExecute(con, qry06a3_CorrectGender2)
 dbExecute(con, qry06a3_CorrectGender3)
 
@@ -99,8 +110,8 @@ dbExecute(con, qry06a3_CorrectGender3)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].GenderDistribution;"))
 
 dbExecute(con, qry06a4a_ExtractNoGender_DupEPENS)
-dbExecute(con, "ALTER TABLE tmp_Extract_No_Gender_DupEPENS ADD PSI_GENDER_to_use VARCHAR(50);")
 dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_1)
+dbExecute(con, "ALTER TABLE tmp_Extract_No_Gender_DupEPENS ADD PSI_GENDER_to_use VARCHAR(50);")
 dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_2)
 dbExecute(con, qry06a4c_Update_ExtractNoGender_DupEPENS)
 
@@ -165,7 +176,7 @@ dbWriteTable(con,
 
 dbExecute(con, qry07d1_Update_Extract_No_Age)
 
-# forward calculate missing ages first enrolments
+# forward calculate missing ages from first enrolments
 multiple_enrol <- dbGetQuery(con, qry02a_Multiple_Enrol)
 calc_ages <- dbGetQuery(con, qry02b_Calc_Ages)
 
@@ -210,7 +221,7 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender;"))
 dbExecute(con, qry08_UpdateAGAtEnrol)
 
 # ---- Final Distributions ----
-dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code) %>% View()
+dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
 dbGetQuery(con, qry09c_MinEnrolment_Domestic)
 dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
