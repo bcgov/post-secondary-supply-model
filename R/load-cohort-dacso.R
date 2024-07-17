@@ -8,6 +8,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+source(glue::glue("{lan}/data/student-outcomes/sql/dacso-data.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -18,22 +19,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           user = db_config$user,
                           password = db_config$password)
 
-# ---- Read raw data ----
-source(glue::glue("{lan}/data/student-outcomes/sql/dacso-data.sql"))
-
-tbl_Age_Groups <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age_Groups.csv"), col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-tbl_Age <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age.csv"), col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-T_PSSM_Credential_Grouping <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-
-# dacso data from primary tables
-t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
-infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean_short_resp")
-infoware_c_outc_clean2 <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean2")
-
-# ---- Connection to decimal and load data ----
+# ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),
                          Driver = db_config$driver,
@@ -41,13 +27,42 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean2", value = infoware_c_outc_clean2)
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+# ---- Read raw data from LAN ----
+tbl_Age_Groups <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age_Groups.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+tbl_Age <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+T_PSSM_Credential_Grouping <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
 
+# ---- Write LAN data to decimal ----
+dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping, overwrite = TRUE)
+
+# --- Read SO dacso data and write to decimal ----
+t <- Sys.time()
+t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
+dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
+rm(t_dacso_data_part_1_stepa)
+gc()
+Sys.time() - t
+
+t <- Sys.time()
+infoware_c_outc_clean2 <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean2")
+dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean2", value = infoware_c_outc_clean2)
+rm(infoware_c_outc_clean2)
+gc()
+Sys.time() - t
+
+t <- Sys.time()
+infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean_short_resp")
+dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
+rm(infoware_c_outc_clean_short_resp)
+gc()
+
+# ---- Clean Up ---
+dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
 
 
