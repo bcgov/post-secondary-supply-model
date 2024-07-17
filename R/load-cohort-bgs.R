@@ -8,6 +8,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+source(glue::glue("{lan}/data/student-outcomes/sql/bgs-data.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -18,9 +19,15 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           user = db_config$user,
                           password = db_config$password)
 
-# ---- Read raw data ----
-source(glue::glue("{lan}/data/student-outcomes/sql/bgs-data.sql"))
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
 
+# ---- Read raw data from LAN ----
 T_BGS_INST_Recode <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_INST_Recode.csv"), 
       col_types = cols(.default = col_character())) %>%
@@ -55,16 +62,9 @@ BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2020_2023)  %>%
 
 T_BGS_Data <- rbind(BGS_Data_Update, T_BGS_Data)
 
-dbDisconnect(outcomes_con)
-
-# ---- Connection to decimal and load data ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
-dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
+# ---- write to decimal
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
+dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
 
+dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
