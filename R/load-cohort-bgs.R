@@ -28,6 +28,10 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Read raw data from LAN ----
+dbo_t_bgs_data_final_for_outcomesmatching2020  <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/dbo_t_bgs_data_final_for_outcomesmatching2020.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+  
 T_BGS_INST_Recode <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_INST_Recode.csv"), 
       col_types = cols(.default = col_character())) %>%
@@ -65,6 +69,8 @@ T_BGS_Data <- rbind(BGS_Data_Update, T_BGS_Data)
 # ---- write to decimal
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
+dbWriteTable(decimal_con, name = "dbo_t_bgs_data_final_for_outcomesmatching2020", value = T_BGS_Data)
 
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
+
