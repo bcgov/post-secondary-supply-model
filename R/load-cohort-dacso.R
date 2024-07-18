@@ -41,25 +41,13 @@ dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping, overwrite = TRUE)
 
 # --- Read SO dacso data and write to decimal ----
-t <- Sys.time()
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
 dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
 rm(t_dacso_data_part_1_stepa)
 gc()
-Sys.time() - t
 
-t <- Sys.time()
-infoware_c_outc_clean2 <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean2")
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean2", value = infoware_c_outc_clean2)
-rm(infoware_c_outc_clean2)
-gc()
-Sys.time() - t
-
-t <- Sys.time()
-infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, "SELECT * FROM c_outc_clean_short_resp")
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
-rm(infoware_c_outc_clean_short_resp)
-gc()
+infoware_c_outc_clean_short_resp <- dbGetQuery(outcomes_con, infoware_c_outc_clean_short_resp)
+dbWriteTable(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
 
 # ---- Clean Up ---
 dbDisconnect(outcomes_con)
