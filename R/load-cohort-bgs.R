@@ -28,8 +28,19 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Read raw data from LAN ----
-dbo_t_bgs_data_final_for_outcomesmatching2020  <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/dbo_t_bgs_data_final_for_outcomesmatching2020.csv"), col_types = cols(.default = col_character())) %>%
+# Note: some of these tables are derived and we need to figure out where they come from.  Are they rolled over year after year?
+# T_bgs_data_final_for_outcomesmatching2020 is derived in program matching and will be saved to db in future.
+# T_weights: I think this is carried forward from last models run and updated with new data.  Waiting for confirmation.
+# T_BGS_Data: carried forward from last models run and updated with new data.
+# T_BGS_INST_Recode: ?
+# bgs_current_region_data: derived in geocoding workflow and will be saved to db in future.
+
+T_bgs_data_final_for_outcomesmatching2020  <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_bgs_data_final_for_outcomesmatching2020.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+
+T_weights  <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_weights.csv"), col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
   
 T_BGS_INST_Recode <- 
@@ -42,7 +53,7 @@ T_BGS_Data <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_
   select(-c(ID, SUBM_CD)) %>%
   rename("NOC" = NOC_CD_2016)
           
-BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2020_2023)  %>%
+BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2018_2019)  %>% # use BGS_Q001_BGS_Data_2020_2023 for 2023 model run
   janitor::clean_names(case = "all_caps") %>%
   rename("FULL_TM_WRK" = FULL_TM, 
          "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
@@ -69,7 +80,8 @@ T_BGS_Data <- rbind(BGS_Data_Update, T_BGS_Data)
 # ---- write to decimal
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
-dbWriteTable(decimal_con, name = "dbo_t_bgs_data_final_for_outcomesmatching2020", value = T_BGS_Data)
+dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
+dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
 
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
