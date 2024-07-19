@@ -42,6 +42,10 @@ T_bgs_data_final_for_outcomesmatching2020  <-
 T_weights  <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_weights.csv"), col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
+
+bgs_current_region_data <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/bgs_current_region_data.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
   
 T_BGS_INST_Recode <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_INST_Recode.csv"), 
@@ -82,6 +86,7 @@ dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data)
 dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
 dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
+dbWriteTable(decimal_con, name = "bgs_current_region_data", value = bgs_current_region_data)
 
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
