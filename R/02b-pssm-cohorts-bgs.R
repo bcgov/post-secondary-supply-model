@@ -8,7 +8,7 @@ library(RJDBC)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohort-bgs.R"))
+source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-bgs-clean.R"))
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -35,7 +35,7 @@ dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
 dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
-dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM)
+# dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
 dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM2)
 
 # Applies weight for model year and derives New Labour Supply
