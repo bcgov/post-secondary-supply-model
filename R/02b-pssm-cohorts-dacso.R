@@ -48,12 +48,14 @@ dbExecute(decimal_con, DACSO_Q004b_DACSO_DATA_Part_1_Add_CURRENT_REGION_PSSM2)
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
 
-# Refresh bgs survey records in T_Cohorts_Recoded
+# Refresh dacso survey records in T_Cohorts_Recoded
+# Note: this takes last years T_Cohorts_Recoded table, refreshes DACSO survey records for all years.
+# We can also create the table for DACSO each year, and then append the other survey data via their respective queries
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # Check weights
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
+dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 
 
 
