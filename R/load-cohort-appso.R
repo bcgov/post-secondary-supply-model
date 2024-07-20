@@ -26,6 +26,10 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
 # ---- Read raw data and disconnect ----
 source(glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
 
+appso_current_region_data <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/appso_current_region_data.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+
 APPSO_DATA_01_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
 APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
 
@@ -38,7 +42,10 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
+
 dbWriteTable(decimal_con, name = "APPSO_DATA_01_Final", value = APPSO_DATA_01_Final)
 dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates)
+dbWriteTable(decimal_con, name = "appso_current_region_data", value = appso_current_region_data)
 
 dbDisconnect(decimal_con)
+

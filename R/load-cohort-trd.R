@@ -30,9 +30,17 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
 
 # ---- Read raw data and disconnect ----
 source(glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
+trd_current_region_data <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/trd_current_region_data.csv"), col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
 
 Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
 Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
+
+# Gradstat group in query to pull from outcomes data, but couldn't find it so defining it here.
+Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
+  mutate(LCIP4_CRED = paste0(gradstat_group, ' - ' , lcip_lcp4_cd , ' - ' , ttrain , ' - ' , pssm_credential))
+
 
 dbDisconnect(outcomes_con)
 
@@ -43,7 +51,8 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
-dbWriteTable(decimal_con, name = "Q000_TRD_DATA_01", value = Q000_TRD_DATA_01)
+dbWriteTable(decimal_con, name = "T_TRD_DATA", value = Q000_TRD_DATA_01)
 dbWriteTable(decimal_con, name = "Q000_TRD_Graduates", value = Q000_TRD_Graduates)
+dbWriteTable(decimal_con, name = "trd_current_region_data", value = trd_current_region_data)
 
 dbDisconnect(decimal_con)
