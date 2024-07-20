@@ -8,7 +8,7 @@ library(RJDBC)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-bgs-clean.R"))
+source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-bgs.R"))
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -36,10 +36,11 @@ dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
 # dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
+dbExecute(decimal_con, "UPDATE bgs_current_region_data SET stqu_id = cast(cast(stqu_id as DECIMAL(10, 0)) as NVARCHAR(50)) FROM bgs_current_region_data")
 dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM2)
 
 # Applies weight for model year and derives New Labour Supply
-# Note: SQl may need to be updated - looks like the query needs a case_when added
+dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply INT NULL;")
 dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
 
 # Refresh bgs survey records in T_Cohorts_Recoded
