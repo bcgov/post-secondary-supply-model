@@ -33,7 +33,6 @@ decimal_con <- dbConnect(odbc::odbc(),
 # T_weights: carried forward from last models run and updated with new data.  Waiting for confirmation.
 # T_BGS_Data: carried forward from last models run and updated with new data.  Look into methods so we don't have to carry forward
 # T_BGS_INST_Recode: static lookup to recode institution codes
-# bgs_current_region_data: derived in geocoding workflow and will be saved to db in future.
 
 T_bgs_data_final_for_outcomesmatching2020  <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_bgs_data_final_for_outcomesmatching2020.csv"), col_types = cols(.default = col_character())) %>%
@@ -41,10 +40,6 @@ T_bgs_data_final_for_outcomesmatching2020  <-
 
 T_weights  <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_weights.csv"), col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-
-bgs_current_region_data <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/bgs_current_region_data.csv"), col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
   
 T_BGS_INST_Recode <- 
@@ -57,10 +52,9 @@ T_BGS_Data <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_
   janitor::clean_names(case = "all_caps") %>%
   select(-c(ID)) %>%
   rename("NOC" = NOC_CD_2011)
-  
-  
-  #select(-c(ID, SUBM_CD)) %>%
-  #rename("NOC" = NOC_CD_2016)
+# use this code when engineering the 2023 model:
+# select(-c(ID, SUBM_CD)) %>%
+# rename("NOC" = NOC_CD_2016)
           
 BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2018_2019)  %>% # use BGS_Q001_BGS_Data_2020_2023 for 2023 model run
   janitor::clean_names(case = "all_caps") %>%
@@ -84,7 +78,6 @@ dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final2", value = T_BGS_Data_Final)
 dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
 dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
-dbWriteTable(decimal_con, name = "bgs_current_region_data", value = bgs_current_region_data)
 
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)

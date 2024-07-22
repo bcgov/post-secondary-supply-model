@@ -34,7 +34,6 @@ decimal_con <- dbConnect(odbc::odbc(),
 # tbl_Age: static lookup maps age to age group in table tbl_Age_Groups
 # T_PSSM_Credential_Grouping: a static table for relabeling credential names
 # T_year_survey_year: carried forward from last models run and updated with new data. Will need to add a step to update this somewhere in the workflow.
-# dacso_current_region_data: derived in geocoding workflow and will be saved to db in future.
 # T_Cohorts_Recoded:  initially uploaded in this script, it contains survey records for all years.  But the table is refreshed in the workflow
 # so can instead just be created each year.  See comments in 02b-pssm-cohots-dacso.R
 
@@ -46,9 +45,6 @@ tbl_Age <-
   janitor::clean_names(case = "all_caps")
 T_PSSM_Credential_Grouping <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-dacso_current_region_data <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/dacso_current_region_data.csv"), col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 t_year_survey_year <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_year_survey_year.csv"), col_types = cols(.default = col_character())) %>%
@@ -62,7 +58,6 @@ t_cohorts_recoded <-
 dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "dacso_current_region_data", value = dacso_current_region_data, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded, overwrite = TRUE)
 
