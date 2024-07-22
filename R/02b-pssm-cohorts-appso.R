@@ -23,6 +23,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_DATA_01_Final"')
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."appso_current_region_data"')))
 
+# ---- Execute SQL ----
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
 dbExecute(decimal_con, APPSO_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
 dbExecute(decimal_con, APPSO_Q003b_Add_CURRENT_REGION_PSSM2)

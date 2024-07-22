@@ -1,3 +1,5 @@
+# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -25,8 +27,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_o
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Weights"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."bgs_current_region_data"'))) 
 
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-
+# ---- Execute SQL ----
 # Recode institution codes to be consistent to STP file
 dbExecute(decimal_con, BGS_Q001b_INST_Recode)
 
@@ -46,9 +47,6 @@ dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
 # Refresh bgs survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
 dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
-
-# Note: the following query may not be used
-dbExecute(decimal_con, BGS_Q99A_ENDDT_IMPUTED)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)

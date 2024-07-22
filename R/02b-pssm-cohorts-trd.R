@@ -21,8 +21,9 @@ decimal_con <- dbConnect(odbc::odbc(),
 # ---- Check for required data tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_Graduates"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_TRD_DATA"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."TRD_current_region_data"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."trd_current_region_data"')))
 
+# ---- Execute SQL ----
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
 dbExecute(decimal_con, Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
 dbExecute(decimal_con, Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM2)

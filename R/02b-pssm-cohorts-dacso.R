@@ -1,3 +1,7 @@
+# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
+# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
+# year's entries, but some rationale would be helpful.
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -24,10 +28,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age_groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_credential_grouping"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')))
 
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
-# year's entries, but some rationale would be helpful.
-
+# ---- Execute SQL ----
 # Recodes CIP codes
 dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
 
@@ -56,9 +57,6 @@ dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # Check weights
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
-
-
-
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
