@@ -36,7 +36,7 @@ Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
 
 # Gradstat group in query to pull from outcomes data, but couldn't find it so defining it here.
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
-  mutate(LCIP4_CRED = paste0(gradstat_group, ' - ' , lcip_lcp4_cd , ' - ' , ttrain , ' - ' , pssm_credential))
+  mutate(LCIP4_CRED = paste0(GRADSTAT_GROUP, ' - ' , LCIP_LCP4_CD , ' - ' , TTRAIN , ' - ' , PSSM_CREDENTIAL))
 
 
 dbDisconnect(outcomes_con)

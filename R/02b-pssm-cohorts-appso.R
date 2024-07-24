@@ -19,7 +19,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Check for required data tables ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_DATA_01_Final"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."appso_current_region_data"')))
 
@@ -38,6 +38,8 @@ dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
+dbExecute(decimal_con, "DROP TABLE APPSO_DATA_01_Final")
+dbExecute(decimal_con, "DROP TABLE APPSO_Graduates")
 
 
 

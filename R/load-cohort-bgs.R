@@ -72,12 +72,14 @@ BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2018_2019)  %>% # 
   select(-c(D02_R1_CURRENTLY_STUDYING, SUBM_CD))
 
 T_BGS_Data_Final <- rbind(BGS_Data_Update, T_BGS_Data)
+# Note: check datatypes are coming through as int, float, etc. aligned across survey data.  
+# Weights are currently uploaded as varchar - this affects downstream queries
 
 # ---- write to decimal
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
-dbWriteTable(decimal_con, name = "T_BGS_Data_Final2", value = T_BGS_Data_Final)
 dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
 dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
+dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final)
 
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)

@@ -23,10 +23,9 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- Check for required data tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."trd_current_region_data"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"." "')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"." "')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"." "')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"." "'))) 
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."appso_current_region_data"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."dacso_current_region_data"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."bgs_current_region_data"')))
 
 # ---- TRD Geocoding Step ----
 # Note: check years in queries
@@ -68,8 +67,7 @@ dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step3)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step4)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step4b)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step5)
-
 dbGetQuery(decimal_con, qry_BGS_results)
 
-
+# ---- Clean Up ----
 dbDisconnect(decimal_con)

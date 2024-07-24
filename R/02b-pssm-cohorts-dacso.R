@@ -27,6 +27,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age_groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_credential_grouping"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')))
 
 # ---- Execute SQL ----
 # Recodes CIP codes
@@ -60,3 +63,4 @@ dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
+

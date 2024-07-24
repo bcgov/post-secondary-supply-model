@@ -26,7 +26,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
 # ---- Read raw data and disconnect ----
 source(glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
 
-APPSO_DATA_01_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
+T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
 APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
 
 dbDisconnect(outcomes_con)
@@ -39,7 +39,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "APPSO_DATA_01_Final", value = APPSO_DATA_01_Final)
+dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final)
 dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates)
 
 dbDisconnect(decimal_con)
