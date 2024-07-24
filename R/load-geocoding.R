@@ -29,6 +29,13 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
+# ---- Read raw data from LAN ----
+tmp_bgs_inst_region_cds <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tmp_BGS_INST_REGION_CDS.csv"), 
+                  col_types = cols(.default = col_character())) %>%
+  janitor::clean_names(case = "all_caps")
+dbWriteTableArrow(decimal_con, name = "tmp_bgs_inst_region_cds", value = tmp_bgs_inst_region_cds)
+
 # --- Read Geoding data from SO and write to decimal ----
 # Note: Adjust years to include 2022 and 2023 when engineering 2023 data.
 
