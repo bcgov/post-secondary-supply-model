@@ -30,6 +30,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."dacso_current_region_data"'))) 
+
 
 # ---- Execute SQL ----
 # Recodes CIP codes
@@ -63,4 +66,7 @@ dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
+dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
+dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1;")
+dbExecute(decimal_con, "DROP TABLE dacso_current_region_data")
 

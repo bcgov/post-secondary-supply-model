@@ -38,6 +38,9 @@ dbExecute(decimal_con, Q000_TRD_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
+dbExecute(decimal_con, "DROP TABLE T_TRD_DATA")
+dbExecute(decimal_con, "DROP TABLE Q000_TRD_Graduates")
+dbExecute(decimal_con, "DROP TABLE trd_current_region_data")
 
 
 

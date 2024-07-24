@@ -37,7 +37,6 @@ dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
 # dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
-dbExecute(decimal_con, "UPDATE bgs_current_region_data SET stqu_id = cast(cast(stqu_id as DECIMAL(10, 0)) as NVARCHAR(50)) FROM bgs_current_region_data")
 dbExecute(decimal_con, BGS_Q003b_Add_CURRENT_REGION_PSSM2)
 
 # Applies weight for model year and derives New Labour Supply
@@ -50,6 +49,8 @@ dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
+dbExecute(decimal_con, "DROP TABLE T_BGS_Data_Final")
+dbExecute(decimal_con, "DROP TABLE bgs_current_region_data")
 
 
 

@@ -38,8 +38,9 @@ dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
-dbExecute(decimal_con, "DROP TABLE APPSO_DATA_01_Final")
+dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
 dbExecute(decimal_con, "DROP TABLE APPSO_Graduates")
+dbExecute(decimal_con, "DROP TABLE appso_current_region_data")
 
 
 
