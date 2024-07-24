@@ -29,6 +29,10 @@ source(glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
 T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
 APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
 
+# Convert some variables that should be numeric
+T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
+  mutate(TTRAIN = as.numeric(TTRAIN))
+
 dbDisconnect(outcomes_con)
 
 # ---- Connection to decimal ----

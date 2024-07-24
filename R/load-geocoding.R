@@ -32,7 +32,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 # ---- Read raw data from LAN ----
 tmp_bgs_inst_region_cds <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tmp_BGS_INST_REGION_CDS.csv"), 
-                  col_types = cols(.default = col_character())) %>%
+                  col_types = cols(Current_Region_PSSM = "d", .default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 dbWriteTableArrow(decimal_con, name = "tmp_bgs_inst_region_cds", value = tmp_bgs_inst_region_cds)
 
@@ -57,7 +57,7 @@ new_postal <- dbGetQuery(outcomes_con, qry_BGS_00_NEW_POSTAL)
 bgs_current_region_data <- bgs_current_region_data %>% 
   left_join(new_postal, by = join_by(STQU_ID, SURVEY_YEAR)) %>% 
   select(-NEW_POST)
-dbWriteTableArrow(decimal_con, name = "bgs_current_region_data_update", value = bgs_current_region_data)
+dbWriteTable(decimal_con, name = "bgs_current_region_data_update", value = bgs_current_region_data)
 
 # ---- Clean Up ---
 dbDisconnect(outcomes_con)

@@ -1,11 +1,3 @@
-# ---- Required Tables ----
-# Primary Outcomes tables: See raw data documentation
-# tbl_Age 
-# tbl_Age_Groups
-
-# ******************************************************************************
-
-# ******************************************************************************
 
 library(tidyverse)
 library(RODBC)
@@ -34,10 +26,15 @@ source(glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
 Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
 Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
 
-# Gradstat group in query to pull from outcomes data, but couldn't find it so defining it here.
+# Convert some variables that should be numeric
+Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
+  mutate(GRADSTAT = as.numeric(GRADSTAT), 
+         KEY = as.numeric(KEY),  
+         TTRAIN = as.numeric(TTRAIN))
+
+# Gradstat group : couldn't find in outcomes data so defining here.
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
   mutate(LCIP4_CRED = paste0(GRADSTAT_GROUP, ' - ' , LCIP_LCP4_CD , ' - ' , TTRAIN , ' - ' , PSSM_CREDENTIAL))
-
 
 dbDisconnect(outcomes_con)
 
