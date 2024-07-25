@@ -344,10 +344,10 @@ dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
 # ---- Clean Up ----
 dbExecute(con, "DROP VIEW Credential")
-dbExecute(con, "DROP TABLE credential_non_dup")
+#dbExecute(con, "DROP TABLE credential_non_dup")
 dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
-dbExecute(con, "DROP TABLE CredentialSupVars")
+#dbExecute(con, "DROP TABLE CredentialSupVars")
 
 
 
