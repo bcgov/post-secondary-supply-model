@@ -25,13 +25,23 @@ source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-coh
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
 dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
+dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 
 # ---- Execute SQL ----
-# looks for invalid NOC codes and recode.  I haven't recreated this yet as dependent on other tables which I am not sure how they are derived.
-dbGetResults(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+# ---- look for invalid NOC codes and recode bgs and dacso tables ----  
+# Note: this step should probably be done earlier, bc if invalid nocs found, they 
+# are fixed and then I believe T_Cohorts_recoded needs to be updated.
+dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
+dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
+# If invalid nocs are found, run the following queries.  Looks like 2 tmp tables needs to be made.
 dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
 dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
+dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
 
+# recodes new labour supply for those with an NLS-2 record and no NLS1
+# However, original query used a distinctrow and so I don't think this query does anything yet.  
+# We need to add a where exists
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS1)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode) 
@@ -55,11 +65,11 @@ dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
 dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
 dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
 dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
-dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update) # removed distinctrow 
-
+dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) # add the Weight_NLS field to the table 
+dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null) # nulls Weight_NLS field if you’ve been messing with iterations
+dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update)
 dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
-
-dbExecute(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
+dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
 
 dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply)
@@ -68,6 +78,7 @@ dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D)
+
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total)

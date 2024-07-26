@@ -25,11 +25,13 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."trd_current_region_dat
 
 # ---- Execute SQL ----
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
-dbExecute(decimal_con, Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM) # Not sure we need this
+dbExecute(decimal_con, Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM)
 dbExecute(decimal_con, Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM2)
 
 # Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD New_Labour_Supply INT NULL;")
+#dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD New_Labour_Supply INT NULL;")
+dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group INT NULL;")
+dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup INT NULL;")
 dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
 
 # Refresh bgs survey records in T_Cohorts_Recoded

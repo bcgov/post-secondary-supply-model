@@ -56,6 +56,7 @@ dbExecute(decimal_con, DACSO_Q004b_DACSO_DATA_Part_1_Add_CURRENT_REGION_PSSM2)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
 
 # Refresh dacso survey records in T_Cohorts_Recoded
+# Note: consider removing 2006+ as TTRAIN not available
 # Note: this takes last years T_Cohorts_Recoded table, refreshes DACSO survey records for all years.
 # We can also create the table for DACSO each year, and then append the other survey data via their respective queries
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
