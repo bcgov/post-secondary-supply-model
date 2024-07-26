@@ -33,6 +33,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 # tbl_Age_Groups: a static crosswalk for aligning ages, groups and labels across queries and datasets
 # tbl_Age: static lookup maps age to age group in table tbl_Age_Groups
 # T_PSSM_Credential_Grouping: a static table for relabeling credential names
+#: tbl_noc_skill_level_aged_17_34: used SQL server for upload as this file contains non-supported type characters
 # T_year_survey_year: carried forward from last models run and updated with new data. Will need to add a step to update this somewhere in the workflow.
 # T_Cohorts_Recoded:  initially uploaded in this script, it contains survey records for all years.  But the table is refreshed in the workflow
 # so can instead just be created each year.  See comments in 02b-pssm-cohots-dacso.R
@@ -53,6 +54,9 @@ T_PSSM_Credential_Grouping <-
 t_year_survey_year <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_year_survey_year.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+tbl_noc_skill_level_aged_17_34 <- 
+  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 t_cohorts_recoded <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Cohorts_Recoded.csv"), 
                   col_types = cols(PEN = "c", STQU_ID = "c", Survey = "c", LCIP_CD = "c", LCP4_CD = "c", NOC_CD = "c", INST_CD = "c",
@@ -68,11 +72,13 @@ t_current_region_pssm_rollup_codes_bc <-
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
+
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
 dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
 dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
@@ -82,6 +88,11 @@ dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value 
 # --- Read SO dacso data and write to decimal ----
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
 dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN TTRAIN INT NULL")
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN LABR_EMPLOYED INT NULL")
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_GRAD_STATUS_LGDS_CD INT NULL") # check these
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_GRAD_STATUS_LGDS_CD_GROUP INT NULL") # check these
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPONDENT INT NULL")
 rm(t_dacso_data_part_1_stepa)
 gc()
 
