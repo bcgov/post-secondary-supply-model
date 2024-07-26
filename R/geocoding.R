@@ -29,21 +29,19 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."bgs_current_region_dat
 
 # ---- TRD Geocoding Step ----
 # Note: check years in queries
-dbExecute(decimal_con, "ALTER TABLE trd_current_region_data ADD current_region_pssm_code NVARCHAR(255) NULL")
+dbExecute(decimal_con, "ALTER TABLE trd_current_region_data ADD current_region_pssm_code FLOAT NULL")
 dbExecute(decimal_con, qry_000_TRD_Update_Current_Region_PSSM_step1)
 dbExecute(decimal_con, qry_000_TRD_Update_Current_Region_PSSM_step2)
-dbGetQuery(decimal_con, qry_000_TRD_results)
+dbGetQuery(decimal_con, qry_000_TRD_results) # includes years 2020 and 2021, but Respondents (2021 only) is NA. # some NULL PSSM codes in each year
 
 # ---- APPSO Geocoding Step ----
-# Note: years prior to 2016 include NULL pssm codes.  These NULLs are not showing up in the 2019 model run aggregate.  
-# There was some investigation in prior years, by the looks of things so chek what is still needed to do here, if anything.
-# Note: check years in queries
-dbExecute(decimal_con, "ALTER TABLE appso_current_region_data_update ADD current_region_pssm_code NVARCHAR(255) NULL")
+# Note: check years in queries and records with NULL pssm codes. There was some investigation in prior years.
+dbExecute(decimal_con, "ALTER TABLE appso_current_region_data_update ADD current_region_pssm_code FLOAT NULL")
 dbExecute(decimal_con, "INSERT INTO appso_current_region_data SELECT * FROM appso_current_region_data_update")
 dbExecute(decimal_con, "DROP TABLE appso_current_region_data_update")
 dbExecute(decimal_con, qry_APPSO_Update_Current_Region_PSSM_step1)
 dbExecute(decimal_con, qry_APPSO_Update_Current_Region_PSSM_step2)
-dbGetQuery(decimal_con, qry_APPSO_results)
+dbGetQuery(decimal_con, qry_APPSO_results) # some NULL PSSM codes in 2016+
 
 # ---- DACSO Geocoding Step ----
 # Note: check years in queries
@@ -67,7 +65,7 @@ dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step3)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step4)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step4b)
 dbExecute(decimal_con, qry_BGS_update_Current_Region_PSSM_step5)
-dbGetQuery(decimal_con, qry_BGS_results)
+dbGetQuery(decimal_con, qry_BGS_results) # srv_y_n is NA instead of 0 2011 and earlier
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)

@@ -46,12 +46,13 @@ dbWriteTableArrow(decimal_con, name = "trd_current_region_data", value = trd_cur
 # appso geocoding
 appso_current_region_data <- dbGetQueryArrow(outcomes_con, qry_APPSO_Current_Region_Data)
 dbWriteTableArrow(decimal_con, name = "appso_current_region_data_update", value = appso_current_region_data)
+dbExecute(decimal_con, "ALTER TABLE appso_current_region_data_update ALTER COLUMN RESPONDENT FLOAT NULL")
 
 # dacso geocoding - adding most recent years (adjust all queries so only those years are updated)
 dacso_current_region_data <- dbGetQueryArrow(outcomes_con, qry_DACSO_Current_Region_Data)
 dbWriteTableArrow(decimal_con, name = "dacso_current_region_data_update", value = dacso_current_region_data)
 
-# bgs geocoding
+# bgs geocoding - no longer have a region3 code in SO tables.
 bgs_current_region_data <- dbGetQuery(outcomes_con, qry_BGS_00_Append)
 new_postal <- dbGetQuery(outcomes_con, qry_BGS_00_NEW_POSTAL)
 bgs_current_region_data <- bgs_current_region_data %>% 

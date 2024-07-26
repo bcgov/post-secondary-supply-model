@@ -79,7 +79,7 @@ T_BGS_Data_Final <- rbind(BGS_Data_Update, T_BGS_Data)
 # ---- write to decimal
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode)
 dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
-dbWriteTable(decimal_con, name = "dbo.T_Weights", value = T_weights)
+dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final)
 
 dbDisconnect(outcomes_con)
