@@ -27,6 +27,17 @@ dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
 dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 
+# ---- old clean up - move these ----
+dbExecute(decimal_con, "DROP TABLE T_TRD_DATA")
+dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
+dbExecute(decimal_con, "DROP TABLE T_BGS_Data_Final")
+dbExecute(decimal_con, "DROP TABLE appso_current_region_data")
+dbExecute(decimal_con, "DROP TABLE dacso_current_region_data")
+dbExecute(decimal_con, "DROP TABLE bgs_current_region_data")
+dbExecute(decimal_con, "DROP TABLE trd_current_region_data")
+dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa")
+dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1")
+
 # ---- Execute SQL ----
 # ---- look for invalid NOC codes and recode bgs and dacso tables ----  
 # Note: this step should probably be done earlier, bc if invalid nocs found, they 
@@ -78,7 +89,6 @@ dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D)
-
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_No_TT)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total)
@@ -93,8 +103,9 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006a_Weight_New_Labour_Supply")
-
+dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS1")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS2")
 
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
@@ -104,33 +115,46 @@ dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT)
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D)
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT)
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_No_TT)
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006a_Weight_New_Labour_Supply")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0_2D")
+dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_0_2d_no_tt")
+dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_0_no_tt")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_2D")
+dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_2d_no_tt")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT")
+dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_total_no_tt")
+dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_no_tt")
+
+source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
+# these queries need to be reformatted from MS Access SQL, but figure out if deleting entire row, or just cell values
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_QI)
+
 dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
 dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
 dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
 
 dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)
-
 dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT)
-
 dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI)
-
 dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_QI)
 
 dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D)
-
 dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT)
-
 dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D)
-
 dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT)
 
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
-dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
-dbExecute(decimal_con, "DROP TABLE tmp_bgs_inst_region_cds")
+#dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
+#dbExecute(decimal_con, "DROP TABLE tmp_bgs_inst_region_cds")
+#dbExecute(decimal_con, "DROP TABLE DACSO_Q006a_Weight_New_Labour_Supply")
