@@ -68,6 +68,6 @@ dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1;")
+# dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1;") # this table used in near completers workflow
 dbExecute(decimal_con, "DROP TABLE dacso_current_region_data")
 
