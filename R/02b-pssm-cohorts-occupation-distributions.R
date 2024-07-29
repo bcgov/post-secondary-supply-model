@@ -43,7 +43,7 @@ dbExecute(decimal_con, DACSO_Q008_Z05_Weight_OCC)
 dbExecute(decimal_con, DACSO_Q008_Z05b_Finding_NLS2_Missing)
 dbGetQuery(decimal_con, DACSO_Q008_Z05b_NOC4D_NLS_XTab)
 dbGetQuery(decimal_con, DACSO_Q008_Z05b_Weight_Comparison)
-dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
+#dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
 dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null) # This is redundant
 dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update)
 dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc)
@@ -59,7 +59,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z04_Weight_Adj_Fac")
 
-
 dbExecute(decimal_con, DACSO_Q009_Weight_Occs)
 dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D)
 dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_BC)
@@ -73,6 +72,13 @@ dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs)
 dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_No_TT)
 dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total)
 dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total_No_TT)
+
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_No_TT)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_No_TT)
 
 dbExecute(decimal_con, "DROP TABLE DACSO_Q009_Weight_Occs")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q009_Weighted_Occs_2D")
@@ -88,16 +94,10 @@ dbExecute(decimal_con, "DROP TABLE dacso_q009b_weighted_occs_no_tt")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q009b_Weighted_Occs_Total")
 dbExecute(decimal_con, "DROP TABLE dacso_q009b_weighted_occs_total_no_tt")
 
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist)
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D)
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC)
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT)
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_No_TT)
 
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP4_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
-              Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "integer", Total = "integer", Percent = "integer")
+              Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", Percent = "float")
 
 if(!dbExistsTable(decimal_con, "Occupation_Distributions")){
   dbCreateTable(decimal_con, "Occupation_Distributions",  occs_def)
@@ -108,14 +108,14 @@ if(!dbExistsTable(decimal_con, "Occupation_Distributions_No_TT")){
 
 dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution)
 dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_No_TT)
-dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_No_TT_QI)
-dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_QI)
+#dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_No_TT_QI)
+#dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_QI)
 dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
 dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
 
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP2_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
-              Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "integer", Total = "integer", Percent = "integer")
+              Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", Percent = "float")
 
 if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")){
   dbCreateTable(decimal_con, "Occupation_Distributions_LCP2",  occs_def)
@@ -132,7 +132,7 @@ dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
 dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
 
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP2_CD = "nvarchar(50)", 
-              TTRAIN = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" ,  Count = "integer", Total = "integer", Percent = "integer")
+              TTRAIN = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" ,  Count = "float", Total = "float", Percent = "float")
 
 if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")){
   dbCreateTable(decimal_con, "Occupation_Distributions_LCP2_BC",  occs_def)
@@ -164,12 +164,21 @@ dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
 dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
 
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010d2_NLS_PDEG_07_Count")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010d3_NLS_PDEG_07_Subtotal")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010d4_NLS_PDEG_07_Total")
+          
 dbExecute(decimal_con, DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist)
-dbExecute(decimal_con, DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist_QI)
+#dbExecute(decimal_con, DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist_QI)
 dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010e2_Weighted_Occs_PDEG_07")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
