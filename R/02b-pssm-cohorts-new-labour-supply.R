@@ -44,7 +44,7 @@ dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1")
 # are fixed and then I believe T_Cohorts_recoded needs to be updated.
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
-dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
+
 # If invalid nocs are found, run the following queries.  Looks like 2 tmp tables needs to be made.
 dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
 dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
@@ -101,7 +101,7 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight_tmp")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
+
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS1")
@@ -130,7 +130,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_
 dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_total_no_tt")
 dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_no_tt")
 
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
 # these queries need to be reformatted from MS Access SQL, but figure out if deleting entire row, or just cell values
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
@@ -160,8 +159,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_No_T
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT")
-
-
 
 
 # ---- Clean Up ----
