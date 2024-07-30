@@ -59,6 +59,8 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))
 
 # ---- Create Record Type Table ----
 
+## Review ----
+## This code in here twice - will error on second run
 # Create lookup table for ID/Record Status and populate with ID column and EPEN 
 dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
 
@@ -111,6 +113,9 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd];"))
 
 dbExecute(con, qry03d_3_Drop_More_Continuing_Ed) 
 dbExecute(con, qry03d_4_Updated_Drop_ContinuingEdMore)
+
+## Review ----
+## This table is deleted before it gets used? 
 dbExecute(con, qry03e_Keep_Skills_Based)
 dbExecute(con, "ALTER TABLE Keep_Skills_Based ADD EXCLUDE nvarchar(2) NULL;")
 dbExecute(con, qry03ea_Exclude_Skills_Based_Programs)
@@ -119,6 +124,10 @@ dbExecute(con, qry03ea_Exclude_Skills_Based_Programs)
 # investigate programs that are considered skills based - requires a think as to how to include in a pipeline
 # keep_skills_based <- dbReadTable(con, "Keep_Skills_Based")
 # readr::write_csv(glue::glue("{lan}/development/csv/gh-source/01c-keep-skills-based-with-exclusions.csv"))
+
+## Review ----
+## This table uses different IDs from the beginning of this workflow
+## So the queries that incorporate it (f/fb) are joining on an incorrect ID 
 keep_skills_based <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/01c-keep-skills-based-with-exclusions.csv"), 
                               col_types = cols(.default = col_character()), 
                               na = c("", "NA", "NULL"))
@@ -161,6 +170,8 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Suspect_Skills_Based];"))
 
 # ---- Find records with Record_Status = 7 and update look up table ----
 ## ---- Manual Work ----
+## Review ----
+## Is this supposed to be the credentials query and not the enrollment query?
 dbExecute(con, qry03k_Drop_Developmental_Credential_CIPS)        
 dbExecute(con, "ALTER TABLE Drop_Developmental_CIPS 
           ADD ID INT NULL, 
@@ -200,6 +211,10 @@ dbGetQuery(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*)
 
 # I removed the code to update column "ENROLMENT_SEQUENCE_FIXED_FLAG" and EPEN_FIXED_FLAG in STP_Enrolment_Valid bc
 # this is just a handful of records and it isn't referenced in any of these remaining queries
+
+## Review --
+## From the documentation, not clear if this is supposed to be run or not. 
+## Seems fragile as it relies on a manually created 2019 table? 
 dbExecute(con, qry08b_Fix_EPEN_in_STP_Enrolment_Valid)
 # conditioned on PSI_ENROLMENT_SEQUENCE_FIX, which isn't in data - can't run query
 #dbExecute(con, qry08c_Fix_Enrol_Sequence_in_STP_Enrolment_Valid) 
@@ -223,6 +238,9 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry10a_MinEnrolment
 dbExecute(con, qry11a_Update_MinEnrolmentPEN)
 dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
 dbExecute(con, qry11c_Update_MinEnrolment_NA)
+
+## Review ----
+## Can these be removed?
 #dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11a_Update_MinEnrolmentPEN];"))
 #dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11b_Update_MinEnrolmentPEN];"))
 #dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[qry11c_Update_MinEnrolmentPEN];"))
@@ -251,6 +269,10 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
 
 # ---- Clean Birthdates ----
+## Review ----
+## Doesn't really matter but this isn't in the corresponding documentation 
+## And I wouldn't know where exactly to find it 
+## (seems to be in Ian's notes, not the updated notes)
 dbExecute(con, qry01_BirthdateCleaning)
 dbExecute(con, qry02_BirthdateCleaning)
 dbExecute(con, qry03_BirthdateCleaning)
@@ -273,11 +295,15 @@ dbExecute(con, qry07b_BirthdateCleaning)
 dbExecute(con, qry08_BirthdateCleaning)
 
 # ----- Manual Cleaning -----
+## Review ----
+## Feels frictiony to rely on a manual cleaning csv from 2019 again here 
 data <- readr::read_csv(glue::glue("{lan_2019}/Development/SQL Server/Preprocessing/tmp_Clean_MaxMinBirthDate.csv"), col_types = cols(.default = col_character()))
 dbWriteTable(con, "tmp_Clean_MaxMinBirthDate", data)
 dbExecute(con, qry09_BirthdateCleaning)
 dbExecute(con, qry10_BirthdateCleaning)
 dbExecute(con, qry11_BirthdateCleaning)
+## Review ----
+## Is this supposed to be commented out? Breaks everything below
 #dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
 dbExecute(con, qry12_BirthdateCleaning)
 dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
