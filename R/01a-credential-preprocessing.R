@@ -75,6 +75,10 @@ dbExecute(con, qry03b_Update_Drop_Record_Developmental)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")) 
 
 # Create a subset of potential Record_Status = 6 records that have not already assigned a record status
+## Review ----
+## Just flagging that as this depends on the enrolment table,
+## the order should probably be swapped. 
+## Also need to make sure that the enrolment record type table hadn't been deleted. 
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
 dbExecute(con, qry03c_Drop_Skills_Based)
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
@@ -97,6 +101,10 @@ dbExecute(con, "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD Keep NVAR
 #  ---- Manual Work Finding Developmental CIPS ----
 # Check the following programs against the outcomes programs table to see if any have a non-developmental CIP.
 # If so, they should not be flagged as a developmental CIP to exclude. (set keep = 'Y')
+
+## Review ----
+## I'm not sure I follow the manual workflow section here 
+## Is this just to allow for the opportunity to do a manual adjust of some of the table? 
 data <- dbReadTable(con, "Drop_Developmental_PSI_CREDENTIAL_CIPS", col_types = cols(.default = col_character()))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CREDENTIAL_CIPS];")) 
 
@@ -113,6 +121,8 @@ dbExecute(con, qry03j_Update_RecommendationForCert)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_RecommendForCert];")) 
 
 # ---- Investigate This Query ----
+## Review ----
+## Worth asking Ian about what these are?
 # dbExecute(con, qry03k_Drop_Developmental_CIPS) # this one isn't used anywhere
 # dbExecute(con, qry03k_Update_ID_for_Drop_Dev_Credential_CIP) # might be from enrolment pre-processing workflow
 
