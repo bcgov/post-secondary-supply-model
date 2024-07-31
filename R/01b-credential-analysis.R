@@ -23,9 +23,16 @@ con <- dbConnect(odbc(),
 # ---- Check Required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_RecordType"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_RecordType"')))
+## Review ----
+## These should be Record_Type, not RecordType
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
+
+## Review ----
+## It's unclear to me where this originates from
+## I just copied it from the 2019 schema, but I'm not sure what the 2023 version would be
+## Is it the program matching work Steph is doing?
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
@@ -41,16 +48,23 @@ dbExecute(con, qry05_CredentialSupVars_From_Enrolment) # bring in credential rec
 dbExecute(con, qry06_CredentialSupVars_From_Enrolment)
 dbExecute(con, "ALTER TABLE CredentialSupVarsFromEnrolment ADD CONSTRAINT PK_CredSupVarsfromEnrol_ID PRIMARY KEY (EnrolmentID);")
 
+## Review ----
+## Probably another thing to ask Ian about - see if these missing queries can be found?
 #try to match on psi code/sn
 # method 1
-dbExecute(con, "SELECT PSI_CODE, PSI_STUDENT_NUMBER INTO RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE from Credential
+dbExecute(con, "SELECT PSI_CODE, PSI_STUDENT_NUMBER 
+                INTO RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE 
+                from Credential
                 WHERE ENCRYPTED_TRUE_PEN NOT IN (
 	              SELECT ENCRYPTED_TRUE_PEN
 	              FROM CredentialSupVarsFromEnrolment);")
-dbExecute(con, "SELECT ID, PSI_CODE, PSI_STUDENT_NUMBER INTO RW_TEST_CRED_NULLEPENS_TO_MATCH FROM Credential WHERE ENCRYPTED_TRUE_PEN = '';")
+dbExecute(con, "SELECT ID, PSI_CODE, PSI_STUDENT_NUMBER 
+                INTO RW_TEST_CRED_NULLEPENS_TO_MATCH 
+                FROM Credential 
+                WHERE ENCRYPTED_TRUE_PEN = '';")
 
 #dbExecute(con, qry07_CredentialSupVars_From_Enrolment) Creates a table that isn't used for anything that I can see
-#dbExecute(con, qry08_CredentialSupVars_From_Enrolment) 
+dbExecute(con, qry08_CredentialSupVars_From_Enrolment) 
 dbExecute(con, qry09_CredentialSupVars_From_Enrolment) # for null/blank EPENS pull max school year
 dbExecute(con, qry10_CredentialSupVars_From_Enrolment) # bring in more enrolment information for the most recent school year 
 dbExecute(con, qry11_CredentialSupVars_From_Enrolment) # add pky constraint
@@ -63,7 +77,10 @@ dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step5")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
-# dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED") Error message: Cannot drop the table 'RW_TEST_CRED_NULLEPENS_MATCHED', because it does not exist or you do not have permission. 
+## Review ----
+## This seems to be built in qry08 - I'm finding it really hard to follow the logic here though
+## With the missing RW queries.
+dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED") # Error message: Cannot drop the table 'RW_TEST_CRED_NULLEPENS_MATCHED', because it does not exist or you do not have permission. 
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
@@ -181,6 +198,10 @@ dbExecute(con, qry07a1c_tmp_Credential_Gender)
 dbExecute(con, qry07a1d_tmp_Credential_GenderDups)
 dbExecute(con, qry07a1e_tmp_Credential_GenderDups_FindMaxCredDate)
 dbExecute(con, "ALTER TABLE tmp_dup_credential_epen_gender_maxcreddate ADD PSI_GENDER_Cleaned VARCHAR(10)")
+## Review ----
+## Not personally a fan of commenting out code that isn't needed for a specific year 
+## This is more of a note - doesn't affect this years run, can come back to after 
+## initial delivery is done 
 #dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender) # Not needed this year because not GenderDups at this point.                  
 #dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)  # Not needed this year because not GenderDups at this point. 
 #dbExecute(con, qry07a1h_Update_Credential_GenderDups)  # Not needed this year because not GenderDups at this point.     
@@ -195,6 +216,9 @@ View(dbGetQuery(con, qry07b_GenderDistribution))
 
 # ---- Transfer Excel Spreadsheet (Development\SQL Server\CredentialAnalysis) calcs here --- *
 # ---- This section can be replaced with R code easily
+## Review ----
+## Runs but needs a reminder that this is really a manual step, 
+## With TOP(N) stuff updating. 
 dbExecute(con, qry07c10_Assign_TopID_GenderF_GradCert)
 dbExecute(con, qry07c11_Assign_TopID_GenderF_GradDipl)
 dbExecute(con, qry07c12_Assign_TopID_GenderF_Masters)
@@ -256,7 +280,12 @@ res <- res %>%
 
 dbWriteTable(con, name = 'tmp_Credential_Ranking', res)
 
-# dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") errors - fix this
+## Review ----
+# I'm not sure if I'm supposed to or not
+# But the reson this doesn't seem to work is that there are duplicate IDs
+# dbExecute(con, "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;")
+# dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") # errors - fix this
+
 dbExecute(con, qry08a1_Update_CredentialNonDup_with_highestDate_Rank)
 dbExecute(con, qry08a_Pre_Credential_Ranking_View)
 dbExecute(con, qry08a_Run_after_Credential_Ranking)
@@ -266,14 +295,18 @@ dbExecute(con, "DROP TABLE tmp_Credential_Ranking")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
 dbExecute(con, "DROP VIEW Credential_Ranking")
 
-
-dbExecute(con, qry09a_ExtractNoAge)
+## Review ----
+# I get different numbers here from the documentation, just FYI. Not sure if it matters. 
+dbExecute(con, qry09a_ExtractNoAge)  # 11950
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
-dbExecute(con, qry09b_ExtractNoAgeUnique)
+dbExecute(con, qry09b_ExtractNoAgeUnique) # 11220
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age_Unique ADD PRIMARY KEY (id);")
 dbExecute(con, qry09c_Create_CREDAgeDistributionGender)
 dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
 
+## Review ----
+# There's a bunch of talk about an excel spreadsheet at this point, 
+# but unclear how that fits in - is this being dealt with somewhere?
 dbExecute(con, qry10_Update_Extract_No_Age)
 dbExecute(con, qry11a_UpdateAgeAtGrad)
 dbExecute(con, qry11b_UpdateAGAtGrad)
@@ -295,13 +328,18 @@ dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID_FOR_HIGHESTRANK = 
 dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID_FOR_HIGHESTRANK = PSI_STUDENT_NUMBER + PSI_CODE 
                 WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN = '')")
 
+## Review ----
+# Still getting slightly different numbers - just fyi
 dbExecute(con, qry12_Create_View_tblCredentialHighestRank)
+
 dbExecute(con, qry18a_ExtrLaterAwarded)
 dbExecute(con, qry18b_ExtrLaterAwarded)
 dbExecute(con, qry18c_ExtrLaterAwarded)
 dbExecute(con, qry18d_ExtrLaterAwarded)
 dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_2")
-dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_3")
+## Review ----
+# Does not exist 
+#dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
 #dbExecute(con, "DROP TABLE tblcredential_laterawarded")
 
@@ -313,6 +351,8 @@ dbExecute(con, "ALTER TABLE Credential_Non_Dup
                 ADD CREDENTIAL_AWARD_DATE_D_DELAYED date, 
                 PSI_AWARD_SCHOOL_YEAR_DELAYED varchar(50);")
 
+## Review ----
+# Note sure what these commented out queries do? Not mentioned in documentation
 dbExecute(con, qry13_UpdateDelayedCredDate)
 #dbExecute(con, qry13_UpdateDelayedCredDate_Exclude_LatestYr)
 dbExecute(con, qry13a_UpdateDelayedCredDate)
@@ -326,6 +366,10 @@ dbExecute(con, qry14_ResearchUniversity)
 dbExecute(con, qry15_OutcomeCredential)
 #dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
 
+
+## Review ----
+# Note sure if these are all supposed to work 
+# Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
 dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
