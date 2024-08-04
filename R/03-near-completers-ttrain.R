@@ -29,6 +29,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
 
 # ---- Execute SQL ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")
@@ -166,7 +167,15 @@ dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad)
 
 # Note: The ratios created in this section combine ages 35+ into a single group (35-64).
-# The queries will need to be adjusted for this.
+agegrouplookup <- dbReadTable(decimal_con, "agegrouplookup")
+agegroupnearcompleterslookup <- agegrouplookup %>% 
+  filter(AgeIndex %in% 2:5) %>% 
+  mutate(AgeIndex = AgeIndex -1) %>%
+  add_case(AgeIndex = 5, AgeGroup = "35 to 64", LowerBound = 35, UpperBound = 64)
+
+dbWriteTable(decimal_con, "agegroupnearcompleterslookup", agegroupnearcompleterslookup)
+
+
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
 dbExecute(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred)
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Has_STP_Credential NVARCHAR(10)")
@@ -199,25 +208,31 @@ dbExecute(decimal_con, "update completerscip4
                         from completerscip4")
 dbExecute(decimal_con, qry_Make_Completers_CIP4_CombinedCred)
 
-
-dbExecute(decimal_con, )
+# ---- TTRAIN tables ----
+# Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
+# The second one doesn't
+dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
+dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
+dbExecute(decimal_con, qry99_Near_completes_program_dist_count) # check pssm_credential column - presence of both 'OR' and 'or' creates faux-duplicates
 
 # ---- Clean Up ----
-dbDisconnect(decimal_con)
 #dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
 #dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 #dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age ")
 #dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
 #dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_bk")
+#dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
+#dbExecute(decimal_con, "DROP TABLE combine_creds")
 
-dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
-dbExecute(decimal_con, "DROP TABLE combine_creds")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
 dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
 dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred_with_stp_credential")
-
-
+dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
+dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4_combinedcred")
+dbExecute(decimal_con, "DROP TABLE completerscip4")
+dbExecute(decimal_con, "DROP TABLE completers_cip4_combinedcred")
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE ")
-dbExecute(decimal_con, "DROP TABLE ")
+dbDisconnect(decimal_con)
 

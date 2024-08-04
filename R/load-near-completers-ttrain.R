@@ -31,6 +31,13 @@ stp_dacso_prgm_credential_lookup <-
 combine_creds <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/combine_creds.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+t_pssm_projection_cred_grp <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/T_PSSM_Projection_Cred_Grp.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps") %>% 
+  add_case(PSSM_PROJECTION_CREDENTIAL = 'UNIVERSITY TRANSFER', 
+           PSSM_CREDENTIAL = 'ADGR OR UT', 
+           PSSM_CREDENTIAL_NAME = 'Associate degree/University transfer', 
+           COSC_GRAD_STATUS_LGDS_CD = 1)
 
 # for testing of 2019 data only - remove as this table will be made in earlier workflow
 t_dacso_data_part_1 <- 
@@ -57,6 +64,7 @@ dbWriteTable(decimal_con, name = "tmp_tbl_Age_AppendNewYears", value = tmp_tbl_A
 dbWriteTable(decimal_con, name = "tmp_tbl_Age", value = tmp_tbl_Age )
 dbWriteTable(decimal_con, name = "combine_creds", value = combine_creds )
 dbWriteTable(decimal_con, name = "stp_dacso_prgm_credential_lookup", value = stp_dacso_prgm_credential_lookup)
+dbWriteTable(decimal_con, name = "t_pssm_projection_cred_grp", value = t_pssm_projection_cred_grp)
 dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1", nanoarrow::as_nanoarrow_array(t_dacso_data_part_1arr))
 dbDisconnect(decimal_con)
 
