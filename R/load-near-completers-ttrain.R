@@ -19,14 +19,17 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           user = db_config$user,
                           password = db_config$password)
 
-
 # ---- Read raw data from LAN ----
-# Note: tmp_tbl_Age is rolled over year after year and updated from SO tables.
+# Note: tmp_tbl_Age is rolled over year after year and updated from SO tables. 
 tmp_tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/03-tmp_tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+# stp_dacso_prgm_credential_lookup and combine_creds are lookups that don't change year to year
 stp_dacso_prgm_credential_lookup <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/STP_DACSO_PRGM_CREDENTIAL_LOOKUP.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+combine_creds <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/combine_creds.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # for testing of 2019 data only - remove as this table will be made in earlier workflow
@@ -52,6 +55,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 dbWriteTable(decimal_con, name = "tmp_tbl_Age_AppendNewYears", value = tmp_tbl_Age_AppendNewYears)
 dbWriteTable(decimal_con, name = "tmp_tbl_Age", value = tmp_tbl_Age )
+dbWriteTable(decimal_con, name = "combine_creds", value = combine_creds )
 dbWriteTable(decimal_con, name = "stp_dacso_prgm_credential_lookup", value = stp_dacso_prgm_credential_lookup)
 dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1", nanoarrow::as_nanoarrow_array(t_dacso_data_part_1arr))
 dbDisconnect(decimal_con)
