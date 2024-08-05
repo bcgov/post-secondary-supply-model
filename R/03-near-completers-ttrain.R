@@ -1,7 +1,3 @@
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
-# year's entries, but some rationale would be helpful.
-
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -21,15 +17,24 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-# ---- Read raw data ----
+# ---- Required data tables and SQL ----
 source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/near-completers-investigation-ttrain.R"))
 source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/dacso-near-completers.R"))
-dbExistsTable(decimal_con, "t_dacso_data_part_1")
+
+# tmp tables made in earlier part of workflow
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))) 
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))) 
+
+# carry over from last model's run
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')))
+
+# new data - see load-near-completers-ttrain.R
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')))
+
+# lookups - see load-near-completers-ttrain.R
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"')))
 
 # ---- Execute SQL ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")
@@ -53,7 +58,8 @@ dbExecute(decimal_con, qry_make_T_DACSO_DATA_Part_1_TempSelection)
 
 # do some dacso-stp matching
 dbExecute(decimal_con, qry01_Match_DACSO_to_STP_Credential_Non_DUP_on_PEN)
-dbExecute(decimal_con, qry_Update_STP_PRGM_Credential_Awarded_Name )
+dbExecute(decimal_con, "ALTER TABLE dacso_matching_stp_credential_pen ADD stp_prgm_credential_awarded_name nvarchar(50) NULL")
+dbExecute(decimal_con, qry_Update_STP_PRGM_Credential_Awarded_Name)
 
 # How many PEN matched records also match STP on credential category
 dbExecute(decimal_con, "ALTER TABLE dacso_matching_stp_credential_pen ADD match_credential nvarchar(10) NULL")
@@ -64,7 +70,7 @@ dbExecute(decimal_con, "ALTER TABLE dacso_matching_stp_credential_pen ADD match_
 dbExecute(decimal_con, qry03_Match_DACSO_STP_Credential_CIPCODE4)
 
 # How many PEN matched records also match STP on CIP2
-dbExecute(decimal_con, "ALTER TABLE dacso_matching_stp_credential_pen ADD Match_CIP_CODE_2 nvarchar(10) NULL")
+dbExecute(decimal_con, "ALTER TABLE dacso_matching_stp_credential_pen ADD match_CIP_CODE_2 nvarchar(10) NULL")
 dbExecute(decimal_con, qry03b_Match_DACSO_STP_Credential_CIPCODE2)
 
 # How many PEN matched records also match STP on Award Year. 
@@ -105,43 +111,39 @@ dbExecute(decimal_con, qry_update_T_DACSO_Near_Completers_step2)
 # ---- Flag near-completers with multiple credentials----
 dbExecute(decimal_con, qry_NearCompleters_With_More_Than_One_Cdtl)
 dbExecute(decimal_con, qry_Update_T_NearCompleters_HasMultipleCdtls)
-dbExecute(decimal_con, qry_Clean_NearCompleters_MultiCdtls_Step1)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step2)
 
-# Find record which represents the max psi award year
-dbExecute(decimal_con, qry_PickMaxYear_step1)
-dbExecute(decimal_con, "ALTER TABLE tmp_NearCompletersWithMultiCredentials_Cleaning ADD Max_Award_School_Year NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step3)
+# This takes some thought - I haven't convinced myself that having one credential is any different than
+# many credentials, since in the end it seems to only matter if there is a credential.  I may be proven wrong
+# so have flagged each near completer as Yes if have multi's and will rewrite this bit if it turns out to be
+# important.
 
-dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step4)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step5)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step6)
-dbExecute(decimal_con, qry_PickMaxYear_Step2)
-dbExecute(decimal_con, "ALTER TABLE tmp_NearCompletersWithMultiCredentials_MaxYearCleaning ADD Final_Record_To_Use NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_PickMaxYear_Step3)
-
-dbExecute(decimal_con, "ALTER TABLE DACSO_Matching_STP_Credential_PEN ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_Update_DupStqu_ID_UseThisRecord2)
-dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Final_Record_To_Use NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_Update_Final_Record_To_Use_NearCompletersDups)
-dbExecute(decimal_con, "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_Before_DACSO_Final NVARCHAR(10) NULL")
-dbExecute(decimal_con, "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_After_DACSO_Final NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_Update_Final_STP_Cred_Before_or_After_Step1)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step12)
-
-# Step 7 missing a dependency table
-# Step 8 is the same query as pick 2 so not sure why it is here
-# Step 9 is missing completely
-# Step 13 is basically a repeat
-# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step7)
-# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step8)
-# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step9)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step10)
-# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step11)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)
-#dbExecute(decimal_con, qry_PickMaxYear_step4)
-#dbExecute(decimal_con, qry_PickMaxYear_step5)
+# dbExecute(decimal_con, qry_Clean_NearCompleters_MultiCdtls_Step1)
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step2)
+# 
+# # Find record which represents the max psi award year
+# dbExecute(decimal_con, qry_PickMaxYear_step1)
+# dbExecute(decimal_con, "ALTER TABLE tmp_NearCompletersWithMultiCredentials_Cleaning ADD Max_Award_School_Year NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step3)
+# 
+# dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step4)
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step5)
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step6)
+# dbExecute(decimal_con, qry_PickMaxYear_Step2)
+# dbExecute(decimal_con, "ALTER TABLE tmp_NearCompletersWithMultiCredentials_MaxYearCleaning ADD Final_Record_To_Use NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_PickMaxYear_Step3)
+# dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Final_Record_To_Use NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step10)
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)
+# 
+# dbExecute(decimal_con, "ALTER TABLE DACSO_Matching_STP_Credential_PEN ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_Update_DupStqu_ID_UseThisRecord2)
+# dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Final_Record_To_Use NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_Update_Final_Record_To_Use_NearCompletersDups)
+# dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step12)
+# dbExecute(decimal_con, "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_Before_DACSO_Final NVARCHAR(10) NULL")
+# dbExecute(decimal_con, "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_After_DACSO_Final NVARCHAR(10) NULL")
+# dbExecute(decimal_con, qry_Update_Final_STP_Cred_Before_or_After_Step1)
 
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Has_STP_Credential NVARCHAR(10) NULL")
 dbExecute(decimal_con, qry_update_Has_STP_Credential)
@@ -156,12 +158,16 @@ dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYearCleaning_MaxID")
 dbExecute(decimal_con, "DROP TABLE DACSO_Matching_STP_Credential_PEN")
 dbExecute(decimal_con, "DROP TABLE nearcompleters_in_stp_credential_step1")
 
-# ----- Queries for Near Completers Rations in Excel Worksheets -----
+# ----- Queries for Near Completers Ratios in Excel Worksheets -----
 # Near Completes vs Completers Analysis_forPSSM2017_18. xlsx 
+
 dbExecute(decimal_con,  "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Grad_Status_Factoring_in_STP NVARCHAR(10) NULL")
 dbExecute(decimal_con,  qry_update_Grad_Status_Factoring_in_STP_step1)
 dbExecute(decimal_con,  qry_update_Grad_Status_Factoring_in_STP_step2) 
-dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year) 
+
+# The following 4 queries are used to choose which years to base a ratio on.
+# Only ages 17-34 included, adjust query to change this.
+dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_Credential_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad)
@@ -172,12 +178,12 @@ agegroupnearcompleterslookup <- agegrouplookup %>%
   filter(AgeIndex %in% 2:5) %>% 
   mutate(AgeIndex = AgeIndex -1) %>%
   add_case(AgeIndex = 5, AgeGroup = "35 to 64", LowerBound = 35, UpperBound = 64)
-
 dbWriteTable(decimal_con, "agegroupnearcompleterslookup", agegroupnearcompleterslookup)
 
-
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
-dbExecute(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred)
+dbGetQuery(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred) 
+
+
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Has_STP_Credential NVARCHAR(10)")
 dbExecute(decimal_con, "UPDATE T_DACSO_DATA_Part_1 
                         SET Has_STP_Credential = T_DACSO_DATA_Part_1_TempSelection.Has_STP_Credential,
@@ -185,7 +191,12 @@ dbExecute(decimal_con, "UPDATE T_DACSO_DATA_Part_1
                         FROM T_DACSO_DATA_Part_1 INNER JOIN T_DACSO_DATA_Part_1_TempSelection 
                         ON T_DACSO_DATA_Part_1.COCI_STQU_ID = T_DACSO_DATA_Part_1_TempSelection.COCI_STQU_ID")
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4)
-dbExecute(decimal_con, qry_Make_NearCompleters_CIP4_With_STP_CombinedCred)
+dbGetQuery(decimal_con, qry_Make_NearCompleters_CIP4_With_STP_CombinedCred)
+
+dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
+dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred")
+dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
+dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred_with_stp_credential")
 
 dbExecute(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential_by_CIP4)
 dbExecute(decimal_con, "alter table completersfactoringinstp_cip4 add lcip4_cred_cleaned nvarchar(50) NULL;")
@@ -195,8 +206,9 @@ dbExecute(decimal_con, "update completersfactoringinstp_cip4
                         	ELSE lcip4_cred
                         	END
                         from completersfactoringinstp_cip4")
-dbExecute(decimal_con, qry_Make_CompletersFactoringInSTP_CIP4_CombinedCred)
-#Note: some CIP codes not aligning for some programs
+
+# see Excel sheet 
+dbGetQuery(decimal_con, qry_Make_CompletersFactoringInSTP_CIP4_CombinedCred)
 
 dbExecute(decimal_con, qry99_Completers_agg_byCIP4)
 dbExecute(decimal_con, "alter table completerscip4 add lcip4_cred_cleaned nvarchar(50) NULL;")
@@ -206,7 +218,19 @@ dbExecute(decimal_con, "update completerscip4
                         	ELSE lcip4_cred
                         	END
                         from completerscip4")
-dbExecute(decimal_con, qry_Make_Completers_CIP4_CombinedCred)
+dbGetQuery(decimal_con, qry_Make_Completers_CIP4_CombinedCred)
+
+dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
+dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4_combinedcred")
+dbExecute(decimal_con, "DROP TABLE completerscip4")
+dbExecute(decimal_con, "DROP TABLE completers_cip4_combinedcred")
+
+
+dbGetQuery(decimal_con, qry99_Near_completes_total_byGender)
+dbGetQuery(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender)
+dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
+dbGetQuery(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential)
+
 
 # ---- TTRAIN tables ----
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
@@ -215,24 +239,24 @@ dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_program_dist_count) # check pssm_credential column - presence of both 'OR' and 'or' creates faux-duplicates
 
-# ---- Clean Up ----
-#dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
-#dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age ")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_bk")
-#dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
-#dbExecute(decimal_con, "DROP TABLE combine_creds")
 
-dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
-dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred")
-dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
-dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred_with_stp_credential")
-dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
-dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4_combinedcred")
-dbExecute(decimal_con, "DROP TABLE completerscip4")
-dbExecute(decimal_con, "DROP TABLE completers_cip4_combinedcred")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-dbExecute(decimal_con, "DROP TABLE ")
-dbDisconnect(decimal_con)
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+dbExecute(decimal_con, "DROP TABLE T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
+
+
+# ---- Clean Up ----
+dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
+dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
+dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
+dbExecute(decimal_con, "DROP TABLE combine_creds")
+dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1")
+dbExecute(decimal_con, "DROP TABLE agegroupnearcompleterslookup")
+dbExecute(decimal_con, "DROP TABLE t_pssm_projection_cred_grp")
+
+
+
+
 
