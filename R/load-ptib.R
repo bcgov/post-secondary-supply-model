@@ -80,7 +80,7 @@ T_PTIB_Y1_to_Y10 <-
   janitor::clean_names(case = "all_caps")
 
 ## Last cycle's data for testing - these will be deleted
-T_Private_Institutions_Credentials_Imported_2021_03 <- 
+T_Private_Institutions_Credentials <- 
   read_csv(glue::glue("{lan}/development/csv/gh-source/testing/T_Private_Institutions_Credentials_Imported_2021-03.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 Graduate_Projections <- 
@@ -95,12 +95,16 @@ Cohort_Program_Distributions_Projected <-
 
 
 # ---- Write to decimal ----
-dbWriteTableArrow(con, name = "PTIB_Credentials", nanoarrow::as_nanoarrow_array_stream(T_Private_Institutions_Credentials_Imported_2021_03))
+# Lookups
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016)
 
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
+# Main dataset
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials"')), T_Private_Institutions_Credentials_Imported_2021_03)
+
+# Used in testing - these are created in earlier part of workflow.  
+# Assuming these will be available in decimal in future runs - TBD
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
