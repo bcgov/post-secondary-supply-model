@@ -40,6 +40,8 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
+source(glue::glue("{lan}/development/sql/gh-source/05-ptib-analysis/05-private-training-institutions-sql.R"))
+
 # ---- Required data tables and SQL ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021_03"')))
@@ -58,13 +60,13 @@ cpd_static <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Pro
 
 # Part 1 ----
 ## ---- Add PSSM_Credential to PTIB data ----
-dbGetQuery(decimal_con, qry_Private_Credentials_00a_Append)
+dbExecute(decimal_con, qry_Private_Credentials_00a_Append)
 
 ## ---- Check CIP length ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length)
 
 ## ---- Remove periods from CIPs ----
-dbGetQuery(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
+dbExecute(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
 
 ## ---- Check CIPs against infoware 6digit CIPs ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00d_Check_CIPs)
