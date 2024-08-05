@@ -9,14 +9,27 @@ library(DBI)
 library(config)
 library(readxl)
 library(janitor)
+library(RJDBC)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
+jdbc_driver_config <- config::get("jdbc")
 raw_data_file <- glue::glue("{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats 2024.05.31.xlsx")
+my_schema <- config::get("myschema")
+
+# ---- Connection to outcomes ----
+db_config <- config::get("pdbtrn")
+jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
+                   classPath = jdbc_driver_config$path)
+
+outcomes_con <- dbConnect(drv = jdbcDriver, 
+                          url = db_config$url,
+                          user = db_config$user,
+                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
-con <- dbConnect(odbc(),
+decimal_con <- dbConnect(odbc(),
                  Driver = db_config$driver,
                  Server = db_config$server,
                  Database = db_config$database,
@@ -54,27 +67,45 @@ data <- cleaned_data %>%
             .groups = "drop") %>%
   rename(cip = cip3)
 
+# ---- Read Outcomes Data ----
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+
 # ---- Read LAN data ----
 ## Lookups
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+T_PSSM_Credential_Grouping <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_PTIB_Y1_to_Y10 <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_PTIB_Y1_to_Y10.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 
 ## Last cycle's data for testing - these will be deleted
-dbWriteTable(con, "T_Private_Institutions_Credentials_Imported_2021-03", T_Private_Institutions_Credentials_Imported_2021_03)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
+T_Private_Institutions_Credentials_Imported_2021_03 <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/T_Private_Institutions_Credentials_Imported_2021-03.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Graduate_Projections <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Graduate_Projections.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Cohort_Program_Distributions_Static <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Cohort_Program_Distributions_Static.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Cohort_Program_Distributions_Projected <- 
+  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Cohort_Program_Distributions_Projected.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 
 
 # ---- Write to decimal ----
-dbWriteTableArrow(con,name = "PTIB_Credentials", nanoarrow::as_nanoarrow_array_stream(data))
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+dbWriteTableArrow(con, name = "PTIB_Credentials", nanoarrow::as_nanoarrow_array_stream(T_Private_Institutions_Credentials_Imported_2021_03))
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016)
 
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
 
 # ---- Disconnect ----
 dbDisconnect(con)
+rm(list = ls())
+gc()
