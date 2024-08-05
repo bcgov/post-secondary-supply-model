@@ -101,7 +101,7 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016)
 
 # Main dataset
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials"')), T_Private_Institutions_Credentials_Imported_2021_03)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials"')), T_Private_Institutions_Credentials)
 
 # Used in testing - these are created in earlier part of workflow.  
 # Assuming these will be available in decimal in future runs - TBD
