@@ -57,10 +57,10 @@ data <- cleaned_data %>%
 # ---- Read LAN data ----
 ## Lookups
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
 
 ## Last cycle's data for testing - these will be deleted
 dbWriteTable(con, "T_Private_Institutions_Credentials_Imported_2021-03", T_Private_Institutions_Credentials_Imported_2021_03)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
@@ -69,8 +69,9 @@ dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Pr
 # ---- Write to decimal ----
 dbWriteTableArrow(con,name = "PTIB_Credentials", nanoarrow::as_nanoarrow_array_stream(data))
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
 dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
