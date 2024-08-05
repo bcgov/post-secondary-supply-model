@@ -200,8 +200,6 @@ dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06c_Cohort_Dist_Total
 ## ---- Drop Main Datasets
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials")
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
-dbExecute(decimal_con, "DROP TABLE PTIB_Credentials")
-dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Imported_2021-03")
 
 dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
 dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
