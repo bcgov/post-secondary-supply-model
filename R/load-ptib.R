@@ -31,20 +31,9 @@ cleaned_data <- raw_data %>%
   rename(year = calendar_year,
          credential = credential_6,
          graduates = credential_8) %>% ## column is total_enrolments - enrolments_not_graduated
-  ## The cip column reads in wonky from excel and needs to be cleaned.
-  ## Start by extracting the 2 digits left of the decimal.
-  ## In cases where there is only 1 digit, remove the decimal from the extracted string,
-  ## then pad with zeros to the left to make it 2 characters.
   mutate(cip1 = str_sub(cip, end = 2) %>%
            str_remove_all("\\.") %>% 
            str_pad(width = "2", side = "left", pad = "0"),
-  ## For digits to the right of the decimal,
-  ## extract strings in the format of a decimal followed by numbers, with an optional second decimal.
-  ## If there are no decimals in the cip code, set to 0 (as this returns NA).
-  ## Remove any second decimals.
-  ## Convert the string to numeric and round to fix floating point values,
-  ## then change back to character and remove the "0." that was added by converting to numeric.
-  ## Finally pad with zeros to the right to make it 4 characters long.
          cip2 = ifelse(!is.na(str_extract(cip, "(\\.[:digit:]*)+")),
                        str_extract(cip, "(\\.[:digit:]*)+"),
                        0) %>%
@@ -54,7 +43,6 @@ cleaned_data <- raw_data %>%
            as.character() %>%
            str_remove_all("^0\\.") %>%
            str_pad(width = 4, side = "right", pad = "0"),
-  ## Combine left and right cleaned values.
          cip3 = paste(cip1, cip2, sep = "."))
 
 # ---- Aggregate data ----
@@ -66,11 +54,26 @@ data <- cleaned_data %>%
             .groups = "drop") %>%
   rename(cip = cip3)
 
+# ---- Read LAN data ----
+## Lookups
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
+
+## Last cycle's data for testing - these will be deleted
+dbWriteTable(con, "T_Private_Institutions_Credentials_Imported_2021-03", T_Private_Institutions_Credentials_Imported_2021_03)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
+
 
 # ---- Write to decimal ----
-dbWriteTableArrow(con,
-                  name = "PTIB_Credentials",
-                  nanoarrow::as_nanoarrow_array_stream(data))
+dbWriteTableArrow(con,name = "PTIB_Credentials", nanoarrow::as_nanoarrow_array_stream(data))
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), T_PSSM_Credential_Grouping)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')), T_Private_Institutions_Credentials_Imported_2021_03)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T_PTIB_Y1_to_Y10)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
 
 # ---- Disconnect ----
 dbDisconnect(con)
