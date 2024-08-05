@@ -50,26 +50,22 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"'
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
 
-# ---- Load R versions ----
-pssm_cred_grps <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')))
-ptib_initial <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"')))
-grad_proj <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections_Ref"')))
-cpd_proj <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected_Ref"')))
-cpd_static <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_Ref"')))
-
-
 # Part 1 ----
 ## ---- Add PSSM_Credential to PTIB data ----
 dbExecute(decimal_con, qry_Private_Credentials_00a_Append)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Check CIP length ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Remove periods from CIPs ----
 dbExecute(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Check CIPs against infoware 6digit CIPs ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00d_Check_CIPs)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Update Exclude column ----
 # Excluded not for credit and ESL programs and unclassified 99.9999 manually with “Exclude=1”
@@ -91,85 +87,90 @@ dbExecute(decimal_con, "UPDATE T_Private_Institutions_Credentials
           ((T_Private_Institutions_Credentials.LCIP_NAME) LIKE '%not for credit%') OR
           ((T_Private_Institutions_Credentials.LCIP_CD)='999999') );")
 
-dbGetQuery(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
+dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
                 DROP COLUMN LCIP_NAME;")
 
 ## ---- Update age groups ----
-dbGetQuery(decimal_con, qry_Private_Credentials_00f_Recode_Age_Group)
+dbExecute(decimal_con, qry_Private_Credentials_00f_Recode_Age_Group)
 
 ## ---- Fix immigration status ----
-# Immigration_Status “#N/A” recoded to “(blank)”
-# none for 2019-20; instead there was “Unknown”
-T_Private_Institutions_Credentials %>% 
-  count(Immigration_Status)
+# what to do with unknowns? see documentation
 
 ## ---- Copy to Clean table ----
-# Copied as T_Private_Institutions_Credentials_Clean
-# there may be duplicate CIPs after the cleaning but that is ok as next step sums and divides by 2 (the number of years) for the average
 dbExecute(decimal_con, "SELECT *
                 INTO T_Private_Institutions_Credentials_Clean
                 FROM T_Private_Institutions_Credentials;")
 
 
 ## ---- Age averages ----
-## not sure if this will be necessary if only one year in data???
-dbGetQuery(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
+dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
                 ALTER COLUMN intYear VARCHAR(255);")
 
-dbGetQuery(decimal_con, qry_Private_Credentials_00g_Avg)
+dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
+dbReadTable(decimal_con, "") %>% View()
 
 # I updated the above query as it didn't run as-is, but 2017, 2018, and Avg were all in the resulting table
 # I think table should actually ONLY result in table with just Avg; remove the 2017, 2018 individual rows
-dbGetQuery(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
+dbExecute(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
                 WHERE intYear <> 'Avg 2017 & 2018'")
 
 # Part 2 ----
 ## STOP !!! Update model year in queries ----
 
 ## ---- Count domestic grads ----
-dbGetQuery(decimal_con, qry_Private_Credentials_01a_Domestic)
+dbExecute(decimal_con, qry_Private_Credentials_01a_Domestic)
+dbReadTable(decimal_con, "qry_Private_Credentials_01a_Domestic") %>% View()
 
 ## ---- Count domestic and international grads ----
 ### note to self: this qry still has #N/A which was changed to (blank) 
 ### none this time, but could affect these queries ?
-dbGetQuery(decimal_con, qry_Private_Credentials_01b_Domestic_International)
+dbExecute(decimal_con, qry_Private_Credentials_01b_Domestic_International)
+dbReadTable(decimal_con, "qry_Private_Credentials_01b_Domestic_International") %>% View()
 
 ## ---- Compute percent of domestic and international grads that are domestic ----
-dbGetQuery(decimal_con, qry_Private_Credentials_01c_Percent_Domestic)
+dbExecute(decimal_con, qry_Private_Credentials_01c_Percent_Domestic)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Compute unknown or blank immigration status ----
 ## computes Blank/Unknown immigration status records to include as domestic grads; 
 ## 2019-09-06 updated criteria to “(blank) Or Unknown”
-dbGetQuery(decimal_con, qry_Private_Credentials_01d_Grads_Blank)
+dbExecute(decimal_con, qry_Private_Credentials_01d_Grads_Blank)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Join domestic and blank ----
-dbGetQuery(decimal_con, qry_Private_Credentials_01e_Grads_Union)
+dbExecute(decimal_con, qry_Private_Credentials_01e_Grads_Union)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Sum of union query ----
-dbGetQuery(decimal_con, qry_Private_Credentials_01f_Grads)
+dbExecute(decimal_con, qry_Private_Credentials_01f_Grads)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Summarize the Grads by Credential/Age ----
-dbGetQuery(decimal_con, qry_Private_Credentials_05i_Grads)
+dbExecute(decimal_con, qry_Private_Credentials_05i_Grads)
+dbReadTable(decimal_con, "") %>% View()
 
 ## ---- Delete PTIB rows from Graduate_Projections ----
 dbExecute(decimal_con, qry_Private_Credentials_05i0_Grads_by_Year_Delete)
+dbReadTable(decimal_con, "") %>% View()
+
+## ---- Update Graduate_Projections ----
+## adds grads for all years to Graduate_Projections
+dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
+dbReadTable(decimal_con, "") %>% View()
 
 Graduate_Projections <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
 
 Graduate_Projections <- Graduate_Projections %>% 
-  filter(Survey!="PTIB")
-
-## ---- Update Graduate_Projections ----
-## adds grads for all years to Graduate_Projections
-dbGetQuery(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
-
-T_PTIB_Y1_to_Y10 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')))
+  filter(SURVEY!="PTIB")
 
 ## ---- Delete excess age groups ----
-## ADDED 2024 Replacement for manually deleting excess age groups 
-## Looks like, blanks, unknowns, 16 or less and 65+ were not in final table
-dbGetQuery(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
+dbExecute(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
 
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01b_Domestic_International")
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01c_Percent_Domestic")
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01d_Grads_Blank")
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01e_Grads_Union")
 
 # Part 3 ----
 ## ---- TBD ----
@@ -190,16 +191,26 @@ dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Static)
 
 
 # Clean up ----
-## ---- Drop helper qry datasets ----
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01b_Domestic_International")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01c_Percent_Domestic")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01d_Grads_Blank")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01e_Grads_Union")
+## ---- Drop tmp qry datasets ----
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01f_Grads")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_05i_Grads")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06b_Cohort_Dist")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06c_Cohort_Dist_Total")
+
+## ---- Drop Main Datasets
+dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials")
+dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
+dbExecute(decimal_con, "DROP TABLE PTIB_Credentials")
+dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Imported_2021-03")
+
+dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
+dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
+dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Projected")
+
+## ---- Drop Lookups
+dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
+dbExecute(decimal_con, "DROP TABLE T_PTIB_Y1_to_Y10")
+dbExecute(decimal_con, "DROP TABLE INFOWARE_L_CIP_6DIGITS_CIP2016")
 
 ## ---- disconnect_connect ----
 dbDisconnect(decimal_con)
