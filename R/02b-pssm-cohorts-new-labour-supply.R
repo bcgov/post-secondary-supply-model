@@ -182,5 +182,4 @@ dbExecute(decimal_con, "DROP TABLE appso_current_region_data")
 dbExecute(decimal_con, "DROP TABLE dacso_current_region_data")
 dbExecute(decimal_con, "DROP TABLE bgs_current_region_data")
 dbExecute(decimal_con, "DROP TABLE trd_current_region_data")
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa")
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1")
+
