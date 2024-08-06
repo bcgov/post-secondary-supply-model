@@ -18,12 +18,19 @@ con <- dbConnect(odbc(),
                  Trusted_Connection = "True")
 
 # ---- Check Required Tables etc. ----
+## Review ----
+## It's unclear what table is made when
+## Some of these were made in a previous workflow but deleted (Credential)
+## Some of these I don't know when they got produced (AgeGroupLookup)
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"')))
 
 # ---- Extract MinEnrolment records and delete Skill Based Suspect records ---- 
+## Review ---- 
+## might be because I'm not quite sure if I have the right tables all loaded, but number at start is slightly off 
+## probably because record_types aren't quite right? 
 dbExecute(con, qry01a_MinEnrolmentSupVar)
 dbExecute(con, "ALTER table MinEnrolmentSupVar ADD CONSTRAINT PK_MinEnrolSupVarsID PRIMARY KEY (ID)")
 dbExecute(con, qry01b_MinEnrolmentSupVar)
@@ -34,6 +41,8 @@ dbExecute(con, qry01e_MinEnrolmentSupVar)
 
 # ---- Create MinEnrolment View ---
 # created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
+## Review ----
+## Weirdly this is the same size as docs? Even though previous is not
 dbExecute(con, qry_CreateMinEnrolmentView)
 
 dbExecute(con, qry02a_UpdateAgeAtEnrol)
@@ -75,6 +84,8 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns;"))
+## Review ----
+## dropped twice
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"))
 
 dbExecute(con, qry05a1_Extract_No_Gender)
@@ -84,6 +95,9 @@ dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
 # impute gender into records associated with unknown/blank/NULL gender
 # this is currently done in an Excel worksheet but can be moved to code here
 # Development\SQL Server\CredentialAnalysis\AgeGenderDistribution (2017)
+## Review ---- 
+## Runs but needs a reminder that this is really a manual step, 
+## With TOP(N) stuff requiring updating. 
 dbExecute(con, qry05a2_Show_Gender_Distribution)
 gender <- dbGetQuery(con, "SELECT * FROM  GenderDistribution")
 unknwn <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
@@ -118,6 +132,9 @@ dbExecute(con, qry06a4c_Update_ExtractNoGender_DupEPENS)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender_First_Enrolment;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Extract_No_Gender_EPENS;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Extract_No_Gender_DupEPENS;"))
+## Review ----
+## This whole section (above, qry06* stuff) I was getting 0 records updating
+## unclear if it's because I copied tables from PSSM2019 or some other reason
 
 # There may still be records with PSI_STUDENT_NUMBER and PSI_CODE assigned > 1 gender in table ExtractNoGender . 
 # Also there may be records null EPEN, but PSI_STUDENT_NUMBER and PSI_CODE assigned > 1 gender in view MinEnrolment
@@ -160,6 +177,9 @@ f_id <- extract_no_age_first_enrolment %>%
 m_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'M')
 f_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'F')
 
+## Review ----
+## I love sampling
+## do we need to set a seed so people will have comparable results 
 m = data.frame(id = m_id, AGE_AT_ENROL_DATE = sample(m_dist$AGE_AT_ENROL_DATE, size = length(m_id), replace = TRUE, prob = m_dist$PropEnrolled))
 f = data.frame(id = f_id, AGE_AT_ENROL_DATE = sample(f_dist$AGE_AT_ENROL_DATE, size = length(f_id), replace = TRUE, prob = f_dist$PropEnrolled))
 
@@ -223,9 +243,16 @@ dbExecute(con, qry08_UpdateAGAtEnrol)
 # ---- Final Distributions ----
 dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
 dbGetQuery(con, qry09c_MinEnrolment_Domestic)
+## Review ----
+##I get an error here - invalid object name 'PSI_CODE_RECODE'
+# is this another table I need to bring in?
 dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
+## Review ----
+## Are some of these needed for further analysis? 
+## It's unclear to me what I should have in my schema by the end of each section 
+## That is a required table vs just something temporary
 dbExecute(con, glue::glue("DROP VIEW [{my_schema}].MinEnrolment;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbDisconnect(con)
