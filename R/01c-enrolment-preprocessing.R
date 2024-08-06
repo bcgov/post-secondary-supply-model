@@ -1,3 +1,9 @@
+# Workflow #1 (noting here for now)
+# Enrolment Preprocessing 
+# Description: 
+# Relies on STP_Enrolment data table
+# Creates tables STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment used in subsequent workflows
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -147,7 +153,8 @@ dbExecute(con, qry03g_c2_Update_More_Selkirk)
 dbGetQuery(con, qry03g_d_EnrolCoursesSeen)
 
 # ---- Error check needed here ----
-# counts differ significantly from documentation (2019) but I think we are fine here as we should be filtering out these records. 
+# counts differ significantly from documentation (2019) 
+# I think we are fine here as we should be filtering out these records. 
 # The set difference is the result set from  qry03c_Drop_Skills_Based.
 # The update query may have been run later, or the courses may be filtered later.
 dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
@@ -165,10 +172,9 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_SkillsBasedCourses]
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Suspect_Skills_Based];"))                
 
 # ---- Find records with Record_Status = 7 and update look up table ----
-## ---- Manual Work ----
-## Review ----
-## Is this supposed to be the credentials query and not the enrollment query?
-dbExecute(con, qry03k_Drop_Developmental_CIPS)        
+# NOTE: Check this query as was mixed up with same credentials query.  There are 
+# three versions of qry03k??
+# dbExecute(con, qry03k_Drop_Developmental_CIPS)        
 dbExecute(con, "ALTER TABLE Drop_Developmental_CIPS 
           ADD ID INT NULL, 
           DO_NOT_EXCLUDE nvarchar(2) NULL;")
@@ -322,9 +328,10 @@ dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
 dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
 
 
-# ---- Clean Up ----
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))   
+# ---- Clean Up and check tables to keep ----
+dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
+dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))  
+dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment];"))  
 dbDisconnect(con)
 
 
