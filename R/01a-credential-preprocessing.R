@@ -1,3 +1,9 @@
+# Workflow #2
+# Credential Preprocessing 
+# Description: 
+# Relies on STP_Credential, STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment data tables
+# Creates tables _____ which are used in subsequent workflows
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -21,7 +27,9 @@ con <- dbConnect(odbc(),
 # ---- Check Required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
+
 dbGetQuery(con, qry00a_check_null_epens)
 dbGetQuery(con, qry00b_check_unique_epens)
 
@@ -29,12 +37,11 @@ dbGetQuery(con, qry00b_check_unique_epens)
 dbExecute(con, qry00c_CreateIDinSTPCredential)
 dbExecute(con, qry00d_SetPKeyinSTPCredential)
 
-# ---- Reformat yy-mm-dd to yyyy-mm-dd
-# check the date variables and see what format they were read in as
+# ---- Reformat yy-mm-dd to yyyy-mm-dd ----
+# check date variable format here
 dbGetQuery(con, "SELECT TOP 100 CREDENTIAL_AWARD_DATE, PSI_PROGRAM_EFFECTIVE_DATE FROM STP_Credential;")
 
-# if necessary, run the following queries to convert from yy-mm-dd to yyyy-mm-dd
-# Create temporary table
+# if in format yy-mm-dd then run the following queries to convert from yy-mm-dd to yyyy-mm-dd
 dbExecute(con, qrydates_create_tmp_table)
 dbExecute(con, qrydates_add_cols)
 dbExecute(con, qrydates_convert1)
@@ -62,35 +69,26 @@ dbExecute(con, "DROP TABLE tmp_ConvertDateFormatCredential")
 # ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
 dbExecute(con, qry01_ExtractAllID_into_STP_Credential_Record_Type)
 
-# ---- Find records with Record_Status = 1 and update look up table ----
+# ---- Find records with Record_Status = 1  ----
 dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
 dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
 dbExecute(con, qry02c_Update_Drop_No_PEN_or_No_STUID)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_No_PEN_or_No_STUID];")) 
 
-# Find records with Record_Status = 2 and update look up table
+# ---- Find records with Record_Status = 2  ----
 dbExecute(con, qry03a_Drop_Record_Developmental)
 dbExecute(con, qry03b_Update_Drop_Record_Developmental)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")) 
 
-# Create a subset of potential Record_Status = 6 records that have not already assigned a record status
-## Review ----
-## Just flagging that as this depends on the enrolment table,
-## the order should probably be swapped. 
-## Also need to make sure that the enrolment record type table hadn't been deleted. 
+# ---- Find records with Record_Status = 6  ----
+# Find the suspected skills-based records in the credential file with the same 
+# program characteristics as the skill-based courses flagged as record type 6 in enrolment preprocessing.  
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
-dbExecute(con, qry03c_Drop_Skills_Based)
-dbExecute(con, qry03d_Update_Drop_Record_Skills_Based)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Skills_Based];"))
-
 dbExecute(con, qry03d_create_table_Suspect_Skills_Based)
 dbExecute(con, qry03e_Find_Suspect_Skills_Based)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_Cred_Suspect_Skills_Based];")) 
-dbExecute(con, qry03e_Keep_Skills_Based)
-dbExecute(con, qry03f_Update_Keep_Record_Skills_Based)
 dbExecute(con, qry03f_Update_Suspect_Skills_Based)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_Cred_Suspect_Skills_Based];")) 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Cred_Suspect_Skills_Based];")) 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_EnrolmentSkillsBasedCourses];")) 
  
@@ -99,17 +97,12 @@ dbExecute(con, qry03g_Drop_Developmental_Credential_CIPS)
 dbExecute(con, "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD Keep NVARCHAR(2)")
 
 #  ---- Manual Work Finding Developmental CIPS ----
-# Check the following programs against the outcomes programs table to see if any have a non-developmental CIP.
-# If so, they should not be flagged as a developmental CIP to exclude. (set keep = 'Y')
-
-## Review ----
-## I'm not sure I follow the manual workflow section here 
-## Is this just to allow for the opportunity to do a manual adjust of some of the table? 
+# Check against the outcomes programs table to see if some are non-developmental CIP. If so, set keep = 'Y'.  
+# TBD as outcomes programs table hasn't been built yet.
+# Also some have been identified in query qry03g2_Drop_Developmental_Credential_CIPS (not built yet)
 data <- dbReadTable(con, "Drop_Developmental_PSI_CREDENTIAL_CIPS", col_types = cols(.default = col_character()))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CREDENTIAL_CIPS];")) 
-
-# set flag manually, or look see if there's a flag in the outcomes programs table to pull from
-dbWriteTable(con, name = "Drop_Developmental_PSI_CREDENTIAL_CIPS", data)
+data.entry(data)
+dbWriteTable(con, name = "Drop_Developmental_PSI_CREDENTIAL_CIPS", data, overwrite = TRUE)
 
 ## ---- Back to Workflow ----
 dbExecute(con, qry03h_Update_Developmental_CIPs)
@@ -119,12 +112,6 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CRED
 dbExecute(con, qry03i_Drop_RecommendationForCert)
 dbExecute(con, qry03j_Update_RecommendationForCert)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_RecommendForCert];")) 
-
-# ---- Investigate This Query ----
-## Review ----
-## Worth asking Ian about what these are?
-# dbExecute(con, qry03k_Drop_Developmental_CIPS) # this one isn't used anywhere
-# dbExecute(con, qry03k_Update_ID_for_Drop_Dev_Credential_CIP) # might be from enrolment pre-processing workflow
 
 dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
 
