@@ -1,7 +1,7 @@
-# Workflow #3 (noting here for now)
+# Workflow #4 (noting here for now)
 # Enrolment Analysis
 # Description: 
-# Relies on STP_Enrolment data table, STP_Enrolment_Record_Type, Credential, AgeGroupLookup
+# Relies on STP_Enrolment data table, STP_Enrolment_Record_Type, Credential View, AgeGroupLookup
 # I think Credential is made in Credential Analysis
 # Creates tables qry09c_MinEnrolment (one of them) to be used for grad projections
 

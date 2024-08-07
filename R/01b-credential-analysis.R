@@ -1,3 +1,12 @@
+# Workflow #3 (noting here for now)
+# Enrolment Analysis
+# Description: 
+# Relies on STP_Enrolment, STP_Credential, STP_Credential_Record_Type, STP_Enrolment_Valid
+# Lookups OutcomeCredential, AgeGroup
+# Creates table to be used for grad projections:
+#   qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
+# Notes: Line 100 # flag records on CREDENTIAL_AWARD_DATE >= '2019-09-01'.  Change to 2023-09-01 for 2023 run.
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -20,20 +29,16 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---- Check Required Tables etc. ----
+# ---- Check Required Tables ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
-## Review ----
-## These should be Record_Type, not RecordType
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
-## Review ----
-## It's unclear to me where this originates from
-## I just copied it from the 2019 schema, but I'm not sure what the 2023 version would be
-## Is it the program matching work Steph is doing?
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
+# Lookup
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"'))) 
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 dbExecute(con, qry_Credential_view_initial) 
@@ -42,16 +47,12 @@ dbExecute(con, qry_Credential_view_initial)
 # Create a list of EPENs/max school year/enrolment ID's from the Enrolment_valid table 
 dbExecute(con, qry01_CredentialSupVars_From_Enrolment) # for valid EPENS pull max school year
 dbExecute(con, qry02_CredentialSupVars_From_Enrolment) # bring in more enrolment information for the most recent school year 
-dbExecute(con, qry03_CredentialSupVars_From_Enrolment) # ... more enrolment information
+dbExecute(con, qry03_CredentialSupVars_From_Enrolment) # add pkey for faster search
 dbExecute(con, qry04_CredentialSupVars_From_Enrolment) # ... more enrolment information
-dbExecute(con, qry05_CredentialSupVars_From_Enrolment) # bring in credential record status from Credential View
-dbExecute(con, qry06_CredentialSupVars_From_Enrolment)
+dbExecute(con, qry05_CredentialSupVars_From_Enrolment) # add pkey for faster search
+dbExecute(con, qry06_CredentialSupVars_From_Enrolment) # bring in credential record status from Credential View
 dbExecute(con, "ALTER TABLE CredentialSupVarsFromEnrolment ADD CONSTRAINT PK_CredSupVarsfromEnrol_ID PRIMARY KEY (EnrolmentID);")
 
-## Review ----
-## Probably another thing to ask Ian about - see if these missing queries can be found?
-#try to match on psi code/sn
-# method 1
 dbExecute(con, "SELECT PSI_CODE, PSI_STUDENT_NUMBER 
                 INTO RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE 
                 from Credential
@@ -70,17 +71,15 @@ dbExecute(con, qry10_CredentialSupVars_From_Enrolment) # bring in more enrolment
 dbExecute(con, qry11_CredentialSupVars_From_Enrolment) # add pky constraint
 dbExecute(con, qry12_CredentialSupVars_From_Enrolment) # ...
 dbExecute(con, qry12b_CredentialSupVars_From_Enrolment) # add pky constraint
-dbExecute(con, qry13_CredentialSupVars_From_Enrolment) # # bring in credential record status from Credential View
+dbExecute(con, qry13_CredentialSupVars_From_Enrolment) # bring in credential record status from Credential View
+
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step1")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step2")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step5")
 dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
-## Review ----
-## This seems to be built in qry08 - I'm finding it really hard to follow the logic here though
-## With the missing RW queries.
-dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED") # Error message: Cannot drop the table 'RW_TEST_CRED_NULLEPENS_MATCHED', because it does not exist or you do not have permission. 
+dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED") 
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
@@ -111,7 +110,7 @@ dbExecute(con, "UPDATE  CredentialSupVars_BirthdateClean
                 SET psi_birthdate_cleaned_D = psi_birthdate_cleaned
                 WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned <> ''")
 
-# ---- Gender Cleaning Queries Here ---- #
+# ---- Gender Cleaning ---- 
 dbExecute(con, qry03e_CredentialSupVarsGender) # create a table with unique EPEN/gender from CredentialSupVarsFromEnrolment
 dbExecute(con, qry03fCredential_SupVarsGenderCleaning1)
 dbExecute(con, qry03fCredential_SupVarsGenderCleaning2)
@@ -172,7 +171,7 @@ dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step6")
 dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
 
-# ---- Last seen birthdate cleaning ----
+# ---- Birthdate cleaning (last seen birthdate) ----
 dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
 # dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank) - I think the logic is wrong here though
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD LAST_SEEN_BIRTHDATE DATE")
@@ -198,13 +197,11 @@ dbExecute(con, qry07a1c_tmp_Credential_Gender)
 dbExecute(con, qry07a1d_tmp_Credential_GenderDups)
 dbExecute(con, qry07a1e_tmp_Credential_GenderDups_FindMaxCredDate)
 dbExecute(con, "ALTER TABLE tmp_dup_credential_epen_gender_maxcreddate ADD PSI_GENDER_Cleaned VARCHAR(10)")
-## Review ----
-## Not personally a fan of commenting out code that isn't needed for a specific year 
-## This is more of a note - doesn't affect this years run, can come back to after 
-## initial delivery is done 
-#dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender) # Not needed this year because not GenderDups at this point.                  
-#dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)  # Not needed this year because not GenderDups at this point. 
-#dbExecute(con, qry07a1h_Update_Credential_GenderDups)  # Not needed this year because not GenderDups at this point.     
+
+# Check these next three queries:
+#dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender)                
+#dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)  
+#dbExecute(con, qry07a1h_Update_Credential_GenderDups) 
 dbExecute(con, qry07a2a_ExtractNoGender)
 dbExecute(con, qry07a2b_ExtractNoGenderUnique)
 dbExecute(con, qry07a2c_Create_CRED_Extract_No_Gender_EPEN_with_MultiCred)
@@ -212,13 +209,27 @@ dbExecute(con, "ALTER TABLE CRED_Extract_No_Gender_Unique ADD MultiCredFlag varc
 dbExecute(con, qry07a2d_Update_MultiCredFlag)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
 dbExecute(con, qry07b_GenderDistribution)
-View(dbGetQuery(con, qry07b_GenderDistribution))
 
-# ---- Transfer Excel Spreadsheet (Development\SQL Server\CredentialAnalysis) calcs here --- *
-# ---- This section can be replaced with R code easily
-## Review ----
-## Runs but needs a reminder that this is really a manual step, 
-## With TOP(N) stuff updating. 
+# Transfered from Excel Spreadsheet (Development\SQL Server\CredentialAnalysis)
+d <- dbGetQuery(con, qry07b_GenderDistribution) %>% mutate(Expr1 = replace_na(Expr1, 0))
+
+nulls <- d %>% 
+  filter(is.na(PSI_GENDER)) %>% 
+  select(-PSI_GENDER)
+
+d <- d %>% 
+  filter(!is.na(PSI_GENDER)) %>% 
+  group_by(PSI_CREDENTIAL_CATEGORY) %>% 
+  mutate(p = Expr1/sum(Expr1)) %>% filter(PSI_GENDER == 'F') %>% 
+  select (-c(PSI_GENDER, Expr1))
+
+top_n <- inner_join(d, nulls) %>% 
+  mutate(n = round(Expr1*p)) %>%
+  select(PSI_CREDENTIAL_CATEGORY, n)
+
+## STOP !! manually add top_n to queries below
+# Code later: https://github.com/r-dbi/DBI/issues/193
+
 dbExecute(con, qry07c10_Assign_TopID_GenderF_GradCert)
 dbExecute(con, qry07c11_Assign_TopID_GenderF_GradDipl)
 dbExecute(con, qry07c12_Assign_TopID_GenderF_Masters)
@@ -239,7 +250,6 @@ dbExecute(con, qry07d_CorrectGender2)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender")
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_Unique")
 dbExecute(con, "DROP VIEW Credential_Remove_Dup")
-#dbExecute(con, "DROP TABLE credential_non_dup")
 dbExecute(con, "DROP TABLE tmp_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender_maxcreddate")
@@ -387,23 +397,16 @@ dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
 
 # ---- Clean Up ----
-dbExecute(con, "DROP VIEW Credential")
-#dbExecute(con, "DROP TABLE credential_non_dup")
 dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
+dbDisconnect(con)
+
+# ---- Clean Up (testing environment only) ----
+#dbExecute(con, "DROP TABLE credential_non_dup")
 #dbExecute(con, "DROP TABLE CredentialSupVars")
-
-
-
 #dbExecute(con, "DROP VIEW Credential_Remove_Dup")
-
 #dbExecute(con, "DROP VIEW MinEnrolment")
-
 #dbExecute(con, "DROP TABLE STP_Enrolment_Record_Type")
 #dbExecute(con, "DROP TABLE STP_Credential_Record_Type")
+#dbExecute(con, "DROP VIEW Credential")
 
-
-
-
-
-dbDisconnect(con)
