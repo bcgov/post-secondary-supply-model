@@ -33,12 +33,12 @@ con <- dbConnect(odbc(),
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')))
-#dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
 # Lookup
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"'))) 
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialRank"')))
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 dbExecute(con, qry_Credential_view_initial) 
@@ -172,8 +172,9 @@ dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
 
 # ---- Birthdate cleaning (last seen birthdate) ----
-dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
-# dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) #  run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank) - I think the logic is wrong here though
+# the biggest issue in this section is there are too many psi_birthdate_cleaned cols. 
+dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) # run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
+#dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) # supports the PSI_CODE/PSI_STUDENT number combos
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD LAST_SEEN_BIRTHDATE DATE")
 dbExecute(con, "ALTER TABLE CredentialSupVarsFromEnrolment ADD LAST_SEEN_BIRTHDATE DATE")
 dbExecute(con, qry04a1_UpdateCredentialSupVarsBirthdate) 
@@ -187,10 +188,12 @@ dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, qry04c_RecreateCredentialViewWithSupVars)
 dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup)
 
+# TO: Check age at grad is set in qry05c_UpdateAgeAtGrad.  It showing up in later queries
 dbExecute(con, qry05c_UpdateAgeAtGrad)
 dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
 dbExecute(con, qry06e_UpdateAwardSchoolYear)
 
+# ---- Gender Cleaning ----
 dbExecute(con, qry07a1a_UpdateGender)
 dbExecute(con, qry07a1b_Create_Credential_Non_Dup)
 dbExecute(con, qry07a1c_tmp_Credential_Gender)
@@ -210,7 +213,7 @@ dbExecute(con, qry07a2d_Update_MultiCredFlag)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
 dbExecute(con, qry07b_GenderDistribution)
 
-# Transfered from Excel Spreadsheet (Development\SQL Server\CredentialAnalysis)
+# ---- Impute Missing Gender ----
 d <- dbGetQuery(con, qry07b_GenderDistribution) %>% mutate(Expr1 = replace_na(Expr1, 0))
 
 nulls <- d %>% 
@@ -254,25 +257,21 @@ dbExecute(con, "DROP TABLE tmp_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender_maxcreddate")
 
-# ----	Create the view Credential_Ranking which will be used to rank the credentials by various methods ----
-#  Note: I removed school year from queries 
+# ---- Credential Ranking ----
+# Create the view Credential_Ranking which will be used to rank the credentials by various methods ----
+#  Note: numbers are out here, but minimally
 dbExecute(con, qry08_Create_Credential_Ranking_View_a)
 dbExecute(con, qry08_Create_Credential_Ranking_View_b)
-dbExecute(con, qry08_Create_Credential_Ranking_View_c)
+dbExecute(con, qry08_Create_Credential_Ranking_View_c)  # dups id's introduced here
 dbExecute(con, qry08_Create_Credential_Ranking_View_d)
 dbExecute(con, "ALTER TABLE tmp_Credential_Ranking_step3 ADD PSI_STUDENT_NUMBER VARCHAR(255),  PSI_CODE VARCHAR(255)")
 dbExecute(con, qry08_Create_Credential_Ranking_View_e)
-dbExecute(con, qry08_Create_Credential_Ranking_View_f) 
+dbExecute(con, qry08_Create_Credential_Ranking_View_f) # TO DO: View created here and added select distinct to remove dups from above
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
-#dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
 dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
 
-# ---- Credential Ranking was done in Access. 
-dbExecute(con, qry08_Create_Credential_Ranking_View_Exclude_LatestYr)
-#note: initially received an error here.  I reloaded the one query and it was fine.  
-# Check there are no other queries with this name
-res <- dbGetQuery(con, qry11a_RankByDateRank) # Access queries
+res <- dbGetQuery(con, qry11a_RankByDateRank) 
 
 res <- res %>% 
   mutate(highest_cred_by_date = NA) %>% 
@@ -293,8 +292,9 @@ dbWriteTable(con, name = 'tmp_Credential_Ranking', res)
 ## Review ----
 # I'm not sure if I'm supposed to or not
 # But the reson this doesn't seem to work is that there are duplicate IDs
-# dbExecute(con, "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;")
-# dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") # errors - fix this
+# dups in data come from qry08_Create_Credential_Ranking_View_c
+dbExecute(con, "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;")
+dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") 
 
 dbExecute(con, qry08a1_Update_CredentialNonDup_with_highestDate_Rank)
 dbExecute(con, qry08a_Pre_Credential_Ranking_View)
@@ -305,18 +305,18 @@ dbExecute(con, "DROP TABLE tmp_Credential_Ranking")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
 dbExecute(con, "DROP VIEW Credential_Ranking")
 
-## Review ----
-# I get different numbers here from the documentation, just FYI. Not sure if it matters. 
-dbExecute(con, qry09a_ExtractNoAge)  # 11950
+# ---- Age Gender Distributions ----
+# ** significant - AGE AT GRAD not set yet!! Flagged above
+dbExecute(con, qry09a_ExtractNoAge) 
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
-dbExecute(con, qry09b_ExtractNoAgeUnique) # 11220
+dbExecute(con, qry09b_ExtractNoAgeUnique)
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age_Unique ADD PRIMARY KEY (id);")
 dbExecute(con, qry09c_Create_CREDAgeDistributionGender)
 dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
 
 ## Review ----
-# There's a bunch of talk about an excel spreadsheet at this point, 
-# but unclear how that fits in - is this being dealt with somewhere?
+# TO DO: code up the Access/Excel age updates here
+# I think we are imputing missing ages
 dbExecute(con, qry10_Update_Extract_No_Age)
 dbExecute(con, qry11a_UpdateAgeAtGrad)
 dbExecute(con, qry11b_UpdateAGAtGrad)
@@ -399,14 +399,12 @@ dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 # ---- Clean Up ----
 dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
+dbExecute(con, "DROP TABLE CredentialSupVars")
+dbExecute(con, "DROP VIEW Credential")
+bExecute(con, "DROP TABLE credential_non_dup")
 dbDisconnect(con)
 
-# ---- Clean Up (testing environment only) ----
-#dbExecute(con, "DROP TABLE credential_non_dup")
-#dbExecute(con, "DROP TABLE CredentialSupVars")
-#dbExecute(con, "DROP VIEW Credential_Remove_Dup")
-#dbExecute(con, "DROP VIEW MinEnrolment")
-#dbExecute(con, "DROP TABLE STP_Enrolment_Record_Type")
-#dbExecute(con, "DROP TABLE STP_Credential_Record_Type")
-#dbExecute(con, "DROP VIEW Credential")
+
+
+
 
