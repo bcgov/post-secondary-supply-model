@@ -1,3 +1,11 @@
+# Workflow #3 (noting here for now)
+# Enrolment Analysis
+# Description: 
+# Relies on STP_Enrolment data table, STP_Enrolment_Record_Type, Credential, AgeGroupLookup
+# I think Credential is made in Credential Analysis
+# Creates tables qry09c_MinEnrolment (one of them) to be used in creating grad projections
+
+
 library(arrow)
 library(tidyverse)
 library(odbc)
@@ -17,13 +25,13 @@ con <- dbConnect(odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-# ---- Check Required Tables etc. ----
+# ---- Check required Tables etc. ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"'))) # lookup
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"'))) # view created in credential preprocessing (I think, check this)
 
-# ---- Extract MinEnrolment records and delete Skill Based Suspect records ---- 
+# ---- Extract first-time enrolled records ---- 
 dbExecute(con, qry01a_MinEnrolmentSupVar)
 dbExecute(con, "ALTER table MinEnrolmentSupVar ADD CONSTRAINT PK_MinEnrolSupVarsID PRIMARY KEY (ID)")
 dbExecute(con, qry01b_MinEnrolmentSupVar)
@@ -33,16 +41,14 @@ dbExecute(con, qry01d2_MinEnrolmentSupVar)
 dbExecute(con, qry01e_MinEnrolmentSupVar)
 
 # ---- Create MinEnrolment View ---
-# created from the STP_Enrolment, STP_Enrolment_Record_Type and MinEnrolmentSupVar tables
 dbExecute(con, qry_CreateMinEnrolmentView)
-
 dbExecute(con, qry02a_UpdateAgeAtEnrol)
 dbExecute(con, qry02b_UpdateAGAtEnrol) 
-
-# ---- Find gender for distinct non-null EPENs/{CODE_NUMBER}'s  ---- 
 dbExecute(con, qry04a1_UpdateMinEnrolment_Gender)
 dbExecute(con, qry04a2_UpdateMinEnrolment_Gender)
 
+# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ---- 
+# create a table with unique gender-epen or gender-{psi_code/psi_student_number} 
 dbExecute(con, qry04b1_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b2_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b3_tmp_MinEnrolment_Gender)
@@ -51,15 +57,15 @@ dbExecute(con, qry04b5_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b6_tmp_MinEnrolment_Gender)
 dbExecute(con, qry04b7_tmp_MinEnrolment_Gender)
 
-# ---- Quick Checks ----
-# count of NULL records on concatenated ID variable
+
+# sanity check - count of NULL records on concatenated ID variable
 dbGetQuery(con, "SELECT * FROM tmp_MinEnrolment_EPEN_Gender
           WHERE CONCATENATED_ID IS NULL OR CONCATENATED_ID = '';")
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"))
 
+# ---- Assign one gender/student and update MinEnrolment table ---- 
 # Using Concatenated_ID instead of EPEN for the next set of queries.
-# ---- Assign one gender/student ---- 
 dbExecute(con, qry04c_tmp_MinEnrolment_GenderDups)
 dbExecute(con, qry04d1_tmp_MinEnrolment_GenderDups_PickGender)
 dbExecute(con, qry04d2_tmp_MinEnrolment_GenderDups_PickGender)
@@ -75,22 +81,19 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"))
-
-dbExecute(con, qry05a1_Extract_No_Gender)
-dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
 
 # ---- impute gender  ---- 
 # impute gender into records associated with unknown/blank/NULL gender
-# this is currently done in an Excel worksheet but can be moved to code here
+# this has been done in an Excel worksheet but am moving to code here
 # Development\SQL Server\CredentialAnalysis\AgeGenderDistribution (2017)
-dbExecute(con, qry05a2_Show_Gender_Distribution)
-gender <- dbGetQuery(con, "SELECT * FROM  GenderDistribution")
-unknwn <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
-#enter top_n into query definitions that follow
-gender %>% mutate(PropDist = NumEnrolled/sum(NumEnrolled), 
-                    top_n = PropDist*unknwn)
+dbExecute(con, qry05a1_Extract_No_Gender)
+dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment )
+PropDist <- dbGetQuery(con, qry05a2_Show_Gender_Distribution)
+n <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
+PropDist %>% mutate(p = NumEnrolled/sum(NumEnrolled),
+                    top_n = round(p*n))
 
+# for now, enter top_n into query definition (qry06a1)
 dbExecute(con, qry06a1_Assign_TopID_Gender)
 dbExecute(con, qry06a2_Assign_TopID_Gender2)
 dbExecute(con, qry06a3_CorrectGender1)
