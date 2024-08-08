@@ -145,20 +145,9 @@ dbExecute(con, qry03g_create_table_SkillsBasedCourses)
 dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
 dbExecute(con, qry03g_b_Keep_More_Skills_Based) 
 dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based)
-
-
 dbExecute(con, qry03g_c2_Update_More_Selkirk)
-
-
 dbGetQuery(con, qry03g_d_EnrolCoursesSeen)
-
-# ---- Error check needed here ----
-# counts differ significantly from documentation (2019) 
-# I think we are fine here as we should be filtering out these records. 
-# The set difference is the result set from  qry03c_Drop_Skills_Based.
-# The update query may have been run later, or the courses may be filtered later.
 dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
-
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) 
 dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)  
 dbExecute(con, qry03j_Update_Suspect_Skills_Based) 

@@ -186,32 +186,30 @@ dbExecute(con, qry04b_UpdateCredentiaSupVarsGender)
 dbExecute(con, "DROP TABLE CredentialSupVars_Gender")
 dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, qry04c_RecreateCredentialViewWithSupVars)
-dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup)
+dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup) 
 
-# TO: Check age at grad is set in qry05c_UpdateAgeAtGrad.  It showing up in later queries
 dbExecute(con, qry05c_UpdateAgeAtGrad)
 dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
 dbExecute(con, qry06e_UpdateAwardSchoolYear)
 
-# ---- Gender Cleaning ----
+# ---- NON DUP CREATED HERE ----
+# ---- Credential Cleaning ----
 dbExecute(con, qry07a1a_UpdateGender)
-dbExecute(con, qry07a1b_Create_Credential_Non_Dup)
+dbExecute(con, qry07a1b_Create_Credential_Non_Dup) # flagging non dup created here.  OUTCOMES_CRED comes from a lookup later
 dbExecute(con, qry07a1c_tmp_Credential_Gender)
 dbExecute(con, qry07a1d_tmp_Credential_GenderDups)
 dbExecute(con, qry07a1e_tmp_Credential_GenderDups_FindMaxCredDate)
-dbExecute(con, "ALTER TABLE tmp_dup_credential_epen_gender_maxcreddate ADD PSI_GENDER_Cleaned VARCHAR(10)")
 
-# Check these next three queries:
-#dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender)                
-#dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)  
-#dbExecute(con, qry07a1h_Update_Credential_GenderDups) 
+dbExecute(con, "ALTER TABLE tmp_Dup_Credential_EPEN_Gender_MaxCredDate ADD PSI_GENDER varchar(10)")
+dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender)                
+dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)  
+dbExecute(con, qry07a1h_Update_Credential_GenderDups) 
 dbExecute(con, qry07a2a_ExtractNoGender)
 dbExecute(con, qry07a2b_ExtractNoGenderUnique)
 dbExecute(con, qry07a2c_Create_CRED_Extract_No_Gender_EPEN_with_MultiCred)
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Gender_Unique ADD MultiCredFlag varchar(2)")
 dbExecute(con, qry07a2d_Update_MultiCredFlag)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
-dbExecute(con, qry07b_GenderDistribution)
 
 # ---- Impute Missing Gender ----
 d <- dbGetQuery(con, qry07b_GenderDistribution) %>% mutate(Expr1 = replace_na(Expr1, 0))
@@ -266,12 +264,15 @@ dbExecute(con, qry08_Create_Credential_Ranking_View_c)  # dups id's introduced h
 dbExecute(con, qry08_Create_Credential_Ranking_View_d)
 dbExecute(con, "ALTER TABLE tmp_Credential_Ranking_step3 ADD PSI_STUDENT_NUMBER VARCHAR(255),  PSI_CODE VARCHAR(255)")
 dbExecute(con, qry08_Create_Credential_Ranking_View_e)
-dbExecute(con, qry08_Create_Credential_Ranking_View_f) # TO DO: View created here and added select distinct to remove dups from above
+dbExecute(con, qry08_Create_Credential_Ranking_View_f) 
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
 dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
 
 res <- dbGetQuery(con, qry11a_RankByDateRank) 
+
+res <- res %>% distinct(id,encrypted_true_pen,psi_student_number,psi_code,CONCATENATED_ID,
+                        credential_award_date_d,rank,highest_cred_by_date)
 
 res <- res %>% 
   mutate(highest_cred_by_date = NA) %>% 
@@ -287,12 +288,8 @@ res <- res %>%
   mutate(highest_cred_by_rank = replace(highest_cred_by_rank, 1, 'Yes')) %>% 
   ungroup()
 
-dbWriteTable(con, name = 'tmp_Credential_Ranking', res)
+dbWriteTable(con, name = 'tmp_Credential_Ranking', res, overwrite = TRUE)
 
-## Review ----
-# I'm not sure if I'm supposed to or not
-# But the reson this doesn't seem to work is that there are duplicate IDs
-# dups in data come from qry08_Create_Credential_Ranking_View_c
 dbExecute(con, "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;")
 dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") 
 
@@ -306,17 +303,45 @@ dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
 dbExecute(con, "DROP VIEW Credential_Ranking")
 
 # ---- Age Gender Distributions ----
-# ** significant - AGE AT GRAD not set yet!! Flagged above
 dbExecute(con, qry09a_ExtractNoAge) 
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
 dbExecute(con, qry09b_ExtractNoAgeUnique)
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age_Unique ADD PRIMARY KEY (id);")
-dbExecute(con, qry09c_Create_CREDAgeDistributionGender)
-dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
 
-## Review ----
-# TO DO: code up the Access/Excel age updates here
-# I think we are imputing missing ages
+sql <- "SELECT PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, COUNT(*) AS NumWithNullAge
+FROM CRED_Extract_No_Age_Unique GROUP BY PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY"
+CRED_Extract_No_Age_Unique <- dbGetQuery(con, sql)
+CREDAgeDistributionbyGender <- dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
+
+d <- CREDAgeDistributionbyGender %>% 
+  group_by(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY) %>%
+  mutate(p = NumGrads/sum(NumGrads)) %>%
+  left_join(CRED_Extract_No_Age_Unique, 
+            by = join_by(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY)) %>%
+  mutate(n = round(p*NumWithNullAge)) %>% 
+  arrange(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, AGE_AT_GRAD) 
+
+# consider sampling instead to ensure randomness and give full coverage
+for (i in 1:nrow(d)) {
+  sql <- "UPDATE TOP(?n) CRED_Extract_No_Age_Unique
+          SET AGE_AT_GRAD = ?age 
+          WHERE PSI_GENDER_CLEANED  = ?gender
+            AND PSI_CREDENTIAL_CATEGORY = ?cred
+            AND (AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = ' ');"
+  sql <- sqlInterpolate(con, sql, 
+                        n = as.numeric(d[i,"n"]), 
+                        age = as.numeric(d[i,"AGE_AT_GRAD"]), 
+                        gender = as.character(d[i,"PSI_GENDER_CLEANED"]), 
+                        cred = as.character(d[i,"PSI_CREDENTIAL_CATEGORY"]))
+  print(sql)
+  print(dbExecute(con, sql))
+}
+
+# assign a random age between 19 and 70 to any remaining nulls. 
+dbExecute(con, "UPDATE CRED_Extract_No_Age_Unique
+                SET AGE_AT_GRAD = (ABS(CHECKSUM(NewId())) % 61) + 19
+                WHERE AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = ' '")
+
 dbExecute(con, qry10_Update_Extract_No_Age)
 dbExecute(con, qry11a_UpdateAgeAtGrad)
 dbExecute(con, qry11b_UpdateAGAtGrad)
@@ -361,24 +386,20 @@ dbExecute(con, "ALTER TABLE Credential_Non_Dup
                 ADD CREDENTIAL_AWARD_DATE_D_DELAYED date, 
                 PSI_AWARD_SCHOOL_YEAR_DELAYED varchar(50);")
 
-## Review ----
-# Note sure what these commented out queries do? Not mentioned in documentation
+
 dbExecute(con, qry13_UpdateDelayedCredDate)
 #dbExecute(con, qry13_UpdateDelayedCredDate_Exclude_LatestYr)
 dbExecute(con, qry13a_UpdateDelayedCredDate)
 #dbExecute(con, qry13a_UpdateDelayedCredDate_Exclude_LatestYr)
 dbExecute(con, qry13b_UpdateDelayedCredDate)
 #dbExecute(con, qry13b_UpdateDelayedCredDate_Exclude_LatestYr)
-
 dbExecute(con, qry14_ResearchUniversity)
 #dbExecute(con, qry14_ResearchUniversity_Exclude_LatestYr)
-
 dbExecute(con, qry15_OutcomeCredential)
 #dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
 
 
-## Review ----
-# Note sure if these are all supposed to work 
+# ---- TO Do after program matching ----
 # Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
