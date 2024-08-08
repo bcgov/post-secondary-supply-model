@@ -256,35 +256,31 @@ dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender_maxcreddate")
 
 # ---- Credential Ranking ----
-# Create the view Credential_Ranking which will be used to rank the credentials by various methods ----
-#  Note: numbers are out here, but minimally
 dbExecute(con, qry08_Create_Credential_Ranking_View_a)
 dbExecute(con, qry08_Create_Credential_Ranking_View_b)
-dbExecute(con, qry08_Create_Credential_Ranking_View_c)  # dups id's introduced here
+# dbExecute(con, qry08_Create_Credential_Ranking_View_c)  Removed: introduced dups
 dbExecute(con, qry08_Create_Credential_Ranking_View_d)
-dbExecute(con, "ALTER TABLE tmp_Credential_Ranking_step3 ADD PSI_STUDENT_NUMBER VARCHAR(255),  PSI_CODE VARCHAR(255)")
 dbExecute(con, qry08_Create_Credential_Ranking_View_e)
 dbExecute(con, qry08_Create_Credential_Ranking_View_f) 
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
-dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
 
 res <- dbGetQuery(con, qry11a_RankByDateRank) 
-
-res <- res %>% distinct(id,encrypted_true_pen,psi_student_number,psi_code,CONCATENATED_ID,
+res <- res %>% distinct(id,encrypted_true_pen,psi_student_number,psi_code, CONCATENATED_ID,
                         credential_award_date_d,rank,highest_cred_by_date)
+res <- res %>%  
+  mutate(highest_cred_by_date = NA, 
+         highest_cred_by_rank = NA)
 
 res <- res %>% 
-  mutate(highest_cred_by_date = NA) %>% 
-  group_by(encrypted_true_pen) %>% 
-  arrange(encrypted_true_pen, desc(credential_award_date_d), rank, .by_group = TRUE) %>%
+  group_by(CONCATENATED_ID) %>% 
+  arrange(CONCATENATED_ID, desc(credential_award_date_d), rank, .by_group = TRUE) %>%
   mutate(highest_cred_by_date = replace(highest_cred_by_date, 1, 'Yes')) %>% 
   ungroup()
 
-res <- res %>% 
-  mutate(highest_cred_by_rank = NA) %>% 
-  group_by(encrypted_true_pen) %>% 
-  arrange(encrypted_true_pen, rank, desc(credential_award_date_d), .by_group = TRUE) %>%
+res <- res %>%  
+  group_by(CONCATENATED_ID) %>% 
+  arrange(CONCATENATED_ID, desc(rank), desc(credential_award_date_d), .by_group = TRUE) %>%
   mutate(highest_cred_by_rank = replace(highest_cred_by_rank, 1, 'Yes')) %>% 
   ungroup()
 
@@ -294,13 +290,10 @@ dbExecute(con, "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;
 dbExecute(con, "ALTER TABLE tmp_credential_Ranking ADD PRIMARY KEY (id);") 
 
 dbExecute(con, qry08a1_Update_CredentialNonDup_with_highestDate_Rank)
-dbExecute(con, qry08a_Pre_Credential_Ranking_View)
 dbExecute(con, qry08a_Run_after_Credential_Ranking)
-dbExecute(con, qry08b_Rank_non_multi_cred_a)
-dbExecute(con, qry08b_Rank_non_multi_cred_b)
+dbExecute(con, qry08b_Rank_non_multi_cred)
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
-dbExecute(con, "DROP VIEW Credential_Ranking")
 
 # ---- Age Gender Distributions ----
 dbExecute(con, qry09a_ExtractNoAge) 
@@ -349,22 +342,23 @@ dbExecute(con, "DROP TABLE CRED_Extract_No_Age")
 dbExecute(con, "DROP TABLE CRED_Extract_No_Age_Unique")
 dbExecute(con, "DROP TABLE CREDAgeDistributionbyGender")
 
+# ---- VISA Status ----
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD PSI_VISA_STATUS varchar(50)")
+dbExecute(con, "ALTER TABLE Credential_Non_Dub ADD PSI_VISA_STATUS varchar(50)")
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_1)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_2)
 dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
 dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
-#dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step2;")
-#dbExecute(con, "DROP TABLE Credential_Non_Dup_VisaStatus_Cleaning_Step1")
+dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD PSI_VISA_STATUS varchar(50)")
+dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_extra)
 
-dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID_FOR_HIGHESTRANK VARCHAR(255) NULL")
-dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID_FOR_HIGHESTRANK = ENCRYPTED_TRUE_PEN 
+# ---- Highest Rank ----
+dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID VARCHAR(255) NULL")
+dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID = ENCRYPTED_TRUE_PEN 
                  WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN <> '')")
-dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID_FOR_HIGHESTRANK = PSI_STUDENT_NUMBER + PSI_CODE 
+dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID = PSI_STUDENT_NUMBER + PSI_CODE 
                 WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN = '')")
 
-## Review ----
-# Still getting slightly different numbers - just fyi
 dbExecute(con, qry12_Create_View_tblCredentialHighestRank)
 
 dbExecute(con, qry18a_ExtrLaterAwarded)
@@ -372,12 +366,10 @@ dbExecute(con, qry18b_ExtrLaterAwarded)
 dbExecute(con, qry18c_ExtrLaterAwarded)
 dbExecute(con, qry18d_ExtrLaterAwarded)
 dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_2")
-## Review ----
-# Does not exist 
-#dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
-#dbExecute(con, "DROP TABLE tblcredential_laterawarded")
-
+dbExecute(con, "DROP TABLE tblcredential_laterawarded")
+dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
+dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
 
 dbExecute(con, qry19_UpdateDelayDate)
 dbExecute(con, "DROP TABLE tblCredential_DelayEffect")
@@ -386,21 +378,16 @@ dbExecute(con, "ALTER TABLE Credential_Non_Dup
                 ADD CREDENTIAL_AWARD_DATE_D_DELAYED date, 
                 PSI_AWARD_SCHOOL_YEAR_DELAYED varchar(50);")
 
-
 dbExecute(con, qry13_UpdateDelayedCredDate)
-#dbExecute(con, qry13_UpdateDelayedCredDate_Exclude_LatestYr)
 dbExecute(con, qry13a_UpdateDelayedCredDate)
-#dbExecute(con, qry13a_UpdateDelayedCredDate_Exclude_LatestYr)
 dbExecute(con, qry13b_UpdateDelayedCredDate)
-#dbExecute(con, qry13b_UpdateDelayedCredDate_Exclude_LatestYr)
+
 dbExecute(con, qry14_ResearchUniversity)
-#dbExecute(con, qry14_ResearchUniversity_Exclude_LatestYr)
 dbExecute(con, qry15_OutcomeCredential)
-#dbExecute(con, qry15_OutcomeCredential_Exclude_LatestYr)
 
-
-# ---- TO Do after program matching ----
-# Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
+# ---- Break and do Program Matching ----
+# ---- Final Distributions ----
+# NOTE: Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
 dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
@@ -422,7 +409,6 @@ dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
 dbExecute(con, "DROP TABLE CredentialSupVars")
 dbExecute(con, "DROP VIEW Credential")
-bExecute(con, "DROP TABLE credential_non_dup")
 dbDisconnect(con)
 
 
