@@ -83,7 +83,7 @@ dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
 dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE") 
 
-# ---- Make Credential Sup Vars ----
+# ---- -01 Make Credential Sup Vars ----
 dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
 dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
 dbExecute(con, "ALTER TABLE [CredentialSupVars] ADD CONSTRAINT PK_CredSupVars_ID PRIMARY KEY (ID);")
@@ -91,12 +91,14 @@ dbExecute(con, qry01b_CredentialSupVarsFromEnrol_1) # add some columns to CredSu
 dbExecute(con, qry01b_CredentialSupVarsFromEnrol_2) # bring in data from STP_Enrolment 
 dbExecute(con, qry01b_CredentialSupVarsFromEnrol_3) # Empty strings ' ' in psi_birthdate_cleaned were cast to 1900-01-01 in date format. 
 
+# ---- 02 Developmental Records ----
 # flag STP_Credential_Record_Type records with PSI_CREDENTIAL_CATEGORY = 'DEVELOPMENTAL CREDENTIAL' 'OTHER' 'NONE' 'SHORT CERTIFICATE'
 dbExecute(con, qry02a_DropCredCategory) 
 dbExecute(con, "ALTER TABLE  STP_Credential_Record_Type ADD DropCredCategory NVARCHAR(50) NULL")
 dbExecute(con, qry02b_DeleteCredCategory)
 dbExecute(con, "DROP TABLE Drop_Credential_Category")
 
+# ---- 03 Miscellaneous ----
 # flag STP_Credential_Record_Type records whose CREDENTIAL_AWARD_DATE >= '2019-09-01'
 # ** this will have to be changed to 2023-09-01
 dbExecute(con, qry03a1_ConvertAwardDate) # data type conversion
@@ -110,7 +112,7 @@ dbExecute(con, "UPDATE  CredentialSupVars_BirthdateClean
                 SET psi_birthdate_cleaned_D = psi_birthdate_cleaned
                 WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned <> ''")
 
-# ---- Gender Cleaning ---- 
+# ---- 03 Gender Cleaning ---- 
 dbExecute(con, qry03e_CredentialSupVarsGender) # create a table with unique EPEN/gender from CredentialSupVarsFromEnrolment
 dbExecute(con, qry03fCredential_SupVarsGenderCleaning1)
 dbExecute(con, qry03fCredential_SupVarsGenderCleaning2)
@@ -171,7 +173,7 @@ dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step6")
 dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
 
-# ---- Birthdate cleaning (last seen birthdate) ----
+# ---- 04 Birthdate cleaning (last seen birthdate) ----
 # the biggest issue in this section is there are too many psi_birthdate_cleaned cols. 
 dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) # run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
 #dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) # supports the PSI_CODE/PSI_STUDENT number combos
@@ -186,14 +188,16 @@ dbExecute(con, qry04b_UpdateCredentiaSupVarsGender)
 dbExecute(con, "DROP TABLE CredentialSupVars_Gender")
 dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, qry04c_RecreateCredentialViewWithSupVars)
-dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup) 
 
+# ---- 05 Age and Credential Update
+dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup) 
 dbExecute(con, qry05c_UpdateAgeAtGrad)
 dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
 dbExecute(con, qry06e_UpdateAwardSchoolYear)
 
-# ---- NON DUP CREATED HERE ----
-# ---- Credential Cleaning ----
+
+# ---- 07 Credential Cleaning ----
+## ---- ** Create NON DUP ** ----
 dbExecute(con, qry07a1a_UpdateGender)
 dbExecute(con, qry07a1b_Create_Credential_Non_Dup) # flagging non dup created here.  OUTCOMES_CRED comes from a lookup later
 dbExecute(con, qry07a1c_tmp_Credential_Gender)
@@ -211,8 +215,9 @@ dbExecute(con, "ALTER TABLE CRED_Extract_No_Gender_Unique ADD MultiCredFlag varc
 dbExecute(con, qry07a2d_Update_MultiCredFlag)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
 
-# ---- Impute Missing Gender ----
-d <- dbGetQuery(con, qry07b_GenderDistribution) %>% mutate(Expr1 = replace_na(Expr1, 0))
+## ---- Impute Missing Gender ----
+d <- dbGetQuery(con, qry07b_GenderDistribution) %>% 
+  mutate(Expr1 = replace_na(Expr1, 0))
 
 nulls <- d %>% 
   filter(is.na(PSI_GENDER)) %>% 
@@ -228,9 +233,11 @@ top_n <- inner_join(d, nulls) %>%
   mutate(n = round(Expr1*p)) %>%
   select(PSI_CREDENTIAL_CATEGORY, n)
 
-## STOP !! manually add top_n to queries below
-# Code later: https://github.com/r-dbi/DBI/issues/193
+top_n
 
+
+## ---- STOP !! manually add top_n to queries below ----
+# Code later: https://github.com/r-dbi/DBI/issues/193
 dbExecute(con, qry07c10_Assign_TopID_GenderF_GradCert)
 dbExecute(con, qry07c11_Assign_TopID_GenderF_GradDipl)
 dbExecute(con, qry07c12_Assign_TopID_GenderF_Masters)
@@ -255,7 +262,7 @@ dbExecute(con, "DROP TABLE tmp_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender")
 dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender_maxcreddate")
 
-# ---- Credential Ranking ----
+# ---- 08 Credential Ranking ----
 dbExecute(con, qry08_Create_Credential_Ranking_View_a)
 dbExecute(con, qry08_Create_Credential_Ranking_View_b)
 # dbExecute(con, qry08_Create_Credential_Ranking_View_c)  Removed: introduced dups
@@ -295,7 +302,7 @@ dbExecute(con, qry08b_Rank_non_multi_cred)
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
 
-# ---- Age Gender Distributions ----
+# ---- 09 Age Gender Distributions ----
 dbExecute(con, qry09a_ExtractNoAge) 
 dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
 dbExecute(con, qry09b_ExtractNoAgeUnique)
@@ -326,8 +333,6 @@ for (i in 1:nrow(d)) {
                         age = as.numeric(d[i,"AGE_AT_GRAD"]), 
                         gender = as.character(d[i,"PSI_GENDER_CLEANED"]), 
                         cred = as.character(d[i,"PSI_CREDENTIAL_CATEGORY"]))
-  print(sql)
-  print(dbExecute(con, sql))
 }
 
 # assign a random age between 19 and 70 to any remaining nulls. 
@@ -340,17 +345,17 @@ dbExecute(con, qry11a_UpdateAgeAtGrad)
 dbExecute(con, qry11b_UpdateAGAtGrad)
 dbExecute(con, "DROP TABLE CRED_Extract_No_Age")
 dbExecute(con, "DROP TABLE CRED_Extract_No_Age_Unique")
-dbExecute(con, "DROP TABLE CREDAgeDistributionbyGender")
+#dbExecute(con, "DROP TABLE CREDAgeDistributionbyGender")
 
 # ---- VISA Status ----
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD PSI_VISA_STATUS varchar(50)")
-dbExecute(con, "ALTER TABLE Credential_Non_Dub ADD PSI_VISA_STATUS varchar(50)")
+dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD PSI_VISA_STATUS varchar(50)")
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_1)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_2)
 dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
 dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
 dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD PSI_VISA_STATUS varchar(50)")
-dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_extra)
+dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_extra)
 
 # ---- Highest Rank ----
 dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID VARCHAR(255) NULL")
@@ -368,9 +373,10 @@ dbExecute(con, qry18d_ExtrLaterAwarded)
 dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_2")
 dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
 dbExecute(con, "DROP TABLE tblcredential_laterawarded")
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
+#dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
+#dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
 
+# ---- 13 Delay Date ----
 dbExecute(con, qry19_UpdateDelayDate)
 dbExecute(con, "DROP TABLE tblCredential_DelayEffect")
 
@@ -382,11 +388,12 @@ dbExecute(con, qry13_UpdateDelayedCredDate)
 dbExecute(con, qry13a_UpdateDelayedCredDate)
 dbExecute(con, qry13b_UpdateDelayedCredDate)
 
+# ---- 14-15 research University + Outcomes Credential ----
 dbExecute(con, qry14_ResearchUniversity)
 dbExecute(con, qry15_OutcomeCredential)
 
 # ---- Break and do Program Matching ----
-# ---- Final Distributions ----
+# ---- 20 Final Distributions ----
 # NOTE: Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
 dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
@@ -408,8 +415,11 @@ dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
 dbExecute(con, "DROP TABLE CredentialSupVars")
+dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
 dbExecute(con, "DROP VIEW Credential")
+dbExecute(con, "DROP VIEW Credential_Ranking")
 dbDisconnect(con)
+
 
 
 
