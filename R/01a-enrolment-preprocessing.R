@@ -11,9 +11,9 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
-source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/01c-enrolment-preprocessing-sql.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/convert-date-scripts.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01c-enrolment-preprocessing/pssm-birthdate-cleaning.R"))
+source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
+source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -279,9 +279,10 @@ dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
 dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
 
 # ---- Clean Up and check tables to keep ----
-dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
-dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))  
-dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment];"))  
+dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Record_Type;"))  
+dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Valid;"))  
+dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment;"))  
+
 dbDisconnect(con)
 
 

@@ -11,8 +11,8 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
-source(glue::glue("{lan}/development/sql/gh-source/01a-credential-preprocessing/01a-credential-preprocessing.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01a-credential-preprocessing/convert_date_scripts.R"))
+source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")
+source("./sql/01-credential-preprocessing/convert_date_scripts.R")
 
 # set connection string to decimal
 db_config <- config::get("decimal")
@@ -65,26 +65,24 @@ dbExecute(con, "DROP TABLE tmp_ConvertDateFormatCredential")
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification 
 
-## ---- 01 Queries ----
-### ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
+
+# ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
 dbExecute(con, qry01_ExtractAllID_into_STP_Credential_Record_Type)
 
-## ---- 02 Queries ----
-### ---- Find records with Record_Status = 1  ----
+
+# ---- Find records with Record_Status = 1  ----
 dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
 dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
 dbExecute(con, qry02c_Update_Drop_No_PEN_or_No_STUID)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_No_PEN_or_No_STUID];")) 
 
-## ---- 03 Queries ----
-### ---- Find records with Record_Status = 2  ----
+# ---- Find records with Record_Status = 2  ----
 dbExecute(con, qry03a_Drop_Record_Developmental)
 dbExecute(con, qry03b_Update_Drop_Record_Developmental)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")) 
 
-
-### ---- Find records with Record_Status = 6  ----
+# ---- Find records with Record_Status = 6  ----
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
 dbExecute(con, qry03d_create_table_Suspect_Skills_Based)
 dbExecute(con, qry03e_Find_Suspect_Skills_Based)
@@ -92,25 +90,34 @@ dbExecute(con, qry03f_Update_Suspect_Skills_Based)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_Cred_Suspect_Skills_Based];")) 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Cred_Suspect_Skills_Based];")) 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_EnrolmentSkillsBasedCourses];")) 
- 
-## ---- Find records with Record_Status = 7 and update look up table ----
+
+# ---- Find records with Record_Status = 7 and update look up table ----
 dbExecute(con, qry03g_Drop_Developmental_Credential_CIPS)
 dbExecute(con, "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD Keep NVARCHAR(2)")
 
 ###  ---- ** Manual **  ----
-# Check against the outcomes programs table to see if some are non-developmental CIP. If so, set keep = 'Y'.  
+# Check against the outcomes programs table to see if some are non-developmental CIP. If so, set keep = 'Y'.
 data <- dbReadTable(con, "Drop_Developmental_PSI_CREDENTIAL_CIPS", col_types = cols(.default = col_character()))
 data.entry(data)
-dbWriteTable(con, name = "Drop_Developmental_PSI_CREDENTIAL_CIPS", data, overwrite = TRUE)
+dbWriteTable(con, name = "Drop_Developmental_PSI_CREDENTIAL_CIPS", as.data.frame(data), overwrite = TRUE)
 
 dbExecute(con, qry03h_Update_Developmental_CIPs)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CREDENTIAL_CIPS];")) 
 
-### ---- Find records with Record_Status = 8 and update look up table ----
+# ---- Find records with Record_Status = 8 and update look up table ----
 dbExecute(con, qry03i_Drop_RecommendationForCert)
 dbExecute(con, qry03j_Update_RecommendationForCert)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_RecommendForCert];")) 
 
-## ---- 04 Queries ----
 dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
+dbGetQuery(con, RecordTypeSummary)
+
+# ---- Clean Up and check tables to keep ----
+dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment_Record_Type;'"))  
+dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment_Valid;'"))  
+dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment;'"))  
+dbExistsTable(con, glue::glue("'{my_schema}.STP_Credential;'"))  
+dbExistsTable(con, glue::glue("'{my_schema}.STP_Credential_Record_Type;'")) 
+
+dbDisconnect(con)
 
