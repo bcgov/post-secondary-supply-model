@@ -223,8 +223,6 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
 
 # ---- Clean Birthdates ----
-## Documentation: development\documentation\01-pssm-2020-2021-notes-on-enrolment-and-graduate-projections\birthdates-and-gender.docx
-# Creates some temp tables to flag if each record represents the min or max birthdate
 dbExecute(con, qry01_BirthdateCleaning) 
 dbExecute(con, qry02_BirthdateCleaning)
 dbExecute(con, qry03_BirthdateCleaning)
@@ -275,14 +273,14 @@ dbExecute(con, qry19_BirthdateCleaning)
 dbExecute(con, qry20_BirthdateCleaning)
 dbGetQuery(con, qry21_BirthdateCleaning)
 
+
+# ---- Clean Up and check tables to keep ----
 dbExecute(con, "DROP TABLE tmp_BirthDate")
 dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
 dbExecute(con, "DROP TABLE tmp_NullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
-dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
 
-# ---- Clean Up and check tables to keep ----
 dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Record_Type;"))  
 dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Valid;"))  
 dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment;"))  

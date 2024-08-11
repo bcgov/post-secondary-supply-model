@@ -113,11 +113,11 @@ dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
 dbGetQuery(con, RecordTypeSummary)
 
 # ---- Clean Up and check tables to keep ----
-dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment_Record_Type;'"))  
-dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment_Valid;'"))  
-dbExistsTable(con, glue::glue("'{my_schema}.STP_Enrolment;'"))  
-dbExistsTable(con, glue::glue("'{my_schema}.STP_Credential;'"))  
-dbExistsTable(con, glue::glue("'{my_schema}.STP_Credential_Record_Type;'")) 
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
 dbDisconnect(con)
 
