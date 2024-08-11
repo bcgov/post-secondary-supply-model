@@ -1,4 +1,4 @@
-# Workflow #1 (noting here for now)
+# Workflow #1
 # Enrolment Preprocessing 
 # Description: 
 # Relies on STP_Enrolment data table
@@ -97,13 +97,10 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental];"))
 
 # ----- Find records with Record_Status = 6 and update look up table -----
 dbExecute(con, qry03c_Drop_Skills_Based)
-# quick check of the programs that are considered skills based.
-dbGetQuery(con, "
-SELECT PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
-FROM  Drop_Skills_Based
-GROUP BY PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY;")
+dbGetQuery(con, CheckSkillsBased) # check list of programs considered skills based.
+
 dbExecute(con, "ALTER TABLE Drop_Skills_Based ADD KEEP nvarchar(2) NULL;")
-dbExecute(con, qry03da_Keep_TeachEd) # doesn't follow numbering order and should be done before 03d
+dbExecute(con, qry03da_Keep_TeachEd) 
 dbExecute(con, qry03d_Update_Drop_Record_Skills_Based) 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Skills_Based];")) 
 
@@ -121,7 +118,8 @@ dbExecute(con, qry03ea_Exclude_Skills_Based_Programs)
 dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) 
 dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based) 
 
-# documentation suggests investigation but discovered zero records in both past two model runs. 
+# manual investigation done here in the past and requires a review
+# leaving for now as has minimal impact on final distributions
 dbExecute(con, qry03g_create_table_SkillsBasedCourses) 
 dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
 dbExecute(con, qry03g_b_Keep_More_Skills_Based) 
@@ -157,22 +155,24 @@ dbExecute(con, qry06a_Drop_PSI_Outside_BC)
 dbExecute(con, qry06b_Update_Drop_PSI_Outside_BC)
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_PSI_Outside_BC];"))
 
-# ---- Update remaining records and fix cols ----
+# ---- Set Remaining Records to Record_Status = 0 ----
 dbExecute(con, qry07_Update_RecordStatus_No_Dropped)
 dbExecute(con, qry08a_Create_Table_STP_Enrolment_Valid)
 dbExecute(con, "ALTER TABLE [STP_Enrolment_Valid] 
                 ADD CONSTRAINT ValidEnrolmentPK_ID
                 PRIMARY KEY (ID);")
 
-# check count of records in STP_Enrolment_Valid associated with > 1 EPEN or those missing a pen.  
-cat("Records associated with > 1 EPEN")
-print(dbGetQuery(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*)
+# check count of records in STP_Enrolment_Valid associated with > 1 EPEN.  
+cat("Records associated with > 1 EPEN:")
+print(dbGetQuery(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*) 
                 FROM (
 	              SELECT PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN
 	                FROM  STP_Enrolment_Valid
 	                GROUP BY  PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN) T
                 GROUP BY  T.PSI_CODE, T.PSI_STUDENT_NUMBER
                 HAVING COUNT(*) <> 1"))
+
+dbGetQuery(con, RecordTypeSummary)
 
 # ---- Min Enrolment ----
 # Find record with minimum enrollment sequence for each student per school year 
@@ -237,7 +237,7 @@ dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate
                 ADD MinPSIBirthdate NVARCHAR(50) NULL,
                     NumMinBirthdateRecords INT NULL,
                     MaxPSIBirthdate NVARCHAR(50) NULL,
-                    NumMaxBirthdateRecords INT NULL,")
+                    NumMaxBirthdateRecords INT NULL")
 dbExecute(con, qry07a_BirthdateCleaning)
 dbExecute(con, qry07b_BirthdateCleaning)
 dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
@@ -279,9 +279,9 @@ dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
 dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
 
 # ---- Clean Up and check tables to keep ----
-dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
-dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))  
-dbExists(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment];"))  
+dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Record_Type];"))  
+dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment_Valid];"))  
+dbExistsTable(con, glue::glue("DROP TABLE [{my_schema}].[STP_Enrolment];"))  
 dbDisconnect(con)
 
 
