@@ -165,9 +165,6 @@ f_id <- extract_no_age_first_enrolment %>%
 m_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'M')
 f_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'F')
 
-## Review ----
-## I love sampling
-## do we need to set a seed so people will have comparable results 
 m = data.frame(id = m_id, AGE_AT_ENROL_DATE = sample(m_dist$AGE_AT_ENROL_DATE, size = length(m_id), replace = TRUE, prob = m_dist$PropEnrolled))
 f = data.frame(id = f_id, AGE_AT_ENROL_DATE = sample(f_dist$AGE_AT_ENROL_DATE, size = length(f_id), replace = TRUE, prob = f_dist$PropEnrolled))
 
@@ -230,19 +227,26 @@ dbExecute(con, qry08_UpdateAGAtEnrol)
 # ---- Final Distributions ----
 dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
 dbGetQuery(con, qry09c_MinEnrolment_Domestic)
+
 ## Review ----
 ##I get an error here - invalid object name 'PSI_CODE_RECODE'
 # is this another table I need to bring in?
 dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
-## Review ----
-## Are some of these needed for further analysis? 
-## It's unclear to me what I should have in my schema by the end of each section 
-## That is a required table vs just something temporary
-dbExecute(con, glue::glue("DROP VIEW [{my_schema}].MinEnrolment;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential_Record_Type;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Record_Type;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Valid;"))
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential;"))
+#dbExecute(con, glue::glue("DROP VIEW  [{my_schema}].MinEnrolment;"))
+#dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
 dbDisconnect(con)
+
+
+
+
+
 
 
 
