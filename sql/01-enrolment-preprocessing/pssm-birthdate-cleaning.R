@@ -157,10 +157,10 @@ OR        (STP_Enrolment.psi_birthdate_cleaned = ' ')"
 qry19_BirthdateCleaning <-  
  "UPDATE    STP_Enrolment
  SET         psi_birthdate_cleaned = PSI_BIRTHDATE
-WHERE       (psi_birthdate_cleaned IS NULL) AND (NOT (PSI_BIRTHDATE IS NULL)) 
-OR          (psi_birthdate_cleaned = ' ') AND (NOT (PSI_BIRTHDATE IS NULL)) 
-OR          (psi_birthdate_cleaned IS NULL) AND (PSI_BIRTHDATE <> ' ') 
-OR          (psi_birthdate_cleaned = ' ') AND (PSI_BIRTHDATE <> ' ')"
+WHERE       ((psi_birthdate_cleaned IS NULL) AND (NOT (PSI_BIRTHDATE IS NULL)))
+OR          ((psi_birthdate_cleaned = ' ')   AND (NOT (PSI_BIRTHDATE IS NULL)))
+OR          ((psi_birthdate_cleaned IS NULL) AND (PSI_BIRTHDATE <> ' ')) 
+OR          ((psi_birthdate_cleaned = ' ')   AND (PSI_BIRTHDATE <> ' '))"
 
 
 # ---- ----

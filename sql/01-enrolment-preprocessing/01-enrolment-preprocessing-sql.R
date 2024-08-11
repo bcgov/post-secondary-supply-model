@@ -58,7 +58,7 @@ FROM      STP_Enrolment_Record_Type INNER JOIN
 
 # ---- qry03a_Drop_Record_Developmental ---- 
 qry03a_Drop_Record_Developmental <- "
-SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CE_CRS_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL
+SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL
 INTO      Drop_Developmental
 FROM      STP_Enrolment
 WHERE     PSI_STUDY_LEVEL = 'DEVELOPMENTAL';"
@@ -73,11 +73,11 @@ FROM      STP_Enrolment_Record_Type INNER JOIN
 
 # ---- qry03c_Drop_Skills_Based ---- 
 qry03c_Drop_Skills_Based <- "
-SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CE_CRS_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, 
-          PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
+SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, 
+          PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
 INTO      Drop_Skills_Based
 FROM      STP_Enrolment
-WHERE     PSI_CE_CRS_ONLY = 'SKILLS CRS ONLY'
+WHERE     PSI_CONTINUING_EDUCATION_COURSE_ONLY = 'SKILLS CRS ONLY'
   AND     PSI_STUDY_LEVEL <>'DEVELOPMENTAL'
   AND     PSI_CREDENTIAL_CATEGORY IN ('NONE','OTHER');"
 
@@ -99,11 +99,11 @@ WHERE     RecordStatus is NULL and KEEP IS NULL;"
 
 # ---- qry03d_1_Drop_Continuing_Ed ---- 
 qry03d_1_Drop_Continuing_Ed <- "
-SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CE_CRS_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL
+SELECT    ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL
 INTO      Drop_ContinuingEd
 FROM      STP_Enrolment
 WHERE     (PSI_STUDY_LEVEL <> 'DEVELOPMENTAL'
-  AND     PSI_CE_CRS_ONLY <> 'SKILLS CRS ONLY'
+  AND     PSI_CONTINUING_EDUCATION_COURSE_ONLY <> 'SKILLS CRS ONLY'
   AND     PSI_CREDENTIAL_CATEGORY IN ('NONE','OTHER')
   AND     (Left(PSI_CIP_CODE,2) IN ('21', '32', '33', '34', '35', '36','37', '53', '89')));"
 
@@ -120,17 +120,17 @@ WHERE     RecordStatus is NULL;"
 # ---- qry03d_3_Drop_More_Continuing_Ed ---- 
 qry03d_3_Drop_More_Continuing_Ed <- "
 SELECT    STP_Enrolment.ID, STP_Enrolment.ENCRYPTED_TRUE_PEN, STP_Enrolment.PSI_STUDENT_NUMBER, STP_Enrolment.PSI_CODE, 
-          STP_Enrolment.PSI_CE_CRS_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, STP_Enrolment.PSI_PROGRAM_CODE, 
-          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment_Record_Type.RecordStatus
+          STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, STP_Enrolment.PSI_PROGRAM_CODE, 
+          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment_Record_Type.RecordStatus
 INTO      Drop_ContinuingEd_More
 FROM      STP_Enrolment 
 LEFT OUTER JOIN STP_Enrolment_Record_Type 
   ON      STP_Enrolment.ID = STP_Enrolment_Record_Type.ID
 WHERE     ((STP_Enrolment_Record_Type.RecordStatus IS NULL) 
-  AND     ((STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Continuing Education') 
-  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Continuing Studies') 
-  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Audit%') 
-  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC LIKE 'CE %')));"
+  AND     ((STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Continuing Education') 
+  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Continuing Studies') 
+  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Audit%') 
+  OR      (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE 'CE %')));"
 
 
 # ---- qry03d_4_Updated_Drop_ContinuingEdMore ---- 
@@ -145,24 +145,24 @@ WHERE       STP_Enrolment_Record_Type.RecordStatus is NULL;"
 
 # ---- qry03e_Keep_Skills_Based ---- 
 qry03e_Keep_Skills_Based <- "
-SELECT      ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CE_CRS_ONLY, LEFT(PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, 
-            PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
+SELECT      ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, LEFT(PSI_CIP_CODE, 2) AS CIP2, PSI_PROGRAM_CODE, 
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
 INTO        Keep_Skills_Based
 FROM        STP_Enrolment
-WHERE       (PSI_CE_CRS_ONLY = 'SKILLS CRS ONLY') 
+WHERE       (PSI_CONTINUING_EDUCATION_COURSE_ONLY = 'SKILLS CRS ONLY') 
 AND (PSI_STUDY_LEVEL <> 'DEVELOPMENTAL') 
 AND (PSI_CREDENTIAL_CATEGORY NOT IN ('NONE', 'OTHER', 'SHORT CERTIFICATE')) 
-AND (NOT (PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Continuing Studies')) 
-AND (NOT (PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Audit%')) 
-AND (NOT (PSI_CREDENTIAL_PROGRAM_DESC LIKE '%Continuing Education'))
-AND (NOT (PSI_CREDENTIAL_PROGRAM_DESC LIKE 'CE %'));"
+AND (NOT (PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Continuing Studies')) 
+AND (NOT (PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Audit%')) 
+AND (NOT (PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE '%Continuing Education'))
+AND (NOT (PSI_CREDENTIAL_PROGRAM_DESCRIPTION LIKE 'CE %'));"
 
 # ---- qry03ea_Exclude_Skills_Based_Programs ----
 qry03ea_Exclude_Skills_Based_Programs <- "
 UPDATE      Keep_Skills_Based
 SET         Exclude = 'Y'
 WHERE      (PSI_CODE = 'SEL'
-  AND       PSI_CREDENTIAL_PROGRAM_DESC = 'COMMUNITY, CORPORATE & INTERNATIONAL DEVELOPMENT')
+  AND       PSI_CREDENTIAL_PROGRAM_DESCRIPTION = 'COMMUNITY, CORPORATE & INTERNATIONAL DEVELOPMENT')
   OR (PSI_CODE = 'NIC' AND CIP2 IN ('21', '32', '33', '34', '35', '36', '37', '53', '89'));"
 
 
@@ -192,11 +192,11 @@ WHERE       STP_Enrolment_Record_Type.RecordStatus IS NULL
 qry03g_create_table_SkillsBasedCourses <- "
 SELECT    STP_Enrolment.PSI_CODE, 
           STP_Enrolment.PSI_PROGRAM_CODE, 
-          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
           LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, 
           STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
           STP_Enrolment.PSI_STUDY_LEVEL, 
-          STP_Enrolment.PSI_CE_CRS_ONLY, 
+          STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, 
           COUNT(*) AS Count
 INTO      tmp_tbl_SkillsBasedCourses
 FROM      STP_Enrolment_Record_Type 
@@ -205,11 +205,11 @@ INNER JOIN STP_Enrolment
 WHERE     STP_Enrolment_Record_Type.RecordStatus = 6
 GROUP BY STP_Enrolment.PSI_CODE, 
           STP_Enrolment.PSI_PROGRAM_CODE, 
-          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
           LEFT(STP_Enrolment.PSI_CIP_CODE, 2), 
           STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
           STP_Enrolment.PSI_STUDY_LEVEL, 
-          STP_Enrolment.PSI_CE_CRS_ONLY;"
+          STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY;"
 
 
 # ---- qry03g_b_Keep_More_Skills_Based ---- 
@@ -217,19 +217,19 @@ qry03g_b_Keep_More_Skills_Based <- "
 SELECT        STP_Enrolment.ID, 
               tmp_tbl_SkillsBasedCourses.PSI_CODE, 
               tmp_tbl_SkillsBasedCourses.PSI_PROGRAM_CODE, tmp_tbl_SkillsBasedCourses.CIP2, 
-              tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESC, 
+              tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
               tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_CATEGORY, 
               tmp_tbl_SkillsBasedCourses.PSI_STUDY_LEVEL, 
-              tmp_tbl_SkillsBasedCourses.PSI_CE_CRS_ONLY
+              tmp_tbl_SkillsBasedCourses.PSI_CONTINUING_EDUCATION_COURSE_ONLY
 INTO          tmp_MoreSkillsBased_to_Keep
 FROM          STP_Enrolment 
 INNER JOIN    tmp_tbl_SkillsBasedCourses 
   ON          STP_Enrolment.PSI_CODE = tmp_tbl_SkillsBasedCourses.PSI_CODE 
   AND         STP_Enrolment.PSI_PROGRAM_CODE = tmp_tbl_SkillsBasedCourses.PSI_PROGRAM_CODE 
-  AND         STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESC 
+  AND         STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESCRIPTION 
   AND         STP_Enrolment.PSI_CREDENTIAL_CATEGORY = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_CATEGORY 
   AND         STP_Enrolment.PSI_STUDY_LEVEL = tmp_tbl_SkillsBasedCourses.PSI_STUDY_LEVEL 
-  AND         STP_Enrolment.PSI_CE_CRS_ONLY = tmp_tbl_SkillsBasedCourses.PSI_CE_CRS_ONLY
+  AND         STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY = tmp_tbl_SkillsBasedCourses.PSI_CONTINUING_EDUCATION_COURSE_ONLY
 WHERE        (tmp_tbl_SkillsBasedCourses.Keep = 'Yes');"
 
 
@@ -251,7 +251,7 @@ FROM STP_Enrolment_Record_Type
 INNER JOIN STP_Enrolment 
   ON STP_Enrolment_Record_Type.ID = STP_Enrolment.ID
 WHERE (STP_Enrolment.PSI_CODE = 'SEL') 
-  AND (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC = 'COMMUNITY, CORPORATE & INTERNATIONAL DEVELOPMENT') 
+  AND (STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION = 'COMMUNITY, CORPORATE & INTERNATIONAL DEVELOPMENT') 
   AND (STP_Enrolment_Record_Type.RecordStatus IS NULL)"
 
 
@@ -259,28 +259,28 @@ WHERE (STP_Enrolment.PSI_CODE = 'SEL')
 qry03g_d_EnrolCoursesSeen <- "
 SELECT  STP_Enrolment.PSI_CODE, 
         STP_Enrolment.PSI_PROGRAM_CODE, 
-        STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+        STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
         LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, 
         STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
         STP_Enrolment.PSI_STUDY_LEVEL, 
-        STP_Enrolment.PSI_CE_CRS_ONLY, 
+        STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, 
         COUNT(*) AS Count
 INTO    tmp_tbl_EnrolCoursesSeen
 FROM    STP_Enrolment
 GROUP BY STP_Enrolment.PSI_CODE, 
         STP_Enrolment.PSI_PROGRAM_CODE, 
-        STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+        STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
         LEFT(STP_Enrolment.PSI_CIP_CODE, 2), 
         STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
         STP_Enrolment.PSI_STUDY_LEVEL, 
-        STP_Enrolment.PSI_CE_CRS_ONLY;"
+        STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY;"
 
 
 # ---- qry03h_create_table_Suspect_Skills_Based ---- 
 qry03h_create_table_Suspect_Skills_Based <- "
-SELECT      STP_Enrolment.ID, STP_Enrolment.ENCRYPTED_TRUE_PEN,   STP_Enrolment.PSI_STUDENT_NUMBER, STP_Enrolment.PSI_STUD_POSTAL_CD_CURR, STP_Enrolment.PSI_SCHOOL_YEAR, STP_Enrolment.PSI_REG_TERM, 
-            STP_Enrolment.PSI_CODE, STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, LEFT(STP_Enrolment.PSI_CIP_CODE,2) AS CIP2, STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
-            STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment.PSI_ENTRY_STATUS, STP_Enrolment.PSI_BIRTHDATE, STP_Enrolment.PSI_GENDER, STP_Enrolment.PSI_MIN_START_DATE, STP_Enrolment.PSI_CE_CRS_ONLY
+SELECT      STP_Enrolment.ID, STP_Enrolment.ENCRYPTED_TRUE_PEN,   STP_Enrolment.PSI_STUDENT_NUMBER, STP_Enrolment.PSI_STUDENT_POSTAL_CODE_CURRENT, STP_Enrolment.PSI_SCHOOL_YEAR, STP_Enrolment.PSI_REGISTRATION_TERM, 
+            STP_Enrolment.PSI_CODE, STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, LEFT(STP_Enrolment.PSI_CIP_CODE,2) AS CIP2, STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
+            STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment.PSI_ENTRY_STATUS, STP_Enrolment.PSI_BIRTHDATE, STP_Enrolment.PSI_GENDER, STP_Enrolment.PSI_MIN_START_DATE, STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY
 INTO        tmp_tbl_Suspect_Skills_Based
 FROM        STP_Enrolment_Record_Type 
 INNER JOIN  STP_Enrolment 
@@ -292,15 +292,15 @@ WHERE    (STP_Enrolment_Record_Type.RecordStatus IS NULL);"
 qry03i_Find_Suspect_Skills_Based <- "
 SELECT    tmp_tbl_Suspect_Skills_Based.ID, tmp_tbl_Suspect_Skills_Based.ENCRYPTED_TRUE_PEN, tmp_tbl_Suspect_Skills_Based.PSI_STUDENT_NUMBER, 
           tmp_tbl_Suspect_Skills_Based.PSI_CODE, tmp_tbl_Suspect_Skills_Based.PSI_PROGRAM_CODE, 
-          tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESC, tmp_tbl_Suspect_Skills_Based.CIP2, 
+          tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, tmp_tbl_Suspect_Skills_Based.CIP2, 
           tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_CATEGORY, tmp_tbl_Suspect_Skills_Based.PSI_STUDY_LEVEL, 
-          tmp_tbl_Suspect_Skills_Based.PSI_CE_CRS_ONLY, tmp_tbl_SkillsBasedCourses.Keep
+          tmp_tbl_Suspect_Skills_Based.PSI_CONTINUING_EDUCATION_COURSE_ONLY, tmp_tbl_SkillsBasedCourses.Keep
 INTO      Suspect_Skills_Based
 FROM      tmp_tbl_Suspect_Skills_Based 
 INNER JOIN  tmp_tbl_SkillsBasedCourses 
   ON      tmp_tbl_Suspect_Skills_Based.PSI_CODE = tmp_tbl_SkillsBasedCourses.PSI_CODE 
   AND     tmp_tbl_Suspect_Skills_Based.PSI_PROGRAM_CODE = tmp_tbl_SkillsBasedCourses.PSI_PROGRAM_CODE 
-  AND     tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESC = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESC 
+  AND     tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESCRIPTION = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESCRIPTION 
   AND     tmp_tbl_Suspect_Skills_Based.CIP2 = tmp_tbl_SkillsBasedCourses.CIP2 
   AND     tmp_tbl_Suspect_Skills_Based.PSI_CREDENTIAL_CATEGORY = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_CATEGORY 
   AND     tmp_tbl_Suspect_Skills_Based.PSI_STUDY_LEVEL = tmp_tbl_SkillsBasedCourses.PSI_STUDY_LEVEL
@@ -315,7 +315,7 @@ FROM  Suspect_Skills_Based
 INNER JOIN tmp_tbl_SkillsBasedCourses 
   ON Suspect_Skills_Based.PSI_CODE = tmp_tbl_SkillsBasedCourses.PSI_CODE 
   AND Suspect_Skills_Based.PSI_PROGRAM_CODE = tmp_tbl_SkillsBasedCourses.PSI_PROGRAM_CODE 
-  AND Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESC = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESC 
+  AND Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESCRIPTION = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_PROGRAM_DESCRIPTION 
   AND Suspect_Skills_Based.CIP2 = tmp_tbl_SkillsBasedCourses.CIP2 
   AND Suspect_Skills_Based.PSI_CREDENTIAL_CATEGORY = tmp_tbl_SkillsBasedCourses.PSI_CREDENTIAL_CATEGORY 
   AND Suspect_Skills_Based.PSI_STUDY_LEVEL = tmp_tbl_SkillsBasedCourses.PSI_STUDY_LEVEL
@@ -333,13 +333,13 @@ WHERE STP_Enrolment_Record_Type.RecordStatus IS NULL AND Suspect_Skills_Based.Ke
 # ---- qry03k_Drop_Developmental_CIPS ---- 
 qry03k_Drop_Developmental_CIPS <- "SELECT 
  STP_Enrolment.ID,   STP_Enrolment.ENCRYPTED_TRUE_PEN,   STP_Enrolment.PSI_STUDENT_NUMBER,   STP_Enrolment.PSI_CODE,
- STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+ STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
  LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
- STP_Enrolment.PSI_CE_CRS_ONLY
+ STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY
 INTO  Drop_Developmental_CIPS
 FROM  STP_Enrolment_Record_Type 
 INNER JOIN STP_Enrolment ON STP_Enrolment_Record_Type.ID = STP_Enrolment.ID
-WHERE     (STP_Enrolment.PSI_CE_CRS_ONLY = 'NOT SKILLS CRS ONLY') AND 
+WHERE     (STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY = 'NOT SKILLS CRS ONLY') AND 
 (STP_Enrolment_Record_Type.RecordStatus IS NULL) AND
 (LEFT(STP_Enrolment.PSI_CIP_CODE, 2) IN ('21', '32','33', '34', '35', '36', '37', '53', '89'));"
 
@@ -427,7 +427,7 @@ WHERE   STP_Enrolment_Record_Type.RecordStatus Is Null;"
 # ---- qry08a_Create_Table_STP_Enrolment_Valid ---- 
 qry08a_Create_Table_STP_Enrolment_Valid <- "
 SELECT  STP_Enrolment.ID, STP_Enrolment.PSI_STUDENT_NUMBER, STP_Enrolment.ENCRYPTED_TRUE_PEN, STP_Enrolment.PSI_SCHOOL_YEAR, 
-        STP_Enrolment.PSI_STUD_POSTAL_CD_CURR, STP_Enrolment.PSI_ENROLMENT_SEQUENCE, STP_Enrolment.PSI_CODE, 
+        STP_Enrolment.PSI_STUDENT_POSTAL_CODE_CURRENT, STP_Enrolment.PSI_ENROLMENT_SEQUENCE, STP_Enrolment.PSI_CODE, 
         STP_Enrolment.PSI_MIN_START_DATE
 INTO    STP_Enrolment_Valid
 FROM    STP_Enrolment
@@ -629,6 +629,6 @@ GROUP BY RecordStatus
 
 # ---- CheckSkillsBased ---
 CheckSkillsBased <-
-"SELECT PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
+"SELECT PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY
 FROM  Drop_Skills_Based
-GROUP BY PSI_CODE, PSI_CE_CRS_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY;"
+GROUP BY PSI_CODE, PSI_CONTINUING_EDUCATION_COURSE_ONLY, CIP2, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_STUDY_LEVEL, PSI_CREDENTIAL_CATEGORY;"

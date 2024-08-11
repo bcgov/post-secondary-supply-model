@@ -1,8 +1,7 @@
-# Workflow #1
-# Enrolment Preprocessing 
+# STP Enrolment Preprocessing: Workflow #1
 # Description: 
-# Relies on STP_Enrolment data table
-# Creates tables STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment used in subsequent workflows
+# Relies on: STP_Enrolment data table
+# Creates tables: STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment
 
 library(arrow)
 library(tidyverse)
@@ -64,7 +63,8 @@ dbExecute(con, qrydates_update1)
 dbExecute(con, qrydates_update2)
 dbExecute(con, qrydates_update3)
 dbExecute(con, qrydates_update4)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))  
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];")) 
+
 
 # ---- Create Record Type Table ----
 
@@ -128,7 +128,7 @@ dbExecute(con, qry03g_c2_Update_More_Selkirk)
 dbExecute(con, qry03g_d_EnrolCoursesSeen)
 dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) 
-dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)  
+dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)   #see documentation, this is related to some manula work that wasn't done in 2023
 dbExecute(con, qry03j_Update_Suspect_Skills_Based) 
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd_More];"))
@@ -255,6 +255,8 @@ dbExecute(con, qry10_BirthdateCleaning)
 dbExecute(con, qry11_BirthdateCleaning)
 
 dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+
+#Update STP Enrolment with birthdates for those EPENS which have > 1 birthdate records 
 dbExecute(con, qry12_BirthdateCleaning)
 
 # some records have a null PSI_BIRTHDATE, search for non-null PSI_BIRTHDATE for these EPENS
@@ -264,6 +266,8 @@ dbExecute(con, qry15_BirthdateCleaning)
 dbExecute(con, "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
 dbExecute(con, qry16_BirthdateCleaning)
 dbExecute(con, qry17_BirthdateCleaning)
+
+# Update STP_Enrolment with birthdates found in non-null records 
 dbExecute(con, qry18_BirthdateCleaning)
 dbExecute(con, qry19_BirthdateCleaning)
 
