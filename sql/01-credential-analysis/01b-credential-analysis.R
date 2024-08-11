@@ -126,7 +126,7 @@ qry03b_DropPartialYear <- "
 SELECT     id, CREDENTIAL_AWARD_DATE_D
 INTO            Drop_Partial_Year
 FROM         CredentialSupVars
-WHERE     (CREDENTIAL_AWARD_DATE_D >= '2019-09-01');"
+WHERE     (CREDENTIAL_AWARD_DATE_D >= '2017-09-01');"
 
 # ---- qry03c_DeletePartialYear ---- 
 qry03c_DeletePartialYear <- "
