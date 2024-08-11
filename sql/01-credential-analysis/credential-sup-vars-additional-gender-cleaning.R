@@ -375,12 +375,7 @@ WHERE tmp_CredentialGenderCleaning_Step6.psi_gender_cleaned_flag='Yes' AND Crede
 
 
 
-
-
 # --------------------------------------------------------------------------------------------------------------------------
-# Extra 
-
-# Create table for gender cleaning
 
 "SELECT   CredentialSupVarsFromEnrolment_MultiGender.ENCRYPTED_TRUE_PEN, CredentialSupVarsFromEnrolment_MultiGender.PSI_GENDER, 
           MAX(CredentialSupVarsFromEnrolment_MultiGender.PSI_SCHOOL_YEAR) AS MAX_PSI_SCHOOL_YEAR

@@ -179,7 +179,8 @@ qry04a1_UpdateCredentialSupVarsBirthdate <- "
 UPDATE        CredentialSupVarsFromEnrolment
 SET           LAST_SEEN_BIRTHDATE = STP_Enrolment.LAST_SEEN_BIRTHDATE
 FROM          CredentialSupVarsFromEnrolment 
-INNER JOIN    STP_Enrolment ON CredentialSupVarsFromEnrolment.EnrolmentID = STP_Enrolment.ID"
+INNER JOIN    STP_Enrolment 
+ON CredentialSupVarsFromEnrolment.EnrolmentID = STP_Enrolment.ID"
 
 qry04a2_UpdateCredentialSupVarsBirthdate <- "
 UPDATE        CredentialSupVars
@@ -190,7 +191,7 @@ ON CredentialSupVarsFromEnrolment.ENCRYPTED_TRUE_PEN = CredentialSupVars.ENCRYPT
 
 qry04a3_UpdateCredentialSupVarsBirthdate <- "
 UPDATE       CredentialSupVars
-SET          psi_birthdate_cleaned = LAST_SEEN_BIRTHDATE
+SET          CredentialSupVars.psi_birthdate_cleaned = LAST_SEEN_BIRTHDATE
 WHERE        ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE <> '') AND (psi_birthdate_cleaned IS NULL))
 OR           ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE <> '') AND (psi_birthdate_cleaned = ''))"
 
@@ -276,8 +277,8 @@ WHERE     (AgeGroupLookup.LowerBound <= Credential.AGE_AT_GRAD) AND (AgeGroupLoo
 
 # ---- qry06e_UpdateAwardSchoolYear ---- 
 qry06e_UpdateAwardSchoolYear <- "
-UPDATE    Credential
-SET              PSI_AWARD_SCHOOL_YEAR = CASE
+UPDATE Credential
+SET    PSI_AWARD_SCHOOL_YEAR = CASE
 	WHEN (Month(Credential.CREDENTIAL_AWARD_DATE_D) >= 9) THEN LTrim(Str(Year(Credential.CREDENTIAL_AWARD_DATE_D))) + '/' + LTrim(Str(Year(Credential.CREDENTIAL_AWARD_DATE_D)+1))
 	ELSE LTrim(Str(Year(Credential.CREDENTIAL_AWARD_DATE_D)-1)) + '/' + LTrim(Str(Year(Credential.CREDENTIAL_AWARD_DATE_D)))
 	END
@@ -562,13 +563,15 @@ SET       PSI_GENDER_CLEANED = CRED_Extract_No_Gender.PSI_GENDER_CLEANED
 FROM      CRED_Extract_No_Gender 
 INNER JOIN Credential_Non_Dup ON CRED_Extract_No_Gender.id = Credential_Non_Dup.id;"
 
-# ---- qry08_Create_Credential_Ranking_View ---- 
 
 # ---- qry08_Create_Credential_Ranking_View a ---- 
 qry08_Create_Credential_Ranking_View_a <-  
-#Save as table called tmp_Credential_Ranking_step1 - 369,507 records (313,790 records in 2018)
-"SELECT        a.id, a.ENCRYPTED_TRUE_PEN, a.CREDENTIAL_AWARD_DATE_D, CredentialRank.RANK, a.Highest_Cred_by_Date, a.Highest_Cred_by_Rank, 
-                         a.Highest_Cred_by_School_Year
+"SELECT        a.id, a.ENCRYPTED_TRUE_PEN, 
+a.CREDENTIAL_AWARD_DATE_D, 
+CredentialRank.RANK, 
+a.Highest_Cred_by_Date, 
+a.Highest_Cred_by_Rank, 
+a.Highest_Cred_by_School_Year
 INTO              tmp_Credential_Ranking_step1
 FROM            Credential_Non_Dup AS a INNER JOIN
                          CredentialRank ON a.PSI_CREDENTIAL_CATEGORY = CredentialRank.PSI_CREDENTIAL_CATEGORY
@@ -580,8 +583,6 @@ WHERE        (a.ENCRYPTED_TRUE_PEN IN
 
 # ---- qry08_Create_Credential_Ranking_View b ---- 
 qry08_Create_Credential_Ranking_View_b <-  
-#Make a temp table with the null EPENs, PSI_STUDENT/PSI_CODE with count > 
-#called tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne - 456 records */
 "SELECT        a.id, a.ENCRYPTED_TRUE_PEN, a.PSI_STUDENT_NUMBER, a.psi_code, a.CREDENTIAL_AWARD_DATE_D, CredentialRank.RANK, a.Highest_Cred_by_Date, a.Highest_Cred_by_Rank, 
                          a.Highest_Cred_by_School_Year
 INTO              tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne
@@ -596,9 +597,6 @@ WHERE        (a.PSI_STUDENT_NUMBER IN
 
 # ---- qry08_Create_Credential_Ranking_View c ---- 
 qry08_Create_Credential_Ranking_View_c <-    
-#Then run for the null EPENs but non-null PSI_STUDENT_NUMBER/PSI_CODE to save as step 2 table. - 959 records */
-  
-  
 "SELECT        a.id, a.ENCRYPTED_TRUE_PEN, a.PSI_STUDENT_NUMBER, a.PSI_CODE, a.CREDENTIAL_AWARD_DATE_D, CredentialRank.RANK, a.Highest_Cred_by_Date, 
                          a.Highest_Cred_by_Rank, a.Highest_Cred_by_School_Year
 INTO              tmp_Credential_Ranking_step2
@@ -611,7 +609,6 @@ FROM            Credential_Non_Dup AS a INNER JOIN
                          
 # ---- qry08_Create_Credential_Ranking_View d ---- 
 qry08_Create_Credential_Ranking_View_d <-                            
-#Then copy the step 1 table to step 3: */   
 "SELECT        id, ENCRYPTED_TRUE_PEN, CREDENTIAL_AWARD_DATE_D, RANK, Highest_Cred_by_Date, Highest_Cred_by_Rank, Highest_Cred_by_School_Year
 INTO              tmp_Credential_Ranking_step3
 FROM            tmp_Credential_Ranking_step1"
@@ -627,8 +624,6 @@ FROM            tmp_Credential_Ranking_step2"
 
 # ---- qry08_Create_Credential_Ranking_View f ---- 
 qry08_Create_Credential_Ranking_View_f <-   
-#Then make a view called Credential_Ranking that has all the step 3 records: 372,468 records (323,564 in 2018) */   
-
 "SELECT        id, ENCRYPTED_TRUE_PEN, CREDENTIAL_AWARD_DATE_D, RANK, Highest_Cred_by_Date, Highest_Cred_by_Rank, Highest_Cred_by_School_Year, 
                          PSI_STUDENT_NUMBER, PSI_CODE
 FROM            tmp_Credential_Ranking_step3;"
@@ -643,116 +638,6 @@ SELECT  id,
         PSI_CODE,
         CREDENTIAL_AWARD_DATE_D, 
         RANK, 
-        Highest_Cred_by_Date, 
-        Highest_Cred_by_Rank, 
-        Highest_Cred_by_School_Year
-FROM    tmp_Credential_Ranking_step3;"
-
-# ---- qry08_Create_Credential_Ranking_View a ---- 
-qry08_Create_Credential_Ranking_View_a <-
-"SELECT  a.id, 
-         a.ENCRYPTED_TRUE_PEN, 
-         a.PSI_STUDENT_NUMBER, 
-         a.PSI_CODE, 
-         a.CREDENTIAL_AWARD_DATE_D, 
-         a.ENCRYPTED_TRUE_PEN AS Concatenated_ID,
-         CredentialRank.RANK, 
-         a.Highest_Cred_by_Date, 
-         a.Highest_Cred_by_Rank, 
-         a.Highest_Cred_by_School_Year
-INTO    tmp_Credential_Ranking_step1
-FROM    Credential_Non_Dup AS a 
-INNER JOIN CredentialRank 
-ON      a.PSI_CREDENTIAL_CATEGORY = CredentialRank.PSI_CREDENTIAL_CATEGORY
-WHERE   a.encrypted_true_pen IS NOT NULL AND a.encrypted_true_pen <> ' '
-AND EXISTS (
-    SELECT *
-    FROM Credential_Non_Dup c
-    WHERE c.encrypted_true_pen = a.encrypted_true_pen
-    GROUP BY c.encrypted_true_pen
-    HAVING COUNT (*) > 1 )"
-
-# ---- qry08_Create_Credential_Ranking_View_b ---- 
-qry08_Create_Credential_Ranking_View_b <- "
-SELECT  a.id, 
-        a.ENCRYPTED_TRUE_PEN, 
-        a.PSI_STUDENT_NUMBER, 
-        a.PSI_CODE, 
-        a.CREDENTIAL_AWARD_DATE_D, 
-        a.PSI_STUDENT_NUMBER + a.PSI_CODE AS Concatenated_ID,
-        CredentialRank.RANK, 
-        a.Highest_Cred_by_Date, 
-        a.Highest_Cred_by_Rank, 
-        a.Highest_Cred_by_School_Year
-INTO    tmp_Credential_Ranking_step2
-FROM    Credential_Non_Dup AS a 
-INNER JOIN CredentialRank 
-ON      a.PSI_CREDENTIAL_CATEGORY = CredentialRank.PSI_CREDENTIAL_CATEGORY
-WHERE   (a.encrypted_true_pen IS NULL OR a.encrypted_true_pen = ' ')
-AND     (a.PSI_STUDENT_NUMBER IS NOT NULL AND  a.PSI_STUDENT_NUMBER <> ' ')
-AND     (a.PSI_CODE IS NOT NULL AND  a.PSI_CODE <> ' ')
-AND EXISTS (
-	      SELECT *
-	      FROM Credential_Non_Dup c
-	      WHERE c.PSI_STUDENT_NUMBER = a.PSI_STUDENT_NUMBER
-	      AND   c.PSI_CODE = a.PSI_CODE
-	      GROUP BY c.PSI_STUDENT_NUMBER, c.PSI_CODE
-	      HAVING COUNT(*) > 1 )"
-
-
-
-# ---- qry08_Create_Credential_Ranking_View_d ---- 
-qry08_Create_Credential_Ranking_View_d <- "
-SELECT  id, 
-        ENCRYPTED_TRUE_PEN, 
-        PSI_STUDENT_NUMBER, 
-        PSI_CODE,  
-        Concatenated_ID,
-        CREDENTIAL_AWARD_DATE_D, 
-        RANK, 
-        Highest_Cred_by_Date, 
-        Highest_Cred_by_Rank, 
-        Highest_Cred_by_School_Year
-INTO    tmp_Credential_Ranking_step3
-FROM    tmp_Credential_Ranking_step1
-"
-
-# ---- qry08_Create_Credential_Ranking_View_e ---- 
-qry08_Create_Credential_Ranking_View_e <- "
-INSERT INTO tmp_Credential_Ranking_step3
-            (id, 
-            ENCRYPTED_TRUE_PEN, 
-            PSI_STUDENT_NUMBER, 
-            PSI_CODE, 
-            Concatenated_ID,
-            CREDENTIAL_AWARD_DATE_D,
-            RANK, 
-            Highest_Cred_by_Date, 
-            Highest_Cred_by_Rank, 
-            Highest_Cred_by_School_Year)
-SELECT      id, 
-            ENCRYPTED_TRUE_PEN, 
-            PSI_STUDENT_NUMBER, 
-            PSI_CODE, 
-            Concatenated_ID,
-            CREDENTIAL_AWARD_DATE_D, 
-            RANK, 
-            Highest_Cred_by_Date, 
-            Highest_Cred_by_Rank, 
-            Highest_Cred_by_School_Year
-FROM        tmp_Credential_Ranking_step2"
-
-# ---- qry08_Create_Credential_Ranking_View_f----
-qry08_Create_Credential_Ranking_View_f <- "
-CREATE VIEW Credential_Ranking 
-AS
-SELECT  id, 
-        ENCRYPTED_TRUE_PEN, 
-        PSI_STUDENT_NUMBER, 
-        PSI_CODE,
-        CREDENTIAL_AWARD_DATE_D, 
-        RANK, 
-        Concatenated_ID,
         Highest_Cred_by_Date, 
         Highest_Cred_by_Rank, 
         Highest_Cred_by_School_Year
@@ -886,33 +771,30 @@ FROM      Credential_Non_Dup INNER JOIN CredentialSupVars
   ON      Credential_Non_Dup.id = CredentialSupVars.ID
 WHERE     Credential_Non_Dup.Highest_Cred_by_Rank = 'Yes'"
 
+# ---- qry13_UpdateDelayedCredDate ---- 
+qry13_UpdateDelayedCredDate <- "
+UPDATE  tblCredential_HighestRank
+SET     CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, 
+        PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
+WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
 
-# ---- qry12_Create_View_tblCredentialHighestRank_Exclude_LatestYr ---- 
-qry12_Create_View_tblCredentialHighestRank_Exclude_LatestYr <- 
-"SELECT     Credential_Non_Dup_Exclude_LatestYr.id, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_PEN, Credential_Non_Dup_Exclude_LatestYr.PSI_BIRTHDATE, 
-            Credential_Non_Dup_Exclude_LatestYr.psi_birthdate_cleaned, Credential_Non_Dup_Exclude_LatestYr.PSI_GENDER, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_STUDENT_NUMBER, Credential_Non_Dup_Exclude_LatestYr.ENCRYPTED_TRUE_PEN, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_SCHOOL_YEAR, Credential_Non_Dup_Exclude_LatestYr.PSI_STUD_POSTAL_CD_CURR, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_ENROLMENT_SEQUENCE, Credential_Non_Dup_Exclude_LatestYr.PSI_CODE, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE, 
-            Credential_Non_Dup_Exclude_LatestYr.RecordStatus, Credential_Non_Dup_Exclude_LatestYr.PSI_PROGRAM_CODE, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_PROGRAM_DESC, Credential_Non_Dup_Exclude_LatestYr.PSI_CIP_CODE, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CIP, Credential_Non_Dup_Exclude_LatestYr.PSI_CE_CRS_ONLY, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_LEVEL, Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CATEGORY, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE_D, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE_D, 
-            Credential_Non_Dup_Exclude_LatestYr.AGE_AT_GRAD, Credential_Non_Dup_Exclude_LatestYr.AGE_GROUP_AT_GRAD, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_BIRTHDATE_D, Credential_Non_Dup_Exclude_LatestYr.psi_birthdate_cleaned_D, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_AWARD_SCHOOL_YEAR, Credential_Non_Dup_Exclude_LatestYr.RECORD_TO_DELETE, 
-            Credential_Non_Dup_Exclude_LatestYr.Last_Date_Highest_Cred, Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Date, 
-            Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Rank, Credential_Non_Dup_Exclude_LatestYr.OUTCOMES_CRED, 
-            Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_School_Year, Credential_Non_Dup_Exclude_LatestYr.RESEARCH_UNIVERSITY, 
-            Credential_Non_Dup_Exclude_LatestYr.CredentialRecordStatus, CredentialSupVars.CREDENTIAL_AWARD_DATE_D_DELAYED, 
-            CredentialSupVars.PSI_AWARD_SCHOOL_YEAR_DELAYED, CredentialSupVars.PSI_VISA_STATUS
-FROM        Credential_Non_Dup_Exclude_LatestYr INNER JOIN
-CredentialSupVars ON Credential_Non_Dup_Exclude_LatestYr.id = CredentialSupVars.ID
-WHERE     (Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Rank = 'Yes')"
 
+# ---- qry13a_UpdateDelayedCredDate ---- 
+qry13a_UpdateDelayedCredDate <- "
+UPDATE    Credential_Non_Dup
+SET              CREDENTIAL_AWARD_DATE_D_DELAYED = tblCredential_HighestRank.CREDENTIAL_AWARD_DATE_D_DELAYED, 
+                      PSI_AWARD_SCHOOL_YEAR_DELAYED = tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED
+FROM         tblCredential_HighestRank INNER JOIN
+                      Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
+WHERE     (tblCredential_HighestRank.CREDENTIAL_AWARD_DATE_D_DELAYED IS NOT NULL) AND 
+                      (tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED IS NOT NULL);"
+
+# ---- qry13b_UpdateDelayedCredDate ---- 
+qry13b_UpdateDelayedCredDate <- "
+UPDATE    Credential_Non_Dup
+SET       CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, 
+          PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
+WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
 
 
 # ---- qry14_ResearchUniversity ---- 
@@ -1229,61 +1111,35 @@ FROM    tmp_Credential_Ranking_Exclude_LatestYr
 INNER JOIN Credential_Ranking_Exclude_LatestYr ON tmp_Credential_Ranking_Exclude_LatestYr.id = Credential_Ranking_Exclude_LatestYr.id;
 "
 
-
-# ---- qry13_UpdateDelayedCredDate ---- 
-qry13_UpdateDelayedCredDate <- "
-UPDATE  tblCredential_HighestRank
-SET     CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, 
-        PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
-WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
-
-
-# ---- qry13_UpdateDelayedCredDate_Exclude_LatestYr ---- 
-qry13_UpdateDelayedCredDate_Exclude_LatestYr <- "
-UPDATE    tblCredential_HighestRank_Exclude_LatestYr
-SET              CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
-WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
-
-
-# ---- qry13a_UpdateDelayedCredDate ---- 
-qry13a_UpdateDelayedCredDate <- "
-UPDATE    Credential_Non_Dup
-SET              CREDENTIAL_AWARD_DATE_D_DELAYED = tblCredential_HighestRank.CREDENTIAL_AWARD_DATE_D_DELAYED, 
-                      PSI_AWARD_SCHOOL_YEAR_DELAYED = tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED
-FROM         tblCredential_HighestRank INNER JOIN
-                      Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
-WHERE     (tblCredential_HighestRank.CREDENTIAL_AWARD_DATE_D_DELAYED IS NOT NULL) AND 
-                      (tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED IS NOT NULL);"
-
-
-# ---- qry13a_UpdateDelayedCredDate_Exclude_LatestYr ---- 
-qry13a_UpdateDelayedCredDate_Exclude_LatestYr <- "
-UPDATE    Credential_Non_Dup_Exclude_LatestYr
-SET              CREDENTIAL_AWARD_DATE_D_DELAYED = tblCredential_HighestRank_Exclude_LatestYr.CREDENTIAL_AWARD_DATE_D_DELAYED, 
-                      PSI_AWARD_SCHOOL_YEAR_DELAYED = tblCredential_HighestRank_Exclude_LatestYr.PSI_AWARD_SCHOOL_YEAR_DELAYED
-FROM         tblCredential_HighestRank_Exclude_LatestYr INNER JOIN
-                      Credential_Non_Dup_Exclude_LatestYr ON tblCredential_HighestRank_Exclude_LatestYr.id = Credential_Non_Dup_Exclude_LatestYr.id
-WHERE     (tblCredential_HighestRank_Exclude_LatestYr.CREDENTIAL_AWARD_DATE_D_DELAYED IS NOT NULL) AND 
-                      (tblCredential_HighestRank_Exclude_LatestYr.PSI_AWARD_SCHOOL_YEAR_DELAYED IS NOT NULL);"
+# ---- qry12_Create_View_tblCredentialHighestRank_Exclude_LatestYr ---- 
+qry12_Create_View_tblCredentialHighestRank_Exclude_LatestYr <- 
+  "SELECT     Credential_Non_Dup_Exclude_LatestYr.id, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_PEN, Credential_Non_Dup_Exclude_LatestYr.PSI_BIRTHDATE, 
+            Credential_Non_Dup_Exclude_LatestYr.psi_birthdate_cleaned, Credential_Non_Dup_Exclude_LatestYr.PSI_GENDER, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_STUDENT_NUMBER, Credential_Non_Dup_Exclude_LatestYr.ENCRYPTED_TRUE_PEN, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_SCHOOL_YEAR, Credential_Non_Dup_Exclude_LatestYr.PSI_STUD_POSTAL_CD_CURR, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_ENROLMENT_SEQUENCE, Credential_Non_Dup_Exclude_LatestYr.PSI_CODE, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE, 
+            Credential_Non_Dup_Exclude_LatestYr.RecordStatus, Credential_Non_Dup_Exclude_LatestYr.PSI_PROGRAM_CODE, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_PROGRAM_DESC, Credential_Non_Dup_Exclude_LatestYr.PSI_CIP_CODE, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CIP, Credential_Non_Dup_Exclude_LatestYr.PSI_CE_CRS_ONLY, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_LEVEL, Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CATEGORY, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE_D, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE_D, 
+            Credential_Non_Dup_Exclude_LatestYr.AGE_AT_GRAD, Credential_Non_Dup_Exclude_LatestYr.AGE_GROUP_AT_GRAD, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_BIRTHDATE_D, Credential_Non_Dup_Exclude_LatestYr.psi_birthdate_cleaned_D, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_AWARD_SCHOOL_YEAR, Credential_Non_Dup_Exclude_LatestYr.RECORD_TO_DELETE, 
+            Credential_Non_Dup_Exclude_LatestYr.Last_Date_Highest_Cred, Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Date, 
+            Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Rank, Credential_Non_Dup_Exclude_LatestYr.OUTCOMES_CRED, 
+            Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_School_Year, Credential_Non_Dup_Exclude_LatestYr.RESEARCH_UNIVERSITY, 
+            Credential_Non_Dup_Exclude_LatestYr.CredentialRecordStatus, CredentialSupVars.CREDENTIAL_AWARD_DATE_D_DELAYED, 
+            CredentialSupVars.PSI_AWARD_SCHOOL_YEAR_DELAYED, CredentialSupVars.PSI_VISA_STATUS
+FROM        Credential_Non_Dup_Exclude_LatestYr INNER JOIN
+CredentialSupVars ON Credential_Non_Dup_Exclude_LatestYr.id = CredentialSupVars.ID
+WHERE     (Credential_Non_Dup_Exclude_LatestYr.Highest_Cred_by_Rank = 'Yes')"
 
 
 
 
-# ---- qry13b_UpdateDelayedCredDate ---- 
-qry13b_UpdateDelayedCredDate <- "
-UPDATE    Credential_Non_Dup
-SET       CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, 
-          PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
-WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
-
-
-
-
-# ---- qry13b_UpdateDelayedCredDate_Exclude_LatestYr ---- 
-qry13b_UpdateDelayedCredDate_Exclude_LatestYr <- "
-UPDATE    Credential_Non_Dup_Exclude_LatestYr
-SET              CREDENTIAL_AWARD_DATE_D_DELAYED = CREDENTIAL_AWARD_DATE_D, PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
-WHERE     (CREDENTIAL_AWARD_DATE_D_DELAYED IS NULL);"
 
 
 
