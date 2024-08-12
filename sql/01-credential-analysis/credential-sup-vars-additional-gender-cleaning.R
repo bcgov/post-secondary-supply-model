@@ -308,7 +308,7 @@ SELECT encrypted_true_pen,
        psi_gender
 INTO   tmp_credentialsupvars_gender_cleanunknownsfornulls_step1
 FROM   tmp_credentialgendercleaning_step6
-WHERE  ( psi_gender = 'U' OR psi_gender = 'Unknown')
+WHERE  ( psi_gender = 'U' OR psi_gender = 'Unknown' OR psi_gender = '(Unspecified)')
        AND psi_gender_cleaned_flag IS NULL"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning30 ----
@@ -342,13 +342,13 @@ GROUP  BY encrypted_true_pen,
           psi_student_number,
           psi_code,
           psi_gender
-HAVING ( psi_gender <> 'U' AND psi_gender <> 'Unknown')"
+HAVING ( psi_gender <> 'U' AND psi_gender <> 'Unknown' AND psi_gender <> '(Unspecified)')"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning32 ----
 qry03fCredential_SupVars_Enrol_GenderCleaning32 <- "
 UPDATE       tmp_CredentialGenderCleaning_Step6
 SET                psi_gender_cleaned_flag = 'Yes'
-WHERE (PSI_GENDER = 'U' OR PSI_GENDER = 'Unknown')"
+WHERE (PSI_GENDER = 'U' OR PSI_GENDER = 'Unknown' OR psi_gender = '(Unspecified)')"
 
 qry03fCredential_SupVars_Enrol_GenderCleaning33 <- "
 UPDATE       tmp_CredentialGenderCleaning_Step6

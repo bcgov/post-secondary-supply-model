@@ -185,9 +185,6 @@ WHERE (((STP_Credential_Record_Type.RecordStatus) Is Null));;"
 RecordTypeSummary <-
   "SELECT RecordStatus, COUNT(*) AS Expr1
 FROM  STP_Credential_Record_Type
-GROUP BY RecordStatus
-"
-
-# ---- NOT RUN ----
+GROUP BY RecordStatus"
 
 

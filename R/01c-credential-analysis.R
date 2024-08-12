@@ -110,8 +110,8 @@ dbExecute(con, "DROP TABLE Drop_Partial_Year")
 
 dbExecute(con, qry03d_CredentialSupVarsBirthdate) # create a table with unique EPEN/birthdates from CredentialSupVarsFromEnrolment
 dbExecute(con, "UPDATE  CredentialSupVars_BirthdateClean 
-                SET psi_birthdate_cleaned_D = psi_birthdate_cleaned
-                WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned <> ''")
+                SET psi_birthdate_cleaned_D = cast(psi_birthdate_cleaned as date)
+                WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned NOT IN ('', ' ')")
 
 # ---- 03 Gender Cleaning ---- 
 dbExecute(con, qry03e_CredentialSupVarsGender) # create a table with unique EPEN/gender from CredentialSupVarsFromEnrolment
@@ -146,6 +146,7 @@ dbExecute(con, "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknowns_Step3")
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning20)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning21)
 dbExecute(con, "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknowns")
+dbExecute(con, "ALTER TABLE  credentialsupvars ALTER COLUMN psi_gender_cleaned NVARCHAR(50) NULL")
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning22)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning23)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning24)
@@ -243,20 +244,29 @@ nulls <- d %>%
   filter(is.na(PSI_GENDER)) %>% 
   select(-PSI_GENDER)
 
-d <- d %>% 
+f_d <- d %>% 
   filter(!is.na(PSI_GENDER)) %>% 
   group_by(PSI_CREDENTIAL_CATEGORY) %>% 
-  mutate(p = Expr1/sum(Expr1)) %>% filter(PSI_GENDER == 'F') %>% 
+  mutate(p = Expr1/sum(Expr1)) %>% filter(PSI_GENDER == 'Female') %>% 
   select (-c(PSI_GENDER, Expr1))
 
-top_n <- inner_join(d, nulls) %>% 
+m_d <- d %>% 
+  filter(!is.na(PSI_GENDER)) %>% 
+  group_by(PSI_CREDENTIAL_CATEGORY) %>% 
+  mutate(p = Expr1/sum(Expr1)) %>% filter(PSI_GENDER == 'Male') %>% 
+  select (-c(PSI_GENDER, Expr1))
+
+top_nf <- inner_join(f_d, nulls) %>% 
   mutate(n = round(Expr1*p)) %>%
   select(PSI_CREDENTIAL_CATEGORY, n)
 
-top_n
+top_nm <- inner_join(m_d, nulls) %>% 
+  mutate(n = round(Expr1*p)) %>%
+  select(PSI_CREDENTIAL_CATEGORY, n)
 
 
-## ---- STOP !! manually add top_n to queries below ----
+## ---- STOP !! manually add top_nf to queries below ----
+# then change queries and do the same for top_mf
 # Code later: https://github.com/r-dbi/DBI/issues/193
 dbExecute(con, qry07c10_Assign_TopID_GenderF_GradCert)
 dbExecute(con, qry07c11_Assign_TopID_GenderF_GradDipl)
@@ -351,7 +361,8 @@ d <- CREDAgeDistributionbyGender %>%
   left_join(CRED_Extract_No_Age_Unique, 
             by = join_by(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY)) %>%
   mutate(n = round(p*NumWithNullAge)) %>% 
-  arrange(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, AGE_AT_GRAD) 
+  arrange(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, AGE_AT_GRAD) %>%
+  filter(!is.na(NumWithNullAge))
 
 # consider sampling instead to ensure randomness and give full coverage
 print("imputing missing age_at_grad ....")
@@ -366,7 +377,7 @@ for (i in 1:nrow(d)) {
                         age = as.numeric(d[i,"AGE_AT_GRAD"]), 
                         gender = as.character(d[i,"PSI_GENDER_CLEANED"]), 
                         cred = as.character(d[i,"PSI_CREDENTIAL_CATEGORY"]))
-
+  dbExecute(con, sql)
 }
 print("....done")
 
@@ -400,9 +411,9 @@ dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
 # ---- Highest Rank ----
 dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID VARCHAR(255) NULL")
 dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID = ENCRYPTED_TRUE_PEN 
-                 WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN <> '')")
+                 WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'))")
 dbExecute(con, "UPDATE Credential_Non_Dup SET CONCATENATED_ID = PSI_STUDENT_NUMBER + PSI_CODE 
-                WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN = '')")
+                WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)'))")
 dbExecute(con, qry12_Create_View_tblCredentialHighestRank)
 
 dbExecute(con, qry18a_ExtrLaterAwarded)

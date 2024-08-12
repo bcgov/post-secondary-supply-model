@@ -110,7 +110,7 @@ SELECT     ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, MAX(PSI_SCHOOL_YEAR
 INTO       tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4
 FROM       STP_Enrolment_Valid
 GROUP BY   ENCRYPTED_TRUE_PEN, PSI_CODE, PSI_STUDENT_NUMBER
-HAVING     (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN = '');"
+HAVING     (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)'));"
 
 # ---- qry10_CredentialSupVars_From_Enrolment ----
 qry10_CredentialSupVars_From_Enrolment <- "

@@ -17,7 +17,7 @@ SELECT        STP_Credential.ID,STP_Credential.ENCRYPTED_TRUE_PEN,
 FROM          STP_Credential 
 INNER JOIN    STP_Credential_Record_Type 
   ON          STP_Credential.ID = STP_Credential_Record_Type.ID
-WHERE        (STP_Credential.CREDENTIAL_AWARD_DATE <> '') 
+WHERE        (STP_Credential.CREDENTIAL_AWARD_DATE NOT IN ('', ' ', '(Unspecified)')) 
   AND (STP_Credential_Record_Type.RecordStatus = 0);"
 
 
@@ -160,7 +160,7 @@ SET           psi_birthdate_cleaned = CredentialSupVars_BirthdateClean.psi_birth
 FROM          CredentialSupVars 
 INNER JOIN    CredentialSupVars_BirthdateClean 
   ON          CredentialSupVars.ENCRYPTED_TRUE_PEN = CredentialSupVars_BirthdateClean.ENCRYPTED_TRUE_PEN
-WHERE        (CredentialSupVars.ENCRYPTED_TRUE_PEN IS NOT NULL AND CredentialSupVars.ENCRYPTED_TRUE_PEN <> '')"
+WHERE        (CredentialSupVars.ENCRYPTED_TRUE_PEN IS NOT NULL AND CredentialSupVars.ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'))"
 
 qry04a_UpdateCredentialSupVarsBirthdate2 <- "
 UPDATE      CredentialSupVars
@@ -170,9 +170,9 @@ FROM        CredentialSupVars_BirthdateClean
 INNER JOIN  CredentialSupVars 
   ON        CredentialSupVars_BirthdateClean.PSI_STUDENT_NUMBER = CredentialSupVars.PSI_STUDENT_NUMBER 
   AND       CredentialSupVars_BirthdateClean.PSI_CODE = CredentialSupVars.PSI_CODE
-WHERE       (CredentialSupVars.ENCRYPTED_TRUE_PEN IS NULL OR CredentialSupVars.ENCRYPTED_TRUE_PEN = ' ')
-AND         (CredentialSupVars.PSI_CODE IS NOT NULL AND CredentialSupVars.PSI_CODE <> '') 
-AND         (CredentialSupVars.PSI_STUDENT_NUMBER IS NOT NULL AND CredentialSupVars.PSI_STUDENT_NUMBER <> '');"
+WHERE       (CredentialSupVars.ENCRYPTED_TRUE_PEN IS NULL OR CredentialSupVars.ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)'))
+AND         (CredentialSupVars.PSI_CODE IS NOT NULL AND CredentialSupVars.PSI_CODE NOT IN ('', ' ', '(Unspecified)')) 
+AND         (CredentialSupVars.PSI_STUDENT_NUMBER IS NOT NULL AND CredentialSupVars.PSI_STUDENT_NUMBER NOT IN ('', ' ', '(Unspecified)'));"
 
 
 qry04a1_UpdateCredentialSupVarsBirthdate <- "
@@ -192,8 +192,10 @@ ON CredentialSupVarsFromEnrolment.ENCRYPTED_TRUE_PEN = CredentialSupVars.ENCRYPT
 qry04a3_UpdateCredentialSupVarsBirthdate <- "
 UPDATE       CredentialSupVars
 SET          CredentialSupVars.psi_birthdate_cleaned = LAST_SEEN_BIRTHDATE
-WHERE        ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE <> '') AND (psi_birthdate_cleaned IS NULL))
-OR           ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE <> '') AND (psi_birthdate_cleaned = ''))"
+WHERE        ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE NOT IN ('', ' ')) 
+AND           (psi_birthdate_cleaned IS NULL))
+OR           ((LAST_SEEN_BIRTHDATE IS NOT NULL AND LAST_SEEN_BIRTHDATE NOT IN ('', ' ')) 
+AND           (psi_birthdate_cleaned IN ('', ' ')))"
 
 # ---- qry04b_UpdateCredentiaSupVarsGender  ---- 
 qry04b_UpdateCredentiaSupVarsGender <- "
@@ -264,7 +266,7 @@ SET       AGE_AT_GRAD =
               THEN datediff(year, psi_birthdate_cleaned_d, CREDENTIAL_AWARD_DATE_D) - 1 
               ELSE datediff(year, psi_birthdate_cleaned_d,  CREDENTIAL_AWARD_DATE_D) 
               END
-WHERE     (psi_birthdate_cleaned IS NOT NULL) AND (psi_birthdate_cleaned <> '');"
+WHERE     (psi_birthdate_cleaned IS NOT NULL) AND (psi_birthdate_cleaned NOT IN ('', ' '));"
 
 
 # ---- qry05d_UpdateAGAtGrad ---- 
@@ -293,8 +295,9 @@ FROM      STP_Enrolment
 INNER JOIN Credential ON STP_Enrolment.ENCRYPTED_TRUE_PEN = Credential.ENCRYPTED_TRUE_PEN
  AND STP_Enrolment.PSI_STUDENT_NUMBER = Credential.PSI_STUDENT_NUMBER
  AND STP_Enrolment.PSI_code = Credential.PSI_code
-WHERE     (Credential.PSI_GENDER_cleaned = '' OR  Credential.PSI_GENDER_cleaned = 'U' OR Credential.PSI_GENDER_cleaned IS NULL) 
-AND       (STP_Enrolment.PSI_GENDER = 'M' OR STP_Enrolment.PSI_GENDER = 'F');"
+WHERE     (Credential.PSI_GENDER_cleaned IN ('', ' ', '(Unspecified)') 
+OR         Credential.PSI_GENDER_cleaned IS NULL) 
+AND       (STP_Enrolment.PSI_GENDER IN ('Female', 'Male', 'Gender Diverse'));"
 
 
 # ---- qry07a1b_Create_Credential_Non_Dup ---- 
@@ -412,7 +415,7 @@ qry07a2a_ExtractNoGender <- "
 SELECT    id, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, psi_gender_cleaned, PSI_CREDENTIAL_CATEGORY 
 INTO      CRED_Extract_No_Gender
 FROM      Credential_Non_Dup
-WHERE     psi_gender_cleaned = '' OR psi_gender_cleaned IS NULL;"
+WHERE     psi_gender_cleaned IN ('', ' ', '(Unspecified)') OR psi_gender_cleaned IS NULL;"
 
 
 # ---- qry07a2b_ExtractNoGenderUnique ---- 
@@ -445,97 +448,97 @@ GROUP BY psi_gender_cleaned, PSI_CREDENTIAL_CATEGORY;"
 
 # ---- qry07c1_Assign_TopID_GenderF_AdvancedCert ---- 
 qry07c1_Assign_TopID_GenderF_AdvancedCert <- "
-UPDATE TOP (16) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (5) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ADVANCED CERTIFICATE';"
 
 # ---- qry07c2_Assign_TopID_GenderF_AdvancedDip ---- 
 qry07c2_Assign_TopID_GenderF_AdvancedDip <- "
-UPDATE TOP (20) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (19) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ADVANCED DIPLOMA';
 "
 
 # ---- qry07c3_Assign_TopID_GenderF_Apprenticeship ---- 
 qry07c3_Assign_TopID_GenderF_Apprenticeship <- "
-UPDATE TOP (1) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (16) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'APPRENTICESHIP';
 "
 
 # ---- qry07c4_Assign_TopID_GenderF_AssocDegree ---- 
 qry07c4_Assign_TopID_GenderF_AssocDegree <- "
-UPDATE TOP (20) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (16) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ASSOCIATE DEGREE';
 "
 
 # ---- qry07c5_Assign_TopID_GenderF_Bachelor ---- 
 qry07c5_Assign_TopID_GenderF_Bachelor <- "
-UPDATE TOP (1664) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (1092) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'BACHELORS DEGREE';
 "
 
 # ---- qry07c6_Assign_TopID_GenderF_Certificate ---- 
 qry07c6_Assign_TopID_GenderF_Certificate <- "
-UPDATE TOP (477) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (724) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'CERTIFICATE';
 "
 
 # ---- qry07c7_Assign_TopID_GenderF_Diploma ---- 
 qry07c7_Assign_TopID_GenderF_Diploma <- "
-UPDATE TOP (402) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (427) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'DIPLOMA';
 "
 
 # ---- qry07c8_Assign_TopID_GenderF_Doctorate ---- 
 qry07c8_Assign_TopID_GenderF_Doctorate <- "
-UPDATE TOP (61) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (73) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'DOCTORATE';
 "
 
 # ---- qry07c9_Assign_TopID_GenderF_FirstProfDeg ---- 
 qry07c9_Assign_TopID_GenderF_FirstProfDeg <- "
-UPDATE TOP (26) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (22) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'FIRST PROFESSIONAL DEGREE';"
 
 # ---- qry07c10_Assign_TopID_GenderF_GradCert ---- 
 qry07c10_Assign_TopID_GenderF_GradCert <- "
-UPDATE TOP (1) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (0) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'GRADUATE CERTIFICATE';
 "
 
 # ---- qry07c11_Assign_TopID_GenderF_GradDipl ---- 
 qry07c11_Assign_TopID_GenderF_GradDipl <- "
-UPDATE TOP (100) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (51) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'GRADUATE DIPLOMA';
 "
 
 # ---- qry07c12_Assign_TopID_GenderF_Masters ---- 
 qry07c12_Assign_TopID_GenderF_Masters <- "
-UPDATE TOP (541) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (314) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'MASTERS DEGREE';
 "
 
 # ---- qry07c13_Assign_TopID_GenderF_PostDegCert ---- 
 qry07c13_Assign_TopID_GenderF_PostDegCert <- "
-UPDATE TOP (16) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (28) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'POST-DEGREE CERTIFICATE';
 "
 
 # ---- qry07c14_Assign_TopID_GenderF_PostDegDipl ---- 
 qry07c14_Assign_TopID_GenderF_PostDegDipl <- "
-UPDATE TOP (237) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'F'
+UPDATE TOP (175) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Male'
 WHERE PSI_CREDENTIAL_CATEGORY = 'POST-DEGREE DIPLOMA';
 "
 
@@ -543,8 +546,8 @@ WHERE PSI_CREDENTIAL_CATEGORY = 'POST-DEGREE DIPLOMA';
 # ---- qry07c_Assign_TopID_GenderM ---- 
 qry07c_Assign_TopID_GenderM <- "
 UPDATE CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'M'
-WHERE PSI_GENDER_CLEANED <> 'F' OR PSI_GENDER_CLEANED IS NULL;
+SET PSI_GENDER_CLEANED = 'Gender Diverse'
+WHERE PSI_GENDER_CLEANED NOT IN('Female','Male') OR PSI_GENDER_CLEANED IS NULL;
 "
 
 
@@ -579,7 +582,9 @@ WHERE        (a.ENCRYPTED_TRUE_PEN IN
                              (SELECT        ENCRYPTED_TRUE_PEN
                                FROM            Credential_Non_Dup AS b
                                GROUP BY ENCRYPTED_TRUE_PEN
-                               HAVING         (COUNT(ENCRYPTED_TRUE_PEN) > 1) AND (ENCRYPTED_TRUE_PEN IS NOT NULL) AND (ENCRYPTED_TRUE_PEN <> '')))"
+                               HAVING         (COUNT(ENCRYPTED_TRUE_PEN) > 1) 
+                               AND (ENCRYPTED_TRUE_PEN IS NOT NULL) 
+AND (ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'))))"
 
 # ---- qry08_Create_Credential_Ranking_View b ---- 
 qry08_Create_Credential_Ranking_View_b <-  
@@ -592,7 +597,7 @@ WHERE        (a.PSI_STUDENT_NUMBER IN
                              (SELECT        PSI_STUDENT_NUMBER
                                FROM            Credential_Non_Dup AS b
                                GROUP BY ENCRYPTED_TRUE_PEN,PSI_STUDENT_NUMBER
-                               HAVING         (COUNT(PSI_STUDENT_NUMBER) > 1) AND ((ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN = ''))))"
+                               HAVING         (COUNT(PSI_STUDENT_NUMBER) > 1) AND ((ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)')))))"
 
 
 # ---- qry08_Create_Credential_Ranking_View c ---- 
