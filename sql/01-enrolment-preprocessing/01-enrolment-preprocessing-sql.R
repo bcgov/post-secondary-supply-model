@@ -1,6 +1,8 @@
 # ---- Checks ----
-qry00a_check_null_epens <- "SELECT COUNT (*) AS n_null_epens FROM STP_Enrolment
-  WHERE STP_Enrolment.ENCRYPTED_TRUE_PEN =''"
+qry00a_check_null_epens <- "
+SELECT COUNT (*) AS n_null_epens FROM STP_Enrolment
+WHERE STP_Enrolment.ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)') 
+OR STP_Enrolment.ENCRYPTED_TRUE_PEN IS NULL;"
 
 qry00b_check_unique_epens <- "
   SELECT COUNT (DISTINCT ENCRYPTED_TRUE_PEN) AS n_epens
@@ -35,8 +37,9 @@ qry02a_Record_With_PEN_Or_STUID <- "
 SELECT     id, PSI_STUDENT_NUMBER, PSI_CODE, ENCRYPTED_TRUE_PEN
 INTO       tmp_tbl_qry02a_Record_With_PEN_Or_STUID
 FROM       STP_Enrolment
-WHERE     (PSI_STUDENT_NUMBER <> '') AND (PSI_CODE <> '')
-OR         (ENCRYPTED_TRUE_PEN <> '');"
+WHERE     (PSI_STUDENT_NUMBER NOT IN('',' ','(Unspecified)')
+AND        PSI_CODE NOT IN('',' ','(Unspecified)'))
+OR         (ENCRYPTED_TRUE_PEN NOT IN('',' ','(Unspecified)'));"
 
 
 # ---- qry02b_Drop_No_PEN_Or_No_STUID ---- 
@@ -387,9 +390,9 @@ qry05a_Drop_Credential_Only <- "
 SELECT ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_ENTRY_STATUS, PSI_MIN_START_DATE, CREDENTIAL_AWARD_DATE
 INTO Drop_Credential_Only
 FROM STP_Enrolment
-WHERE (PSI_MIN_START_DATE = '')
-  AND (PSI_ENTRY_STATUS = '') 
-  AND (CREDENTIAL_AWARD_DATE <> '');"
+WHERE (PSI_MIN_START_DATE IN('',' ','(Unspecified)'))
+  AND (PSI_ENTRY_STATUS IN('',' ','(Unspecified)')) 
+  AND (CREDENTIAL_AWARD_DATE NOT IN('',' ','(Unspecified)'));"
 
 
 # ---- qry05b_Update_Drop_Credential_Only ---- 
@@ -461,7 +464,7 @@ SELECT    ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR, MIN(PSI_ENROLMENT_SEQUENCE) AS Mi
 INTO      tmp_tbl_qry09a_MinEnrolmentPEN
 FROM      STP_Enrolment_Valid
 GROUP BY  ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR
-HAVING    ENCRYPTED_TRUE_PEN <> '';"
+HAVING    ENCRYPTED_TRUE_PEN NOT IN('',' ','(Unspecified)');"
 
 # ---- qry09b_MinEnrolmentPEN ---- 
 qry09b_MinEnrolmentPEN <- "
@@ -489,7 +492,7 @@ SELECT    PSI_STUDENT_NUMBER, PSI_CODE, PSI_SCHOOL_YEAR, MIN(PSI_ENROLMENT_SEQUE
 INTO      tmp_tbl_qry10a_MinEnrolmentSTUID
 FROM      STP_Enrolment_Valid
 GROUP BY  PSI_STUDENT_NUMBER, PSI_CODE, PSI_SCHOOL_YEAR, ENCRYPTED_TRUE_PEN
-HAVING    ENCRYPTED_TRUE_PEN = '';"
+HAVING    ENCRYPTED_TRUE_PEN IN('',' ','(Unspecified)');"
 
 # ---- qry10b_MinEnrolmentSTUID ---- 
 qry10b_MinEnrolmentSTUID <- "
@@ -539,7 +542,7 @@ SELECT    ENCRYPTED_TRUE_PEN, MIN(PSI_MIN_START_DATE) AS MIN_PSI_MIN_START_DATE
 INTO      tmp_tbl_qry12a_FirstEnrolmentPEN
 FROM      STP_Enrolment_Valid
 GROUP BY  ENCRYPTED_TRUE_PEN
-HAVING    ENCRYPTED_TRUE_PEN <> '';"
+HAVING    ENCRYPTED_TRUE_PEN NOT IN('',' ','(Unspecified)');"
 
 # ---- qry12b_FirstEnrolmentPEN ---- 
 qry12b_FirstEnrolmentPEN <- "
@@ -568,7 +571,7 @@ qry13a_FirstEnrolmentSTUID <- "
 SELECT    PSI_STUDENT_NUMBER, PSI_CODE, MIN(PSI_MIN_START_DATE) AS Min_PSI_Min_Start_Date
 INTO      tmp_tbl_qry13a_FirstEnrolment_STUID
 FROM      STP_Enrolment_Valid
-WHERE     ENCRYPTED_TRUE_PEN = ''
+WHERE     ENCRYPTED_TRUE_PEN IN('',' ','(Unspecified)')
 GROUP BY PSI_STUDENT_NUMBER, PSI_CODE;"
 
 # ---- qry13b_FirstEnrolmentSTUID ---- 

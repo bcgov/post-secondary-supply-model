@@ -73,7 +73,7 @@ SET       PSI_VISA_STATUS = Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_VIS
 FROM      CredentialSupVars 
 INNER JOIN Credential_Non_Dup_VisaStatus_Cleaning_Step1 ON CredentialSupVars.ID = Credential_Non_Dup_VisaStatus_Cleaning_Step1.id
 WHERE     (CredentialSupVars.PSI_VISA_STATUS IS NULL) 
-OR        (CredentialSupVars.PSI_VISA_STATUS = '')"
+OR        (CredentialSupVars.PSI_VISA_STATUS = IN ('', ' ', '(Unspecified)'))"
 
 #Updated 491768 records                         
 # ---- CredentialSupVars_VisaStatus_6 ----

@@ -130,6 +130,7 @@ dbExecute(con, qry03h_create_table_Suspect_Skills_Based)
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) 
 dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)   #see documentation, this is related to some manula work that wasn't done in 2023
 dbExecute(con, qry03j_Update_Suspect_Skills_Based) 
+dbGetQuery(con, RecordTypeSummary)
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd_More];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
@@ -218,7 +219,6 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry13b_FirstEnrolme
 dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
 dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
 dbExecute(con, qry14c_Update_FirstEnrolmentNA)
-
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
 
@@ -273,7 +273,6 @@ dbExecute(con, qry19_BirthdateCleaning)
 dbExecute(con, qry20_BirthdateCleaning)
 dbGetQuery(con, qry21_BirthdateCleaning)
 
-
 # ---- Clean Up and check tables to keep ----
 dbExecute(con, "DROP TABLE tmp_BirthDate")
 dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
@@ -281,9 +280,9 @@ dbExecute(con, "DROP TABLE tmp_NullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
 
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Record_Type;"))  
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Valid;"))  
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment;"))  
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
 dbDisconnect(con)
 

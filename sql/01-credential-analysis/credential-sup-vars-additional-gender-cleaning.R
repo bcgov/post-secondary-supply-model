@@ -42,7 +42,7 @@ INNER JOIN tmp_CredentialGenderCleaning_Step1 ON
    tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN = tmp_CredentialGenderCleaning_Step1.ENCRYPTED_TRUE_PEN AND 
    tmp_CredentialGenderCleaning_Step2.MAX_MAX_PSI_SCHOOL_YEAR = tmp_CredentialGenderCleaning_Step1.MAX_PSI_SCHOOL_YEAR AND
    tmp_CredentialGenderCleaning_Step2.MAX_MAX_PSI_ENROLMENT_SEQUENCE = tmp_CredentialGenderCleaning_Step1.MAX_PSI_ENROLMENT_SEQUENCE
-WHERE tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN <> '' AND tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN IS NOT NULL
+WHERE tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN NOT IN ('',' ','(Unspecified)') AND tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN IS NOT NULL
 GROUP BY tmp_CredentialGenderCleaning_Step2.ENCRYPTED_TRUE_PEN, tmp_CredentialGenderCleaning_Step1.PSI_GENDER;"
 
 # ---- qry03fCredential_SupVarsGenderCleaning1 ----
@@ -94,7 +94,7 @@ FROM RW_TEST_ENROL_GENDER_morethanone_list
 INNER JOIN STP_Enrolment_Valid 
   ON RW_TEST_ENROL_GENDER_morethanone_list.ENCRYPTED_TRUE_PEN = STP_Enrolment_Valid.ENCRYPTED_TRUE_PEN
 WHERE RW_TEST_ENROL_GENDER_morethanone_list.ENCRYPTED_TRUE_PEN IS NOT NULL AND
-  RW_TEST_ENROL_GENDER_morethanone_list.ENCRYPTED_TRUE_PEN <> ''
+  RW_TEST_ENROL_GENDER_morethanone_list.ENCRYPTED_TRUE_PEN NOT IN ('',' ','(Unspecified)')
 "
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning9 ---- 
@@ -168,7 +168,7 @@ FROM    tmp_CredentialSupVars_Gender_CleanUnknowns
 INNER JOIN CredentialSupVarsFromEnrolment ON 
         tmp_CredentialSupVars_Gender_CleanUnknowns.ENCRYPTED_TRUE_PEN = CredentialSupVarsFromEnrolment.ENCRYPTED_TRUE_PEN
 WHERE   tmp_CredentialSupVars_Gender_CleanUnknowns.ENCRYPTED_TRUE_PEN IS NOT NULL 
-        AND tmp_CredentialSupVars_Gender_CleanUnknowns.ENCRYPTED_TRUE_PEN <> ''
+        AND tmp_CredentialSupVars_Gender_CleanUnknowns.ENCRYPTED_TRUE_PEN NOT IN ('',' ','(Unspecified)')
 ORDER BY tmp_CredentialSupVars_Gender_CleanUnknowns.PSI_GENDER DESC
 "
 
@@ -218,7 +218,7 @@ FROM   credentialsupvars
                ON credentialsupvars.encrypted_true_pen =
                   credentialsupvars_gender.encrypted_true_pen
 WHERE  credentialsupvars_gender.encrypted_true_pen IS NOT NULL
-       AND credentialsupvars_gender.encrypted_true_pen <> ''"
+       AND credentialsupvars_gender.encrypted_true_pen NOT IN ('',' ','(Unspecified)')"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning23 ----
 qry03fCredential_SupVars_Enrol_GenderCleaning23<-"
@@ -393,7 +393,7 @@ SET                psi_gender_cleaned = tmp_CredentialGenderCleaning_Step10.psi_
 FROM            CredentialSupVars INNER JOIN
                          tmp_CredentialGenderCleaning_Step10 ON CredentialSupVars.ENCRYPTED_TRUE_PEN = tmp_CredentialGenderCleaning_Step10.ENCRYPTED_TRUE_PEN
 WHERE        (CredentialSupVars.psi_gender_cleaned IS NULL) AND (CredentialSupVars.ENCRYPTED_TRUE_PEN IS NOT NULL AND 
-                         CredentialSupVars.ENCRYPTED_TRUE_PEN <> '')"
+                         CredentialSupVars.ENCRYPTED_TRUE_PEN NOT IN ('',' ','(Unspecified)'))"
 
 
 "UPDATE       CredentialSupVars

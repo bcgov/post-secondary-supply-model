@@ -11,8 +11,8 @@ qry02_BirthdateCleaning <- "
 SELECT     ENCRYPTED_TRUE_PEN, COUNT(*) AS N_Birthdates
 INTO        tmp_MoreThanOne_Birthdate
 FROM        tmp_BirthDate
-WHERE       PSI_BIRTHDATE <> ' ' 
-  AND       ENCRYPTED_TRUE_PEN <> ' '
+WHERE       PSI_BIRTHDATE NOT IN('',' ', '(Unspecified)') 
+  AND       ENCRYPTED_TRUE_PEN NOT IN('',' ', '(Unspecified)')
 GROUP BY    ENCRYPTED_TRUE_PEN
 HAVING      COUNT(*) > 1"
 
@@ -21,7 +21,7 @@ qry03_BirthdateCleaning <-
 "SELECT     ENCRYPTED_TRUE_PEN, MIN(PSI_BIRTHDATE) AS MinPSIBirthdate
 INTO        tmp_MinPSIBirthdate
 FROM        tmp_BirthDate
-WHERE       PSI_BIRTHDATE <> ' '
+WHERE       PSI_BIRTHDATE NOT IN('',' ', '(Unspecified)')
 GROUP BY    ENCRYPTED_TRUE_PEN"
 
 # ---- ----
@@ -29,8 +29,8 @@ qry04_BirthdateCleaning <-"
 SELECT     ENCRYPTED_TRUE_PEN, MAX(PSI_BIRTHDATE) AS MaxPSIBirthdate
 INTO        tmp_MaxPSIBirthdate
 FROM        tmp_BirthDate
-WHERE       PSI_BIRTHDATE <> ' '
-AND         ENCRYPTED_TRUE_PEN <> ' '
+WHERE       PSI_BIRTHDATE NOT IN('',' ', '(Unspecified)')
+AND         ENCRYPTED_TRUE_PEN NOT IN('',' ', '(Unspecified)')
 GROUP BY    ENCRYPTED_TRUE_PEN"
 
 # ---- ----
@@ -111,7 +111,7 @@ qry13_BirthdateCleaning <-
  INTO            tmp_NullBirthdate
  FROM         tmp_BirthDate
  GROUP BY ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE
-HAVING      (ENCRYPTED_TRUE_PEN <> ' ') AND (PSI_BIRTHDATE = ' ')"
+HAVING      (ENCRYPTED_TRUE_PEN NOT IN('',' ', '(Unspecified)')) AND (PSI_BIRTHDATE IN('', ' ', '(Unspecified)'))"
 
 # ---- ----
 qry14_BirthdateCleaning <- "
@@ -119,7 +119,7 @@ qry14_BirthdateCleaning <- "
  INTO        tmp_NonNullBirthdate
  FROM       tmp_BirthDate
  GROUP BY ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE
-HAVING      (ENCRYPTED_TRUE_PEN <> ' ') AND (PSI_BIRTHDATE <> ' ')"
+HAVING      (ENCRYPTED_TRUE_PEN NOT IN('', ' ', '(Unspecified)')) AND (PSI_BIRTHDATE NOT IN('',' ', '(Unspecified)'))"
 
 # ---- ----
 qry15_BirthdateCleaning <-
@@ -151,16 +151,16 @@ FROM      STP_Enrolment
 INNER JOIN  tmp_NullBirthdateCleaned 
   ON STP_Enrolment.ENCRYPTED_TRUE_PEN = tmp_NullBirthdateCleaned.ENCRYPTED_TRUE_PEN
 WHERE     (STP_Enrolment.psi_birthdate_cleaned IS NULL) 
-OR        (STP_Enrolment.psi_birthdate_cleaned = ' ')"
+OR        (STP_Enrolment.psi_birthdate_cleaned IN('', ' ', '(Unspecified)'))"
 
 # ---- ----               
 qry19_BirthdateCleaning <-  
  "UPDATE    STP_Enrolment
  SET         psi_birthdate_cleaned = PSI_BIRTHDATE
 WHERE       ((psi_birthdate_cleaned IS NULL) AND (NOT (PSI_BIRTHDATE IS NULL)))
-OR          ((psi_birthdate_cleaned = ' ')   AND (NOT (PSI_BIRTHDATE IS NULL)))
-OR          ((psi_birthdate_cleaned IS NULL) AND (PSI_BIRTHDATE <> ' ')) 
-OR          ((psi_birthdate_cleaned = ' ')   AND (PSI_BIRTHDATE <> ' '))"
+OR          ((psi_birthdate_cleaned IN( '',' ', '(Unspecified)'))   AND (NOT (PSI_BIRTHDATE IS NULL)))
+OR          ((psi_birthdate_cleaned IS NULL) AND (PSI_BIRTHDATE NOT IN( '',' ', '(Unspecified)'))) 
+OR          ((psi_birthdate_cleaned IN( '',' ', '(Unspecified)'))   AND (PSI_BIRTHDATE NOT IN( '',' ', '(Unspecified)')))"
 
 
 # ---- ----
@@ -168,9 +168,9 @@ qry20_BirthdateCleaning <-
 "SELECT     PSI_STUDENT_NUMBER, PSI_BIRTHDATE, psi_birthdate_cleaned, PSI_CODE, COUNT(*) AS Expr1
 INTO            tmp_TEST_multi_birthdate
 FROM         STP_Enrolment
-WHERE     (ENCRYPTED_TRUE_PEN = ' ')
+WHERE     (ENCRYPTED_TRUE_PEN IN( ' ', '(Unspecified)'))
 GROUP BY PSI_STUDENT_NUMBER, PSI_BIRTHDATE, psi_birthdate_cleaned, PSI_CODE
-HAVING      (PSI_BIRTHDATE <> ' ') AND (PSI_STUDENT_NUMBER <> ' ') AND (PSI_CODE <> ' ')"
+HAVING      (PSI_BIRTHDATE NOT IN( '',' ', '(Unspecified)')) AND (PSI_STUDENT_NUMBER NOT IN( '',' ', '(Unspecified)')) AND (PSI_CODE NOT IN( '',' ', '(Unspecified)'))"
 
 # ---- ----
 qry21_BirthdateCleaning <-  

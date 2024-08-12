@@ -215,7 +215,7 @@ dbExecute(con, qry05c_UpdateAgeAtGrad)
 dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
 dbExecute(con, qry06e_UpdateAwardSchoolYear)
 
-# got to here 2023
+# got to here 2023.  Check current state against prior years, check age, gender distributions, age at grad etc.
 # ---- 07 Credential Cleaning ----
 ## ---- ** Create NON DUP ** ----
 dbExecute(con, qry07a1a_UpdateGender)

@@ -1,6 +1,7 @@
 # ---- Checks ----
 qry00a_check_null_epens <- "SELECT COUNT (*) AS n_null_epens FROM STP_Credential
-  WHERE STP_Credential.ENCRYPTED_TRUE_PEN =''"
+  WHERE STP_Credential.ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)') 
+OR STP_Credential.ENCRYPTED_TRUE_PEN IS NULL;"
 
 qry00b_check_unique_epens <- "
   SELECT COUNT (DISTINCT ENCRYPTED_TRUE_PEN) AS n_epens
@@ -33,7 +34,9 @@ qry01_ExtractAllID_into_STP_Credential_Record_Type <-"
 qry02a_Record_With_PEN_Or_STUID <- "SELECT      id, PSI_STUDENT_NUMBER, PSI_CODE, ENCRYPTED_TRUE_PEN
 INTO       tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID
 FROM       STP_Credential
-WHERE     (PSI_STUDENT_NUMBER <> '') AND (PSI_CODE <> '') OR (ENCRYPTED_TRUE_PEN <> '');"
+WHERE     (PSI_STUDENT_NUMBER NOT IN ('', ' ', '(Unspecified)') 
+AND        PSI_CODE NOT IN ('', ' ', '(Unspecified)')) 
+OR (ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'));"
 
 
 # ---- qry02b_Drop_No_PEN_Or_No_STUID ---- 

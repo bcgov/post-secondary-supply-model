@@ -4,7 +4,7 @@ SELECT     ENCRYPTED_TRUE_PEN, MAX(PSI_SCHOOL_YEAR) AS MaxSchoolYear
 INTO       tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step1
 FROM       STP_Enrolment_Valid
 GROUP BY   ENCRYPTED_TRUE_PEN
-HAVING     (ENCRYPTED_TRUE_PEN IS NOT NULL) AND (ENCRYPTED_TRUE_PEN <> '')"
+HAVING     (ENCRYPTED_TRUE_PEN IS NOT NULL) AND (ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'))"
 
 # ---- qry02_CredentialSupVars_From_Enrolment ----
 qry02_CredentialSupVars_From_Enrolment <- "
