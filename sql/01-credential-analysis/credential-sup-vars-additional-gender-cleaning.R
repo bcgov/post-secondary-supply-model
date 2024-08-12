@@ -100,9 +100,9 @@ WHERE RW_TEST_ENROL_GENDER_morethanone_list.ENCRYPTED_TRUE_PEN IS NOT NULL AND
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning9 ---- 
 qry03fCredential_SupVars_Enrol_GenderCleaning9 <- "
 SELECT  STP_Enrolment.ID AS EnrolmentID, STP_Enrolment.ENCRYPTED_TRUE_PEN, STP_Enrolment.PSI_BIRTHDATE, STP_Enrolment.PSI_MIN_START_DATE, 
-        STP_Enrolment.psi_birthdate_cleaned, STP_Enrolment.PSI_VISA_STATUS, STP_Enrolment.PSI_STUD_POSTAL_CD_CURR, STP_Enrolment.PSI_SCHOOL_YEAR, 
-        STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, STP_Enrolment.PSI_ENROLMENT_SEQUENCE, 
-        STP_Enrolment.PSI_CIP_CODE, STP_Enrolment.PSI_CE_CRS_ONLY, STP_Enrolment.PSI_GENDER
+        STP_Enrolment.psi_birthdate_cleaned, STP_Enrolment.PSI_VISA_STATUS, STP_Enrolment.PSI_STUDENT_POSTAL_CODE_CURRENT, STP_Enrolment.PSI_SCHOOL_YEAR, 
+        STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, STP_Enrolment.PSI_ENROLMENT_SEQUENCE, 
+        STP_Enrolment.PSI_CIP_CODE, STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, STP_Enrolment.PSI_GENDER
 INTO    CredentialSupVarsFromEnrolment_MultiGender
 FROM    RW_TEST_ENROL_GENDER_morethanone_listIDS 
 INNER JOIN STP_Enrolment 
@@ -112,7 +112,7 @@ INNER JOIN STP_Enrolment
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning10 ---- 
 qry03fCredential_SupVars_Enrol_GenderCleaning10 <- "
 ALTER TABLE CredentialSupVarsFromEnrolment_MultiGender
-ADD psi_gender_cleaned NVARCHAR(10)"
+ADD psi_gender_cleaned NVARCHAR(50)"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning11 ---- 
 qry03fCredential_SupVars_Enrol_GenderCleaning11 <- "
@@ -125,8 +125,8 @@ CredentialSupVarsFromEnrolment_MultiGender.ENCRYPTED_TRUE_PEN = tmp_CredentialGe
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning12 ---- 
 qry03fCredential_SupVars_Enrol_GenderCleaning12 <- "
 ALTER TABLE CredentialSupVars_Gender
-ADD psi_gender_cleaned NVARCHAR(10), 
-psi_gender_cleaned_flag NVARCHAR(10)"
+ADD psi_gender_cleaned NVARCHAR(50), 
+psi_gender_cleaned_flag NVARCHAR(50)"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning13 ---- 
 qry03fCredential_SupVars_Enrol_GenderCleaning13 <- "
@@ -149,12 +149,13 @@ SELECT  ENCRYPTED_TRUE_PEN, psi_gender_cleaned, psi_gender_cleaned_flag, PSI_GEN
 INTO    tmp_CredentialSupVars_Gender_CleanUnknowns
 FROM    CredentialSupVars_Gender
 WHERE   (psi_gender_cleaned = 'U')
+OR (psi_gender_cleaned = 'Unknown')
 "
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning16 ----
 qry03fCredential_SupVars_Enrol_GenderCleaning16 <- "
 ALTER TABLE tmp_CredentialSupVars_Gender_CleanUnknowns
-ADD psi_gender_cleaned_NEW NVARCHAR(10)
+ADD psi_gender_cleaned_NEW NVARCHAR(50)
 "
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning17 ----
@@ -177,7 +178,7 @@ SELECT  ENCRYPTED_TRUE_PEN, PSI_GENDER AS GenderToUse
 INTO    tmp_CredentialSupVars_Gender_CleanUnknowns_Step3
 FROM    tmp_CredentialSupVars_Gender_CleanUnknowns_Step2
 GROUP BY ENCRYPTED_TRUE_PEN, PSI_GENDER
-HAVING  (PSI_GENDER <> 'U')
+HAVING  ((PSI_GENDER <> 'U') AND (PSI_GENDER <> 'Unknown'))
 "
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning19 ----
@@ -307,7 +308,7 @@ SELECT encrypted_true_pen,
        psi_gender
 INTO   tmp_credentialsupvars_gender_cleanunknownsfornulls_step1
 FROM   tmp_credentialgendercleaning_step6
-WHERE  ( psi_gender = 'U' )
+WHERE  ( psi_gender = 'U' OR psi_gender = 'Unknown')
        AND psi_gender_cleaned_flag IS NULL"
 
 # ---- qry03fCredential_SupVars_Enrol_GenderCleaning30 ----
@@ -341,13 +342,13 @@ GROUP  BY encrypted_true_pen,
           psi_student_number,
           psi_code,
           psi_gender
-HAVING ( psi_gender <> 'U' )"
+HAVING ( psi_gender <> 'U' AND psi_gender <> 'Unknown')"
 
-# ---- qry03fCredential_SupVars_Enrol_GenderCleaning33 ----
+# ---- qry03fCredential_SupVars_Enrol_GenderCleaning32 ----
 qry03fCredential_SupVars_Enrol_GenderCleaning32 <- "
 UPDATE       tmp_CredentialGenderCleaning_Step6
 SET                psi_gender_cleaned_flag = 'Yes'
-WHERE PSI_GENDER = 'U'"
+WHERE (PSI_GENDER = 'U' OR PSI_GENDER = 'Unknown')"
 
 qry03fCredential_SupVars_Enrol_GenderCleaning33 <- "
 UPDATE       tmp_CredentialGenderCleaning_Step6

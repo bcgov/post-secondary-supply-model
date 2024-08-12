@@ -10,7 +10,7 @@ SELECT        STP_Credential.ID,STP_Credential.ENCRYPTED_TRUE_PEN,
               STP_Credential.CREDENTIAL_AWARD_DATE, 
               STP_Credential_Record_Type.RecordStatus, 
               STP_Credential.PSI_PROGRAM_CODE, 
-              STP_Credential.PSI_CREDENTIAL_PROGRAM_DESC, 
+              STP_Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
               STP_Credential.PSI_CREDENTIAL_CIP, 
               STP_Credential.PSI_CREDENTIAL_LEVEL, 
               STP_Credential.PSI_CREDENTIAL_CATEGORY
@@ -31,7 +31,7 @@ SELECT      ID,
             CREDENTIAL_AWARD_DATE, 
             RecordStatus AS CredentialRecordStatus, 
             PSI_PROGRAM_CODE, 
-            PSI_CREDENTIAL_PROGRAM_DESC, 
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
             PSI_CREDENTIAL_CIP, 
             PSI_CREDENTIAL_LEVEL, 
             PSI_CREDENTIAL_CATEGORY
@@ -72,9 +72,9 @@ ADD         PSI_MIN_START_DATE_D [date] NULL,
 	          PSI_VISA_STATUS [varchar](50) NULL,
 	          PSI_BIRTHDATE  [varchar](50) NULL,
 	          PSI_PROGRAM_CODE [varchar](500) NULL,
-	          PSI_CREDENTIAL_PROGRAM_DESC [varchar](500) NULL,
+	          PSI_CREDENTIAL_PROGRAM_DESCRIPTION [varchar](500) NULL,
 	          PSI_CIP_CODE [varchar](50) NULL,
-	          PSI_CE_CRS_ONLY [varchar](50) NULL,
+	          PSI_CONTINUING_EDUCATION_COURSE_ONLY [varchar](50) NULL,
 	          PSI_GENDER [varchar](50) NULL,
 	          psi_birthdate_cleaned [date] NULL;"
 
@@ -84,9 +84,9 @@ SET         psi_birthdate_cleaned = STP_Enrolment.psi_birthdate_cleaned,
             PSI_VISA_STATUS = STP_Enrolment.PSI_VISA_STATUS, 
             PSI_BIRTHDATE = STP_Enrolment.PSI_BIRTHDATE, 
             PSI_PROGRAM_CODE = STP_Enrolment.PSI_PROGRAM_CODE, 
-            PSI_CREDENTIAL_PROGRAM_DESC = STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION = STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
             PSI_CIP_CODE = STP_Enrolment.PSI_CIP_CODE, 
-            PSI_CE_CRS_ONLY = STP_Enrolment.PSI_CE_CRS_ONLY, 
+            PSI_CONTINUING_EDUCATION_COURSE_ONLY = STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, 
             PSI_GENDER = STP_Enrolment.PSI_GENDER
 FROM        CredentialSupVarsFromEnrolment 
 INNER JOIN  STP_Enrolment 
@@ -100,7 +100,7 @@ WHERE       psi_birthdate_cleaned = '1900-01-01';"
 
 # ---- qry02a_DropCredCategory ---- 
 qry02a_DropCredCategory <- "
-SELECT     id, PSI_CODE, PSI_CREDENTIAL_CATEGORY, ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC
+SELECT     id, PSI_CODE, PSI_CREDENTIAL_CATEGORY, ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION
 INTO       Drop_Credential_Category
 FROM       Credential
 WHERE      PSI_CREDENTIAL_CATEGORY = 'DEVELOPMENTAL CREDENTIAL'
@@ -209,7 +209,7 @@ qry04c_RecreateCredentialViewWithSupVars <- "
 CREATE VIEW Credential AS
 SELECT        STP_Credential.ID, STP_Credential.ENCRYPTED_TRUE_PEN,  STP_Credential.PSI_STUDENT_NUMBER,
               STP_Credential.PSI_CODE, STP_Credential.PSI_FULL_NAME, STP_Credential.PSI_SCHOOL_YEAR, 
-              STP_Credential.PSI_PROGRAM_CODE, STP_Credential.PSI_CREDENTIAL_PROGRAM_DESC, 
+              STP_Credential.PSI_PROGRAM_CODE, STP_Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
               STP_Credential.PSI_CREDENTIAL_CATEGORY, STP_Credential.PSI_CREDENTIAL_LEVEL, 
               STP_Credential.PSI_CREDENTIAL_CIP, STP_Credential.CREDENTIAL_AWARD_DATE, 
               CredentialSupVars.CREDENTIAL_AWARD_DATE_D, CredentialSupVars.AGE_AT_GRAD, CredentialSupVars.AGE_GROUP_AT_GRAD, 
@@ -234,17 +234,17 @@ AND           (STP_Credential_Record_Type.DropPartialYear IS NULL);"
 # ---- qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup ---- 
 qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup <- "
 CREATE VIEW     Credential_Remove_Dup AS
-SELECT DISTINCT ENCRYPTED_TRUE_PEN, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, 
+SELECT DISTINCT ENCRYPTED_TRUE_PEN, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, 
                 PSI_CREDENTIAL_CATEGORY, CREDENTIAL_AWARD_DATE_D, MAX(DISTINCT id) AS ID
 FROM            Credential
-GROUP BY        ENCRYPTED_TRUE_PEN, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESC, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, 
+GROUP BY        ENCRYPTED_TRUE_PEN, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, 
                 PSI_CREDENTIAL_CATEGORY, CREDENTIAL_AWARD_DATE_D;"
 
 
 
 # ---- qry05b_Lookingatdups ---- 
 qry05b_Lookingatdups <- "
-SELECT        Credential.ENCRYPTED_TRUE_PEN AS Expr1, Credential.PSI_STUDENT_NUMBER, Credential.PSI_CODE AS Expr2, Credential.PSI_PROGRAM_CODE, Credential.PSI_CREDENTIAL_PROGRAM_DESC, 
+SELECT        Credential.ENCRYPTED_TRUE_PEN AS Expr1, Credential.PSI_STUDENT_NUMBER, Credential.PSI_CODE AS Expr2, Credential.PSI_PROGRAM_CODE, Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
               Credential.PSI_CREDENTIAL_CIP, Credential.PSI_CREDENTIAL_LEVEL, Credential.PSI_CREDENTIAL_CATEGORY, Credential.CREDENTIAL_AWARD_DATE_D, 
               STP_Credential_Record_Type.ID AS Expr8, STP_Credential_Record_Type.ID, STP_Credential_Record_Type.ENCRYPTED_TRUE_PEN, 
               STP_Credential_Record_Type.RecordStatus, STP_Credential_Record_Type.MinEnrolment, STP_Credential_Record_Type.FirstEnrolment, 
@@ -309,7 +309,7 @@ SELECT credential.id,
        credential.credential_award_date,
        credential.recordstatus,
        credential.psi_program_code,
-       credential.psi_credential_program_desc,
+       credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
        credential.psi_credential_cip,
        credential.psi_credential_level,
        credential.psi_credential_category,
@@ -748,7 +748,7 @@ SELECT    Credential_Non_Dup.id,
           Credential_Non_Dup.CREDENTIAL_AWARD_DATE, 
           Credential_Non_Dup.RecordStatus, 
           Credential_Non_Dup.PSI_PROGRAM_CODE, 
-          Credential_Non_Dup.PSI_CREDENTIAL_PROGRAM_DESC, 
+          Credential_Non_Dup.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
           Credential_Non_Dup.PSI_CREDENTIAL_CIP, 
           Credential_Non_Dup.PSI_CREDENTIAL_LEVEL, 
           Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, 
@@ -1121,8 +1121,8 @@ qry12_Create_View_tblCredentialHighestRank_Exclude_LatestYr <-
             Credential_Non_Dup_Exclude_LatestYr.PSI_ENROLMENT_SEQUENCE, Credential_Non_Dup_Exclude_LatestYr.PSI_CODE, 
             Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE, 
             Credential_Non_Dup_Exclude_LatestYr.RecordStatus, Credential_Non_Dup_Exclude_LatestYr.PSI_PROGRAM_CODE, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_PROGRAM_DESC, Credential_Non_Dup_Exclude_LatestYr.PSI_CIP_CODE, 
-            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CIP, Credential_Non_Dup_Exclude_LatestYr.PSI_CE_CRS_ONLY, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, Credential_Non_Dup_Exclude_LatestYr.PSI_CIP_CODE, 
+            Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CIP, Credential_Non_Dup_Exclude_LatestYr.PSI_CONTINUING_EDUCATION_COURSE_ONLY, 
             Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_LEVEL, Credential_Non_Dup_Exclude_LatestYr.PSI_CREDENTIAL_CATEGORY, 
             Credential_Non_Dup_Exclude_LatestYr.PSI_MIN_START_DATE_D, Credential_Non_Dup_Exclude_LatestYr.CREDENTIAL_AWARD_DATE_D, 
             Credential_Non_Dup_Exclude_LatestYr.AGE_AT_GRAD, Credential_Non_Dup_Exclude_LatestYr.AGE_GROUP_AT_GRAD, 

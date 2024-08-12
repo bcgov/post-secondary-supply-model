@@ -156,8 +156,8 @@ dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning26b)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning27)
 dbExecute(con, "DROP TABLE CredentialSupVars_MultiGenderForNULLS")
 dbExecute(con, "DROP TABLE CredentialSupVars_MultiGenderCounterForNULLS")
-dbExecute(con, "ALTER TABLE tmp_credentialgendercleaning_step6 ADD psi_gender_cleaned_flag nvarchar(10)")
-dbExecute(con, "ALTER TABLE tmp_credentialgendercleaning_step7 ADD psi_gender_cleaned nvarchar(10)")
+dbExecute(con, "ALTER TABLE tmp_credentialgendercleaning_step6 ADD psi_gender_cleaned_flag nvarchar(50)")
+dbExecute(con, "ALTER TABLE tmp_credentialgendercleaning_step7 ADD psi_gender_cleaned nvarchar(50)")
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning28) 
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning29)
 dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning30)
@@ -215,7 +215,7 @@ dbExecute(con, qry05c_UpdateAgeAtGrad)
 dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
 dbExecute(con, qry06e_UpdateAwardSchoolYear)
 
-
+# got to here 2023
 # ---- 07 Credential Cleaning ----
 ## ---- ** Create NON DUP ** ----
 dbExecute(con, qry07a1a_UpdateGender)
