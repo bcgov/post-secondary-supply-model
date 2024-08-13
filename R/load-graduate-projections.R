@@ -48,4 +48,4 @@ dbWriteTableArrow(decimal_con,
 dbReadTable(decimal_con, "population_projections")
 
 # ---- Disconnect ----
-dbDisconnect(con)
+dbDisconnect(decimal_con)
