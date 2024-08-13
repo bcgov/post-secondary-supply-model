@@ -66,10 +66,6 @@ GROUP BY      tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.ID,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_ENROLMENT_SEQUENCE"
                     
 
-# check if any unmatched join on student id/psi code combo.
-# 2020 NOTE: prior year used a table called [RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE] which is missing
-# but likely pulled in all records from the Credential view which do not exist in CredentialSupVarsFromEnrolment table
-#  attempt to replicate process by creating a query to pull EPENs from Credential view with NULL CredentialSupVarsFromEnrolment data
 # ---- qry07_CredentialSupVars_From_Enrolment ----    
 qry07_CredentialSupVars_From_Enrolment <- "    
 SELECT          tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.ID, 

@@ -51,8 +51,6 @@ AND     credential_non_dup_visastatus_cleaning_step1.psi_credential_program_desc
 AND     credential_non_dup_visastatus_cleaning_step1.psi_school_year = credentialsupvarsfromenrolment.psi_school_year "
 
 
-#The above updated 22955 records
-
 # ---- CredentialSupVars_VisaStatus_4 ----
 CredentialSupVars_VisaStatus_Cleaning_4 <-"
 UPDATE    Credential_Non_Dup_VisaStatus_Cleaning_Step1
@@ -65,7 +63,6 @@ ON        Credential_Non_Dup_VisaStatus_Cleaning_Step1.ENCRYPTED_TRUE_PEN = Cred
           Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_SCHOOL_YEAR = CredentialSupVarsFromEnrolment.PSI_SCHOOL_YEAR
 WHERE     (Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_VISA_STATUS IS NULL)"
 
-#The above updated 53103 records
 # ---- CredentialSupVars_VisaStatus_5 ----
 CredentialSupVars_VisaStatus_Cleaning_5 <-"
 UPDATE    CredentialSupVars
@@ -75,7 +72,7 @@ INNER JOIN Credential_Non_Dup_VisaStatus_Cleaning_Step1 ON CredentialSupVars.ID 
 WHERE     (CredentialSupVars.PSI_VISA_STATUS IS NULL) 
 OR        (CredentialSupVars.PSI_VISA_STATUS IN ('', ' ', '(Unspecified)'))"
 
-#Updated 491768 records                         
+                        
 # ---- CredentialSupVars_VisaStatus_6 ----
 CredentialSupVars_VisaStatus_Cleaning_6 <-"
 UPDATE      Credential_Non_Dup

@@ -448,97 +448,97 @@ GROUP BY psi_gender_cleaned, PSI_CREDENTIAL_CATEGORY;"
 
 # ---- qry07c1_Assign_TopID_GenderF_AdvancedCert ---- 
 qry07c1_Assign_TopID_GenderF_AdvancedCert <- "
-UPDATE TOP (5) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (26) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ADVANCED CERTIFICATE';"
 
 # ---- qry07c2_Assign_TopID_GenderF_AdvancedDip ---- 
 qry07c2_Assign_TopID_GenderF_AdvancedDip <- "
-UPDATE TOP (19) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (18) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ADVANCED DIPLOMA';
 "
 
 # ---- qry07c3_Assign_TopID_GenderF_Apprenticeship ---- 
 qry07c3_Assign_TopID_GenderF_Apprenticeship <- "
-UPDATE TOP (16) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (1) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'APPRENTICESHIP';
 "
 
 # ---- qry07c4_Assign_TopID_GenderF_AssocDegree ---- 
 qry07c4_Assign_TopID_GenderF_AssocDegree <- "
-UPDATE TOP (16) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (30) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'ASSOCIATE DEGREE';
 "
 
 # ---- qry07c5_Assign_TopID_GenderF_Bachelor ---- 
 qry07c5_Assign_TopID_GenderF_Bachelor <- "
-UPDATE TOP (1092) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (1643) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'BACHELORS DEGREE';
 "
 
 # ---- qry07c6_Assign_TopID_GenderF_Certificate ---- 
 qry07c6_Assign_TopID_GenderF_Certificate <- "
-UPDATE TOP (724) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (795) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'CERTIFICATE';
 "
 
 # ---- qry07c7_Assign_TopID_GenderF_Diploma ---- 
 qry07c7_Assign_TopID_GenderF_Diploma <- "
-UPDATE TOP (427) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (465) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'DIPLOMA';
 "
 
 # ---- qry07c8_Assign_TopID_GenderF_Doctorate ---- 
 qry07c8_Assign_TopID_GenderF_Doctorate <- "
-UPDATE TOP (73) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (63) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'DOCTORATE';
 "
 
 # ---- qry07c9_Assign_TopID_GenderF_FirstProfDeg ---- 
 qry07c9_Assign_TopID_GenderF_FirstProfDeg <- "
-UPDATE TOP (22) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (26) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'FIRST PROFESSIONAL DEGREE';"
 
 # ---- qry07c10_Assign_TopID_GenderF_GradCert ---- 
 qry07c10_Assign_TopID_GenderF_GradCert <- "
-UPDATE TOP (0) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (1) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'GRADUATE CERTIFICATE';
 "
 
 # ---- qry07c11_Assign_TopID_GenderF_GradDipl ---- 
 qry07c11_Assign_TopID_GenderF_GradDipl <- "
-UPDATE TOP (51) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (101) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'GRADUATE DIPLOMA';
 "
 
 # ---- qry07c12_Assign_TopID_GenderF_Masters ---- 
 qry07c12_Assign_TopID_GenderF_Masters <- "
-UPDATE TOP (314) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (457) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'MASTERS DEGREE';
 "
 
 # ---- qry07c13_Assign_TopID_GenderF_PostDegCert ---- 
 qry07c13_Assign_TopID_GenderF_PostDegCert <- "
-UPDATE TOP (28) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (40) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'POST-DEGREE CERTIFICATE';
 "
 
 # ---- qry07c14_Assign_TopID_GenderF_PostDegDipl ---- 
 qry07c14_Assign_TopID_GenderF_PostDegDipl <- "
-UPDATE TOP (175) CRED_Extract_No_Gender_Unique
-SET PSI_GENDER_CLEANED = 'Male'
+UPDATE TOP (248) CRED_Extract_No_Gender_Unique
+SET PSI_GENDER_CLEANED = 'Female'
 WHERE PSI_CREDENTIAL_CATEGORY = 'POST-DEGREE DIPLOMA';
 "
 
@@ -1010,8 +1010,10 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 
 
 # ---- qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs ---- 
-qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
-                         tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY AS Expr1, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "
+SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+                         tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY AS Expr1, 
+                         tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id INNER JOIN
@@ -1035,7 +1037,8 @@ ORDER BY tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, tblCredential_Highes
 
 
 # ---- qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest ---- 
-qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest <- "SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY AS Expr1, 
+qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest <- "
+SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY AS Expr1, 
                          Credential_Non_Dup.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
 FROM            AgeGroupLookup INNER JOIN
                          Credential_Non_Dup ON AgeGroupLookup.AgeIndex = Credential_Non_Dup.AGE_GROUP_AT_GRAD INNER JOIN
@@ -1057,7 +1060,8 @@ ORDER BY Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, Credential_Non_Dup.PSI_AWAR
 
 
 # ---- qry20a_99_Checking_Excluding_RU_DACSO_Variables ---- 
-qry20a_99_Checking_Excluding_RU_DACSO_Variables <- "SELECT        RESEARCH_UNIVERSITY, OUTCOMES_CRED, PSI_CODE, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Expr1
+qry20a_99_Checking_Excluding_RU_DACSO_Variables <- "
+SELECT        RESEARCH_UNIVERSITY, OUTCOMES_CRED, PSI_CODE, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Expr1
 FROM            Credential_Non_Dup
 GROUP BY RESEARCH_UNIVERSITY, PSI_CODE, OUTCOMES_CRED, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED
 HAVING        (RESEARCH_UNIVERSITY = 1) AND (OUTCOMES_CRED = 'DACSO') AND (PSI_AWARD_SCHOOL_YEAR_DELAYED = '2018/2019')
