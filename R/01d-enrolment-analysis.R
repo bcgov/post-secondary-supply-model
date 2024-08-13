@@ -239,8 +239,9 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Record_Type;")
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Valid;"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential;"))
-#dbExecute(con, glue::glue("DROP VIEW  [{my_schema}].MinEnrolment;"))
-#dbExecute(con, glue::glue("DROP TABLE [{my_schema}].MinEnrolmentSupVar;"))
+
+# ---- These tables used later ----
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."MinEnrolment"')))
 dbDisconnect(con)
 
 

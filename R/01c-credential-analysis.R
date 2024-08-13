@@ -462,15 +462,17 @@ dbGetQuery(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
 dbGetQuery(con, qryCreateIDinSTPCredential)
 dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
-
 # ---- Clean Up ----
-dbExecute(con, "DROP VIEW tblCredential_HighestRank")
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
 dbExecute(con, "DROP TABLE CredentialSupVars")
 dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
 dbExecute(con, "DROP VIEW Credential")
 dbExecute(con, "DROP VIEW Credential_Ranking")
 dbDisconnect(con)
+
+# ---- These tables used later ----
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')))
 
 
 
