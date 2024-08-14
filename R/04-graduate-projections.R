@@ -10,7 +10,7 @@ lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
-source(glue::glue("{lan}/development/sql/gh-source/01b-credential-analysis/01b-credential-analysis.R"))
+source(glue::glue("{lan}/development/sql/moved-to-gh/01b-credential-analysis/01b-credential-analysis.R"))
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -34,7 +34,6 @@ population_projections <- dbReadTable(decimal_con, "population_projections")
 min_enrolments <- dbGetQuery(decimal_con, qry09c_MinEnrolment)
 credentials <- dbGetQuery(decimal_con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
 
-
 # ---- Tidy data for calculations  ----
 population_projections <- population_projections %>%
   select(-c(REGION, LOCAL_HEALTH_AREA, TOTAL)) %>%
@@ -48,19 +47,20 @@ min_enrolments <- min_enrolments %>%
   mutate(AGE_GROUP = gsub("F|M", "", AGE_GROUP)) %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4)))
 
-
 credentials <- credentials %>%   
   rename("AGE_GROUP" = "AgeGroup", "N" = "Count", 
          "GENDER" = "psi_gender_cleaned", "YEAR" = "PSI_AWARD_SCHOOL_YEAR_DELAYED") %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4))) %>%
-  select(-Expr1)
+  select(-Expr1) %>%
+  filter(YEAR >=2006, YEAR <=2018)
 
-# ---- Create distributions for forecasting ----
+# ------------------------ Forecasted Enrolments ----
+## Enrolment Rate ----
 p_enrolments <- min_enrolments %>% 
   left_join(population_projections, by = join_by(GENDER, AGE_GROUP, YEAR)) %>%
   mutate(P = 100*N/POP)
 
-# which years to average on?...TBD
+## Exploratory ----
 yrs <- 2007:2009
 avg_p_enrolments <- 
   min_enrolments %>% 
@@ -73,51 +73,74 @@ avg_p_enrolments <-
       by = join_by(GENDER, AGE_GROUP)) %>%
   mutate(P_AVG = 100*SUM_N/SUM_POP)
 
-# compute distribution of credential within each year, for each gender and age group
-p_credentials <- credentials %>% 
-  group_by(GENDER, AGE_GROUP, YEAR) %>% 
-  mutate(100*N/sum(N))
+## Forecasted Enrolment Rate ----
+f_enrolments <- p_enrolments |> 
+  split(list(p_enrolments$AGE_GROUP, p_enrolments$GENDER), drop=TRUE, sep = "_") |>
+  map(\(df) lm(P ~ YEAR, data = df)) |> 
+  map(predict.lm, 
+      newdata = data.frame(YEAR = c(2019:2023,rep(2023,5)), 
+                           row.names = as.character(2019:2028)))
 
-# compute 2-yr average distribution of credential within each year, for each gender and age group
-yrs <- 2017:2018
-avg_2_yr_credentials <- credentials %>% 
-  group_by(GENDER, AGE_GROUP, YEAR) %>% 
-  mutate(Ttl = sum(N)) %>% 
-  filter(YEAR %in% yrs) %>%
-  ungroup() %>%
-  group_by(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY) %>%
-  summarise(AVG_N = sum(N)/sum(Ttl))
+## Forecasted Enrolments ----
+rn <- as.numeric(rownames(data.frame(f_enrolments)))
+f_enrolments_t <- data.frame(f_enrolments) %>% 
+  mutate(YEAR = rn) %>%
+  pivot_longer(cols = c(-YEAR), values_to = "RATE") %>%
+  separate_wider_delim(cols = name, delim = "_", names = c("AGE_GROUP", "GENDER")) %>%
+  mutate(AGE_GROUP = gsub("\\.", " ", AGE_GROUP)) %>%
+  mutate(AGE_GROUP = gsub("X", "", AGE_GROUP))
 
-# graduates as a percentage of enrolment for each age group
+f_enrolments_t  <- f_enrolments_t %>% 
+  inner_join(population_projections, by = join_by(YEAR, AGE_GROUP, GENDER)) %>%
+  mutate(N_ENROL_FORECASTED = RATE*POP*.01)
 
-p_grads_enrol <- credentials %>% 
+# ---- Forecasted Graduates ----
+
+## Graduation Rates (annual, as a percentage of enrolment) ----
+annual_grad_rate <- credentials %>% 
   summarize(N_GRADS = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)) %>%
-inner_join(
-  min_enrolments %>% 
-    summarize(N_ENROL = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)), 
-  by = join_by(GENDER, AGE_GROUP, YEAR)) %>%
-mutate(P_GRADS_ENROL = 100*N_GRADS/N_ENROL)
+  inner_join(
+    min_enrolments %>%
+      summarize(N_ENROL = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)), 
+    by = join_by(GENDER, AGE_GROUP, YEAR)) %>%
+  mutate(P_GRADS_ENROL = 100*N_GRADS/N_ENROL)
 
-# are we using the last 2 years each time?
-avg_2_yr_grads_enrol <- p_grads_enrol %>% 
+## Graduation Rate (2-yr average, as percentage of enrolment) ----
+avg_2_yr_grad_rate <- annual_grad_rate %>% 
   filter(YEAR %in% 2017:2018) %>% 
-  summarise(GRAD_RATE = 100*sum(N_GRADS)/sum(N_ENROL), 
+  summarise(GRAD_RATE = sum(N_GRADS)/sum(N_ENROL), 
             .by  = c(GENDER, AGE_GROUP))
 
-# TO DO: here down
 
-# ---- Projected Graduates ----
+## 2-yr average distribution of graduates by credential ----
+avg_2_yr_credentials <- credentials %>% 
+  filter(YEAR %in% 2017:2018) %>%
+  summarise(YR_2_N = sum(N), .by = c(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY)) %>%
+  group_by(GENDER, AGE_GROUP) %>%
+  mutate(N=sum(YR_2_N), 
+         P = round(YR_2_N/N,3)) 
 
-# create projected enrolments but for all the variable combinations
-df <- p_enrolments %>% 
-  filter(GENDER == 'F', AGE_GROUP == "25 to 29")
-fit <- lm(P~YEAR, df)
-b0 <- coef(fit)[1]
-b1 <- coef(fit)[2]
-prediction <- c(b0 + b1*(2019:2023), (b0 + b1*(rep(2023,5))))
-prediction
+## Forecasted Graduates ----
 
-# apply 2 year average graduation rate to projected enrollments
+
+f_graduates_t <- f_enrolments_t %>% 
+  inner_join(avg_2_yr_grad_rate, by = join_by(AGE_GROUP, GENDER)) %>%
+  mutate(N_GRAD_FORECASTED = N_ENROL_FORECASTED * GRAD_RATE)
+
+## Forecasted Graduates by Credential ----
+f_graduates_t  <- f_graduates_t  %>% 
+  select(YEAR, AGE_GROUP, GENDER, N_GRAD_FORECASTED)
+
+avg_2_yr_credentials <- avg_2_yr_credentials  %>% ungroup() %>%
+  complete(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY, fill = list(YR_2_N=0,N=0,P=0)) %>% 
+  select(AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, P) 
+
+f_graduates <- f_graduates_t  %>% 
+  full_join(avg_2_yr_credentials, relationship = "many-to-many") %>%
+  mutate(N_GRAD_FORECASTED = N_GRAD_FORECASTED*P) %>%
+  select(-P)
+
+f_graduates %>% summarize(N=sum(N_GRAD_FORECASTED), .by  = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP))
 
 # ---- Projected Near Completers ----
 # apply near completer ratios to the projected graduates to get projected near completers
