@@ -140,7 +140,9 @@ f_graduates <- f_graduates_t  %>%
   mutate(N_GRAD_FORECASTED = N_GRAD_FORECASTED*P) %>%
   select(-P)
 
-f_graduates %>% summarize(N=sum(N_GRAD_FORECASTED), .by  = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP))
+f_graduates %>% 
+  summarize(N=sum(N_GRAD_FORECASTED), .by  = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP)) %>% View()
+
 
 # ---- Projected Near Completers ----
 # apply near completer ratios to the projected graduates to get projected near completers

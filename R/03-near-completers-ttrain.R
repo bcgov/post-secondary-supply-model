@@ -35,6 +35,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewY
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')))
 
 # ---- Execute SQL ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")
@@ -148,29 +149,29 @@ dbExecute(decimal_con, qry_Update_T_NearCompleters_HasMultipleCdtls)
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Has_STP_Credential NVARCHAR(10) NULL")
 dbExecute(decimal_con, qry_update_Has_STP_Credential)
 
-dbExecute(decimal_con, "DROP TABLE tmp_NearCompletersWithMultiCredentials_Cleaning")
+#dbExecute(decimal_con, "DROP TABLE tmp_NearCompletersWithMultiCredentials_Cleaning")
 dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYear")
-dbExecute(decimal_con, "DROP TABLE tmp_NearCompletersWithMultiCredentials_MaxYear")
+#dbExecute(decimal_con, "DROP TABLE tmp_NearCompletersWithMultiCredentials_MaxYear")
 dbExecute(decimal_con, "DROP TABLE tmp_NearCompletersWithMultiCredentials_MaxYearCleaning")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_NearCompleters")
 dbExecute(decimal_con, "DROP TABLE tmp_DACSO_NearCompleters_with_Multiple_Cdtls")
-dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYearCleaning_MaxID")
+#dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYearCleaning_MaxID")
 dbExecute(decimal_con, "DROP TABLE DACSO_Matching_STP_Credential_PEN")
 dbExecute(decimal_con, "DROP TABLE nearcompleters_in_stp_credential_step1")
 
 # ----- Queries for Near Completers Ratios in Excel Worksheets -----
-# Near Completes vs Completers Analysis_forPSSM2017_18. xlsx 
-
 dbExecute(decimal_con,  "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Grad_Status_Factoring_in_STP NVARCHAR(10) NULL")
 dbExecute(decimal_con,  qry_update_Grad_Status_Factoring_in_STP_step1)
 dbExecute(decimal_con,  qry_update_Grad_Status_Factoring_in_STP_step2) 
 
 # The following 4 queries are used to choose which years to base a ratio on.
 # Only ages 17-34 included, adjust query to change this.
+# Dro pinto Excel NearCompleters_AgeAtGrad17to64 and 17to34
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_Credential_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad)
+dbGetQuery(decimal_con, qry_details_of_STP_Credential_Matching)
 
 # Note: The ratios created in this section combine ages 35+ into a single group (35-64).
 agegrouplookup <- dbReadTable(decimal_con, "agegrouplookup")
@@ -182,8 +183,6 @@ dbWriteTable(decimal_con, "agegroupnearcompleterslookup", agegroupnearcompleters
 
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
 dbGetQuery(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred) 
-
-
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Has_STP_Credential NVARCHAR(10)")
 dbExecute(decimal_con, "UPDATE T_DACSO_DATA_Part_1 
                         SET Has_STP_Credential = T_DACSO_DATA_Part_1_TempSelection.Has_STP_Credential,
@@ -193,10 +192,11 @@ dbExecute(decimal_con, "UPDATE T_DACSO_DATA_Part_1
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4)
 dbGetQuery(decimal_con, qry_Make_NearCompleters_CIP4_With_STP_CombinedCred)
 
+
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
-dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred")
+#dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
-dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred_with_stp_credential")
+#dbExecute(decimal_con, "DROP TABLE nearcompleters_cip4_combinedcred_with_stp_credential")
 
 dbExecute(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential_by_CIP4)
 dbExecute(decimal_con, "alter table completersfactoringinstp_cip4 add lcip4_cred_cleaned nvarchar(50) NULL;")
@@ -225,12 +225,29 @@ dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4_combinedcred")
 dbExecute(decimal_con, "DROP TABLE completerscip4")
 dbExecute(decimal_con, "DROP TABLE completers_cip4_combinedcred")
 
+near_completer_ratio = dbGetQuery(decimal_con, qry99_Near_completes_total_byGender) %>%
+  rename("n_nc" = "Count") %>% 
+  inner_join(
+    dbGetQuery(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender) %>% 
+      rename("n_nc_stp_early_late" = "Count") %>% 
+      select(-has_stp_credential)
+    ) %>%
+  left_join (
+    dbGetQuery(decimal_con, qry99_Completers_agg_by_gender) %>%
+      rename("n_completers" = "Count")) %>%
+  mutate(prgm_credential_awarded_name = 
+           if_else(prgm_credential_awarded_name %in% c('Associate Degree','University Transfer'), 
+           'Associate Degree/University Transfer', prgm_credential_awarded_name)) %>%
+  summarize(n_nc = sum(n_nc, na.rm = TRUE), 
+            n_nc_stp_early_late =  sum(n_nc_stp_early_late, na.rm = TRUE),
+            n_completers =  sum(n_completers, na.rm = TRUE), 
+            .by = c(tpid_lgnd_cd, agegroup, prgm_credential_awarded_name)) %>%
+  mutate(n_nc_stp = n_nc - n_nc_stp_early_late) %>%
+  mutate(r = if_else(n_completers > 0, n_nc_stp/n_completers, 0))
 
-dbGetQuery(decimal_con, qry99_Near_completes_total_byGender)
-dbGetQuery(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender)
+dbWriteTable(decimal_con, name = "near_completer_ratio", near_completer_ratio)
+
 dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
-dbGetQuery(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential)
-
 
 # ---- TTRAIN tables ----
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
@@ -238,7 +255,6 @@ dbGetQuery(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential)
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_program_dist_count) # check pssm_credential column - presence of both 'OR' and 'or' creates faux-duplicates
-
 
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
