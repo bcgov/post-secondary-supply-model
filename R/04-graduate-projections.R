@@ -111,7 +111,6 @@ avg_2_yr_grad_rate <- annual_grad_rate %>%
   summarise(GRAD_RATE = sum(N_GRADS)/sum(N_ENROL), 
             .by  = c(GENDER, AGE_GROUP))
 
-
 ## 2-yr average distribution of graduates by credential ----
 avg_2_yr_credentials <- credentials %>% 
   filter(YEAR %in% 2017:2018) %>%
@@ -119,9 +118,6 @@ avg_2_yr_credentials <- credentials %>%
   group_by(GENDER, AGE_GROUP) %>%
   mutate(N=sum(YR_2_N), 
          P = round(YR_2_N/N,3)) 
-
-## Forecasted Graduates ----
-
 
 f_graduates_t <- f_enrolments_t %>% 
   inner_join(avg_2_yr_grad_rate, by = join_by(AGE_GROUP, GENDER)) %>%
@@ -146,8 +142,12 @@ f_graduates %>%
 
 # ---- Projected Near Completers ----
 # apply near completer ratios to the projected graduates to get projected near completers
-
+# ratio by gender is in near_completer_ratio in SQL server
+# ratio by program still to TO DO, no point until program matching work is underway
+# working queries in 03-near-completers-ttrain.R
+#
 
 # ---- Graduate Projections for Apprenticeship ----
+# TO DO
 
   
