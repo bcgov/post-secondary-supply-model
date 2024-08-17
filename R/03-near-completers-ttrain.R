@@ -271,7 +271,20 @@ dbExecute(decimal_con, "DROP TABLE combine_creds")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1")
 dbExecute(decimal_con, "DROP TABLE agegroupnearcompleterslookup")
 dbExecute(decimal_con, "DROP TABLE t_pssm_projection_cred_grp")
+dbExecute(decimal_con, "drop table NearCompleters_CIP4")
+dbExecute(decimal_con, "drop table completerscip4")
+dbExecute(decimal_con, "drop table Near_completes_total_by_CIP4_TTRAIN")
+dbExecute(decimal_con, "drop table Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+dbExecute(decimal_con, "drop table NearCompleters_CIP4_with_STP_Credential")
+dbExecute(decimal_con, "drop table near_completer_ratio")
+dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
+dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
+dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
+dbExecute(decimal_con, "drop table completersfactoringinstp_cip4")
 
+# ---- Keep for program projections ----
+#dbExecute(decimal_con, "drop table T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
+#dbExecute(decimal_con, "drop table qry_13a1_Near_completers")
 
 
 
