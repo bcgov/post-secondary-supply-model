@@ -104,6 +104,24 @@ dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
 dbExecute(decimal_con, "drop table Q014c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q014d_Weighted_Cohort_Dist_Total")
 
+# Extra Apprenticeship work, I'm not sure yet how this fits in.
+Q000_TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM Q000_TRD_Graduates")
+APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
+
+appso_2_yr_avg <- APPSO_Graduates %>% 
+  summarize(n = sum(EXPR1, na.rm = TRUE), .by = c(SUBM_CD, PSSM_CREDENTIAL, AGE_GROUP_LABEL)) %>%
+  filter(SUBM_CD %in% c('C_Outc17','C_Outc18')) %>%
+  summarize(avg = sum(n/2, na.rm = TRUE), .by = c(PSSM_CREDENTIAL, AGE_GROUP_LABEL))
+
+trd_2_yr_avg <- Q000_TRD_Graduates  %>% 
+  summarize(n = sum(EXPR1), .by = c(SUBM_CD, PSSM_CREDENTIAL, AGE_GROUP_LABEL)) %>%
+  filter(SUBM_CD %in% c('C_Outc17','C_Outc18')) %>%
+  summarize(avg = sum(n/2, na.rm = TRUE), .by = c(PSSM_CREDENTIAL, AGE_GROUP_LABEL))
+
+# TO DO: update T_APR_Y2_to_Y10 like the T_Cohort_Program_Distributions_Y2_to_Y12 table
+# TO DO: Q014f_APPSO_Grads_Y2_to_Y10 to append other years static graduate projections
+
+
 # survey == 'Program_Projections_2019-2020_Q015e21' (Static and Projected) 
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Projected 
           WHERE Survey LIKE 'Program_Projections_2019-2020_Q015e21'") # Added
@@ -113,13 +131,22 @@ dbExecute(decimal_con, Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Pro
 dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
 
 # ----  Run Werner Program ----
-# pull tbl_Program_Projections into R
-# pivot to wide format
-# pivoted data as input to program
+input_data <- dbGetQuery(decimal_con, "SELECT * FROM tbl_Program_Projection_Input") %>% 
+  select(-Expr1) %>%
+  complete(AgeGroup, PSI_CREDENTIAL_CATEGORY, FINAL_CIP_CODE_4, PSI_AWARD_SCHOOL_YEAR_DELAYED, fill = list(Count = 0)) %>% 
+  pivot_wider(names_from = "PSI_AWARD_SCHOOL_YEAR_DELAYED", values_from = "Count") %>%
+  rename("CIP" = "FINAL_CIP_CODE_4", 
+         "AGE" = "AgeGroup", 
+         "CRED" = "PSI_CREDENTIAL_CATEGORY")
+write_csv(input_data, glue::glue("{lan}/development/csv/gh-source/tmp/input-data.csv"))
 
-# input + output (cbind or ...) = T_Predict_CIP_CRED_AGE
-file = glue::glue("{lan}/development/csv/gh-source/testing/cip-cred-age.csv")
-T_Predict_CIP_CRED_AGE <-read_csv(file)
+# run werner program
+# TO DO: run program and join on age, cip etc
+output_data <- read_delim(glue::glue("{lan}/development/csv/gh-source/tmp/output.csv"), delim = "\t", col_names = TRUE)
+names(output_data) <- paste0(2019:(2019+11), "/", 2020:(2020+11))
+as.data.frame(output_data)
+
+T_Predict_CIP_CRED_AGE <- input_data %>% inner_join(output_data, .by = c(AGE, CRED, CIP))
 dbWriteTable(decimal_con, "T_Predict_CIP_CRED_AGE", T_Predict_CIP_CRED_AGE)
 
 # pivot T_Predict_CIP_CRED_AGE from wide to long
@@ -151,8 +178,6 @@ dbGetQuery(decimal_con, qry_12d_Check_Missing)
 # TO DO: when is this supposed to be run? why?
 dbExecute(decimal_con, qry_12_LCP4_LCIPPC_Recode_9999)
 dbExecute(decimal_con, "drop table qry_12_LCP4_LCIPPC_Recode_9999")
-# TO DO: there is a query Q014f to incorporate
-# TO DO: Apprenticeships Graduates
 
 # ---- Clean Up -----
 dbExecute(decimal_con, "drop table T_Predict_CIP_CRED_AGE_Flipped")
