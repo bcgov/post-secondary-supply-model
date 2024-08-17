@@ -22,6 +22,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."appso_current_region_data"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
 
 # ---- Execute SQL ----
 # updates CURRENT_REGION_PSSM_CODE after the geocoding.
@@ -34,15 +35,15 @@ dbExecute(decimal_con, "ALTER TABLE t_appso_data_final ADD Age_Group INT NULL;")
 dbExecute(decimal_con, "ALTER TABLE t_appso_data_final ADD Age_Group_Rollup INT NULL;")
 dbExecute(decimal_con, APPSO_Q003c_Derived_And_Weights)
 
-# Refresh bgs survey records in T_Cohorts_Recoded
+# Refresh survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, APPSO_Q005_1b1_Delete_Cohort)
 dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
-dbExecute(decimal_con, "DROP TABLE APPSO_Graduates")
 dbExecute(decimal_con, "DROP TABLE appso_current_region_data")
 
-
+# ---- For future workflow ----
+dbExists(decimal_con, "APPSO_Graduates")
 
