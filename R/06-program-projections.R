@@ -42,7 +42,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distr
 
 # ---- Near Completers ----
 # build and insert Program_Projections_2019-2020_qry_13d into Cohort_Program_Distributions_Projected (930)
-# build and insert Program_Projections_2019-2020_qry_13d into Cohort_Program_Distributions_Projected (930)
+# build and insert Program_Projections_2019-2020_qry_13d into Cohort_Program_Distributions_Static (930)
 dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Projected)
 dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Static)
 dbExecute(decimal_con, qry_13a_Near_completers)
@@ -56,8 +56,8 @@ dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
 
 
 # ---- Static Program Distributions ----
-# build and insert Program_Projections_2019-2020_Q012e into Cohort_Program_Distributions_Static (2897)
-# note: numbers too small
+# survey == 'Program_Projections_2019-2020_Q012e'
+# TO DO: check counts
 dbGetQuery(decimal_con, Q012a_Check_Total_for_Invalid_CIPs)
 dbExecute(decimal_con, Q012b_Weight_Cohort_Dist)
 dbExecute(decimal_con, Q012c_Weighted_Cohort_Dist)
@@ -78,31 +78,37 @@ dbExecute(decimal_con, "drop table Q012c4_Weighted_Cohort_Distribution_Projected
 dbExecute(decimal_con, "drop table Q012c5_Weighted_Cohort_Dist_TTRAIN") 
 dbExecute(decimal_con, "drop table Q012d_Weighted_Cohort_Dist_Total") 
 
-# build and insert Program_Projections_2019-2020_Q013e into Cohort_Program_Distributions_Static (135)
-# note: refresh but no delete?
+# survey == 'Program_Projections_2019-2020_Q013e'
 dbGetQuery(decimal_con, Q013a_Check_PDEG_CLP_07_Only_CIP_22)
 dbExecute(decimal_con, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others)
 dbExecute(decimal_con, Q013c_Weighted_Cohort_Dist)
 dbExecute(decimal_con, Q013d_Weighted_Cohort_Dist_Total)
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
+          WHERE Survey LIKE 'Program_Projections_2019-2020_Q013e'") # Added
 dbExecute(decimal_con, Q013e_Weighted_Cohort_Distribution)
 dbExecute(decimal_con, "drop table Q013b_Weight_Cohort_Dist_MAST_DOCT_Others")
 dbExecute(decimal_con, "drop table Q013c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q013d_Weighted_Cohort_Dist_Total")
 
-# build and insert Program_Projections_2019-2020_Q014e into Cohort_Program_Distributions_Projected (170)
-# build and insert Program_Projections_2019-2020_Q014e into Cohort_Program_Distributions_Static (170)
-# note: refresh but no delete?
+# survey == 'Program_Projections_2019-2020_Q014e' (Static and Projected) 
 dbExecute(decimal_con, Q014b_Weighted_Cohort_Dist_APPR)
 dbExecute(decimal_con, Q014c_Weighted_Cohort_Dist)
 dbExecute(decimal_con, Q014d_Weighted_Cohort_Dist_Total)
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Projected 
+          WHERE Survey LIKE 'Program_Projections_2019-2020_Q014e'") # Added
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
+          WHERE Survey LIKE 'Program_Projections_2019-2020_Q014e'") # Added
 dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Projected)
 dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Static )
 dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
 dbExecute(decimal_con, "drop table Q014c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q014d_Weighted_Cohort_Dist_Total")
 
-# build and insert Program_Projections_2019-2020_Q015e21 into Cohort_Program_Distributions_Projected (12100)
-# build and insert Program_Projections_2019-2020_Q015e22 into Cohort_Program_Distributions_Static (50171)
+# survey == 'Program_Projections_2019-2020_Q015e21' (Static and Projected) 
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Projected 
+          WHERE Survey LIKE 'Program_Projections_2019-2020_Q015e21'") # Added
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
+          WHERE Survey LIKE 'Program_Projections_2019-2020_Q015e22'") # Added
 dbExecute(decimal_con, Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected)
 dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
 
@@ -116,43 +122,45 @@ file = glue::glue("{lan}/development/csv/gh-source/testing/cip-cred-age.csv")
 T_Predict_CIP_CRED_AGE <-read_csv(file)
 dbWriteTable(decimal_con, "T_Predict_CIP_CRED_AGE", T_Predict_CIP_CRED_AGE)
 
-dbExecute(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_1)
-dbExecute(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_2)
+# pivot T_Predict_CIP_CRED_AGE from wide to long
+T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>% 
+  pivot_longer(-c(CIP, CRED, AGE), names_to = "Year", values_to = "Count") %>%
+  filter(Year %in% c('2019/2020', '2020/2021','2021/2022','2022/2023','2023/2024','2024/2025','2025/2026',
+                   '2026/2027','2027/2028','2028/2029','2029/2030','2030/2031'))
+dbWriteTable(decimal_con, "T_Predict_CIP_CRED_AGE_Flipped", T_Predict_CIP_CRED_AGE_Flipped)
+dbGetQuery(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_2_Check)
+
 dbExecute(decimal_con, qry_09_Delete_Selected_Static_Cohort_Dist_from_Projected)
 
-# build and insert Program_Projections_2019-2020_qry10c into Cohort_Program_Distributions_Projected (176,904)
+# survey == 'Program_Projections_2019-2020_qry10c'
 dbExecute(decimal_con, qry_10a_Program_Dist_Count)
 dbExecute(decimal_con, qry_10b_Program_Dist_Total)
 dbExecute(decimal_con, qry_10c_Program_Dist_Distribution)
+dbExecute(decimal_con, "DROP TABLE qry_10a_Program_Dist_Count")
+dbExecute(decimal_con, "DROP TABLE qry_10b_Program_Dist_Total")
 
-# build and insert Program_Projections_2019-2020_qry12c into Cohort_Program_Distributions_Projected (388)
+# survey == 'Program_Projections_2019-2020_qry12c'
 dbExecute(decimal_con, qry_12a_Program_Dist_Count)
 dbExecute(decimal_con, qry_12b_Program_Dist_Total)
 dbExecute(decimal_con, qry_12c_Program_Dist_Distribution)
+dbExecute(decimal_con, "DROP TABLE qry_12a_Program_Dist_Count")
+dbExecute(decimal_con, "DROP TABLE qry_12b_Program_Dist_Total")
+
+# TO DO: check numbers
 dbGetQuery(decimal_con, qry_12d_Check_Missing)
-
-# when is this supposed to be run?
+# TO DO: when is this supposed to be run? why?
 dbExecute(decimal_con, qry_12_LCP4_LCIPPC_Recode_9999)
-# note: there is a query Q014f to incorporate, also
-
-
-# ---- Apprenticeship Graduates ----
+dbExecute(decimal_con, "drop table qry_12_LCP4_LCIPPC_Recode_9999")
+# TO DO: there is a query Q014f to incorporate
+# TO DO: Apprenticeships Graduates
 
 # ---- Clean Up -----
-
-
-
 dbExecute(decimal_con, "drop table T_Predict_CIP_CRED_AGE_Flipped")
-dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
-dbExecute(decimal_con, "drop table qry_10a_Program_Dist_Count")
-dbExecute(decimal_con, "drop table qry_10b_Program_Dist_Total")
-dbExecute(decimal_con, "drop table qry_12a_Program_Dist_Count")
-dbExecute(decimal_con, "drop table qry_12b_Program_Dist_Total")
-dbExecute(decimal_con, "drop table qry_12_LCP4_LCIPPC_Recode_9999")
 
 # ---- Clean Up ----
 dbExecute(decimal_con, "drop table Cohort_Program_Distributions_Projected")
 dbExecute(decimal_con, "drop table Cohort_Program_Distributions_Static")
+dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
 
 
 
