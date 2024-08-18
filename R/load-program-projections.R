@@ -37,8 +37,16 @@ T_Cohort_Program_Distributions_Y2_to_Y12 <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_Cohort_Program_Distributions_Y2_to_Y12.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
+T_APPR_Y2_to_Y10 <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_APPR_Y2_to_Y10.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
 tbl_Age_Groups_Near_Completers <-  
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age_Groups_Near_Completers.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+tbl_Age_Groups <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age_Groups2.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 T_PSSM_Projection_Cred_Grp  <- 
@@ -65,6 +73,10 @@ Cohort_Program_Distributions_Static <-
 # ---- Read testing data ----
 T_Cohorts_Recoded <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/T_Cohorts_Recoded.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Build tbl_Program_Projection_Input ---- 
@@ -110,15 +122,19 @@ tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projec
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = "tbl_Age_Groups_Near_Completers", tbl_Age_Groups_Near_Completers)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups", tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "T_Cohort_Program_Distributions_Y2_to_Y12",  T_Cohort_Program_Distributions_Y2_to_Y12)
-dbWriteTable(decimal_con,  name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
-dbWriteTable(decimal_con,  name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
+dbWriteTable(decimal_con, name = "T_APPR_Y2_to_Y10",  T_APPR_Y2_to_Y10)
+dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
+dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "T_PSSM_Projection_Cred_Grp", T_PSSM_Projection_Cred_Grp)
 dbWriteTable(decimal_con, name = "T_Weights_STP",  T_Weights_STP)
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Static",  Cohort_Program_Distributions_Static)
-dbWriteTable(decimal_con,  name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
+dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
 dbWriteTable(decimal_con, name = "T_Cohorts_Recoded", T_Cohorts_Recoded)
-dbWriteTable(decimal_con, "tbl_Program_Projection_Input", tbl_Program_Projection_Input)
+dbWriteTable(decimal_con, name = "tbl_Program_Projection_Input", tbl_Program_Projection_Input)
+dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN", T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN)
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
+dbDisconnect(outcomes_con)
