@@ -51,12 +51,20 @@ Cohort_Program_Distributions_Static <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read testing data ----
-T_Cohorts_Recoded <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/"),  col_types = cols(.default = col_guess())) %>%
+Labour_Supply_Distribution_LCP2_No_TT <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution_LCP2_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
-T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/"),  col_types = cols(.default = col_guess())) %>%
+Labour_Supply_Distribution_No_TT <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+Occupation_Distributions_LCP2_No_TT <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Occupation_Distributions_LCP2_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+Occupation_Distributions_No_TT <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Occupation_Distributions_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 
@@ -64,8 +72,10 @@ T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN <-
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = "",  )
 dbWriteTable(decimal_con, name = "",  )
-dbWriteTable(decimal_con, name = "",  )
-dbWriteTable(decimal_con, name = "",  )
+dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_No_TT",  Labour_Supply_Distribution_No_TT)
+dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_LCP2_No_TT",  Labour_Supply_Distribution_LCP2_No_TT)
+dbWriteTable(decimal_con, name = "Occupation_Distributions_No_TT",  Occupation_Distributions_No_TT)
+dbWriteTable(decimal_con, name = "Occupation_Distributions_LCP2_No_TT",  Occupation_Distributions_LCP2_No_TT)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "",  )

@@ -20,9 +20,11 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- Check for required data tables ----
 # Derived tables
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}".""')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}".""')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}".""')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"')))
+
 
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
@@ -36,10 +38,10 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}".""')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}".""')))
 
 # ---- SQL Commands ----
-dbExecute(decimal_con, Count_Cohort_Program_Distributions) 
-dbExecute(decimal_con, Count_Labour_Supply_Distribution) 
-dbExecute(decimal_con, Count_Occupation_Distributions) 
-dbExecute(decimal_con, Occupation_Unknown) 
+#dbExecute(decimal_con, Count_Cohort_Program_Distributions) 
+#dbExecute(decimal_con, Count_Labour_Supply_Distribution) 
+#dbExecute(decimal_con, Count_Occupation_Distributions) 
+#dbExecute(decimal_con, Occupation_Unknown) 
 dbExecute(decimal_con, Q_0_LCP2_LCP4) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 
