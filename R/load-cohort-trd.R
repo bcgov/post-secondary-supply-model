@@ -36,7 +36,20 @@ Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
   mutate(LCIP4_CRED = paste0(GRADSTAT_GROUP, ' - ' , LCIP_LCP4_CD , ' - ' , TTRAIN , ' - ' , PSSM_CREDENTIAL))
 
-dbDisconnect(outcomes_con)
+# prepare graduate dataset
+Q000_TRD_Graduates   %>%
+  mutate(AGE_GROUP_LABEL = case_when (
+    TRD_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
+    TRD_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
+    TRD_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
+    TRD_AGE_AT_SURVEY %in% 25:29 ~ "25 to 29",
+    TRD_AGE_AT_SURVEY %in% 30:34 ~ "30 to 34",
+    TRD_AGE_AT_SURVEY %in% 35:44 ~ "35 to 44",
+    TRD_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
+    TRD_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
+    TRD_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
+    TRUE ~ NA)) -> Q000_TRD_Graduates 
+
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -49,3 +62,4 @@ dbWriteTable(decimal_con, name = "T_TRD_DATA", value = Q000_TRD_DATA_01)
 dbWriteTable(decimal_con, name = "Q000_TRD_Graduates", value = Q000_TRD_Graduates)
 
 dbDisconnect(decimal_con)
+dbDisconnect(outcomes_con)
