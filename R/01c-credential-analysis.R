@@ -431,6 +431,8 @@ dbExecute(con, qry13_UpdateDelayedCredDate)
 dbExecute(con, qry14_ResearchUniversity)
 dbExecute(con, qry15_OutcomeCredential)
 
+# update non-dup table here
+
 # ---- Break and do Program Matching ----
 # ---- 20 Final Distributions ----
 # NOTE: Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
