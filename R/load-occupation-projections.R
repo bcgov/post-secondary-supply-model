@@ -51,6 +51,18 @@ tbl_Age_Groups <-
 tbl_Age_Groups_Rollup <-  
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_Age_Groups_Rollup.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+tbl_NOC_Skill_Level_Aged_17_34 <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_NOC_Skill_Level_Aged_17_34.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_NOC_Skill_Type <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_NOC_Skill_Type.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_Current_Region_PSSM_Rollup_Codes <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Current_Region_PSSM_Rollup_Codes.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_PSSM_CRED_RECODE <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_PSSM_CRED_RECODE.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 
 # From outcomes
 INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
@@ -97,18 +109,22 @@ Occupation_Distributions_LCP2 <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Occupation_Distributions_LCP2.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
-
-
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCP4_CD", T_Exclude_from_Projections_LCP4_CD)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCIP4_CRED",  T_Exclude_from_Projections_LCIP4_CRED)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T_Exclude_from_Projections_PSSM_Credential)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
+dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Current_Region_PSSM_Rollup_Codes)
+
 
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "tbl_Age_Groups",  tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup",  tbl_Age_Groups_Rollup)
+dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
+dbWriteTable(decimal_con, name = "T_NOC_Skill_Type",  T_NOC_Skill_Type)
+dbWriteTable(decimal_con, name = "T_Current_Region_PSSM_Rollup_Codes", T_Current_Region_PSSM_Rollup_Codes)
+dbWriteTable(decimal_con, name = "T_PSSM_CRED_RECODE", T_PSSM_CRED_RECODE)
 
 dbWriteTable(decimal_con, name = "Labour_Supply_Distribution",  Labour_Supply_Distribution)
 dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_LCP2",  Labour_Supply_Distribution_LCP2)

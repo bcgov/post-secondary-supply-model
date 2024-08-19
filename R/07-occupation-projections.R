@@ -44,6 +44,8 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Project
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Aged_17_34"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
 # Not sure what these are for:
@@ -64,14 +66,14 @@ dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distributio
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 
+
 dbGetQuery(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 
 dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static) 
-dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)  # make pivot from transform
+dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
 dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program) 
 dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static")
-dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program_LCP2")
 
 dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED) 
@@ -94,6 +96,8 @@ dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
 dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union) 
 dbExecute(decimal_con, Q_2f_Labour_Supply) 
 dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) 
+dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
+
 
 dbExecute(decimal_con, "DROP TABLE Q_2_Labour_Supply_by_LCIP4_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_2a_Labour_Supply_Unknown")
@@ -112,10 +116,8 @@ dbExecute(decimal_con, "DROP TABLE Q_2d2_Labour_Supply_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy")
 dbExecute(decimal_con, "DROP TABLE Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union")
 dbExecute(decimal_con, "DROP TABLE Q_2f_Labour_Supply")
-
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
 
 dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED) 
 dbExecute(decimal_con, Q_3b_Occupations_Unknown) 
@@ -140,6 +142,7 @@ dbExecute(decimal_con, Q_3e2_Occupations_Unknown)
 dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union) 
 dbExecute(decimal_con, Q_3f_Occupations) 
 
+dbExecute(decimal_con, "DROP TABLE T_LCP2_LCP4")
 dbExecute(decimal_con, "DROP TABLE Q_3_Occupations_by_LCIP4_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_3b_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3b11_Ocupations_Unknown_No_TT_Proxy")
@@ -159,28 +162,27 @@ dbExecute(decimal_con, "DROP TABLE Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Pri
 dbExecute(decimal_con, "DROP TABLE Q_3e_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e2_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
 
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+dbGetQuery(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
+dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix) 
+dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_Year) 
+dbGetQuery(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_3D_Totals_by_Year) 
+dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_Year) 
+dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
 
-dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix) 
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
-dbExecute(decimal_con, Q_4_NOC_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC) 
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total) 
-dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC) 
-dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_PSSM_CRED) # Invalid object name 'q_4_noc_4d_totals_by_pssm_cred'.
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year) 
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_BC) 
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_Total) 
+dbGetQuery(decimal_con, Q_5_NOC_Totals_by_Year_and_BC) 
+dbGetQuery(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
@@ -219,20 +221,51 @@ dbExecute(decimal_con, qry9999_NOC_4031_4032)
 
 
 # ---- Clean Up ----
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+
 # Test Data
-dbExecute(decimal_con, "drop table ")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
+dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
+dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2")
+dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_No_TT")
+dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
+dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions")
+dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
+dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Projected")
+dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
+dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
 
 # Lookups
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
-dbExecute(decimal_con, "drop table ")
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
-dbExecute(decimal_con, "drop table ")
-dbExecute(decimal_con, "drop table ")
-dbExecute(decimal_con, "drop table ")
+dbExecute(decimal_con, "DROP TABLE T_NOC_Skill_Type")
+dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
+dbExecute(decimal_con, "DROP TABLE T_Current_Region_PSSM_Rollup_Codes")
+dbExecute(decimal_con, "DROP TABLE T_PSSM_CRED_RECODE")
+dbExecute(decimal_con, "DROP TABLE INFOWARE_L_CIP_4DIGITS_CIP2016")
+dbExecute(decimal_con, "DROP TABLE INFOWARE_L_CIP_6DIGITS_CIP2016")
+dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_LCP4_CD")
+dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_LCIP4_CRED")
+dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_PSSM_Credential")
+dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
+dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
+dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy")
 
 # Keep 
 dbExists(decimal_con, "")
 dbExists(decimal_con, "")
+
+
+
+
+
+
+
+
 
 
 
