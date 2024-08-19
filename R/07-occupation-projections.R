@@ -66,16 +66,18 @@ dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distributio
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 
-
+# ---- Q_1 Series ---- 
 dbGetQuery(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 
 dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static) 
 dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
 dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program) 
 dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
+
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static")
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program_LCP2")
 
+# ---- Q_2 Series ---- 
 dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED) 
 dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown) 
 dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy) 
@@ -96,9 +98,8 @@ dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
 dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union) 
 dbExecute(decimal_con, Q_2f_Labour_Supply) 
 dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) 
+
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
-
-
 dbExecute(decimal_con, "DROP TABLE Q_2_Labour_Supply_by_LCIP4_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_2a_Labour_Supply_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_2a2_Labour_Supply_Unknown_No_TT_Proxy")
@@ -119,6 +120,7 @@ dbExecute(decimal_con, "DROP TABLE Q_2f_Labour_Supply")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
 
+# ---- Q_3 Series ---- 
 dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED) 
 dbExecute(decimal_con, Q_3b_Occupations_Unknown) 
 dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) 
@@ -165,30 +167,56 @@ dbExecute(decimal_con, "DROP TABLE Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
 
-dbGetQuery(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
-dbGetQuery(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
-dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
-dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix) 
-dbGetQuery(decimal_con, Q_4_NOC_2D_Totals_by_Year) 
-dbGetQuery(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED) 
-dbGetQuery(decimal_con, Q_4_NOC_3D_Totals_by_Year) 
-dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED) 
-dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_Year) 
-dbGetQuery(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
+# ---- Q_4_NOC_D Series ---- 
+dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
+dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
+dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix) 
+dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED) 
+dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED) 
+dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
 
-dbGetQuery(decimal_con, Q_4_NOC_Totals_by_PSSM_CRED) # Invalid object name 'q_4_noc_4d_totals_by_pssm_cred'.
-dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year) 
-dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
-dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_BC) 
-dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_Total) 
-dbGetQuery(decimal_con, Q_5_NOC_Totals_by_Year_and_BC) 
-dbGetQuery(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
+# ---- Q_4_NOC_Totals Series ---- 
+#dbGetQuery(decimal_con, Q_4_NOC_Totals_by_PSSM_CRED)
+#dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
+dbExecute(decimal_con, Q_4_NOC_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC) 
+dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
 
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_1D_Totals_by_PSSM_CRED")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_1D_Totals_by_Year")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_PSSM_CRED")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_Year")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_3D_Totals_by_PSSM_CRED")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_3D_Totals_by_Year")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_PSSM_CRED")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding")
+
+# ---- Q_5 Series ---- 
+dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC) 
+dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
+
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_BC")
+dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
+
+# ---- Q_6 Series ---- 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
+
+dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
+dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
+
+#TO DO: figure out this QI peice
 dbExecute(decimal_con, Q_7_QI) 
-dbExecute(decimal_con, Q_8_Labour_Supply_Total_by_Year) 
+
+dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) 
 
 dbExecute(decimal_con, qry_10a_Model) 
 dbExecute(decimal_con, qry_10a_Model_Public_Release) 
