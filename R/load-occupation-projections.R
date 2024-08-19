@@ -33,8 +33,27 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- Lookups  ----
 # From the LAN
-T_Cohort_Program_Distributions_Y2_to_Y12 <-  
+x <-  
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_Exclude_from_Projections_LCP4_CD <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Exclude_from_Projections_LCP4_CD.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_Exclude_from_Projections_LCIP4_CRED <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Exclude_from_Projections_LCIP4_CRED.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_Exclude_from_Projections_PSSM_Credential <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Exclude_from_Projections_PSSM_Credential.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+tbl_Age_Groups <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_Age_Groups.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+tbl_Age_Groups_Rollup <-  
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_Age_Groups_Rollup.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # From outcomes
@@ -45,24 +64,33 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_
 Cohort_Program_Distributions_Projected <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Cohort_Program_Distributions_Projected.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
 Cohort_Program_Distributions_Static <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Cohort_Program_Distributions_Static.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Cohort_Program_Distributions <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Cohort_Program_Distributions.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Graduate_Projections <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Graduate_Projections.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Read testing data ----
 Labour_Supply_Distribution_LCP2_No_TT <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution_LCP2_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
 Labour_Supply_Distribution_No_TT <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Labour_Supply_Distribution <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+Labour_Supply_Distribution_LCP2 <-
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Labour_Supply_Distribution_LCP2.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 Occupation_Distributions_LCP2_No_TT <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Occupation_Distributions_LCP2_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
 Occupation_Distributions_No_TT <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/07/Occupation_Distributions_No_TT.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -70,20 +98,28 @@ Occupation_Distributions_No_TT <-
 
 
 # ---- Write to decimal ----
-dbWriteTable(decimal_con, name = "",  )
-dbWriteTable(decimal_con, name = "",  )
+dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCP4_CD", T_Exclude_from_Projections_LCP4_CD)
+dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCIP4_CRED",  T_Exclude_from_Projections_LCIP4_CRED)
+dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T_Exclude_from_Projections_PSSM_Credential)
+dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
+
 dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_No_TT",  Labour_Supply_Distribution_No_TT)
 dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_LCP2_No_TT",  Labour_Supply_Distribution_LCP2_No_TT)
+dbWriteTable(decimal_con, name = "Labour_Supply_Distribution",  Labour_Supply_Distribution)
+dbWriteTable(decimal_con, name = "Labour_Supply_Distribution_LCP2",  Labour_Supply_Distribution_LCP2)
 dbWriteTable(decimal_con, name = "Occupation_Distributions_No_TT",  Occupation_Distributions_No_TT)
 dbWriteTable(decimal_con, name = "Occupation_Distributions_LCP2_No_TT",  Occupation_Distributions_LCP2_No_TT)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
-dbWriteTable(decimal_con, name = "",  )
-dbWriteTable(decimal_con, name = "",  )
+dbWriteTable(decimal_con, name = "tbl_Age_Groups",  tbl_Age_Groups)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup",  tbl_Age_Groups_Rollup)
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Static",  Cohort_Program_Distributions_Static)
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
+dbWriteTable(decimal_con, name = "Cohort_Program_Distributions",  Cohort_Program_Distributions)
+dbWriteTable(decimal_con, name = "Graduate_Projections",  Graduate_Projections)
 dbWriteTable(decimal_con, name = "",  )
-dbWriteTable(decimal_con, name = "",  )
+
+
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
