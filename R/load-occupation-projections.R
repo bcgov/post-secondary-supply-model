@@ -66,6 +66,9 @@ T_Current_Region_PSSM_Rollup_Codes_BC <-
 T_PSSM_CRED_RECODE <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_PSSM_CRED_RECODE.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+T_Suppression_Public_Release_NOC <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Suppression_Public_Release_NOC.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 
 # From outcomes
 INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
@@ -118,6 +121,8 @@ dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCIP4_CRED",  T_Exc
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T_Exclude_from_Projections_PSSM_Credential)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Current_Region_PSSM_Rollup_Codes)
+dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
+dbWriteTable(decimal_con, name = "T_Suppression_Public_Release_NOC", T_Suppression_Public_Release_NOC)
 
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
