@@ -1,3 +1,18 @@
+# This script loads student outcomes data for students who students who recently graduated with a 
+# Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
+#
+# The following data set is read into SQL server from the student outcomes survey database:
+#   bgs_current_region_data: postal and region codes, unique for each person/survey year
+#   appso_current_region_data: postal and region codes, unique for each person/survey year
+#   trd_current_region_data: postal and region codes, unique for each person/survey year
+#   dacso_current_region_data: postal and region codes, unique for each person/survey year
+#
+# The following data sets are read into SQL server from the LAN:
+#   tmp_bgs_inst_region_cds: look-up used to re-code several institution codes
+#
+# Notes: ** Adjust years to include 2022 and 2023 when engineering 2023 data **
+# trd_current_region_data: included all years for 2019 model run as this was the first year geocoding was done  
+# bgs_current_region_data: no longer have a region3 code in SO tables so handled a little differently
 
 library(tidyverse)
 library(RODBC)
@@ -34,25 +49,23 @@ tmp_bgs_inst_region_cds <-
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tmp_BGS_INST_REGION_CDS.csv"), 
                   col_types = cols(Current_Region_PSSM = "d", .default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
-dbWriteTableArrow(decimal_con, name = "tmp_bgs_inst_region_cds", value = tmp_bgs_inst_region_cds)
+dbWriteTable(decimal_con, name = "tmp_bgs_inst_region_cds", value = tmp_bgs_inst_region_cds)
 
 # --- Read Geoding data from SO and write to decimal ----
-# Note: Adjust years to include 2022 and 2023 when engineering 2023 data.
-
-# trd geocoding - added all years for 2019 model run as this was the first year geocoding was done 
-trd_current_region_data <- dbGetQueryArrow(outcomes_con, qry_000_TRD_Current_Region_Data)
-dbWriteTableArrow(decimal_con, name = "trd_current_region_data", value = trd_current_region_data)
+# trd geocoding 
+trd_current_region_data <- dbGetQuery(outcomes_con, qry_000_TRD_Current_Region_Data)
+dbWriteTable(decimal_con, name = "trd_current_region_data", value = trd_current_region_data)
 
 # appso geocoding
-appso_current_region_data <- dbGetQueryArrow(outcomes_con, qry_APPSO_Current_Region_Data)
-dbWriteTableArrow(decimal_con, name = "appso_current_region_data_update", value = appso_current_region_data)
+appso_current_region_data <- dbGetQuery(outcomes_con, qry_APPSO_Current_Region_Data)
+dbWriteTable(decimal_con, name = "appso_current_region_data_update", value = appso_current_region_data)
 dbExecute(decimal_con, "ALTER TABLE appso_current_region_data_update ALTER COLUMN RESPONDENT FLOAT NULL")
 
-# dacso geocoding - adding most recent years (adjust all queries so only those years are updated)
-dacso_current_region_data <- dbGetQueryArrow(outcomes_con, qry_DACSO_Current_Region_Data)
-dbWriteTableArrow(decimal_con, name = "dacso_current_region_data_update", value = dacso_current_region_data)
+# dacso geocoding
+dacso_current_region_data <- dbGetQuery(outcomes_con, qry_DACSO_Current_Region_Data)
+dbWriteTable(decimal_con, name = "dacso_current_region_data", value = dacso_current_region_data)
 
-# bgs geocoding - no longer have a region3 code in SO tables.
+# bgs geocoding
 bgs_current_region_data <- dbGetQuery(outcomes_con, qry_BGS_00_Append)
 new_postal <- dbGetQuery(outcomes_con, qry_BGS_00_NEW_POSTAL)
 bgs_current_region_data <- bgs_current_region_data %>% 

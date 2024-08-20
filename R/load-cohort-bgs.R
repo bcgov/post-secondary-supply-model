@@ -1,3 +1,18 @@
+# This script loads student outcomes data for students who students who recently graduated with a 
+# Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
+#
+# The following data set is read into SQL server from the student outcomes survey database:
+#   BGS_Data_Update: unique survey responses for each person/survey year (for years since last model run)
+#
+# The following data sets are read into SQL server from the LAN:
+#   T_BGS_Data: unique survey responses for each person/survey year (last model run) 
+#   T_weights: carried forward from last models run and updated with new data.  Waiting for confirmation
+#   T_BGS_INST_Re-code: look-up used to re-code several institution codes
+#
+# Notes: T_BGS_Data +  BGS_Data_Update contain the full set of survey responses used. 
+# T_BGS_Data_Final_2017.csv used for 2019 model run, T_BGS_Data_Final.csv for 2023 model run. 
+# Some changes to variable names done for consistency
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -27,18 +42,13 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-# ---- Read raw data from LAN ----
-# Note: some of these tables are derived and we need to figure out where they come from.  Are they rolled over year after year?
-# T_bgs_data_final_for_outcomesmatching2020: derived in program matching and will be available as output from program matching in future.
-# T_weights: carried forward from last models run and updated with new data.  Waiting for confirmation.
-# T_BGS_Data: carried forward from last models run and updated with new data.  Look into methods so we don't have to carry forward
-# T_BGS_INST_Recode: static lookup to recode institution codes
-
-T_bgs_data_final_for_outcomesmatching2020  <- 
+# ---- Read test data from LAN ----
+T_bgs_data_final_for_outcomesmatching2020  <- # derived in program matching and will be available in ssql from program matching in future.
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_bgs_data_final_for_outcomesmatching2020.csv"), 
                   col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 
+# ---- Read raw data from LAN ----
 T_weights  <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_weights.csv"), 
                   col_types = cols(Group = "d", Weight = "d", WeightQI = "d", .default = col_character())) %>%

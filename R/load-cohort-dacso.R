@@ -1,3 +1,27 @@
+# This script loads student outcomes data for students who students who recently graduated with a 
+# completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
+#
+# The following data-set is read into SQL server from the student outcomes survey database:
+#   t_dacso_data_part_1_stepa: unique survey responses for each person/survey year (for years since last model run)
+#   infoware_c_outc_clean_short_resp: 
+#
+# The following data-sets are read into SQL server from the LAN:
+#   tbl_Age: bins ages into groups (1-10)
+#   tbl_Age_Groups: used to assign a label to each age group.
+#   t_current_region_pssm_rollup_codes_bc: loo-up re-codes maps regions
+#   t_current_region_pssm_rollup_codes: look-up re-codes maps regions
+#   t_current_region_pssm_codes: look-up re-codes maps regions
+#   tbl_noc_skill_level_aged_17_34: used SQL server for upload as this file contains non-supported type characters
+#   T_PSSM_Credential_Grouping: a static table for relabeling credential names
+#   T_year_survey_year: TO DO
+#   T_Cohorts_Recoded:  this contains survey records for all years.  The table is refreshed in the workflow.
+# 
+# Notes: tbl_noc_skill_level_aged_17_34: used SQL server for upload as this file contains 'non-supported' type characters.
+#   T_year_survey_year is carried forward from last models run and updated with new data. 
+#   T_Cohorts_Recoded: can instead just be created each year.  See comments in 02b-pssm-cohots-dacso.R
+#   Age group labels are assigned in the script.  There are two different groupings used to group students by age in the model, 
+#    check the groupings are the same in DACSO, APPSO etc cohorts
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -29,19 +53,6 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Read raw data from LAN ----
-# Note: some of these tables are derived and we need to figure out where they come from.  Are they rolled over year after year?
-# tbl_Age_Groups: a static crosswalk for aligning ages, groups and labels across queries and datasets
-# tbl_Age: static lookup maps age to age group in table tbl_Age_Groups
-# T_PSSM_Credential_Grouping: a static table for relabeling credential names
-#: tbl_noc_skill_level_aged_17_34: used SQL server for upload as this file contains non-supported type characters
-# T_year_survey_year: carried forward from last models run and updated with new data. Will need to add a step to update this somewhere in the workflow.
-# T_Cohorts_Recoded:  initially uploaded in this script, it contains survey records for all years.  But the table is refreshed in the workflow
-# so can instead just be created each year.  See comments in 02b-pssm-cohots-dacso.R
-# t_current_region_pssm_rollup_codes_bc: lookup re-codes maps regions
-# t_current_region_pssm_rollup_codes: lookup re-codes maps regions
-# t_current_region_pssm_codes: lookup re-codes maps regions
-
-
 tbl_Age_Groups <- 
   readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age_Groups.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -78,7 +89,7 @@ t_current_region_pssm_rollup_codes_bc <-
 dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
-dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34)
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
 dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)

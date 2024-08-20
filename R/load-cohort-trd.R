@@ -1,3 +1,11 @@
+# This script loads student outcomes data for students who students who were formerly enrolled in 
+# a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
+#
+# The following data sets are read into SQL server from the student outcomes survey database:
+#   Q000_TRD_DATA_01: unique survey responses for each person/survey year (a few duplicates)
+#   Q000_TRD_Graduates: a count of graduates by credential type, age and survey year
+#
+# Notes: Age group labels are assigned.  Note there are two different groupings used to group students by age in the model.
 
 library(tidyverse)
 library(RODBC)

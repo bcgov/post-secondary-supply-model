@@ -1,7 +1,16 @@
-# ---- Required Tables ----
-# Primary Outcomes tables: See raw data documentation
-# tbl_age
-# tbl_age_groups
+# This script loads student outcomes data for students who students who have completed the 
+# final year of their apprenticeship technical training within the first year of graduation.
+# 
+# The following data is read into SQL server from the student outcomes survey database:
+#   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
+#   APPSO_Graduates: a count of graduates by credential type, age and survey year
+# 
+# The following data are look-ups read into SQL Server from the LAN
+#   tbl_Age: bins ages into groups (1-10)
+#   tbl_Age_Groups2: used to assign a label to each age group.  
+#
+# Notes: Age group labels are assigned in the script.  There are two different groupings used to group students by age in the model.
+  
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -41,6 +50,10 @@ tbl_Age <-
 
 tbl_Age_Groups2 <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age_Groups2.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
+appso_current_region_data <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/appso_current_region_data.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # prepare graduate dataset
