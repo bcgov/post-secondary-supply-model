@@ -10,8 +10,8 @@
 #   T_BGS_INST_Re-code: look-up used to re-code several institution codes
 #
 # Notes: T_BGS_Data +  BGS_Data_Update contain the full set of survey responses used. 
-# T_BGS_Data_Final_2017.csv used for 2019 model run, T_BGS_Data_Final.csv for 2023 model run. 
-# Some changes to variable names done for consistency
+# T_BGS_Data_Final_2017.csv used for 2019 model run, T_BGS_Data_Final.csv for 2023 model run (rollover)
+# Some changes to variable names done for consistency.  
 
 library(tidyverse)
 library(RODBC)
@@ -42,25 +42,25 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-# ---- Read test data from LAN ----
+# ---- Read tmp data from LAN ----
 T_bgs_data_final_for_outcomesmatching2020  <- # derived in program matching and will be available in ssql from program matching in future.
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_bgs_data_final_for_outcomesmatching2020.csv"), 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/t_bgs_data_final_for_outcomesmatching2020.csv"), 
                   col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Read raw data from LAN ----
 T_weights  <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_weights.csv"), 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/t_weights.csv"), 
                   col_types = cols(Group = "d", Weight = "d", WeightQI = "d", .default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
   
 T_BGS_INST_Recode <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_INST_Recode.csv"), 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_BGS_INST_Recode.csv"), 
       col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 
 # load T_BGS_Data_Final.csv for 2023 model run
-T_BGS_Data <- readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_BGS_Data_Final_2017.csv"), 
+T_BGS_Data <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/T_BGS_Data_Final_2017.csv"), 
                               col_types = cols(PEN = "c", .default = col_guess())) %>%
   janitor::clean_names(case = "all_caps") %>%
   select(-c(ID)) %>%

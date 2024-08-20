@@ -10,6 +10,7 @@
 #   tbl_Age_Groups2: used to assign a label to each age group.  
 #
 # Notes: Age group labels are assigned in the script.  There are two different groupings used to group students by age in the model.
+#   but I think they are not needed?
   
 library(tidyverse)
 library(RODBC)
@@ -33,7 +34,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                  password = db_config$password)
 
 # ---- Read outcomes data ----
-source(glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
+source(glue::glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
 
 T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
 APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
@@ -45,15 +46,11 @@ T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>%
 # ---- Read LAN data ----
 # Lookups
 tbl_Age <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
-tbl_Age_Groups2 <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age_Groups2.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-
-appso_current_region_data <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/appso_current_region_data.csv"), col_types = cols(.default = col_guess())) %>%
+tbl_Age_Groups <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age_Groups.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # prepare graduate dataset

@@ -54,33 +54,33 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- Read raw data from LAN ----
 tbl_Age_Groups <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age_Groups.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age_Groups.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 tbl_Age <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 T_PSSM_Credential_Grouping <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 t_year_survey_year <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/t_year_survey_year.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/t_year_survey_year.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 tbl_noc_skill_level_aged_17_34 <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 t_cohorts_recoded <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Cohorts_Recoded.csv"), 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/02/T_Cohorts_Recoded.csv"), 
                   col_types = cols(PEN = "c", STQU_ID = "c", Survey = "c", LCIP_CD = "c", LCP4_CD = "c", NOC_CD = "c", INST_CD = "c",
                                    PSSM_Credential = "c",  PSSM_CRED = "c", LCIP4_CRED= "c",  LCIP2_CRED = "c", .default = col_number()), n_max = 1) %>%
   janitor::clean_names(case = "all_caps")
 t_current_region_pssm_codes <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Current_Region_PSSM_Codes.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 t_current_region_pssm_rollup_codes <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Current_Region_PSSM_Rollup_Codes.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 t_current_region_pssm_rollup_codes_bc <- 
-  readr::read_csv(glue::glue("{lan}/data/student-outcomes/csv/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 
