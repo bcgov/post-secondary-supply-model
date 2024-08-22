@@ -1,15 +1,16 @@
-# This script prepares student outcomes data for studentswho recently graduated with a 
-# Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
+# This script prepares student outcomes data for the following student surveys:
+# BGS - recently graduated with a Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 # 
-# Generally, the script prepares survey data by:
-#   Recode institution codes to be consistent to STP file
-#   update CIPS after program matching.
-#   Updating CURRENT_REGION_PSSM_CODE after the geocoding
-#   Applies weight for model year and derives New Labour Supply
-#   Refresh survey records in T_Cohorts_Recoded
-#   adds age and age group, a new student id
+# BGS:
+#     Assumes  - geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use
 #
-# Notes: double check method for updating CIP codes after program matching.
+#     Recodes institution codes to be consistent to STP file
+#     Updates CIPS after program matching.
+#     Applies weight for model year and derives New Labour Supply
+#     Adds age and age group, a new student id
+#     Refreshes survey records in T_Cohorts_Recoded
+#
+#     Notes: double check method for updating CIP codes after program matching.
 
 library(tidyverse)
 library(RODBC)

@@ -1,11 +1,14 @@
-# This script prepares student outcomes data for students who were formerly enrolled in 
-# a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
+# This script prepares student outcomes data for the following student surveys:
+# TRD: students who were formerly enrolled in a trades program 
+#       (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
 # 
-# Generally, the script prepares survey data by:
-#     Updating CURRENT_REGION_PSSM_CODE after the geocoding
-#     Applies weight for model year and derives New Labour Supply
-#     Refresh survey records in T_Cohorts_Recoded
-#     adds age and age group, a new student id
+# TRD:
+#     Assumes - geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use
+#             - New Labour Supply has been calculated
+#
+#     Refreshes survey records in T_Cohorts_Recoded
+#     Adds year weights for model
+#     Adds Age and age groups + a new student id
 
 
 library(tidyverse)

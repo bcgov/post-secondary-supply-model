@@ -1,18 +1,20 @@
-# This script prepares student outcomes data for studentswho recently graduated after
-# completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
+# This script prepares student outcomes data for the following student surveys:
+# DACSO: 
+#     students who recently graduated after completing programs at public colleges, 
+#     institutes, and teaching-intensive universities (~18 months prior)
 # 
-# Generally, the script prepares survey data by:
-#   Recode institution codes to be consistent to STP file
-#   update CIPS after program matching.
-#   Updating CURRENT_REGION_PSSM_CODE after the geocoding
-#   Applies weight for model year and derives New Labour Supply
-#   Refresh survey records in T_Cohorts_Recoded
-#   adds age and age group, a new student id
+# DACSO:
+#     Assumes  - geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use
+#     Recodes institution codes to be consistent to STP file
+#     Update CIPS after program matching.
+#     Applies weight for model year and derives New Labour Supply
+#     Adds age and age group, a new student id
+#     Refresh survey records in T_Cohorts_Recoded
 #
 # Notes: double check method for updating CIPc codes after program matching. 
-#  There is a query to check for invalid NOC codes (see documentation).
-#  update T-Year_Survey_Year and T_weights (for all cohorts)
-#  2006 dacso all NULL lcip-4-creds (remove 2006)
+#     There is a query to check for invalid NOC codes (see documentation).
+#     Update T-Year_Survey_Year and T_weights (for all cohorts)
+#     2006 dacso all NULL lcip-4-creds (remove 2006)
 
 library(tidyverse)
 library(RODBC)
