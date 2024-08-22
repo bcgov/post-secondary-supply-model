@@ -18,25 +18,25 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
 ## qry_update_Credential_Non_Dup_DACSO_Final_CIPs ----
 qry_update_Credential_Non_Dup_DACSO_Final_CIPs <- "
 UPDATE     Credential_Non_Dup
-SET        OUTCOMES_CIP_CODE_4 = dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CIP_CODE_4, 
-           OUTCOMES_CIP_CODE_4_NAME =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CIP_CODE_4_NAME, 
-           FINAL_CIP_CODE_4 =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_4, 
-           FINAL_CIP_CODE_4_NAME =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_4_NAME, 
-           FINAL_CIP_CODE_2 =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_2, 
-           FINAL_CIP_CODE_2_NAME =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_2_NAME, 
-           FINAL_CIP_CLUSTER_CODE =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CLUSTER_CODE, 
-           FINAL_CIP_CLUSTER_NAME =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CLUSTER_NAME, 
-           STP_CIP_CODE_4 =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.STP_CIP_CODE_4, 
-           STP_CIP_CODE_4_NAME =dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.STP_CIP_CODE_4_NAME
-FROM       dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs 
+SET        OUTCOMES_CIP_CODE_4 = Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CIP_CODE_4, 
+           OUTCOMES_CIP_CODE_4_NAME = Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CIP_CODE_4_NAME, 
+           FINAL_CIP_CODE_4 = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_4, 
+           FINAL_CIP_CODE_4_NAME = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_4_NAME, 
+           FINAL_CIP_CODE_2 = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_2, 
+           FINAL_CIP_CODE_2_NAME = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CODE_2_NAME, 
+           FINAL_CIP_CLUSTER_CODE = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CLUSTER_CODE, 
+           FINAL_CIP_CLUSTER_NAME = Credential_Non_Dup_Programs_DACSO_FinalCIPs.FINAL_CIP_CLUSTER_NAME, 
+           STP_CIP_CODE_4 = Credential_Non_Dup_Programs_DACSO_FinalCIPs.STP_CIP_CODE_4, 
+           STP_CIP_CODE_4_NAME = Credential_Non_Dup_Programs_DACSO_FinalCIPs.STP_CIP_CODE_4_NAME
+FROM       Credential_Non_Dup_Programs_DACSO_FinalCIPs 
 INNER JOIN Credential_Non_Dup 
-ON         dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CODE = Credential_Non_Dup.PSI_CODE 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_PROGRAM_CODE = Credential_Non_Dup.PSI_PROGRAM_CODE 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_PROGRAM_DESC = Credential_Non_Dup.PSI_CREDENTIAL_PROGRAM_DESC 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_CIP = Credential_Non_Dup.PSI_CREDENTIAL_CIP 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_LEVEL = Credential_Non_Dup.PSI_CREDENTIAL_LEVEL 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_CATEGORY = Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY 
-AND        dbo_STP_Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CRED = Credential_Non_Dup.OUTCOMES_CRED
+ON         Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CODE = Credential_Non_Dup.PSI_CODE 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_PROGRAM_CODE = Credential_Non_Dup.PSI_PROGRAM_CODE 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_PROGRAM_DESCRIPTION = Credential_Non_Dup.PSI_CREDENTIAL_PROGRAM_DESCRIPTION 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_CIP = Credential_Non_Dup.PSI_CREDENTIAL_CIP 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_LEVEL = Credential_Non_Dup.PSI_CREDENTIAL_LEVEL 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.PSI_CREDENTIAL_CATEGORY = Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY 
+AND        Credential_Non_Dup_Programs_DACSO_FinalCIPs.OUTCOMES_CRED = Credential_Non_Dup.OUTCOMES_CRED
 "
 
 ## qry_update_Credential_Non_Dup_BGS_Final_CIPs ----
