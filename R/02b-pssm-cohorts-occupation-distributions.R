@@ -1,6 +1,15 @@
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
-# year's entries, but some rationale would be helpful.
+# This script processes cohort data from student outcomes and derives occupation distributions.
+# Outcomes data has been standardized so all cohorts/surveys are combined in a single dataset before
+# processing.
+#
+#   Create weights for occupational distribution (Weight_OCC). 
+#
+# Includes records with a labour force status for those aged 17 to 64, 
+# Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
+
+# Note:  create Weight_Age is used to calculate the age for the private institution credentials 
+# and needed if the data set doesn’t have age.
+
 
 library(tidyverse)
 library(RODBC)

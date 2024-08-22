@@ -1,4 +1,4 @@
-# This script loads student outcomes data for students who students who recently graduated with a 
+# This script loads student outcomes data for students who students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
 # The following data-set is read into SQL server from the student outcomes survey database:
@@ -89,16 +89,38 @@ t_current_region_pssm_rollup_codes_bc <-
 dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
-dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34)
+# dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34)
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
+#dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
 
 # --- Read SO dacso data and write to decimal ----
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
+t_dacso_data_part_1_stepa  <-
+  t_dacso_data_part_1_stepa %>% 
+  mutate(CURRENT_REGION_PSSM_CODE =  case_when (
+    TPID_CURRENT_REGION1 %in% 1:8 ~ TPID_CURRENT_REGION1, 
+    TPID_CURRENT_REGION4 == 5 ~ 9,
+    TPID_CURRENT_REGION4 == 6 ~ 10,
+    TPID_CURRENT_REGION4 == 7 ~ 11,
+    TPID_CURRENT_REGION4 == 8 ~ -1,
+    TRUE ~ NA)) 
+
 dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
+dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
+dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
+                       SET CURRENT_REGION_PSSM_CODE =  
+                          CASE
+                            WHEN TPID_CURRENT_REGION1 IN (1,2,3,4,5,6,7,8) THEN TPID_CURRENT_REGION1
+                            WHEN TPID_CURRENT_REGION4 = 5 THEN 9
+                            WHEN TPID_CURRENT_REGION4 = 6 THEN 10
+                            WHEN TPID_CURRENT_REGION4 = 7 THEN 11
+                            WHEN TPID_CURRENT_REGION4 = 8 THEN -1
+                            ELSE NULL
+                            END;")
+
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN TTRAIN INT NULL")
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN LABR_EMPLOYED INT NULL")
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_GRAD_STATUS_LGDS_CD INT NULL") # check these
@@ -107,14 +129,16 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPO
 rm(t_dacso_data_part_1_stepa)
 gc()
 
-infoware_c_outc_clean_short_resp <- dbGetQuery(outcomes_con, infoware_c_outc_clean_short_resp)
-dbWriteTable(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
-rm(t_dacso_data_part_1_stepa)
+infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
+dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
+rm(infoware_c_outc_clean_short_resp)
 gc()
 
 # ---- Clean Up ---
 dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
+
+
 
 
                 

@@ -29,7 +29,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           password = db_config$password)
 
 # ---- Read raw data and disconnect ----
-source(glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
+source(glue::glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
 
 Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
 Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
@@ -43,6 +43,17 @@ Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
 # Gradstat group : couldn't find in outcomes data so defining here.
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
   mutate(LCIP4_CRED = paste0(GRADSTAT_GROUP, ' - ' , LCIP_LCP4_CD , ' - ' , TTRAIN , ' - ' , PSSM_CREDENTIAL))
+
+Q000_TRD_DATA_01 <-
+  Q000_TRD_DATA_01 %>% 
+  mutate(CURRENT_REGION_PSSM_CODE =  case_when (
+    CURRENT_REGION1 %in% 1:8 ~ CURRENT_REGION1, 
+    CURRENT_REGION4 == 5 ~ 9,
+    CURRENT_REGION4 == 6 ~ 10,
+    CURRENT_REGION4 == 7 ~ 11,
+    CURRENT_REGION4 == 8 ~ -1,
+    TRUE ~ NA)) 
+
 
 # prepare graduate dataset
 Q000_TRD_Graduates   %>%
