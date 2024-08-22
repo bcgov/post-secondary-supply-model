@@ -2,7 +2,7 @@
 # Private Training Institutions Branch (PTIB)
 # 
 # Required Tables
-#   PTIB_Credentials
+#   T_Private_Institutions_Credentials_Raw
 #   T_PSSM_Credential_Grouping
 #   INFOWARE_L_CIP_6DIGITS_CIP2016
 #   Graduate_Projections
@@ -28,7 +28,6 @@ library(RJDBC) ## loads DBI
 
 # Setup
 # ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
@@ -40,11 +39,15 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-source(glue::glue("{lan}/development/sql/gh-source/05-ptib-analysis/05-private-training-institutions-sql.R"))
+# import sql queries
+## ** IMPORTANT - update queries with table years **
+source("./sql/05-ptib-analysis/05-private-training-institutions.R")
 
 # ---- Required data tables and SQL ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
