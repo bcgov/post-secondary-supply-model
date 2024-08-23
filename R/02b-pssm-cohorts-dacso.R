@@ -1,6 +1,20 @@
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
-# year's entries, but some rationale would be helpful.
+# This script prepares student outcomes data for the following student surveys:
+# DACSO: 
+#     students who recently graduated after completing programs at public colleges, 
+#     institutes, and teaching-intensive universities (~18 months prior)
+# 
+# DACSO:
+#     Assumes  - geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use
+#     Recodes institution codes to be consistent to STP file
+#     Update CIPS after program matching.
+#     Applies weight for model year and derives New Labour Supply
+#     Adds age and age group, a new student id
+#     Refresh survey records in T_Cohorts_Recoded
+#
+# Notes: double check method for updating CIPc codes after program matching. 
+#     There is a query to check for invalid NOC codes (see documentation).
+#     Update T-Year_Survey_Year and T_weights (for all cohorts)
+#     2006 dacso all NULL lcip-4-creds (remove 2006)
 
 library(tidyverse)
 library(RODBC)
@@ -31,11 +45,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."dacso_current_region_data"'))) 
-
 
 # ---- Execute SQL ----
-# Recodes CIP codes
+# adds age, updates credential, creates new LCIP4_CRED variable 
 dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
 
 # Recode institution codes for CIP-NOC work
@@ -48,26 +60,13 @@ dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
 # This step skipped as not needed, but could add as a check at some point.
 # dbExecute(decimal_con, DACSO_Q004b_INST_Recode)
 
-# updates CURRENT_REGION_PSSM_CODE after the geocoding.
-dbExecute(decimal_con, DACSO_Q004b_DACSO_DATA_Part_1_Add_CURRENT_REGION_PSSM)
-dbExecute(decimal_con, DACSO_Q004b_DACSO_DATA_Part_1_Add_CURRENT_REGION_PSSM2)
-
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
 
 # Refresh dacso survey records in T_Cohorts_Recoded
-# Note: consider removing 2006+ as TTRAIN not available
-# Note: this takes last years T_Cohorts_Recoded table, refreshes DACSO survey records for all years.
-# We can also create the table for DACSO each year, and then append the other survey data via their respective queries
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
-
-# Check weights
-dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
-# dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1;") # this table used in near completers workflow
-dbExecute(decimal_con, "DROP TABLE dacso_current_region_data")
-

@@ -1,6 +1,15 @@
-# Notes: watch for Age_Grouping variable, documentation mentions having removed it from earlier queries and linked later.  not sure what this means.
-# also, need to update T-Year_Survey_Year as is a dependency in DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded.  The pattern to update is obvious from prior
-# year's entries, but some rationale would be helpful.
+# This script processes cohort data from student outcomes and derives occupation distributions.
+# Outcomes data has been standardized so all cohorts/surveys are combined in a single dataset before
+# processing.
+#
+#   Create weights for occupational distribution (Weight_OCC). 
+#
+# Includes records with a labour force status for those aged 17 to 64, 
+# Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
+
+# Note:  create Weight_Age is used to calculate the age for the private institution credentials 
+# and needed if the data set doesn’t have age.
+
 
 library(tidyverse)
 library(RODBC)
@@ -41,11 +50,14 @@ dbExecute(decimal_con, DACSO_Q008_Z03_Weight_Total)
 dbExecute(decimal_con, DACSO_Q008_Z04_Weight_Adj_Fac)
 dbExecute(decimal_con, DACSO_Q008_Z05_Weight_OCC)
 dbExecute(decimal_con, DACSO_Q008_Z05b_Finding_NLS2_Missing)
-dbGetQuery(decimal_con, DACSO_Q008_Z05b_NOC4D_NLS_XTab)
-dbGetQuery(decimal_con, DACSO_Q008_Z05b_Weight_Comparison)
-#dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
-dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null) # This is redundant
-dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update)
+dbExecute(decimal_con, DACSO_Q008_Z05b_NOC4D_NLS_XTab)
+dbExecute(decimal_con, DACSO_Q008_Z05b_Weight_Comparison)
+
+dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
+dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null)
+dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_OCC FLOAT NULL")
+dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_Age FLOAT NULL")
+dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update) # run directly on SQL server (~15 min to complete)
 dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc)
 dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
 
@@ -58,6 +70,9 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_Union")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z04_Weight_Adj_Fac")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z05b_Finding_NLS2_Missing")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z05b_NOC4D_NLS_XTab")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z05b_Weight_Comparison")
 
 dbExecute(decimal_con, DACSO_Q009_Weight_Occs)
 dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D)
@@ -93,7 +108,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q009b_Weighted_Occs")
 dbExecute(decimal_con, "DROP TABLE dacso_q009b_weighted_occs_no_tt")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q009b_Weighted_Occs_Total")
 dbExecute(decimal_con, "DROP TABLE dacso_q009b_weighted_occs_total_no_tt")
-
 
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP4_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
@@ -157,7 +171,7 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_2D")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_2D_BC")
 
 dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
+#dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
 dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
 dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
 dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
@@ -181,11 +195,23 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
+# missing tbl_Age_Groups_Rollup but otherwise this might be important
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
 
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
+dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
+dbExecute(decimal_con, "DROP TABLE tbl_Age")
+dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
+dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
+dbExecute(decimal_con, "DROP TABLE infoware_c_outc_clean_short_resp")
+dbExecute(decimal_con, "DROP TABLE T_Weights")
+dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 # --- just for testing - do not run as part of the workflow
 dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
@@ -195,6 +221,13 @@ dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
 dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC")
 dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC_No_TT")
 
+# ---- Keep ----
+dbExistsTable(decimal_con, "Occupation_Distributions")
+dbExistsTable(decimal_con, "Occupation_Distributions_No_TT")
+dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")
+dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")
+dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")
+dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")
 
 
 

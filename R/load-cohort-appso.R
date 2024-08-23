@@ -1,7 +1,9 @@
-# ---- Required Tables ----
-# Primary Outcomes tables: See raw data documentation
-# tbl_age
-# tbl_age_groups
+# This script loads student outcomes data for students who students who have completed the 
+# final year of their apprenticeship technical training within the first year of graduation.
+# 
+# The following data is read into SQL server from the student outcomes survey database:
+#   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
+#   APPSO_Graduates: a count of graduates by credential type, age and survey year
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -24,7 +26,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                  password = db_config$password)
 
 # ---- Read outcomes data ----
-source(glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
+source(glue::glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
 
 T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
 APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
@@ -33,15 +35,55 @@ APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
 T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
   mutate(TTRAIN = as.numeric(TTRAIN))
 
-# ---- Read LAN data ----
-# Lookups
-tbl_Age <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-
-tbl_Age_Groups2 <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age_Groups2.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
+T_APPSO_DATA_Final <-
+  T_APPSO_DATA_Final %>% 
+  mutate(CURRENT_REGION_PSSM_CODE =  case_when (
+    CURRENT_REGION1 %in% 1:8 ~ CURRENT_REGION1, 
+    CURRENT_REGION4 == 5 ~ 9,
+    CURRENT_REGION4 == 6 ~ 10,
+    CURRENT_REGION4 == 7 ~ 11,
+    CURRENT_REGION4 == 8 ~ -1,
+    TRUE ~ NA)) %>%
+  mutate(AGE_GROUP_LABEL = case_when (
+    APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
+    APP_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
+    APP_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
+    APP_AGE_AT_SURVEY %in% 25:29 ~ "25 to 29",
+    APP_AGE_AT_SURVEY %in% 30:34 ~ "30 to 34",
+    APP_AGE_AT_SURVEY %in% 35:44 ~ "35 to 44",
+    APP_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
+    APP_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
+    APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
+    TRUE ~ NA)) %>%
+  mutate(AGE_GROUP = case_when (
+    APP_AGE_AT_SURVEY %in% 17:19 ~ 2,
+    APP_AGE_AT_SURVEY %in% 20:24 ~ 3,
+    APP_AGE_AT_SURVEY %in% 25:29 ~ 4,
+    APP_AGE_AT_SURVEY %in% 30:34 ~ 5,
+    APP_AGE_AT_SURVEY %in% 35:44 ~ 6,
+    APP_AGE_AT_SURVEY %in% 45:54 ~ 7,
+    APP_AGE_AT_SURVEY %in% 55:64 ~ 8,
+    TRUE ~ NA)) %>%
+  mutate(WEIGHT = case_when (
+    SUBM_CD == 'C_Outc15' ~ 1,
+    SUBM_CD == 'C_Outc16' ~ 2,
+    SUBM_CD == 'C_Outc17' ~ 3,
+    SUBM_CD == 'C_Outc18' ~ 4,
+    SUBM_CD == 'C_Outc19' ~ 5,
+    TRUE ~ 0)) %>%
+  mutate(WEIGHTQI = case_when ( # QI weight: 1 year lag
+    SUBM_CD == 'C_Outc14' ~ 1,
+    SUBM_CD == 'C_Outc15' ~ 2,
+    SUBM_CD == 'C_Outc16' ~ 3,
+    SUBM_CD == 'C_Outc17' ~ 4,
+    SUBM_CD == 'C_Outc18' ~ 5,
+    TRUE ~ 0)) %>% 
+  mutate(NEW_LABOUR_SUPPLY = case_when(
+    APP_LABR_EMPLOYED == 1 ~ 1,
+    APP_LABR_IN_LABOUR_MARKET == 1 & APP_LABR_EMPLOYED == 0 ~ 1,
+    APP_LABR_EMPLOYED == 0 ~ 0,
+    RESPONDENT == '1' ~ 0,
+    TRUE ~ 0))
 
 # prepare graduate dataset
 APPSO_Graduates  %>%
@@ -57,7 +99,6 @@ APPSO_Graduates  %>%
     APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
     TRUE ~ NA)) -> APPSO_Graduates 
 
-
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),
@@ -66,7 +107,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final)
+dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates)
 
 dbDisconnect(decimal_con)

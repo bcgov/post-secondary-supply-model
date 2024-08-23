@@ -1,3 +1,14 @@
+# This script prepares student outcomes data for the following student surveys:
+#  APP: students who have completed the final year of their apprenticeship technical training within the first year of graduation.
+# 
+#  APP:
+#     Assumes - geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use
+#             - year weights for model have been added
+#             - New Labour Supply has been calculated
+#             - Age and age group have been added + a new student id
+#     Refreshes survey records in T_Cohorts_Recoded
+
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -21,20 +32,8 @@ decimal_con <- dbConnect(odbc::odbc(),
 # ---- Check for required data tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."appso_current_region_data"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
 
 # ---- Execute SQL ----
-# updates CURRENT_REGION_PSSM_CODE after the geocoding.
-dbExecute(decimal_con, APPSO_Q003b_Add_CURRENT_REGION_PSSM)
-dbExecute(decimal_con, APPSO_Q003b_Add_CURRENT_REGION_PSSM2)
-
-# Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE t_appso_data_final ADD New_Labour_Supply INT NULL;")
-dbExecute(decimal_con, "ALTER TABLE t_appso_data_final ADD Age_Group INT NULL;")
-dbExecute(decimal_con, "ALTER TABLE t_appso_data_final ADD Age_Group_Rollup INT NULL;")
-dbExecute(decimal_con, APPSO_Q003c_Derived_And_Weights)
-
 # Refresh survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, APPSO_Q005_1b1_Delete_Cohort)
 dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
@@ -42,8 +41,8 @@ dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 # ---- Clean Up ----
 dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
-dbExecute(decimal_con, "DROP TABLE appso_current_region_data")
 
 # ---- For future workflow ----
-dbExists(decimal_con, "APPSO_Graduates")
+dbExistsTable(decimal_con, "APPSO_Graduates")
+
 
