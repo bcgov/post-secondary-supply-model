@@ -46,9 +46,9 @@ dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check base weights
 
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
-dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
-dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
-dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
+#dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+#dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
+#dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
 dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
 
 # recode new labour supply for those with an NLS-2 record and no NLS1
@@ -92,7 +92,7 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_weights_nls")
+
 
 # apply nls weights to group totals
 dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
@@ -134,15 +134,6 @@ dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_total_
 dbExecute(decimal_con, "DROP TABLE dacso_q006b_weighted_new_labour_supply_no_tt")
 
 # ---- Final Distributions ----
-dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_QI)
-dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
-dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
-dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
-
 nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP4_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", 
               Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", New_Labour_Supply = "float")
@@ -153,6 +144,15 @@ if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution")){
 if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")){
   dbCreateTable(decimal_con, "Labour_Supply_Distribution_No_TT",  nls_def)
 }
+
+dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
+dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
+# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
+# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_QI)
+dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
+dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
+dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
+dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
 
 nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP2_CD = "nvarchar(50)", 
              TTRAIN = "nvarchar(50)", LCP2_CRED = "nvarchar(50)", 
@@ -184,22 +184,17 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT")
 
 # ---- Clean Up ----
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
-dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
-dbExecute(decimal_con, "DROP TABLE tbl_Age")
-dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
-dbExecute(decimal_con, "DROP TABLE infoware_c_outc_clean_short_resp")
-dbExecute(decimal_con, "DROP TABLE T_Weights")
-dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 # ---- Keep ----
-dbExistsTable(decimal_con, "DROP TABLE Labour_Supply_Distribution")
-dbExistsTable(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
-dbExistsTable(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
-dbExistsTable(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
+dbExistsTable(decimal_con, "Labour_Supply_Distribution")
+dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")
+dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")
+dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
 
-dbDisconnect(decimal_con)
+# ---- Just for testing ----
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
+dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
+
+
