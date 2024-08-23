@@ -184,33 +184,28 @@ GROUP BY qry_Private_Credentials_01f_Grads.Year,
 qry_Private_Credentials_01f_Grads.Credential, 
 qry_Private_Credentials_01f_Grads.Age_Group;"
 
-## qry_Private_Credentials_05i0_Grads_by_Year_Delete ----
-# remove any PTIB rows from Graduate_Projections table
-qry_Private_Credentials_05i0_Grads_by_Year_Delete <- 
-"DELETE FROM Graduate_Projections
-WHERE (((Graduate_Projections.Survey)='PTIB'))"
-
 ## qry_Private_Credentials_05i1_Grads_by_Year ----
-# add Grads for all years to Graduate_Projections
+# add Grads for all years to new table for import into Graduate_Projections later
 qry_Private_Credentials_05i1_Grads_by_Year <- 
-  "INSERT INTO Graduate_Projections ( Survey, PSSM_CRED, Age_Group, [Year], Graduates )
-SELECT 'PTIB' AS Survey, 
+  "SELECT 'PTIB' AS Survey, 
 'P - ' + [Credential] AS PSSM_CRED, 
 qry_Private_Credentials_05i_Grads.Age_Group, 
 T_PTIB_Y1_to_Y10.Y1_to_Y10 AS [Year], 
 qry_Private_Credentials_05i_Grads.SumOfGrads AS Graduates
-FROM qry_Private_Credentials_05i_Grads 
-INNER JOIN T_PTIB_Y1_to_Y10 ON qry_Private_Credentials_05i_Grads.Year = T_PTIB_Y1_to_Y10.Y1;"
+INTO qry_Private_Credentials_05i1_Grads_by_Year
+FROM qry_Private_Credentials_05i_Grads INNER JOIN T_PTIB_Y1_to_Y10 
+ON qry_Private_Credentials_05i_Grads.Year = T_PTIB_Y1_to_Y10.Y1;"
 
 ## qry_Private_Credentials_05i2_Delete_AgeGrps ----
 # remove excess age groups
 qry_Private_Credentials_05i2_Delete_AgeGrps <- 
-  "DELETE FROM Graduate_Projections
-WHERE (((Graduate_Projections.Survey)='PTIB') AND
-((Graduate_Projections.Age_Group)='(blank)') OR
-((Graduate_Projections.Age_Group)='Unknown') OR
-((Graduate_Projections.Age_Group)='65+') OR
-((Graduate_Projections.Age_Group)='16 or less'))"
+  "DELETE FROM qry_Private_Credentials_05i1_Grads_by_Year
+WHERE (((qry_Private_Credentials_05i1_Grads_by_Year.Survey)='PTIB') AND
+((qry_Private_Credentials_05i1_Grads_by_Year.Age_Group)='(blank)') OR
+((qry_Private_Credentials_05i1_Grads_by_Year.Age_Group)='Unknown') OR
+((qry_Private_Credentials_05i1_Grads_by_Year.Age_Group)='65+') OR
+((qry_Private_Credentials_05i1_Grads_by_Year.Age_Group)='16 or less'))"
+
 # ******************************************************************************
 
 # Part 3 ----

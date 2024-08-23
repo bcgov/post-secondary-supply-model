@@ -5,10 +5,10 @@
 #   T_Private_Institutions_Credentials_Raw
 #   T_PSSM_Credential_Grouping
 #   INFOWARE_L_CIP_6DIGITS_CIP2016
-#   Graduate_Projections
-#   Cohort_Program_Distributions_Projected
-#   Cohort_Program_Distributions_Static
 #   T_PTIB_Y1_to_Y10
+#
+# Resulting Tables
+#   qry_Private_Credentials_05i1_Grads_by_Year (PTIB data for Graduate_Projections)
 #
 # Part 1: Clean PTIB data
 # * Update age groups, CIPs
@@ -48,9 +48,6 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grou
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
 
 # Part 1 ----
 ## ---- Add PSSM_Credential to PTIB data ----
@@ -138,10 +135,7 @@ dbExecute(decimal_con, qry_Private_Credentials_01f_Grads)
 ## ---- Summarize the Grads by Credential/Age ----
 dbExecute(decimal_con, qry_Private_Credentials_05i_Grads)
 
-## ---- Delete PTIB rows from Graduate_Projections ----
-dbExecute(decimal_con, qry_Private_Credentials_05i0_Grads_by_Year_Delete)
-
-## ---- Update Graduate_Projections ----
+## ---- Get Grads by all years, saved as table to update Graduate_Projections later ----
 dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
 
 ## ---- Delete excess age groups ----
