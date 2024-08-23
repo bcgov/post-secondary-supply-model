@@ -244,23 +244,9 @@ qry_Private_Credentials_06b_Cohort_Dist.Credential,
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
 qry_Private_Credentials_06b_Cohort_Dist.Age_Group;"
 
-## qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected ----
-# remove any PTIB rows from table
-qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected <- 
-"DELETE FROM Cohort_Program_Distributions_Projected
-WHERE (((Cohort_Program_Distributions_Projected.Survey)='PTIB'));"
-
-## qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static ----
-# remove any PTIB rows from table
-qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static <- 
-"DELETE FROM Cohort_Program_Distributions_Static
-WHERE (((Cohort_Program_Distributions_Static.Survey)='PTIB'));"
-
 ## qry_Private_Credentials_06d1_Cohort_Dist_Projected ----
 qry_Private_Credentials_06d1_Cohort_Dist_Projected <- 
-  "INSERT INTO Cohort_Program_Distributions_Projected 
-  ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'PTIB' AS Survey, 
+"SELECT 'PTIB' AS Survey, 
 qry_Private_Credentials_06b_Cohort_Dist.Credential, 
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
 qry_Private_Credentials_06b_Cohort_Dist.LCP4_CD, 
@@ -271,6 +257,7 @@ qry_Private_Credentials_06b_Cohort_Dist.Year,
 qry_Private_Credentials_06b_Cohort_Dist.Count, 
 qry_Private_Credentials_06c_Cohort_Dist_Total.Total, 
 IIf(([Total]=0),0,[Count]/[Total]) AS [Percent]
+INTO qry_Private_Credentials_06d1_Cohort_Dist_Projected
 FROM qry_Private_Credentials_06c_Cohort_Dist_Total INNER JOIN qry_Private_Credentials_06b_Cohort_Dist 
 ON (qry_Private_Credentials_06c_Cohort_Dist_Total.PSSM_CRED = qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED) 
 AND (qry_Private_Credentials_06c_Cohort_Dist_Total.Age_Group = qry_Private_Credentials_06b_Cohort_Dist.Age_Group);"
@@ -278,9 +265,7 @@ AND (qry_Private_Credentials_06c_Cohort_Dist_Total.Age_Group = qry_Private_Crede
 
 ## qry_Private_Credentials_06d1_Cohort_Dist_Static ----
 qry_Private_Credentials_06d1_Cohort_Dist_Static <- 
-  "INSERT INTO Cohort_Program_Distributions_Static 
-( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'PTIB' AS Survey, 
+"SELECT 'PTIB' AS Survey, 
 qry_Private_Credentials_06b_Cohort_Dist.Credential, 
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
 qry_Private_Credentials_06b_Cohort_Dist.LCP4_CD, 
@@ -291,6 +276,7 @@ qry_Private_Credentials_06b_Cohort_Dist.Year,
 qry_Private_Credentials_06b_Cohort_Dist.Count, 
 qry_Private_Credentials_06c_Cohort_Dist_Total.Total, 
 IIf(([Total]=0),0,[Count]/[Total]) AS [Percent]
+INTO qry_Private_Credentials_06d1_Cohort_Dist_Static
 FROM qry_Private_Credentials_06c_Cohort_Dist_Total INNER JOIN qry_Private_Credentials_06b_Cohort_Dist 
 ON (qry_Private_Credentials_06c_Cohort_Dist_Total.Age_Group = qry_Private_Credentials_06b_Cohort_Dist.Age_Group) 
 AND (qry_Private_Credentials_06c_Cohort_Dist_Total.PSSM_CRED = qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED);"
@@ -299,20 +285,20 @@ AND (qry_Private_Credentials_06c_Cohort_Dist_Total.PSSM_CRED = qry_Private_Crede
 ## qry_Private_Credentials_06d2_Projected_Delete_AgeGrps ----
 # remove excess age groups
 qry_Private_Credentials_06d2_Projected_Delete_AgeGrps <- 
-  "DELETE FROM Cohort_Program_Distributions_Projected
-WHERE (((Cohort_Program_Distributions_Projected.Survey)='PTIB') AND
-((Cohort_Program_Distributions_Projected.Age_Group)='(blank)') OR
-((Cohort_Program_Distributions_Projected.Age_Group)='Unknown') OR
-((Cohort_Program_Distributions_Projected.Age_Group)='65+') OR
-((Cohort_Program_Distributions_Projected.Age_Group)='16 or less'))"
+  "DELETE FROM qry_Private_Credentials_06d1_Cohort_Dist_Projected
+WHERE (((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Survey)='PTIB') AND
+((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='(blank)') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='Unknown') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='65+') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='16 or less'))"
 
 ## qry_Private_Credentials_05i2_Delete_AgeGrps ----
 # remove excess age groups
 qry_Private_Credentials_06d2_Static_Delete_AgeGrps <- 
-  "DELETE FROM Cohort_Program_Distributions_Static
-WHERE (((Cohort_Program_Distributions_Static.Survey)='PTIB') AND
-((Cohort_Program_Distributions_Static.Age_Group)='(blank)') OR
-((Cohort_Program_Distributions_Static.Age_Group)='Unknown') OR
-((Cohort_Program_Distributions_Static.Age_Group)='65+') OR
-((Cohort_Program_Distributions_Static.Age_Group)='16 or less'))"
+  "DELETE FROM qry_Private_Credentials_06d1_Cohort_Dist_Static
+WHERE (((qry_Private_Credentials_06d1_Cohort_Dist_Static.Survey)='PTIB') AND
+((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='(blank)') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='Unknown') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='65+') OR
+((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='16 or less'))"
 # ******************************************************************************

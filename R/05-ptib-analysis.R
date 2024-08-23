@@ -9,6 +9,8 @@
 #
 # Resulting Tables
 #   qry_Private_Credentials_05i1_Grads_by_Year (PTIB data for Graduate_Projections)
+#   qry_Private_Credentials_06d1_Cohort_Dist_Projected (PTIB data for Cohort_Program_Distributions_Projected)
+#   qry_Private_Credentials_06d1_Cohort_Dist_Static (PTIB data for Cohort_Program_Distributions_Static)
 #
 # Part 1: Clean PTIB data
 # * Update age groups, CIPs
@@ -109,7 +111,7 @@ tbl(decimal_con, "T_Private_Institutions_Credentials") %>% collect() %>%
 
 dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
 dbExecute(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
-                WHERE intYear <> 'Avg 2017 & 2018'")
+                WHERE intYear <> 'Avg 2021 & 2022'")
 
 # Part 2 ----
 ## STOP !!! Update MODEL year in queries ----
@@ -155,16 +157,10 @@ dbExecute(decimal_con, qry_Private_Credentials_06b_Cohort_Dist)
 ## ---- Sums total by age ----
 dbExecute(decimal_con, qry_Private_Credentials_06c_Cohort_Dist_Total)
 
-## ---- Delete PTIB rows from Cohort_Program_Distributions_Projected ----
-dbExecute(decimal_con, qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected)
-
-## ---- Delete PTIB rows from Cohort_Program_Distributions_Static ----
-dbExecute(decimal_con, qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static)
-
-## ---- Update Cohort_Program_Distributions_Projected ----
+## ---- Prepare and save as table to update Cohort_Program_Distributions_Projected later ----
 dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Projected)
 
-## ---- Update Cohort_Program_Distributions_Static ----
+## ---- Prepare and save as table to update Cohort_Program_Distributions_Static later ----
 dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Static)
 
 ## ---- Delete excess age groups ----
@@ -181,10 +177,6 @@ dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06c_Cohort_Dist_Total
 ## ---- Drop Main Datasets
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials")
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
-
-dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Projected")
 
 ## ---- Drop Lookups
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
