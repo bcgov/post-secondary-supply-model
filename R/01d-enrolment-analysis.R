@@ -95,22 +95,40 @@ n <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
 PropDist %>% mutate(p = NumEnrolled/sum(NumEnrolled),
                     top_n = round(p*n))
 
-# for now, enter top_n into query definition (qry06a1)
+# for now, enter top_n into query definition (Female into qry06a1, Male into qry06a2)
 dbExecute(con, qry06a1_Assign_TopID_Gender)
 dbExecute(con, qry06a2_Assign_TopID_Gender2)
+dbExecute(con, qry06a2_Assign_TopID_Gender3)
+
+# fill in some of the rest of those not first enrolments
 dbExecute(con, qry06a3_CorrectGender1)
 
-# and those not first enrolments
-n <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender"))
+# now get N for rest of not matched
+n <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender 
+WHERE     PSI_GENDER IS NULL 
+OR        PSI_GENDER = ' ' 
+OR        PSI_GENDER = 'U'
+OR        PSI_GENDER = 'Unknown'
+OR        PSI_GENDER = '(Unspecified)'"))
+
 #enter top_n into query definitions that follow
 PropDist %>% mutate(p = NumEnrolled/sum(NumEnrolled),
                     top_n = round(p*n))
 dbExecute(con, qry06a3_CorrectGender2)
 dbExecute(con, qry06a3_CorrectGender3)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].GenderDistribution;"))
+dbExecute(con, qry06a3_CorrectGender4)
+
+# not used
+# dbExecute(con, glue::glue("DROP TABLE [{my_schema}].GenderDistribution;"))
 
 dbExecute(con, qry06a4a_ExtractNoGender_DupEPENS)
 dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_1)
+
+# update topN again with following numbers
+n <- nrow(dbGetQuery(con, "SELECT * FROM  tmp_Extract_No_Gender_DupEPENS"))
+PropDist %>% mutate(p = NumEnrolled/sum(NumEnrolled),
+                    top_n = round(p*n))
+
 dbExecute(con, "ALTER TABLE tmp_Extract_No_Gender_DupEPENS ADD PSI_GENDER_to_use VARCHAR(50);")
 dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_2)
 
@@ -155,23 +173,49 @@ age_dist <- age_dist %>%
 dbWriteTable(con, name = "AgeDistributionbyGender", age_dist, overwrite = TRUE)
 
 m_id <- extract_no_age_first_enrolment %>% 
-  filter(PSI_GENDER =='M', is.na(AGE_AT_ENROL_DATE)) %>%
+  filter(PSI_GENDER =='Male', is.na(AGE_AT_ENROL_DATE)) %>%
   pull(id) 
 
 f_id <- extract_no_age_first_enrolment %>% 
-  filter(PSI_GENDER =='F', is.na(AGE_AT_ENROL_DATE)) %>%
+  filter(PSI_GENDER =='Female', is.na(AGE_AT_ENROL_DATE)) %>%
   pull(id)
 
-m_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'M')
-f_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'F')
+gd_id <- extract_no_age_first_enrolment %>% 
+  filter(PSI_GENDER =='Gender Diverse', is.na(AGE_AT_ENROL_DATE)) %>%
+  pull(id)
+
+m_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'Male')
+f_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'Female')
+gd_dist <- age_dist %>% filter(NumDistribution > 0,  PSI_GENDER == 'Gender Diverse')
 
 m = data.frame(id = m_id, AGE_AT_ENROL_DATE = sample(m_dist$AGE_AT_ENROL_DATE, size = length(m_id), replace = TRUE, prob = m_dist$PropEnrolled))
 f = data.frame(id = f_id, AGE_AT_ENROL_DATE = sample(f_dist$AGE_AT_ENROL_DATE, size = length(f_id), replace = TRUE, prob = f_dist$PropEnrolled))
+# this errors as the gd groups are too small
+gd = data.frame(id = gd_id, AGE_AT_ENROL_DATE = sample(gd_dist$AGE_AT_ENROL_DATE, size = length(gd_id), replace = TRUE, prob = gd_dist$PropEnrolled))
 
+# at this point stop including gd in the distributions
 extract_no_age_first_enrolment <- extract_no_age_first_enrolment %>% 
   left_join(rbind(m,f), by = join_by(id), suffix = c("", ".new"))  %>% 
   mutate(AGE_AT_ENROL_DATE = if_else(is.na(AGE_AT_ENROL_DATE), AGE_AT_ENROL_DATE.new, AGE_AT_ENROL_DATE)) %>%
   select(-AGE_AT_ENROL_DATE.new)
+
+# however this leaves the GD ids with no age, so sample and set them equal to some other age from available
+no_age <- extract_no_age_first_enrolment %>% filter(is.na(AGE_AT_ENROL_DATE)) %>% pull(id)
+gd <- data.frame(
+  id = no_age, 
+  AGE_AT_ENROL_DATE = sample(
+    extract_no_age_first_enrolment %>% 
+      filter(!is.na(AGE_AT_ENROL_DATE)) %>% 
+      pull(AGE_AT_ENROL_DATE), 
+    size=length(no_age)
+  )
+)
+
+extract_no_age_first_enrolment <- extract_no_age_first_enrolment %>% 
+  left_join(gd, by = join_by(id), suffix = c("", ".new"))  %>% 
+  mutate(AGE_AT_ENROL_DATE = if_else(is.na(AGE_AT_ENROL_DATE), AGE_AT_ENROL_DATE.new, AGE_AT_ENROL_DATE)) %>%
+  select(-AGE_AT_ENROL_DATE.new)
+
 
 dbWriteTable(con, 
              name = "Extract_No_Age_First_Enrolment", 
@@ -225,13 +269,14 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender;"))
 dbExecute(con, qry08_UpdateAGAtEnrol)
 
 # ---- Final Distributions ----
-dbGetQuery(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
-dbGetQuery(con, qry09c_MinEnrolment_Domestic)
+dbExecute(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
+dbExecute(con, qry09c_MinEnrolment_Domestic)
+dbExecute(con, qry09c_MinEnrolment)
 
 ## Review ----
 ##I get an error here - invalid object name 'PSI_CODE_RECODE'
 # is this another table I need to bring in?
-dbGetQuery(con, qry09c_MinEnrolment_PSI_TYPE)
+# dbExecute(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential_Record_Type;"))

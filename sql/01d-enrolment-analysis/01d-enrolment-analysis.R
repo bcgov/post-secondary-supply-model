@@ -32,14 +32,18 @@ WHERE     psi_birthdate_cleaned is not null;"
 qry01d1_MinEnrolmentSupVar <- "
 UPDATE MinEnrolmentSupvar
 SET    PSI_MIN_START_DATE_D = PSI_MIN_START_DATE
-WHERE     (PSI_MIN_START_DATE <> '');"
+WHERE     (PSI_MIN_START_DATE <> '' AND PSI_MIN_START_DATE <> '(Unspecified)';"
 
 # ---- qry01d_MinEnrolmentSupVar ---- 
 qry01d2_MinEnrolmentSupVar <- "
 UPDATE      MinEnrolmentSupVar
 SET         psi_birthdate_cleaned_D = NULL
 WHERE       psi_birthdate_cleaned_D = CONVERT(DATETIME, '1900-01-01 00:00:00', 102)
-  AND       (psi_birthdate_cleaned IS NULL OR psi_birthdate_cleaned = '');"
+  AND       (
+              psi_birthdate_cleaned IS NULL 
+              OR psi_birthdate_cleaned = '' 
+              OR psi_birthdate_cleaned = '(Unspecified)'
+);"
 
 
 # ---- qry01e_MinEnrolmentSupVar ---- 
@@ -58,7 +62,7 @@ SET       AGE_AT_ENROL_DATE =
 		             ELSE datediff (year, psi_birthdate_cleaned_D, PSI_MIN_START_DATE_D)
 		        END
 WHERE     psi_birthdate_cleaned_D IS NOT NULL
-  AND     psi_birthdate_cleaned_D <> '';"
+;"
 
 
 # ---- qry02b_UpdateAGAtEnrol ---- 
@@ -80,7 +84,9 @@ INNER JOIN  Credential
   ON        MinEnrolment.ENCRYPTED_TRUE_PEN = Credential.ENCRYPTED_TRUE_PEN 
   AND       MinEnrolment.PSI_GENDER <> Credential.PSI_GENDER_CLEANED
 WHERE       MinEnrolment.ENCRYPTED_TRUE_PEN <> ''
-  AND       MinEnrolment.ENCRYPTED_TRUE_PEN IS NOT NULL;"
+  AND       MinEnrolment.ENCRYPTED_TRUE_PEN IS NOT NULL
+  AND       MinEnrolment.ENCRYPTED_TRUE_PEN <> '(Unspecified)'
+;"
 
 qry04a2_UpdateMinEnrolment_Gender <- "
 UPDATE      MinEnrolment
@@ -91,7 +97,9 @@ INNER JOIN  Credential
   AND       MinEnrolment.PSI_CODE = Credential.PSI_CODE 
   AND       MinEnrolment.PSI_GENDER <> Credential.psi_gender_cleaned
 WHERE       MinEnrolment.ENCRYPTED_TRUE_PEN IS NULL
-  OR        MinEnrolment.ENCRYPTED_TRUE_PEN = '';"
+  OR        MinEnrolment.ENCRYPTED_TRUE_PEN = ''
+  OR        MinEnrolment.ENCRYPTED_TRUE_PEN = '(Unspecified)'
+;"
 
 
 # ---- qry04b*_tmp_MinEnrolment_Gender ---- 
@@ -100,14 +108,18 @@ SELECT    DISTINCT PSI_GENDER, ENCRYPTED_TRUE_PEN
 INTO      tmp_MinEnrolment_EPEN_Gender_step1
 FROM      MinEnrolment
 WHERE     ENCRYPTED_TRUE_PEN <> '' 
-AND       ENCRYPTED_TRUE_PEN IS NOT NULL;"
+AND       ENCRYPTED_TRUE_PEN IS NOT NULL
+AND       ENCRYPTED_TRUE_PEN <> '(Unspecified)'
+;"
 
 qry04b2_tmp_MinEnrolment_Gender <-"
 SELECT    DISTINCT PSI_GENDER, PSI_STUDENT_NUMBER, PSI_CODE
 INTO      tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1
 FROM      MinEnrolment
 WHERE     ENCRYPTED_TRUE_PEN = '' 
-OR        ENCRYPTED_TRUE_PEN IS NULL"
+OR        ENCRYPTED_TRUE_PEN IS NULL
+OR        ENCRYPTED_TRUE_PEN = '(Unspecified)'
+;"
 
 # Make a new table called tmp_MinEnrolment_EPEN_Gender and append the tmp_MinEnrolment_EPEN_Gender_step1 records to it. */
 qry04b3_tmp_MinEnrolment_Gender <-"
@@ -132,13 +144,17 @@ qry04b6_tmp_MinEnrolment_Gender <- "
 UPDATE      tmp_MinEnrolment_EPEN_Gender
 SET         CONCATENATED_ID = ENCRYPTED_TRUE_PEN
 WHERE       ENCRYPTED_TRUE_PEN IS NOT NULL
-AND         ENCRYPTED_TRUE_PEN <> '';"
+AND         ENCRYPTED_TRUE_PEN <> ''
+AND         ENCRYPTED_TRUE_PEN <> '(Unspecified)'
+;"
 
 qry04b7_tmp_MinEnrolment_Gender <- "
 UPDATE      tmp_MinEnrolment_EPEN_Gender
 SET         CONCATENATED_ID = PSI_STUDENT_NUMBER + PSI_CODE
 WHERE       (ENCRYPTED_TRUE_PEN IS NULL) 
-OR          (ENCRYPTED_TRUE_PEN = '');"
+OR          (ENCRYPTED_TRUE_PEN = '')
+OR          (ENCRYPTED_TRUE_PEN = '(Unspecified)')
+;"
 
 # ---- qry04c_tmp_MinEnrolment_GenderDups ---- 
 qry04c_tmp_MinEnrolment_GenderDups <- "
@@ -175,7 +191,10 @@ qry04d3_tmp_MinEnrolment_GenderDups_PickGender <- "
 SELECT *   
 INTO  tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns
 FROM         tmp_Dup_MinEnrolment_EPEN_Gender
-WHERE PSI_GENDER_FirstEnrolment <> 'M' AND PSI_GENDER_FirstEnrolment <> 'F'"
+WHERE PSI_GENDER_FirstEnrolment <> 'Male' 
+AND PSI_GENDER_FirstEnrolment <> 'Female'
+AND PSI_GENDER_FirstEnrolment <> 'Gender Diverse'
+"
 
 # Alter table to add other gender variable 
 qry04d4_tmp_MinEnrolment_GenderDups_PickGender <- "
@@ -189,7 +208,7 @@ SET                PSI_GENDER_FinalUnknowns = tmp_MinEnrolment_EPEN_Gender.psi_g
 FROM            tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns 
 INNER JOIN      tmp_MinEnrolment_EPEN_Gender 
 ON tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns.CONCATENATED_ID = tmp_MinEnrolment_EPEN_Gender.CONCATENATED_ID
-WHERE        tmp_MinEnrolment_EPEN_Gender.psi_gender <> 'U'"
+WHERE        tmp_MinEnrolment_EPEN_Gender.psi_gender <> 'Unknown'"
 
 # Update original table with non-U gender 
 qry04d6_tmp_MinEnrolment_GenderDups_PickGender <- "
@@ -221,6 +240,8 @@ SELECT    DISTINCT id, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GEN
 INTO      Extract_No_Gender
 FROM      MinEnrolment
 WHERE     PSI_GENDER='U' 
+OR        PSI_GENDER = 'Unknown'
+OR        PSI_GENDER = '(Unspecified)'
 OR        PSI_GENDER = '' 
 OR        PSI_GENDER IS NULL;"
 
@@ -229,29 +250,42 @@ qry05a1_Extract_No_Gender_First_Enrolment <- "
 SELECT    DISTINCT id, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER 
 INTO      Extract_No_Gender_First_Enrolment
 FROM      MinEnrolment
-WHERE     (PSI_GENDER ='U' OR PSI_GENDER ='' OR PSI_GENDER IS NULL) 
+WHERE     (PSI_GENDER ='Unknown' OR PSI_GENDER = '(Unspecified)' OR PSI_GENDER ='' OR PSI_GENDER IS NULL) 
 AND       IS_FIRST_ENROLMENT='Yes';"
 
 # ---- qry05a2_Show_Gender_Distribution ---- 
 qry05a2_Show_Gender_Distribution <- "
 SELECT     PSI_GENDER, COUNT(*) AS NumEnrolled 
 FROM       MinEnrolment
-WHERE      PSI_GENDER <> 'U' 
+WHERE      PSI_GENDER <> 'Unknown' 
   AND      PSI_GENDER <> '' 
+  AND      PSI_GENDER <> '(Unspecified)'
   AND      PSI_GENDER IS NOT NULL 
   AND      IS_FIRST_ENROLMENT='Yes'
 GROUP BY   PSI_GENDER;"
 
 # ---- qry06a1_Assign_TopID_Gender ---- 
 qry06a1_Assign_TopID_Gender <- "
-UPDATE    TOP (0) Extract_No_Gender_First_Enrolment
-SET       PSI_GENDER = 'F';"
+UPDATE    TOP (5429) Extract_No_Gender_First_Enrolment
+SET       PSI_GENDER = 'Female';"
 
 # ---- qry06a2_Assign_TopID_Gender2 ---- 
 qry06a2_Assign_TopID_Gender2 <- "
-UPDATE    Extract_No_Gender_First_Enrolment
-SET       PSI_GENDER = 'M'
+UPDATE    TOP (5177) Extract_No_Gender_First_Enrolment
+SET       PSI_GENDER = 'Male'
 WHERE     PSI_GENDER = 'U' 
+    OR    PSI_GENDER = 'Unknown'
+    OR    PSI_GENDER ='(Unspecified)'
+    OR    PSI_GENDER='' 
+    OR    PSI_GENDER IS NULL;"
+
+# ---- qry06a2_Assign_TopID_Gender3 ---- 
+qry06a2_Assign_TopID_Gender3 <- "
+UPDATE    Extract_No_Gender_First_Enrolment
+SET       PSI_GENDER = 'Gender Diverse'
+WHERE     PSI_GENDER = 'U' 
+    OR    PSI_GENDER = 'Unknown'
+    OR    PSI_GENDER ='(Unspecified)'
     OR    PSI_GENDER='' 
     OR    PSI_GENDER IS NULL;"
 
@@ -266,18 +300,34 @@ INNER JOIN Extract_No_Gender
     AND   Extract_No_Gender_First_Enrolment.PSI_CODE = Extract_No_Gender.PSI_CODE;"
 
 qry06a3_CorrectGender2 <- "
-UPDATE    TOP (0) Extract_No_Gender
-SET       PSI_GENDER ='F'
+UPDATE    TOP (40) Extract_No_Gender
+SET       PSI_GENDER ='Female'
 WHERE     PSI_GENDER IS NULL 
 OR        PSI_GENDER = ' ' 
-OR        PSI_GENDER = 'U'"
+OR        PSI_GENDER = 'U'
+OR        PSI_GENDER = 'Unknown'
+OR        PSI_GENDER = '(Unspecified)'
+"
 
 qry06a3_CorrectGender3 <- "
-UPDATE    Extract_No_Gender
-SET       PSI_GENDER = 'M'
+UPDATE    TOP (39) Extract_No_Gender
+SET       PSI_GENDER ='Male'
 WHERE     PSI_GENDER IS NULL 
 OR        PSI_GENDER = ' ' 
-OR        PSI_GENDER = 'U'"
+OR        PSI_GENDER = 'U'
+OR        PSI_GENDER = 'Unknown'
+OR        PSI_GENDER = '(Unspecified)'
+"
+
+qry06a3_CorrectGender4 <- "
+UPDATE    Extract_No_Gender
+SET       PSI_GENDER = 'Gender Diverse'
+WHERE     PSI_GENDER IS NULL 
+OR        PSI_GENDER = ' ' 
+OR        PSI_GENDER = 'U'
+OR        PSI_GENDER = 'Unknown'
+OR        PSI_GENDER = '(Unspecified)'
+"
 
 
 # ---- qry06a4a_ExtractNoGender_DupEPENS ---- 
@@ -287,6 +337,7 @@ INTO      tmp_Extract_No_Gender_EPENS
 FROM      Extract_No_Gender
 WHERE     ENCRYPTED_TRUE_PEN <> '' 
 AND       ENCRYPTED_TRUE_PEN IS NOT NULL
+AND       ENCRYPTED_TRUE_PEN <> '(Unspecified)'
 GROUP BY  ENCRYPTED_TRUE_PEN, PSI_GENDER;"
 
 
@@ -299,13 +350,18 @@ GROUP BY   ENCRYPTED_TRUE_PEN
 HAVING     COUNT(*) > 1;"
 
 qry06a4b_ExtractNoGender_DupEPENS_2 <- 
-"UPDATE    TOP (49) tmp_Extract_No_Gender_DupEPENS
-SET        PSI_GENDER_to_use ='F'
+"UPDATE    TOP (10) tmp_Extract_No_Gender_DupEPENS
+SET        PSI_GENDER_to_use ='Female'
+WHERE      PSI_GENDER_to_use IS NULL;
+
+UPDATE     TOP (0) tmp_Extract_No_Gender_DupEPENS
+SET        PSI_GENDER_to_use ='Gender Diverse'
 WHERE      PSI_GENDER_to_use IS NULL;
 
 UPDATE     tmp_Extract_No_Gender_DupEPENS
-SET        PSI_GENDER_to_use ='M'
-WHERE      PSI_GENDER_to_use IS NULL;"
+SET        PSI_GENDER_to_use ='Male'
+WHERE      PSI_GENDER_to_use IS NULL;
+"
 
 
 # ---- qry06a4c_Update_ExtractNoGender_DupEPENS ---- 
@@ -320,8 +376,9 @@ INNER JOIN tmp_Extract_No_Gender_DupEPENS
 qry06a4c_Check_Prop  <- "
 SELECT     PSI_GENDER, COUNT(*) AS NumEnrolled
 FROM       MinEnrolment
-WHERE      PSI_GENDER <> 'U' 
+WHERE      PSI_GENDER <> 'Unknown' 
 AND        PSI_GENDER <> '' 
+AND        PSI_GENDER <> '(Unspecified)'
 AND        PSI_GENDER IS NOT NULL 
 AND        IS_FIRST_ENROLMENT='Yes'
 GROUP BY   PSI_GENDER
@@ -456,43 +513,49 @@ WHERE     (AgeGroupLookup.LowerBound <= MinEnrolment.AGE_AT_ENROL_DATE) AND (Age
 # ---- qry09c_MinEnrolment by Credential and CIP Code ---- 
 qry09c_MinEnrolment_by_Credential_and_CIP_Code <- "
 SELECT        PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, COUNT(*) AS Expr1
+INTO  qry09c_MinEnrolment_by_Credential_and_CIP_Code
 FROM            MinEnrolment
 GROUP BY PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE
-HAVING        (PSI_SCHOOL_YEAR = '2016/2017')
+--HAVING        (PSI_SCHOOL_YEAR = '2016/2017')
 ORDER BY PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE;"
 
 
 # ---- qry09c_MinEnrolment ---- 
 qry09c_MinEnrolment <- "
 SELECT     MinEnrolment.PSI_GENDER, MinEnrolment.PSI_GENDER + AgeGroupLookup.AgeGroup As Groups, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1
+INTO    qry09c_MinEnrolment
 FROM       MinEnrolment 
 INNER JOIN  AgeGroupLookup 
 ON  MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
 GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
-HAVING      (MinEnrolment.PSI_SCHOOL_YEAR <> '2019/2020')
+HAVING      (MinEnrolment.PSI_SCHOOL_YEAR <> '2023/2024')
 ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
 ;"
 
 
 # ---- qry09c_MinEnrolment_Domestic ---- 
-qry09c_MinEnrolment_Domestic <- "SELECT     MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1
+qry09c_MinEnrolment_Domestic <- "
+SELECT     MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1
+INTO  qry09c_MinEnrolment_Domestic
 FROM         MinEnrolment INNER JOIN
                       AgeGroupLookup ON MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
 WHERE     (MinEnrolment.PSI_VISA_STATUS = 'DOMESTIC')
 GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
-HAVING      (MinEnrolment.PSI_SCHOOL_YEAR <> '2012/2013')
+--HAVING      (MinEnrolment.PSI_SCHOOL_YEAR <> '2012/2013')
 ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;"
 
 
 
 # ---- qry09c_MinEnrolment_PSI_TYPE ---- 
-qry09c_MinEnrolment_PSI_TYPE <- "SELECT        MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1, PSI_CODE_RECODE.PSI_TYPE_RECODE, PSI_CODE_RECODE.PSI_CODE_RECODE
+qry09c_MinEnrolment_PSI_TYPE <- "
+SELECT        MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1, PSI_CODE_RECODE.PSI_TYPE_RECODE, PSI_CODE_RECODE.PSI_CODE_RECODE
+INTO qry09c_MinEnrolment_PSI_TYPE
 FROM            MinEnrolment INNER JOIN
                          AgeGroupLookup ON MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex INNER JOIN
                          PSI_CODE_RECODE ON MinEnrolment.PSI_CODE = PSI_CODE_RECODE.PSI_CODE
 WHERE        (AgeGroupLookup.AgeIndex <> 1 AND AgeGroupLookup.AgeIndex <> 9)
 GROUP BY MinEnrolment.PSI_SCHOOL_YEAR, PSI_CODE_RECODE.PSI_TYPE_RECODE, PSI_CODE_RECODE.PSI_CODE_RECODE
-HAVING        (MinEnrolment.PSI_SCHOOL_YEAR <> '2015/2016')
+--HAVING        (MinEnrolment.PSI_SCHOOL_YEAR <> '2015/2016')
 ORDER BY MinEnrolment.PSI_SCHOOL_YEAR;"
 
 
@@ -500,18 +563,45 @@ ORDER BY MinEnrolment.PSI_SCHOOL_YEAR;"
 qry_CreateMinEnrolmentView <- "
 CREATE VIEW MinEnrolment
 AS
-SELECT        STP_Enrolment.ID, STP_Enrolment.PSI_PEN, STP_Enrolment.PSI_BIRTHDATE, STP_Enrolment.psi_birthdate_cleaned, 
-                         STP_Enrolment.PSI_GENDER, STP_Enrolment.PSI_STUDENT_NUMBER, STP_Enrolment.PSI_STUD_POSTAL_CD_FRST_CNTACT, 
-                         STP_Enrolment.TRUE_PEN, STP_Enrolment.ENCRYPTED_TRUE_PEN, STP_Enrolment.PSI_SCHOOL_YEAR, STP_Enrolment.PSI_REG_TERM, 
-                         STP_Enrolment.PSI_STUD_POSTAL_CD_CURR, STP_Enrolment.PSI_ABORIGINAL_STATUS, STP_Enrolment.PSI_NEW_STUDENT_FLAG, 
-                         STP_Enrolment.PSI_ENROLMENT_SEQUENCE, STP_Enrolment.PSI_CODE, STP_Enrolment.PSI_TYPE, STP_Enrolment.PSI_FULL_NAME, 
-                         STP_Enrolment.PSI_BASIS_OF_ADMISSION, STP_Enrolment.PSI_MIN_START_DATE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESC, 
-                         STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CIP_CODE, STP_Enrolment.EFFECTIVE_DATE, STP_Enrolment.PSI_FACULTY, 
-                         STP_Enrolment.PSI_CE_CRS_ONLY, STP_Enrolment.PSI_CREDENTIAL_CATEGORY, STP_Enrolment.PSI_VISA_STATUS, 
-                         STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment.PSI_ENTRY_STATUS, STP_Enrolment.OVERALL_ABORIGINAL_STATUS, 
-                         MinEnrolmentSupVar.psi_birthdate_cleaned_D, MinEnrolmentSupVar.PSI_MIN_START_DATE_D, MinEnrolmentSupVar.AGE_AT_ENROL_DATE, 
-                         MinEnrolmentSupVar.AGE_GROUP_ENROL_DATE, MinEnrolmentSupVar.AGE_AT_CENSUS_2016, MinEnrolmentSupVar.AGE_GROUP_CENSUS_2016, 
-                         MinEnrolmentSupVar.IS_FIRST_ENROLMENT, MinEnrolmentSupVar.IS_SKILLS_BASED
+SELECT    STP_Enrolment.ID, 
+          STP_Enrolment.PSI_PEN, 
+          STP_Enrolment.PSI_BIRTHDATE, 
+          STP_Enrolment.psi_birthdate_cleaned, 
+          STP_Enrolment.PSI_GENDER, 
+          STP_Enrolment.PSI_STUDENT_NUMBER, 
+          STP_Enrolment.PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT, 
+          STP_Enrolment.TRUE_PEN, 
+          STP_Enrolment.ENCRYPTED_TRUE_PEN, 
+          STP_Enrolment.PSI_SCHOOL_YEAR, 
+          STP_Enrolment.PSI_REGISTRATION_TERM, 
+          STP_Enrolment.PSI_STUDENT_POSTAL_CODE_CURRENT, 
+          STP_Enrolment.PSI_INDIGENOUS_STATUS, 
+          STP_Enrolment.PSI_NEW_STUDENT_FLAG, 
+          STP_Enrolment.PSI_ENROLMENT_SEQUENCE, 
+          STP_Enrolment.PSI_CODE, 
+          STP_Enrolment.PSI_TYPE, 
+          STP_Enrolment.PSI_FULL_NAME, 
+          STP_Enrolment.PSI_BASIS_OF_ADMISSION, 
+          STP_Enrolment.PSI_MIN_START_DATE, 
+          STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
+          STP_Enrolment.PSI_PROGRAM_CODE, 
+          STP_Enrolment.PSI_CIP_CODE, 
+          STP_Enrolment.PSI_PROGRAM_EFFECTIVE_DATE, 
+          STP_Enrolment.PSI_FACULTY, 
+          STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY, 
+          STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
+          STP_Enrolment.PSI_VISA_STATUS, 
+          STP_Enrolment.PSI_STUDY_LEVEL, 
+          STP_Enrolment.PSI_ENTRY_STATUS,
+          STP_Enrolment.OVERALL_INDIGENOUS_STATUS, 
+          MinEnrolmentSupVar.psi_birthdate_cleaned_D, 
+          MinEnrolmentSupVar.PSI_MIN_START_DATE_D, 
+          MinEnrolmentSupVar.AGE_AT_ENROL_DATE, 
+          MinEnrolmentSupVar.AGE_GROUP_ENROL_DATE, 
+          MinEnrolmentSupVar.AGE_AT_CENSUS_2016, 
+          MinEnrolmentSupVar.AGE_GROUP_CENSUS_2016, 
+          MinEnrolmentSupVar.IS_FIRST_ENROLMENT, 
+          MinEnrolmentSupVar.IS_SKILLS_BASED
 FROM            STP_Enrolment INNER JOIN
                          STP_Enrolment_Record_Type ON STP_Enrolment.ID = STP_Enrolment_Record_Type.ID INNER JOIN
                          MinEnrolmentSupVar ON STP_Enrolment.ID = MinEnrolmentSupVar.ID
