@@ -445,22 +445,37 @@ dbExecute(con, qry14_ResearchUniversity)
 dbExecute(con, qry15_OutcomeCredential)
 
 # ---- Break and do Program Matching ----
+# IMPORTANT!!! THIS SECTION CAN ONLY BE RUN AFTER THE PROGRAM MATCHING WORK HAS BEEN DONE 
+# TODO: This will later be moved to a different script. 
+# Tables that are needed at this point include:
+
+# ---- Check Required Tables ----
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
+
 # ---- 20 Final Distributions ----
 # NOTE: Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'. 
-dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup)
-dbGetQuery(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
-dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
-dbGetQuery(con, qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs)
-dbGetQuery(con, qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO)
-dbGetQuery(con, qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbGetQuery(con, qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbGetQuery(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs) 
-dbGetQuery(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs) 
-dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
-dbGetQuery(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
-dbGetQuery(con, qryCreateIDinSTPCredential)
-dbGetQuery(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
+dbExecute(con, qry20a_1Credential_By_Year_AgeGroup)
+dbExecute(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
+dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
+dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs)
+dbExecute(con, qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO)
+dbExecute(con, qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+dbExecute(con, qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs) # 
+dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs) 
+dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs) 
+
+# these two need a table we don't have - ignore for now 
+# dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
+# dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
+
+dbExecute(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
+
+# not used?
+# dbGetQuery(con, qryCreateIDinSTPCredential)
+
+dbExecute(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
 # ---- Clean Up ----
 dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")

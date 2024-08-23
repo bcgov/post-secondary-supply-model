@@ -845,9 +845,11 @@ FROM         Credential_Non_Dup_Exclude_LatestYr INNER JOIN
 
 
 # ---- qry20a_1Credential_By_Year_AgeGroup ---- 
-qry20a_1Credential_By_Year_AgeGroup <- "SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+qry20a_1Credential_By_Year_AgeGroup <- "
+SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_AgeGroup
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex
 GROUP BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED
@@ -856,9 +858,11 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 
 
 # ---- qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs ---- 
-qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs <- "SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs <- "
+SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_AgeGroup_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -869,9 +873,11 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 
 
 # ---- qry20a_2Credential_By_Year_AgeGroup_Domestic ---- 
-qry20a_2Credential_By_Year_AgeGroup_Domestic <- "SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+qry20a_2Credential_By_Year_AgeGroup_Domestic <- "
+SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_AgeGroup_Domestic
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex
 WHERE        (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC') OR
@@ -883,9 +889,11 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 
 
 # ---- qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs ---- 
-qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs <- "SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs <- "
+SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -901,9 +909,11 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 
 
 # ---- qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO ---- 
-qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO <- "SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO <- "
+SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex
 WHERE        (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC') AND (tblCredential_HighestRank.RESEARCH_UNIVERSITY = 1) AND 
@@ -922,6 +932,7 @@ qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs 
 SELECT        AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup AS Expr1, Credential_Non_Dup.FINAL_CIP_CODE_4, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -947,6 +958,7 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "SELECT        tblCredential_HighestRank.psi_gender_cleaned, AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup + tblCredential_HighestRank.psi_gender_cleaned AS Expr1, 
                          Credential_Non_Dup.FINAL_CIP_CODE_4, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -971,6 +983,7 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs <- "SELECT        tblCredential_HighestRank.psi_gender_cleaned, AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup + tblCredential_HighestRank.psi_gender_cleaned AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -993,6 +1006,7 @@ ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "SELECT        tblCredential_HighestRank.psi_gender_cleaned, AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup + tblCredential_HighestRank.psi_gender_cleaned AS Expr1, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) 
                          AS Count
+INTO Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id
@@ -1014,6 +1028,7 @@ qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "
 SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY AS Expr1, 
                          tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs
 FROM            tblCredential_HighestRank INNER JOIN
                          AgeGroupLookup ON tblCredential_HighestRank.AGE_GROUP_AT_GRAD = AgeGroupLookup.AgeIndex INNER JOIN
                          Credential_Non_Dup ON tblCredential_HighestRank.id = Credential_Non_Dup.id INNER JOIN
@@ -1040,6 +1055,7 @@ ORDER BY tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, tblCredential_Highes
 qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest <- "
 SELECT        PSI_CODE_RECODE.PSI_TYPE_RECODE, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY AS Expr1, 
                          Credential_Non_Dup.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Count
+INTO Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest
 FROM            AgeGroupLookup INNER JOIN
                          Credential_Non_Dup ON AgeGroupLookup.AgeIndex = Credential_Non_Dup.AGE_GROUP_AT_GRAD INNER JOIN
                          PSI_CODE_RECODE ON Credential_Non_Dup.PSI_CODE = PSI_CODE_RECODE.PSI_CODE INNER JOIN
@@ -1062,6 +1078,7 @@ ORDER BY Credential_Non_Dup.PSI_CREDENTIAL_CATEGORY, Credential_Non_Dup.PSI_AWAR
 # ---- qry20a_99_Checking_Excluding_RU_DACSO_Variables ---- 
 qry20a_99_Checking_Excluding_RU_DACSO_Variables <- "
 SELECT        RESEARCH_UNIVERSITY, OUTCOMES_CRED, PSI_CODE, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) AS Expr1
+INTO Checking_Excluding_RU_DACSO_Variables
 FROM            Credential_Non_Dup
 GROUP BY RESEARCH_UNIVERSITY, PSI_CODE, OUTCOMES_CRED, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED
 HAVING        (RESEARCH_UNIVERSITY = 1) AND (OUTCOMES_CRED = 'DACSO') AND (PSI_AWARD_SCHOOL_YEAR_DELAYED = '2018/2019')
