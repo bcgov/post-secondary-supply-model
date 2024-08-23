@@ -61,7 +61,7 @@ dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length)
 
 ## ---- Remove periods from CIPs ----
 dbExecute(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
-dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length) # sanity check
+dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length) %>% filter(Expr1!=6) # sanity check
 
 ## ---- Check CIPs against infoware 6digit CIPs ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00d_Check_CIPs)
@@ -104,12 +104,18 @@ dbExecute(decimal_con, "SELECT *
 dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
                 ALTER COLUMN intYear VARCHAR(255);")
 
+# check relevant years to update queries below
+tbl(decimal_con, "T_Private_Institutions_Credentials") %>% collect() %>% 
+  count(intYear)
+
+## !! update DATA years in below queries
+
 dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
 dbExecute(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
                 WHERE intYear <> 'Avg 2017 & 2018'")
 
 # Part 2 ----
-## STOP !!! Update model year in queries ----
+## STOP !!! Update MODEL year in queries ----
 
 ## ---- Count domestic grads ----
 dbExecute(decimal_con, qry_Private_Credentials_01a_Domestic)
@@ -141,6 +147,7 @@ dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
 ## ---- Delete excess age groups ----
 dbExecute(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
 
+## ---- Drop tmp part2 qry datasets ----
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01b_Domestic_International")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01c_Percent_Domestic")
@@ -166,6 +173,7 @@ dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Projected)
 ## ---- Update Cohort_Program_Distributions_Static ----
 dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Static)
 
+## ---- Delete excess age groups ----
 dbExecute(decimal_con, qry_Private_Credentials_06d2_Projected_Delete_AgeGrps)
 dbExecute(decimal_con, qry_Private_Credentials_06d2_Static_Delete_AgeGrps)
 
