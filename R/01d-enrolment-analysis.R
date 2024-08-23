@@ -13,7 +13,7 @@ set.seed(123456)
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
-source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
+source(glue::glue("./sql/01d-enrolment-analysis/01d-enrolment-analysis.R"))
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
