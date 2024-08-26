@@ -244,8 +244,8 @@ qry_Private_Credentials_06b_Cohort_Dist.Credential,
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
 qry_Private_Credentials_06b_Cohort_Dist.Age_Group;"
 
-## qry_Private_Credentials_06d1_Cohort_Dist_Projected ----
-qry_Private_Credentials_06d1_Cohort_Dist_Projected <- 
+## qry_Private_Credentials_06d1_Cohort_Dist ----
+qry_Private_Credentials_06d1_Cohort_Dist <- 
 "SELECT 'PTIB' AS Survey, 
 qry_Private_Credentials_06b_Cohort_Dist.Credential, 
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
@@ -257,48 +257,21 @@ qry_Private_Credentials_06b_Cohort_Dist.Year,
 qry_Private_Credentials_06b_Cohort_Dist.Count, 
 qry_Private_Credentials_06c_Cohort_Dist_Total.Total, 
 IIf(([Total]=0),0,[Count]/[Total]) AS [Percent]
-INTO qry_Private_Credentials_06d1_Cohort_Dist_Projected
+INTO qry_Private_Credentials_06d1_Cohort_Dist
 FROM qry_Private_Credentials_06c_Cohort_Dist_Total INNER JOIN qry_Private_Credentials_06b_Cohort_Dist 
 ON (qry_Private_Credentials_06c_Cohort_Dist_Total.PSSM_CRED = qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED) 
 AND (qry_Private_Credentials_06c_Cohort_Dist_Total.Age_Group = qry_Private_Credentials_06b_Cohort_Dist.Age_Group);"
 
 
-## qry_Private_Credentials_06d1_Cohort_Dist_Static ----
-qry_Private_Credentials_06d1_Cohort_Dist_Static <- 
-"SELECT 'PTIB' AS Survey, 
-qry_Private_Credentials_06b_Cohort_Dist.Credential, 
-qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
-qry_Private_Credentials_06b_Cohort_Dist.LCP4_CD, 
-qry_Private_Credentials_06b_Cohort_Dist.LCIP4_CRED, 
-qry_Private_Credentials_06b_Cohort_Dist.LCIP2_CRED, 
-qry_Private_Credentials_06b_Cohort_Dist.Age_Group, 
-qry_Private_Credentials_06b_Cohort_Dist.Year, 
-qry_Private_Credentials_06b_Cohort_Dist.Count, 
-qry_Private_Credentials_06c_Cohort_Dist_Total.Total, 
-IIf(([Total]=0),0,[Count]/[Total]) AS [Percent]
-INTO qry_Private_Credentials_06d1_Cohort_Dist_Static
-FROM qry_Private_Credentials_06c_Cohort_Dist_Total INNER JOIN qry_Private_Credentials_06b_Cohort_Dist 
-ON (qry_Private_Credentials_06c_Cohort_Dist_Total.Age_Group = qry_Private_Credentials_06b_Cohort_Dist.Age_Group) 
-AND (qry_Private_Credentials_06c_Cohort_Dist_Total.PSSM_CRED = qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED);"
-
-
-## qry_Private_Credentials_06d2_Projected_Delete_AgeGrps ----
+## qry_Private_Credentials_06d2_Delete_AgeGrps ----
 # remove excess age groups
-qry_Private_Credentials_06d2_Projected_Delete_AgeGrps <- 
-  "DELETE FROM qry_Private_Credentials_06d1_Cohort_Dist_Projected
-WHERE (((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Survey)='PTIB') AND
-((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='(blank)') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='Unknown') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='65+') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Projected.Age_Group)='16 or less'))"
+qry_Private_Credentials_06d2_Delete_AgeGrps <- 
+  "DELETE FROM qry_Private_Credentials_06d1_Cohort_Dist
+WHERE (((qry_Private_Credentials_06d1_Cohort_Dist.Survey)='PTIB') AND
+((qry_Private_Credentials_06d1_Cohort_Dist.Age_Group)='(blank)') OR
+((qry_Private_Credentials_06d1_Cohort_Dist.Age_Group)='Unknown') OR
+((qry_Private_Credentials_06d1_Cohort_Dist.Age_Group)='65+') OR
+((qry_Private_Credentials_06d1_Cohort_Dist.Age_Group)='16 or less'))"
 
-## qry_Private_Credentials_05i2_Delete_AgeGrps ----
-# remove excess age groups
-qry_Private_Credentials_06d2_Static_Delete_AgeGrps <- 
-  "DELETE FROM qry_Private_Credentials_06d1_Cohort_Dist_Static
-WHERE (((qry_Private_Credentials_06d1_Cohort_Dist_Static.Survey)='PTIB') AND
-((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='(blank)') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='Unknown') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='65+') OR
-((qry_Private_Credentials_06d1_Cohort_Dist_Static.Age_Group)='16 or less'))"
+
 # ******************************************************************************

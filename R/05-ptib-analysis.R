@@ -157,15 +157,13 @@ dbExecute(decimal_con, qry_Private_Credentials_06b_Cohort_Dist)
 ## ---- Sums total by age ----
 dbExecute(decimal_con, qry_Private_Credentials_06c_Cohort_Dist_Total)
 
-## ---- Prepare and save as table to update Cohort_Program_Distributions_Projected later ----
-dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Projected)
-
-## ---- Prepare and save as table to update Cohort_Program_Distributions_Static later ----
-dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Static)
+## ---- Prepare and save as table to update necessary tables later ----
+# Use the same table to update Cohort_Program_Distributions_Static and Cohort_Program_Distributions_Projected
+dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist)
 
 ## ---- Delete excess age groups ----
-dbExecute(decimal_con, qry_Private_Credentials_06d2_Projected_Delete_AgeGrps)
-dbExecute(decimal_con, qry_Private_Credentials_06d2_Static_Delete_AgeGrps)
+dbExecute(decimal_con, qry_Private_Credentials_06d2_Delete_AgeGrps)
+
 
 # Clean up ----
 ## ---- Drop tmp qry datasets ----
