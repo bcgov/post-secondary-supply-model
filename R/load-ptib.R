@@ -67,30 +67,18 @@ data <- cleaned_data %>%
             .groups = "drop") %>%
   rename(cip = cip3)
 
+T_Private_Institutions_Credentials_Raw <- data
+
 # ---- Read Outcomes Data ----
 INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
 
 # ---- Read LAN data ----
 ## Lookups
 T_PSSM_Credential_Grouping <- 
-  read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_guess())) %>%
+  read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_PSSM_Credential_Grouping.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 T_PTIB_Y1_to_Y10 <- 
   read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/T_PTIB_Y1_to_Y10.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-
-## Last cycle's data for testing - these will be deleted
-T_Private_Institutions_Credentials <- 
-  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/T_Private_Institutions_Credentials_Imported_2021-03.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-Graduate_Projections <- 
-  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Graduate_Projections.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-Cohort_Program_Distributions_Static <- 
-  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Cohort_Program_Distributions_Static.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-Cohort_Program_Distributions_Projected <- 
-  read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Cohort_Program_Distributions_Projected.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 
@@ -101,15 +89,9 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')), T
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016)
 
 # Main dataset
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')), T_Private_Institutions_Credentials)
-
-# Used in testing - these are created in earlier part of workflow.  
-# Assuming these will be available in decimal in future runs - TBD
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), Graduate_Projections)
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')), Cohort_Program_Distributions_Static)
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')), Cohort_Program_Distributions_Projected)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')), T_Private_Institutions_Credentials_Raw)
 
 # ---- Disconnect ----
-dbDisconnect(con)
+dbDisconnect(decimal_con)
 rm(list = ls())
 gc()
