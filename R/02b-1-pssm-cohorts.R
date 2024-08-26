@@ -146,6 +146,8 @@ dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 # ---- Keep  ----
 dbExistsTable(decimal_con, "Q000_TRD_Graduates")
 dbExistsTable(decimal_con, "APPSO_Graduates")
+dbExistsTable(decimal_con, "t_dacso_data_part_1")
+dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
 # ---- Clean Up ----
 dbExecute(decimal_con, "DROP TABLE T_TRD_DATA")

@@ -44,13 +44,6 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Read LAN Data ----
-T_BGS_Data <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/T_BGS_Data_Final_2017.csv"), 
-                  col_types = cols(PEN = "c", .default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps") %>%
-  select(-c(ID)) %>%
-  rename("NOC" = NOC_CD_2011)
-
 # Lookups
 T_weights  <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/t_weights.csv"), 
@@ -114,6 +107,13 @@ T_bgs_data_final_for_outcomesmatching2020  <- # derived in program matching and 
                   col_types = cols(.default = col_character())) %>%
   janitor::clean_names(case = "all_caps")
 dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
+
+T_BGS_Data <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/T_BGS_Data_Final_2017.csv"), 
+                  col_types = cols(PEN = "c", .default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps") %>%
+  select(-c(ID)) %>%
+  rename("NOC" = NOC_CD_2011)
 
 
 # ---- Clean Up ----
