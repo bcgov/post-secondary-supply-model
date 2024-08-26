@@ -9,8 +9,7 @@
 #
 # Resulting Tables
 #   qry_Private_Credentials_05i1_Grads_by_Year (PTIB data for Graduate_Projections)
-#   qry_Private_Credentials_06d1_Cohort_Dist_Projected (PTIB data for Cohort_Program_Distributions_Projected)
-#   qry_Private_Credentials_06d1_Cohort_Dist_Static (PTIB data for Cohort_Program_Distributions_Static)
+#   qry_Private_Credentials_06d1_Cohort_Dist (PTIB data for Cohort_Program_Distributions_Projected & _Static)
 #
 # Part 1: Clean PTIB data
 # * Update age groups, CIPs
@@ -179,7 +178,6 @@ dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
 ## ---- Drop Lookups
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
 dbExecute(decimal_con, "DROP TABLE T_PTIB_Y1_to_Y10")
-dbExecute(decimal_con, "DROP TABLE INFOWARE_L_CIP_6DIGITS_CIP2016")
 
 ## ---- disconnect_connect ----
 dbDisconnect(decimal_con)
