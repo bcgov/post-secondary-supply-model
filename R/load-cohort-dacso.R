@@ -86,9 +86,9 @@ t_current_region_pssm_rollup_codes_bc <-
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
 # load via SQL Server: 
 # dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34) 
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
