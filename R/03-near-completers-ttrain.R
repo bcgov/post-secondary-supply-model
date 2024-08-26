@@ -299,7 +299,7 @@ dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", ratio.
 dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 
 # ---- TTRAIN tables ----
-# To Do: this part
+# This part is not completed  - see notes
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
 # The second one doesn't
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
@@ -312,6 +312,7 @@ dbExecute(decimal_con, "DROP TABLE T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_T
 
 
 # ---- Clean Up ----
+# TO DO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
