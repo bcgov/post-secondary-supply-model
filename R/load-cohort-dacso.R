@@ -161,17 +161,17 @@ FROM (
 "
 
 for (year in year_start:year_end){
-  full_sql <- paste0(full_sql, glue::glue("
-  (SELECT * FROM infoware_by_year_{year}) t{year}
-  "
+  full_sql <- paste0(full_sql, glue::glue("SELECT * FROM infoware_by_year_{year}
+"
   ))
   
   if (year<year_end){
     full_sql <- paste0(full_sql, "
-                       UNION ALL
-                       ")
+UNION ALL
+")
   } else{
-    full_sql <- paste0(full_sql, ")")
+    full_sql <- paste0(full_sql, "
+) t1")
   }
 }
 
@@ -179,6 +179,24 @@ cat(full_sql)
 
 # combine
 dbExecute(decimal_con, full_sql)
+
+# confirm that the count by year is the same in both databases
+dbGetQuery(
+  outcomes_con,
+  "SELECT subm_cd, count(*)
+  FROM c_outc_clean_short_resp
+  WHERE subm_cd IN ('C_Outc18', 'C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
+  GROUP BY subm_cd
+  ORDER BY 1"
+)
+
+dbGetQuery(
+  decimal_con,
+  "SELECT subm_cd, count(*)
+  FROM infoware_c_outc_clean_short_resp
+  GROUP BY subm_cd
+  ORDER BY 1"
+)
 
 # drop tmp
 for (year in year_start:year_end){
