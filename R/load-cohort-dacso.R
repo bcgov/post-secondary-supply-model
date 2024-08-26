@@ -120,10 +120,71 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPO
 rm(t_dacso_data_part_1_stepa)
 gc()
 
-infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
-rm(infoware_c_outc_clean_short_resp)
-gc()
+# tictoc::tic()
+# infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
+# tictoc::toc()
+# 
+# tictoc::tic()
+# dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp_dat)
+# tictoc::toc()
+
+## year by year? 
+year_start <- 18
+year_end <- 23
+for (year in year_start:year_end){
+  print(glue::glue('Starting year {year}'))
+  sql_by_year <- glue::glue("
+  SELECT *
+  FROM c_outc_clean_short_resp
+  WHERE subm_cd = 'C_Outc{year}'
+  ")
+  tictoc::tic()
+  tmp <- dbGetQueryArrow(outcomes_con, sql_by_year)
+  print('Loaded year to R.')
+  tictoc::toc()
+  
+  tictoc::tic()
+  dbWriteTableArrow(decimal_con, name = glue::glue("infoware_by_year_{year}"), value = tmp)
+  print('Loaded year to MS SQL.')
+  tictoc::toc()
+  print('')
+  print('')
+  
+  rm(tmp)
+  gc()
+}
+
+full_sql <- "
+SELECT *
+INTO infoware_c_outc_clean_short_resp 
+FROM (
+"
+
+for (year in year_start:year_end){
+  full_sql <- paste0(full_sql, glue::glue("
+  (SELECT * FROM infoware_by_year_{year}) t{year}
+  "
+  ))
+  
+  if (year<year_end){
+    full_sql <- paste0(full_sql, "
+                       UNION ALL
+                       ")
+  } else{
+    full_sql <- paste0(full_sql, ")")
+  }
+}
+
+cat(full_sql)
+
+# combine
+dbExecute(decimal_con, full_sql)
+
+# drop tmp
+for (year in year_start:year_end){
+  dbExecute(decimal_con, glue::glue("DROP TABLE infoware_by_year_{year}"))
+}
+
 
 # ---- Clean Up ---
 dbDisconnect(outcomes_con)
