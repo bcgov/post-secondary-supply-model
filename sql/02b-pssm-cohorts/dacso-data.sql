@@ -46,13 +46,17 @@ RIGHT JOIN ((surv_cohort_collection_info
   LEFT JOIN c_outc_clean_short_resp
     ON surv_cohort_collection_info.coci_stqu_id = c_outc_clean_short_resp.stqu_id)
 ON c_outc_clean2.stqu_id = surv_cohort_collection_info.coci_stqu_id
-WHERE  (( surv_cohort_collection_info.coci_subm_cd = 'C_Outc19' OR
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc18' OR
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc17' OR
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc16' OR
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc15')
+WHERE  (( surv_cohort_collection_info.coci_subm_cd = 'C_Outc23' OR
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc22' OR
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc21' OR
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc20' OR
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc19' OR 
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc18')
   AND     l_cip_6digits_cip2016.lcip_lcippc_name  <> 'Developmental'
   AND     l_cip_6digits_cip2016.lcip_lcippc_name  <> 'Personal Improvement and Leisure')"
 
-infoware_c_outc_clean_short_resp <- "SELECT * FROM c_outc_clean_short_resp
-WHERE subm_cd IN ('C_Outc15','C_Outc16','C_Outc17','C_Outc18','C_Outc19')"
+infoware_c_outc_clean_short_resp <- "
+SELECT *
+FROM c_outc_clean_short_resp
+WHERE subm_cd IN ('C_Outc18', 'C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
+"

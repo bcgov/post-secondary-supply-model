@@ -33,7 +33,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("{lan}/data/student-outcomes/sql/dacso-data.sql"))
+source(glue::glue("./sql/02b-pssm-cohorts/dacso-data.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
