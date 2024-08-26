@@ -24,7 +24,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("{lan}/data/student-outcomes/sql/bgs-data.sql"))
+source("./sql/02b-pssm-cohorts/bgs-data.sql")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -61,7 +61,7 @@ T_BGS_INST_Recode <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read Outcomes Data ----
-BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2015_2019)
+BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2019_2023)
 BGS_Data_Update <- BGS_Data_Update %>% 
   rename("FULL_TM_WRK" = FULL_TM, 
          "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
