@@ -59,7 +59,6 @@ age_group_lookup <-
   filter(AGE_INDEX %in% 2:5) %>% 
   mutate(AGE_INDEX = AGE_INDEX -1) %>%
   add_case(AGE_INDEX = 5, AGE_GROUP = "35 to 64", LOWER_BOUND = 35, UPPER_BOUND = 64)
-dbWriteTable(decimal_con, "AgeGroupLookup2", age_group_lookup, overwrite = TRUE)
 
 
 # ---- Testing Only ---- 
@@ -77,10 +76,10 @@ tmp_tbl_Age_AppendNewYears <- dbGetQuery(outcomes_con, qry_make_tmp_table_Age_st
 dbWriteTable(decimal_con, name = "tmp_tbl_Age_AppendNewYears", value = tmp_tbl_Age_AppendNewYears)
 dbWriteTable(decimal_con, name = "tmp_tbl_Age", value = tmp_tbl_Age)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "combine_creds", value = combine_creds )
 dbWriteTable(decimal_con, name = "stp_dacso_prgm_credential_lookup", value = stp_dacso_prgm_credential_lookup)
 dbWriteTable(decimal_con, name = "t_pssm_projection_cred_grp", value = t_pssm_projection_cred_grp)
+dbWriteTable(decimal_con, name = "AgeGroupLookup", age_group_lookup, overwrite = TRUE)
 
 
 t_dacso_data_part_1_1 <- t_dacso_data_part_1 %>% slice(1:200000)
