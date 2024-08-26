@@ -73,8 +73,9 @@ LEFT JOIN
     ON programs.prgm_id = trades_short_resp.prgm_id
     ) 
 ON trades_cohort_info.key = trades_short_resp.key
-WHERE         trades_cohort_info.subm_cd = 'C_Outc19'
-           OR trades_cohort_info.subm_cd = 'C_Outc18'
-           OR trades_cohort_info.subm_cd = 'C_Outc17'
-           OR trades_cohort_info.subm_cd = 'C_Outc16'
-           OR trades_cohort_info.subm_cd = 'C_Outc15'"
+WHERE         trades_cohort_info.subm_cd = 'C_Outc23'
+           OR trades_cohort_info.subm_cd = 'C_Outc22'
+           OR trades_cohort_info.subm_cd = 'C_Outc21'
+           OR trades_cohort_info.subm_cd = 'C_Outc20'
+           OR trades_cohort_info.subm_cd = 'C_Outc19'
+           OR trades_cohort_info.subm_cd = 'C_Outc18'"
