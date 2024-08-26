@@ -35,7 +35,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 raw_data_file <- glue::glue("{lan}/data/people2020/extract-name.csv")
 
 # ---- Read testing data ----
-raw_data_file <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/Population_Projections PEOPLE2020 downloaded 2021-03-02.csv"), 
+raw_data_file <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/04/Population_Projections PEOPLE2020 downloaded 2021-03-02.csv"), 
                                  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 

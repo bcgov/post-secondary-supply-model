@@ -1,3 +1,15 @@
+# This script contains code to calculate graduation projection forecasts for the post-secondary supply model.
+# At a high-level, the methodology is as follows:
+#   1. Use estimates of population and population projections to calculate enrollment rates by age and gender
+#   2. Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years
+#   3. Forecasted enrolment rates are applied to the project population by age and gender to derive forecasted enrollment
+#   4.  A 2 year average graduation rate (calculated as a percentage of enrollment by age group/gender) is multiplied by 
+#   forecasted enrollments to derive forecasted graduates.
+#   5.  forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential
+
+# Notes: Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019) and documentation reveal different #'s
+# of output years.
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -9,7 +21,7 @@ db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
-source(glue::glue("{lan}/development/sql/gh-source/01d-enrolment-analysis/01d-enrolment-analysis.R"))
+source(glue::glue("{lan}/development/sql/moved-to-gh/01d-enrolment-analysis/01d-enrolment-analysis.R"))
 source(glue::glue("{lan}/development/sql/moved-to-gh/01b-credential-analysis/01b-credential-analysis.R"))
 
 # ---- Connection to decimal ----
@@ -54,7 +66,7 @@ credentials <- credentials %>%
   select(-Expr1) %>%
   filter(YEAR >=2006, YEAR <=2018)
 
-# ------------------------ Forecasted Enrolments ----
+# ---- Forecasted Enrolments ----
 ## Enrolment Rate ----
 p_enrolments <- min_enrolments %>% 
   left_join(population_projections, by = join_by(GENDER, AGE_GROUP, YEAR)) %>%
@@ -74,6 +86,7 @@ avg_p_enrolments <-
   mutate(P_AVG = 100*SUM_N/SUM_POP)
 
 ## Forecasted Enrolment Rate ----
+# workbook forecasting done for 12 years
 f_enrolments <- p_enrolments |> 
   split(list(p_enrolments$AGE_GROUP, p_enrolments$GENDER), drop=TRUE, sep = "_") |>
   map(\(df) lm(P ~ YEAR, data = df)) |> 
@@ -95,7 +108,6 @@ f_enrolments_t  <- f_enrolments_t %>%
   mutate(N_ENROL_FORECASTED = RATE*POP*.01)
 
 # ---- Forecasted Graduates ----
-
 ## Graduation Rates (annual, as a percentage of enrolment) ----
 annual_grad_rate <- credentials %>% 
   summarize(N_GRADS = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)) %>%
@@ -111,14 +123,6 @@ avg_2_yr_grad_rate <- annual_grad_rate %>%
   summarise(GRAD_RATE = sum(N_GRADS)/sum(N_ENROL), 
             .by  = c(GENDER, AGE_GROUP))
 
-## 2-yr average distribution of graduates by credential ----
-avg_2_yr_credentials <- credentials %>% 
-  filter(YEAR %in% 2017:2018) %>%
-  summarise(YR_2_N = sum(N), .by = c(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY)) %>%
-  group_by(GENDER, AGE_GROUP) %>%
-  mutate(N=sum(YR_2_N), 
-         P = round(YR_2_N/N,3)) 
-
 f_graduates_t <- f_enrolments_t %>% 
   inner_join(avg_2_yr_grad_rate, by = join_by(AGE_GROUP, GENDER)) %>%
   mutate(N_GRAD_FORECASTED = N_ENROL_FORECASTED * GRAD_RATE)
@@ -126,6 +130,14 @@ f_graduates_t <- f_enrolments_t %>%
 ## Forecasted Graduates by Credential ----
 f_graduates_t  <- f_graduates_t  %>% 
   select(YEAR, AGE_GROUP, GENDER, N_GRAD_FORECASTED)
+
+## 2-yr average distribution of graduates by credential ----
+avg_2_yr_credentials <- credentials %>% 
+  filter(YEAR %in% 2017:2018) %>%
+  summarise(YR_2_N = sum(N), .by = c(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY)) %>%
+  group_by(GENDER, AGE_GROUP) %>%
+  mutate(N=sum(YR_2_N), 
+         P = round(YR_2_N/N,3)) 
 
 avg_2_yr_credentials <- avg_2_yr_credentials  %>% ungroup() %>%
   complete(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY, fill = list(YR_2_N=0,N=0,P=0)) %>% 
