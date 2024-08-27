@@ -48,10 +48,10 @@ lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 # ---- Query Defs ----
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-trd.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-appso.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-bgs.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-trd.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-appso.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-bgs.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
