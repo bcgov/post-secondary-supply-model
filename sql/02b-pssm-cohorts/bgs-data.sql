@@ -56,6 +56,12 @@ SELECT 'BACH' AS PSSM_Credential,
        bgs_cohort_info.cip2dig AS CIP_CODE_2,
        0 AS LCIP_LCIPPC_CD,
        bgs_cohort_info.cip_4digit_no_period || ' - ' || 'BACH' AS LCIP4_CRED,
+       CASE 
+       		WHEN lbr_frc_currently_employed = 1 AND d02_r1_currently_studying = 0 THEN 1 
+       		WHEN lbr_frc_currently_employed = 0 AND d02_r1_currently_studying = 1 THEN 2
+       		WHEN lbr_frc_currently_employed = 0 AND d02_r1_currently_studying = 0 THEN 3
+       		WHEN lbr_frc_currently_employed = 1 AND d02_r1_currently_studying = 1 THEN 4
+       END AS CURRENT_ACTIVITY,
        bgs_dist_19_23.full_tm,
        bgs_dist_19_23.d03_studying_ft,
        bgs_dist_19_23.lbr_frc_labour_market,
