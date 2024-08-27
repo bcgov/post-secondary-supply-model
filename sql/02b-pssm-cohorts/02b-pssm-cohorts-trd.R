@@ -43,7 +43,7 @@ LEFT JOIN tbl_age
   ON t_trd_data.trd_age_at_survey = tbl_age.age)
 LEFT JOIN tbl_age_groups
   ON tbl_age.age_group = tbl_age_groups.age_group
-WHERE  t_weights.model = '2019-2020'
+WHERE  t_weights.model = '2022-2023'
   AND t_weights.survey = 'TRD';"
 
 Q000_TRD_Q005_1b1_Delete_Cohort <- "
