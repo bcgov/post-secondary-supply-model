@@ -75,7 +75,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
 # BGS
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_Data_Final"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_INST_Recode"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_outcomesmatching2020"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_outcomesmatching"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Weights"')))
 
 # DACSO
@@ -89,6 +89,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age_groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_credential_grouping"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"')))
 
 
 # ---- TRD Queries ----
