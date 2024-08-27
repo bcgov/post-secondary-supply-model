@@ -24,12 +24,12 @@ INNER JOIN t_bgs_inst_recode
 
 BGS_Q001c_Update_CIPs_After_Program_Matching <- "
 UPDATE t_bgs_data_final
-SET    t_bgs_data_final.cip_code_4 = t_bgs_data_final_for_outcomesmatching2020.final_cip_code_4,
-       t_bgs_data_final.cip_code_2 = t_bgs_data_final_for_outcomesmatching2020.final_cip_code_2,
-       t_bgs_data_final.lcip_lcippc_cd = t_bgs_data_final_for_outcomesmatching2020.final_cip_cluster_code
+SET    t_bgs_data_final.cip_code_4 = t_bgs_data_final_for_outcomesmatching.final_cip_code_4,
+       t_bgs_data_final.cip_code_2 = t_bgs_data_final_for_outcomesmatching.final_cip_code_2,
+       t_bgs_data_final.lcip_lcippc_cd = t_bgs_data_final_for_outcomesmatching.final_cip_cluster_code
 FROM   t_bgs_data_final
-INNER JOIN t_bgs_data_final_for_outcomesmatching2020
-    ON t_bgs_data_final.stqu_id = t_bgs_data_final_for_outcomesmatching2020.stqu_id;"
+INNER JOIN t_bgs_data_final_for_outcomesmatching
+    ON t_bgs_data_final.stqu_id = t_bgs_data_final_for_outcomesmatching.stqu_id;"
 
 BGS_Q002_LCP4_CRED <- "
 UPDATE t_bgs_data_final
@@ -70,7 +70,7 @@ LEFT JOIN tbl_age
   ON t_bgs_data_final.age = tbl_age.age)
 LEFT JOIN tbl_age_groups
   ON tbl_age.age_group = tbl_age_groups.age_group
-WHERE  t_weights.model = '2019-2020'
+WHERE  t_weights.model = '2022-2023'
 AND    t_weights.survey = 'BGS';"
 
 BGS_Q005_1b1_Delete_Cohort <- "
