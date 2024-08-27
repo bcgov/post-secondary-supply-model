@@ -274,26 +274,29 @@ dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender")
 
 ratio.df = Near_completes_total_byGender %>% 
   left_join(Near_completes_total_with_STP_Credential_by_Gender)  %>%
-  left_join (Completers_agg_by_gender)
+  left_join (Completers_agg_by_gender) %>%
+  rename("gender" = "tpid_lgnd_cd")
 
-# collapse AG and UT - are we doing this?
-# near_completer_ratio = near_completer_ratio %>%
-  # mutate(prgm_credential_awarded_name = 
-          # if_else(prgm_credential_awarded_name %in% c('Associate Degree','University Transfer'), 
-          # 'Associate Degree/University Transfer', prgm_credential_awarded_name)) %>%
-  # summarize(count = sum(Count, na.rm = TRUE), 
-         # nc_with_early_or_late =  sum(nc_with_early_or_late, na.rm = TRUE),
-           # completers =  sum(completers, na.rm = TRUE), 
-           # .by = c(tpid_lgnd_cd, age_group, prgm_credential_awarded_name)) 
-
+# we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
 ratio.df  <- ratio.df %>%
   mutate(across(where(is.numeric), ~replace_na(.,0))) %>%
   mutate(n_nc_stp = Count - nc_with_early_or_late) %>%
-  mutate(ratio = n_nc_stp/completers) %>%
-  mutate(across(where(is.double), ~na_if(., Inf))) %>%
-  mutate_all(function(x) ifelse(is.nan(x), NA, x))
+  mutate(ratio = n_nc_stp/completers)
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", ratio.df)
+ratio.df2 <- ratio.df %>%
+    filter(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer")) %>%
+    mutate(prgm_credential_awarded_name = "Associate Degree") %>%
+    summarise(ratio_adgt= sum(n_nc_stp)/sum(completers), .by = c(gender, age_group, prgm_credential_awarded_name))
+
+T_DACSO_Near_Completers_RatioByGender <- 
+  ratio.df %>% 
+  left_join(ratio.df2) %>%
+  mutate(ratio = if_else(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer"), ratio_adgt, ratio)) %>%
+  mutate(across(where(is.double), ~na_if(., Inf))) %>%
+  mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
+  select(-ratio_adgt)
+
+dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", T_DACSO_Near_Completers_RatioByGender)
 
 # random query
 dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
