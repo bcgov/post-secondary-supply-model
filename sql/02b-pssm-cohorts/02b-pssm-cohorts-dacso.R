@@ -95,7 +95,7 @@ SET    t_dacso_data_part_1.new_labour_supply =
 FROM t_dacso_data_part_1
 INNER JOIN t_weights
   ON t_dacso_data_part_1.coci_subm_cd = t_weights.subm_cd
-WHERE  t_weights.model = '2019-2020'
+WHERE  t_weights.model = '2022-2023'
 AND    t_weights.survey = 'DACSO';"
 
 DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort <- "
