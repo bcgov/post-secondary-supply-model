@@ -92,7 +92,7 @@ dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Cr
 # load via SQL Server: 
 # dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34) 
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-# dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
+dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
