@@ -145,6 +145,14 @@ T_DACSO_Near_Completers_RatioByGender <- dbReadTable(decimal_con, "T_DACSO_Near_
   select(PSI_CREDENTIAL_CATEGORY, AGE_GROUP, GENDER, RATIO) %>%
   mutate(GENDER = if_else(GENDER == 1, 'M', 'F'))
 
+# use infer ratio for 35 to 64 to age groups 35-44, 45-54, 55-64 
+T_DACSO_Near_Completers_RatioByGender <- f_graduates %>% 
+  distinct(AGE_GROUP) %>%
+  rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
+  mutate(AGE_GROUP = if_else(AGE_GROUP_RECODE %in% c("35 to 44", "45 to 54", "55 to 64"), "35 to 64", AGE_GROUP_RECODE)) %>%
+  full_join(T_DACSO_Near_Completers_RatioByGender, relationship = "many-to-many") %>%
+  select(-AGE_GROUP_RECODE)
+
 f_graduates_nc <- f_graduates %>% 
   inner_join(T_DACSO_Near_Completers_RatioByGender) %>%
   mutate(N=N*RATIO) %>%
@@ -187,6 +195,8 @@ f_graduates_nc <- f_graduates_nc %>%
 f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
   group_by(PSSM_CRED, YEAR, AGE_GROUP) %>%
   summarise(N=sum(N))
+
+dbWriteTable(decimal_con, name = "Graduate Projections", f_graduates_agg)
 
 
 # ---- Graduate Projections for Apprenticeship ----
