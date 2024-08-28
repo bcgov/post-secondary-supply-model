@@ -91,7 +91,6 @@ dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update)
 dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
 dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
 
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_weights_NLS")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight_tmp")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
@@ -195,6 +194,7 @@ dbExistsTable(decimal_con, "Labour_Supply_Distribution")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
+dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
 
 # ---- Just for testing ----
 # dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
