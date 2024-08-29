@@ -1026,8 +1026,7 @@ FROM   t_dacso_data_part_1
        LEFT OUTER JOIN credentialrank
                     ON t_dacso_data_part_1.prgm_credential_awarded_name =
                        credentialrank.psi_credential_category
-WHERE  ( t_dacso_data_part_1.coci_subm_cd IN (
-         'C_Outc12','C_Outc13','C_Outc14') )
+WHERE  ( t_dacso_data_part_1.coci_subm_cd IN ('C_Outc19', 'C_Outc20'))
 GROUP  BY agegrouplookup.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name,
           t_dacso_data_part_1_tempselection.has_stp_credential,
@@ -1094,7 +1093,7 @@ Count(*) AS Count,
 t_dacso_data_part_1.lcip4_cred,
 t_dacso_data_part_1.lcp4_cd,
 t_dacso_data_part_1.lcp4_cip_4digits_name,
-t_dacso_data_part_1.cosc_ttrain,
+t_dacso_data_part_1.ttrain,
 t_dacso_data_part_1.cosc_grad_status_lgds_cd_group
 INTO Near_completes_total_by_CIP4_TTRAIN
 FROM   t_dacso_data_part_1
@@ -1110,7 +1109,7 @@ t_dacso_data_part_1.prgm_credential_awarded_name,
 t_dacso_data_part_1.lcip4_cred,
 t_dacso_data_part_1.lcp4_cd,
 t_dacso_data_part_1.lcp4_cip_4digits_name,
-t_dacso_data_part_1.cosc_ttrain,
+t_dacso_data_part_1.ttrain,
 t_dacso_data_part_1.cosc_grad_status_lgds_cd_group
 ORDER  BY agegrouplookup.age_group,
 t_dacso_data_part_1.prgm_credential_awarded_name"
@@ -1124,7 +1123,7 @@ SELECT agegrouplookup.age_group,
        t_dacso_data_part_1.lcip4_cred,
        t_dacso_data_part_1.lcp4_cd,
        t_dacso_data_part_1.lcp4_cip_4digits_name,
-       t_dacso_data_part_1.cosc_ttrain,
+       t_dacso_data_part_1.ttrain,
        t_dacso_data_part_1.cosc_grad_status_lgds_cd_group
 INTO Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN
 FROM   t_dacso_data_part_1
@@ -1139,15 +1138,14 @@ FROM   t_dacso_data_part_1
        LEFT OUTER JOIN credentialrank
                     ON t_dacso_data_part_1.prgm_credential_awarded_name =
                        credentialrank.psi_credential_category
-WHERE  ( t_dacso_data_part_1.coci_subm_cd IN (
-         'C_Outc12','C_Outc13','C_Outc14') )
+WHERE  ( t_dacso_data_part_1.coci_subm_cd IN ('C_Outc19', 'C_Outc20') )
 GROUP  BY agegrouplookup.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name,
           t_dacso_data_part_1_tempselection.has_stp_credential,
           t_dacso_data_part_1.lcip4_cred,
           t_dacso_data_part_1.lcp4_cd,
           t_dacso_data_part_1.lcp4_cip_4digits_name,
-          t_dacso_data_part_1.cosc_ttrain,
+          t_dacso_data_part_1.ttrain,
           t_dacso_data_part_1.cosc_grad_status_lgds_cd_group
 HAVING ( t_dacso_data_part_1_tempselection.has_stp_credential = 'Yes' )
 ORDER  BY agegrouplookup.age_group,
@@ -1156,17 +1154,17 @@ ORDER  BY agegrouplookup.age_group,
 # ---- qry99_Near_completes_program_dist_count ----
 qry99_Near_completes_program_dist_count <- 
 "SELECT t_pssm_projection_cred_grp.pssm_credential,
-       near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group + ' - ' +
+       cast(near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group as nvarchar(50)) + ' - ' +
        t_pssm_projection_cred_grp.pssm_credential AS PSSM_CRED,
        near_completes_total_by_cip4_ttrain.age_group,
        near_completes_total_by_cip4_ttrain.lcip4_cred,
        near_completes_total_by_cip4_ttrain.lcp4_cd,
        near_completes_total_by_cip4_ttrain.lcp4_cip_4digits_name,
        near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group,
-       near_completes_total_by_cip4_ttrain.cosc_ttrain,
+       near_completes_total_by_cip4_ttrain.ttrain,
        Sum(near_completes_total_by_cip4_ttrain.count) AS Count,
        Sum(Isnull(near_completes_total_with_stp_credential_bycip4_ttrain.count, 0)) AS
-          Near_completers_from_C_Outc12_13_14_with_earlier_or_later_STP,
+          Near_completers_from_C_Outc19_20_with_earlier_or_later_STP,
        near_completes_total_by_cip4_ttrain.count - 
           Isnull(near_completes_total_with_stp_credential_bycip4_ttrain.count, 0) AS
           Near_completers_STP_Credentials
@@ -1175,7 +1173,7 @@ FROM   near_completes_total_by_cip4_ttrain
 INNER JOIN t_pssm_projection_cred_grp
   ON   near_completes_total_by_cip4_ttrain.prgm_credential_awarded_name = t_pssm_projection_cred_grp.pssm_projection_credential
 LEFT OUTER JOIN  near_completes_total_with_stp_credential_bycip4_ttrain
-  ON   near_completes_total_by_cip4_ttrain.cosc_ttrain = near_completes_total_with_stp_credential_bycip4_ttrain.cosc_ttrain
+  ON   near_completes_total_by_cip4_ttrain.ttrain = near_completes_total_with_stp_credential_bycip4_ttrain.ttrain
   AND  near_completes_total_by_cip4_ttrain.age_group = near_completes_total_with_stp_credential_bycip4_ttrain.age_group
   AND  near_completes_total_by_cip4_ttrain.prgm_credential_awarded_name = near_completes_total_with_stp_credential_bycip4_ttrain.prgm_credential_awarded_name
   AND  near_completes_total_by_cip4_ttrain.lcip4_cred = near_completes_total_with_stp_credential_bycip4_ttrain.lcip4_cred
@@ -1183,13 +1181,13 @@ GROUP  BY near_completes_total_by_cip4_ttrain.age_group,
       near_completes_total_by_cip4_ttrain.lcip4_cred,
       near_completes_total_by_cip4_ttrain.lcp4_cd,
       near_completes_total_by_cip4_ttrain.lcp4_cip_4digits_name,
-      near_completes_total_by_cip4_ttrain.cosc_ttrain,
+      near_completes_total_by_cip4_ttrain.ttrain,
       t_pssm_projection_cred_grp.pssm_credential,
       '3 - ' + t_pssm_projection_cred_grp.pssm_credential,
       near_completes_total_by_cip4_ttrain.count - 
       Isnull(near_completes_total_with_stp_credential_bycip4_ttrain.count, 0),
         near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group,
-      near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group + ' - ' + t_pssm_projection_cred_grp.pssm_credential;"
+      cast(near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group as nvarchar(50)) + ' - ' + t_pssm_projection_cred_grp.pssm_credential;"
 
 
 
