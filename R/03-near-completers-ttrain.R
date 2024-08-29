@@ -4,15 +4,13 @@
 # 
 # Age groups: 17 to 19, 20 to 24, 25 to 29, and 30 to 34, and 35 to 64
 # Credentials: From Diploma, Associate Degree, and Certificate Outcomes Survey cohorts. 
-# Survey years: 2015, 2016, 2017, 2018, 2019, (and 2020, 2021, 2022, 2023 for PSSM 2023)
+# Survey years: 2018, 2019, 2020, 2021, 2022, 2023 for PSSM 2023
 # STP Credential years searched: 2002/03 - 2022/23 
 #
 # Annual ratios are computed for all available years and an average taken of two or three representative years
-# (chosen by investigation).  PSSM model 2017 used an average (of the?) ratios for 2012-2014.
+# (chosen by investigation).  PSSM model 2023 used an average ratio of 2018-2019.
 # Notes: Using age at grad (not age at survey) for age groupings.  
-# Near completer ratios for TTRAIN not coded until we know if they will be used
-# Associates degree ratio is coded as the others for now.  Methodology needs checking.
-# Which credentials are we compiling a ratio for?  (see table combine_creds)
+
 
 library(tidyverse)
 library(RODBC)
@@ -37,21 +35,22 @@ decimal_con <- dbConnect(odbc::odbc(),
 source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/near-completers-investigation-ttrain.R"))
 source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/dacso-near-completers.R"))
 
-# tmp tables made in earlier part of workflow
+# tables made in earlier part of workflow
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))) 
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))) 
 
-# carry over from last model's run
+# rollover tables - this can be removed later
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"')))
 
-# new data - see load-near-completers-ttrain.R
+# new data
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')))
 
-# lookups - see load-near-completers-ttrain.R
+# lookups
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
 
 # ---- Derive Age at Grad ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")
@@ -63,6 +62,7 @@ dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_CLEANED = ''
 dbExecute(decimal_con, qry_make_tmp_table_Age_step3)
 dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_DATE = NULL WHERE ENDDT_DATE = '1900-01-01'")
 dbExecute(decimal_con, qry_make_tmp_table_Age_step4)
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
 
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Age_At_Grad FLOAT NULL")
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL")
@@ -72,6 +72,18 @@ dbExecute(decimal_con, qry99a_Update_Age_At_Grad)
 # use a temporary subset of columns from T_DACSO_DATA_Part_1 for selection
 dbExecute(decimal_con, qry_make_T_DACSO_DATA_Part_1_TempSelection)
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
+
+# ---- Add PEN to Non-Dup table ----
+# Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
+sql <- "ALTER TABLE pssm2023.[IDIR\BASHCROF].credential_non_dup
+ADD PSI_PEN NVARCHAR(255) NULL;"
+
+sql <- "UPDATE N
+SET N.PSI_PEN = C.PSI_PEN
+FROM credential_non_dup AS N
+INNER JOIN dbo.STP_Credential AS C
+ON N.ID = C.ID
+"
 
 # ---- DACSO Matching STP Credential ----
 dbExecute(decimal_con, qry01_Match_DACSO_to_STP_Credential_Non_DUP_on_PEN)
@@ -180,9 +192,9 @@ dbExecute(decimal_con, "DROP TABLE nearcompleters_in_stp_credential_step1")
 # ----- Check Near Completers Ratios -----
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_Credential_by_Year)
-dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad) # these are broken
-dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad) # these are broken
-dbGetQuery(decimal_con, qry_details_of_STP_Credential_Matching)
+dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad) 
+dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad)
+dbGetQuery(decimal_con, qry_details_of_STP_Credential_Matching) 
 
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 #1 (col H in Excel sheet)
@@ -318,7 +330,7 @@ dbExecute(decimal_con, "DROP TABLE T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_T
 # TO DO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
+
 dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
 dbExecute(decimal_con, "DROP TABLE combine_creds")
