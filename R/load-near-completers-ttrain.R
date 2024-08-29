@@ -11,7 +11,7 @@ db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 
-source(glue::glue("{lan}/data/student-outcomes/sql/qry_make_tmp_table_Age_step1.sql"))
+source(glue::glue("./sql/03-near-completers/qry_make_tmp_table_Age_step1.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -36,6 +36,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 stp_dacso_prgm_credential_lookup <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/STP_DACSO_PRGM_CREDENTIAL_LOOKUP.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+
 combine_creds <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/combine_creds.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -47,6 +48,7 @@ t_pssm_projection_cred_grp <-
            PSSM_CREDENTIAL = 'ADGR OR UT', 
            PSSM_CREDENTIAL_NAME = 'Associate Degree/University Transfer', 
            COSC_GRAD_STATUS_LGDS_CD = 1)
+
 tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps") %>%
