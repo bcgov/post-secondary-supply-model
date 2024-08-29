@@ -32,8 +32,8 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Data Requirements and SQL Definitons ----
-source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/near-completers-investigation-ttrain.R"))
-source(glue::glue("{lan}/development/sql/gh-source/03-near-completers-ttrain/dacso-near-completers.R"))
+source("./sql/03-near-completers/near-completers-investigation-ttrain.R")
+source("./sql/03-near-completers/dacso-near-completers.R")
 
 # tables made in earlier part of workflow
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))) 
@@ -319,23 +319,22 @@ dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 # The second one doesn't
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
-dbExecute(decimal_con, qry99_Near_completes_program_dist_count) # check pssm_credential column - presence of both 'OR' and 'or' creates faux-duplicates
+dbExecute(decimal_con, qry99_Near_completes_program_dist_count) 
 
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
-dbExecute(decimal_con, "DROP TABLE T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
-
 
 # ---- Clean Up ----
 # TO DO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
-
 dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
 dbExecute(decimal_con, "DROP TABLE combine_creds")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1")
 dbExecute(decimal_con, "DROP TABLE t_pssm_projection_cred_grp")
+
+
 dbExecute(decimal_con, "drop table NearCompleters_CIP4")
 dbExecute(decimal_con, "drop table completerscip4")
 dbExecute(decimal_con, "drop table Near_completes_total_by_CIP4_TTRAIN")
@@ -353,7 +352,8 @@ dbExecute(decimal_con, "drop table Completers_CIP4_CombinedCred")
 
 # ---- Keep for program projections ----
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
-dbExistsTable(decimal_con, "qry_13a1_Near_completers")
+dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioAgeAtGradCIP4")
+dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")
 
 
 
