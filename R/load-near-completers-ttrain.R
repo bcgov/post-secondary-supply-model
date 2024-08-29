@@ -45,7 +45,7 @@ t_pssm_projection_cred_grp <-
   janitor::clean_names(case = "all_caps") %>% 
   add_case(PSSM_PROJECTION_CREDENTIAL = 'UNIVERSITY TRANSFER', 
            PSSM_CREDENTIAL = 'ADGR OR UT', 
-           PSSM_CREDENTIAL_NAME = 'Associate degree/University transfer', 
+           PSSM_CREDENTIAL_NAME = 'Associate Degree/University Transfer', 
            COSC_GRAD_STATUS_LGDS_CD = 1)
 tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%

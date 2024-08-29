@@ -1,3 +1,24 @@
+# This script computes the final NLS distributions based on program projections, labour supply distributions
+# and occupation distributions.  
+
+# Tables were created in the cohorts database process and populated here
+# Then all of the labour supply and occ queries were moved around a bit to 
+# incorporate looking for unknown labour supply and unknown occs in more steps 
+# than was previously necessary for the LCIP2 and private institution proxies.
+
+# QI: The model is rerun a second time and all of these queries are also re-run
+# to create an indicator which measures the quality of predictability for each NOC projection.
+
+# Age groups: 17 to 19, 20 to 24, 25 to 29, and 30 to 34, and 35 to 64
+# Credentials: From Diploma, Associate Degree, and Certificate Outcomes Survey cohorts. 
+# Survey years: 2019/2020 to 2030/2031 for PSSM 2019
+
+#  Note: Q_1_Grad_Projections_by_Age_by_Program links to the following tables to exclude programs 
+#  where Student Outcomes results not available or inappropriate 
+#   - T_Exclude_from_Projections_LCIP4_CRED
+#	  - T_Exclude_from_Projections_LCP4_CD
+#	  - T_Exclude_from_Projections_PSSM_Credential
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -48,26 +69,31 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Ag
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
-# Not sure what these are for:
-#dbExecute(decimal_con, Count_Cohort_Program_Distributions) 
-#dbExecute(decimal_con, Count_Labour_Supply_Distribution) 
-#dbExecute(decimal_con, Count_Occupation_Distributions) 
-#dbExecute(decimal_con, Occupation_Unknown) 
+# Checks
+dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
+dbGetQuery(decimal_con, Count_Labour_Supply_Distribution1) 
+dbGetQuery(decimal_con, Count_Labour_Supply_Distribution2) 
+dbGetQuery(decimal_con, Count_Occupation_Distributions1) # We want this to contain all of our PSSM Credentials
+dbGetQuery(decimal_con, Count_Occupation_Distributions2) 
+dbGetQuery(decimal_con, Occupation_Unknown) 
 
+# creates mapping for LCIP4 to LCIP2 
 dbExecute(decimal_con, Q_0_LCP2_LCP4) 
-# check what was originally in these tables - is PTIB there to begin with?  If so, 
-# why delete?
+
+# use these to delete PTIB for running a model without private institutions
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2) 
+
+# essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 
 # ---- Q_1 Series ---- 
-dbGetQuery(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 
+dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 
 dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static) 
 dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
 dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program) 
@@ -78,7 +104,7 @@ dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program_LCP2")
 
 # ---- Q_2 Series ---- 
-dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED) 
+dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
 dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown) 
 dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy) 
 dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union) 
@@ -180,7 +206,7 @@ dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
 dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
 
 # ---- Q_4_NOC_Totals Series ---- 
-#dbGetQuery(decimal_con, Q_4_NOC_Totals_by_PSSM_CRED)
+#dbGetQuery(decimal_con, )
 #dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year) 
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC) 

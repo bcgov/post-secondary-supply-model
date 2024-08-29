@@ -120,8 +120,7 @@ dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCP4_CD", T_Exclude
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCIP4_CRED",  T_Exclude_from_Projections_LCIP4_CRED)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T_Exclude_from_Projections_PSSM_Credential)
 dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
-dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Current_Region_PSSM_Rollup_Codes)
-dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
+dbWriteTable(decimal_con, name = "T_Current_Region_PSSM_Rollup_Code", T_Current_Region_PSSM_Rollup_Codes)
 dbWriteTable(decimal_con, name = "T_Suppression_Public_Release_NOC", T_Suppression_Public_Release_NOC)
 
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
@@ -148,7 +147,6 @@ dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Static",  Cohort_
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions",  Cohort_Program_Distributions)
 dbWriteTable(decimal_con, name = "Graduate_Projections",  Graduate_Projections)
-
 
 
 # ---- Disconnect ----
