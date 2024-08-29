@@ -32,6 +32,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 
 # ---- Read LAN data ----
+
 stp_dacso_prgm_credential_lookup <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/STP_DACSO_PRGM_CREDENTIAL_LOOKUP.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -59,11 +60,17 @@ age_group_lookup <-
   mutate(AGE_INDEX = AGE_INDEX -1) %>%
   add_case(AGE_INDEX = 5, AGE_GROUP = "35 to 64", LOWER_BOUND = 35, UPPER_BOUND = 64)
 
+# ---- Rollover Tables ---- 
+tmp_tbl_Age <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
+
 # ---- Read SO data ----
 tmp_tbl_Age_AppendNewYears <- dbGetQuery(outcomes_con, qry_make_tmp_table_Age_step1) # adjust query for correct year
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = "tmp_tbl_Age_AppendNewYears", value = tmp_tbl_Age_AppendNewYears)
+dbWriteTable(decimal_con, name = "tmp_tbl_Age", value = tmp_tbl_Age)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "combine_creds", value = combine_creds )
 dbWriteTable(decimal_con, name = "stp_dacso_prgm_credential_lookup", value = stp_dacso_prgm_credential_lookup)
