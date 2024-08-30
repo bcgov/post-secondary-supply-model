@@ -75,7 +75,7 @@ LEFT JOIN tbl_age
   ON t_appso_data_final.app_age_at_survey = tbl_age.age)
 LEFT JOIN tbl_age_groups
   ON tbl_age.age_group = tbl_age_groups.age_group
-WHERE t_weights.model = '2019-2020'
+WHERE t_weights.model = '2022-2023'
   AND t_weights.survey = 'APPSO';"
 
 APPSO_Q005_1b1_Delete_Cohort <- 

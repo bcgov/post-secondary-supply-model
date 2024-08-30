@@ -27,7 +27,7 @@ GROUP  BY dacso_q99a_stqui_id.stqu_id_only,
           t_cohorts_recoded.survey_year,
           t_cohorts_recoded.noc_cd,
           tbl_noc_skill_level_aged_17_34.unit_group_code
-HAVING    t_cohorts_recoded.survey_year IN ('2019', '2018', '2017', '2016', '2015', '2014', '2013', '2012') 
+HAVING    t_cohorts_recoded.survey_year IN ('2019','2020','2021','2022','2023') 
   AND     t_cohorts_recoded.noc_cd IS NOT NULL
   AND     t_cohorts_recoded.noc_cd <> ''
   AND     tbl_noc_skill_level_aged_17_34.unit_group_code IS NULL;"
