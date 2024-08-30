@@ -14,7 +14,10 @@
 
 # Notes:  create Weight_Age is used to calculate the age for the private institution credentials 
 # and needed if the data set doesn’t have age. Some invalid NOC codes (see documentation)
-# NO PDEG 
+# FIXME NO PDEG 
+# FIXME Labour_Supply_Distribution_LCP2 and Labour_Supply_Distribution_LCP_No_TT 
+# have an LCP2_CRED variable where old version has LCIP2_CRED.  
+# FIXME Graduate Distributions (Non-Student Outcomes)
 
 library(tidyverse)
 library(RODBC)
@@ -96,7 +99,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
-
 
 # apply nls weights to group totals
 dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
