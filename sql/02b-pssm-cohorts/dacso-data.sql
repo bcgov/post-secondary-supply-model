@@ -21,6 +21,7 @@ SELECT  surv_cohort_collection_info.coci_pen,
         c_outc_clean_short_resp.labr_job_search_time_gp,
         c_outc_clean_short_resp.labr_job_training_related,
         c_outc_clean_short_resp.labr_occupation_lnoc_cd,
+        --c_outc_clean_short_resp.labr_occ_LNOC_2021_CD, 
         surv_cohort_collection_info.coci_age_at_survey,
         0 AS Age_Group,
         0 AS Age_Group_Rollup,
@@ -50,13 +51,12 @@ WHERE  (( surv_cohort_collection_info.coci_subm_cd = 'C_Outc23' OR
           surv_cohort_collection_info.coci_subm_cd = 'C_Outc22' OR
           surv_cohort_collection_info.coci_subm_cd = 'C_Outc21' OR
           surv_cohort_collection_info.coci_subm_cd = 'C_Outc20' OR
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc19' OR 
-          surv_cohort_collection_info.coci_subm_cd = 'C_Outc18')
+          surv_cohort_collection_info.coci_subm_cd = 'C_Outc19')
   AND     l_cip_6digits_cip2016.lcip_lcippc_name  <> 'Developmental'
   AND     l_cip_6digits_cip2016.lcip_lcippc_name  <> 'Personal Improvement and Leisure')"
 
 infoware_c_outc_clean_short_resp <- "
 SELECT *
 FROM c_outc_clean_short_resp
-WHERE subm_cd IN ('C_Outc18', 'C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
+WHERE subm_cd IN ('C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
 "

@@ -54,6 +54,7 @@ Q000_TRD_DATA_01 <-
        trades_short_resp.trd_labr_job_search_time_gp,
        trades_short_resp.trd_labr_job_training_related,
        trades_short_resp.noc_cd,
+       --trades_short_resp.noc_cd_2021,
        -- gradstat_group || ' - ' || l_cip_6digits_cip2016.lcip_lcp4_cd || ' - ' || trades_cohort_info.ttrain || ' - ' || PSSM_Credential AS LCIP4_CRED,
        0 AS New_Labour_Supply,
        0 AS Weight
@@ -77,5 +78,4 @@ WHERE         trades_cohort_info.subm_cd = 'C_Outc23'
            OR trades_cohort_info.subm_cd = 'C_Outc22'
            OR trades_cohort_info.subm_cd = 'C_Outc21'
            OR trades_cohort_info.subm_cd = 'C_Outc20'
-           OR trades_cohort_info.subm_cd = 'C_Outc19'
-           OR trades_cohort_info.subm_cd = 'C_Outc18'"
+           OR trades_cohort_info.subm_cd = 'C_Outc19'"

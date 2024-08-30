@@ -19,6 +19,7 @@ APPSO_DATA_01_Final <-
        apprentice_short_resp.app_labr_unemployed,
        apprentice_short_resp.app_time_to_find_employ_mjob,
        apprentice_short_resp.app_labr_job_training_related,
+       --apprentice_short_resp.noc_cd_2021,
        apprentice_short_resp.noc_cd,
        l_cip_6digits_cip2016.lcip_lcp4_cd || ' - APPR' || programs.prgm_credential AS LCIP4_CRED,
        0  AS New_Labour_Supply,
@@ -42,9 +43,7 @@ WHERE  apprentice_cohort_info.subm_cd IN (
   'C_Outc22', 
   'C_Outc21', 
   'C_Outc20', 
-  'C_Outc19',
-  'C_Outc18'
-  )
+  'C_Outc19')
 ORDER  BY apprentice_cohort_info.subm_cd"
 
 APPSO_Graduates <- "
