@@ -102,18 +102,18 @@ dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final)
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode, overwrite = TRUE)
 
 # ---- TESTING ONLY ----
-T_bgs_data_final_for_outcomesmatching2020  <- # derived in program matching and will be available in ssql from program matching in future.
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/t_bgs_data_final_for_outcomesmatching2020.csv"), 
-                  col_types = cols(.default = col_character())) %>%
-  janitor::clean_names(case = "all_caps")
-dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
-
-T_BGS_Data <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/T_BGS_Data_Final_2017.csv"), 
-                  col_types = cols(PEN = "c", .default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps") %>%
-  select(-c(ID)) %>%
-  rename("NOC" = NOC_CD_2011)
+# T_bgs_data_final_for_outcomesmatching2020  <- # derived in program matching and will be available in ssql from program matching in future.
+#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/t_bgs_data_final_for_outcomesmatching2020.csv"), 
+#                   col_types = cols(.default = col_character())) %>%
+#   janitor::clean_names(case = "all_caps")
+# dbWriteTable(decimal_con, name = "T_bgs_data_final_for_outcomesmatching2020", value = T_bgs_data_final_for_outcomesmatching2020)
+# 
+# T_BGS_Data <- 
+#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/02/T_BGS_Data_Final_2017.csv"), 
+#                   col_types = cols(PEN = "c", .default = col_guess())) %>%
+#   janitor::clean_names(case = "all_caps") %>%
+#   select(-c(ID)) %>%
+#   rename("NOC" = NOC_CD_2011)
 
 
 # ---- Clean Up ----
