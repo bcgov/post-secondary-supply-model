@@ -32,20 +32,12 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 
 # ---- Read raw data  ----
-raw_data_file <- glue::glue("{lan}/data/people2020/extract-name.csv")
-
-# ---- Read testing data ----
-raw_data_file <- readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/04/Population_Projections PEOPLE2020 downloaded 2021-03-02.csv"), 
-                                 col_types = cols(.default = col_guess())) %>%
+raw_data_file_path <- glue::glue("{lan}/data/people2020/population_projections.csv")
+raw_data_file <- readr::read_csv(raw_data_file_path, col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----
-dbWriteTableArrow(decimal_con,
-                  name = "population_projections",
-                  nanoarrow::as_nanoarrow_array_stream(raw_data_file))
-
-# ---- Read from decimal ----
-dbReadTable(decimal_con, "population_projections")
+dbWriteTable(decimal_con, name = "population_projections", raw_data_file)
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
