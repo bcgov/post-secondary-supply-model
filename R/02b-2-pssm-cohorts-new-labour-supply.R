@@ -14,10 +14,10 @@
 
 # Notes:  create Weight_Age is used to calculate the age for the private institution credentials 
 # and needed if the data set doesn’t have age. Some invalid NOC codes (see documentation)
-# FIXME NO PDEG 
-# FIXME Labour_Supply_Distribution_LCP2 and Labour_Supply_Distribution_LCP_No_TT 
-# have an LCP2_CRED variable where old version has LCIP2_CRED.  
-# FIXME Graduate Distributions (Non-Student Outcomes)
+#         PDEG included at the end of occupation_distribution scripts.   
+#
+# FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
+# FIXME Missing Graduate Distributions (Non-Student Outcomes)
 
 library(tidyverse)
 library(RODBC)
