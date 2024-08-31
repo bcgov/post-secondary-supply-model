@@ -1,3 +1,41 @@
+# ---- qry_Build_Program_Projection_Input ----
+qry_Build_Program_Projection_Input <- "
+--CREATE VIEW tbl_Program_Projection_Input AS 
+SELECT  A.AgeGroup, 
+        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + A.AgeGroup AS Expr1,
+        Credential_Non_Dup.FINAL_CIP_CODE_4, 
+        tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, 
+COUNT(*) AS Count 
+FROM    tblCredential_HighestRank 
+INNER JOIN AgeGroupLookup A
+  ON    tblCredential_HighestRank.AGE_GROUP_AT_GRAD = A.AgeIndex 
+INNER JOIN Credential_Non_Dup 
+  ON    tblCredential_HighestRank.id = Credential_Non_Dup.id 
+WHERE   (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC') 
+  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY = 1) 
+  AND   (tblCredential_HighestRank.OUTCOMES_CRED <> 'DACSO') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10') 
+  OR    (tblCredential_HighestRank.PSI_VISA_STATUS IS NULL) 
+  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY = 1) 
+  AND   (tblCredential_HighestRank.OUTCOMES_CRED <> 'DACSO') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10') 
+  OR    (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC') 
+  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY IS NULL) 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10') 
+  OR    (tblCredential_HighestRank.PSI_VISA_STATUS IS NULL) 
+  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY IS NULL) 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09') 
+  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10') 
+GROUP BY A.AgeGroup, 
+        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
+        tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED,  
+        Credential_Non_Dup.FINAL_CIP_CODE_4 
+HAVING  (tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY <> 'APPRENTICESHIP');"
+
 # ---- Q012a_Check_Total_for_Invalid_CIPs ---- 
 Q012a_Check_Total_for_Invalid_CIPs <- 
 "SELECT tbl_Program_Projection_Input.FINAL_CIP_CODE_4, 
@@ -24,7 +62,7 @@ INNER JOIN (tbl_Program_Projection_Input
   INNER JOIN T_Weights_STP 
     ON tbl_Program_Projection_Input.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) 
   ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY
-WHERE   (((T_Weights_STP.Model)='2019-2020') AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ('APPRAPPR','APPRCERT','GRCT or GRDP','PDEG','MAST','DOCT')))
+WHERE   (((T_Weights_STP.Model)='2023-2024') AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ('APPRAPPR','APPRCERT','GRCT or GRDP','PDEG','MAST','DOCT')))
 GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, 
         CONCAT(CASE WHEN COSC_GRAD_STATUS_LGDS_CD IS Null THEN NULL ELSE cast(COSC_GRAD_STATUS_LGDS_CD as nvarchar(50)) + ' - ' END, [PSSM_Credential]), 
         tbl_Program_Projection_Input.FINAL_CIP_CODE_4, 
@@ -119,14 +157,14 @@ GROUP BY Q012c2_Weighted_Cohort_Dist.PSSM_Credential,
 
 # ---- Q012c4_Weighted_Cohort_Distribution_Projected ---- 
 Q012c4_Weighted_Cohort_Distribution_Projected <- 
-"SELECT 'Program_Projections_2019-2020_Q015e' AS Survey, 
+"SELECT 'Program_Projections_2023-2024_Q015e' AS Survey, 
         Q012c2_Weighted_Cohort_Dist.PSSM_Credential, 
         Q012c2_Weighted_Cohort_Dist.PSSM_CRED, 
         Q012c2_Weighted_Cohort_Dist.LCP4_CD, 
         Q012c2_Weighted_Cohort_Dist.GRAD_STATUS, 
         Q012c2_Weighted_Cohort_Dist.TTRAIN, 
         Q012c2_Weighted_Cohort_Dist.Age_Group, 
-        '2019/2020' AS Projection_Year, 
+        '2023/2024' AS Projection_Year, 
         Q012c2_Weighted_Cohort_Dist.Count, 
         Q012c3_Weighted_Cohort_Dist_Total.Totals, 
         IIf((Totals=0), 0 , CAST(Count AS float)/CAST(Totals as FLOAT)) AS [%]
@@ -145,15 +183,18 @@ Q012c5_Weighted_Cohort_Dist_TTRAIN <-
         Q012c_Weighted_Cohort_Dist.LCP4_CD, 
         Q012c_Weighted_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD, 
         Q012c4_Weighted_Cohort_Distribution_Projected.TTRAIN, 
-        CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END
-			+ [Q012c_Weighted_Cohort_Dist].[LCP4_CD] + ' - ' 
-			+ CASE WHEN [TTRAIN] IS NULL THEN Null ELSE CAST([TTRAIN] AS NVARCHAR(50)) + ' - ' END 
-			+ [Q012c_Weighted_Cohort_Dist].[PSSM_Credential] AS LCIP4_CRED, 
-        CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END
-			+ Left([Q012c_Weighted_Cohort_Dist].[LCP4_CD],2) 
-			+ ' - ' 
-			+ CASE WHEN [TTRAIN] IS NULL THEN Null ELSE CAST([TTRAIN] AS NVARCHAR(50)) + ' - ' END 
-			+ [Q012c_Weighted_Cohort_Dist].[PSSM_Credential] AS LCIP2_CRED, 
+        CONCAT(
+          (CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END),
+			    [Q012c_Weighted_Cohort_Dist].[LCP4_CD], ' - ',
+			    (CASE WHEN [TTRAIN] IS NULL THEN Null ELSE CAST([TTRAIN] AS NVARCHAR(50)) + ' - ' END),
+			    [Q012c_Weighted_Cohort_Dist].[PSSM_Credential]
+			   ) AS LCIP4_CRED, 
+        CONCAT(
+          (CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END), 
+			    Left([Q012c_Weighted_Cohort_Dist].[LCP4_CD],2) , ' - ',  
+			    (CASE WHEN [TTRAIN] IS NULL THEN Null ELSE CAST([TTRAIN] AS NVARCHAR(50)) + ' - ' END), 
+			    [Q012c_Weighted_Cohort_Dist].[PSSM_Credential]
+			  ) AS LCIP2_CRED, 
         Q012c_Weighted_Cohort_Dist.AgeGroup, Q012c_Weighted_Cohort_Dist.Count, Q012c4_Weighted_Cohort_Distribution_Projected.[%], 
         CASE WHEN [Q012c4_Weighted_Cohort_Distribution_Projected].[%] IS NULL THEN [Q012c_Weighted_Cohort_Dist].[Count] ELSE [Q012c_Weighted_Cohort_Dist].[Count]*[Q012c4_Weighted_Cohort_Distribution_Projected].[%] END AS Count_Distributed
 INTO    Q012c5_Weighted_Cohort_Dist_TTRAIN
@@ -186,7 +227,7 @@ WHERE (((Cohort_Program_Distributions_Static.Survey) Like '%Q012e'));"
 Q012e_Weighted_Cohort_Distribution <- 
 "INSERT INTO Cohort_Program_Distributions_Static 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_Q012e' AS Survey, 
+SELECT 'Program_Projections_2023-2024_Q012e' AS Survey, 
 Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_Credential,
         Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_CRED, 
         Q012c5_Weighted_Cohort_Dist_TTRAIN.LCP4_CD, 
@@ -195,7 +236,7 @@ Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_Credential,
         Q012c5_Weighted_Cohort_Dist_TTRAIN.LCIP4_CRED, 
         Q012c5_Weighted_Cohort_Dist_TTRAIN.LCIP2_CRED, 
         Q012c5_Weighted_Cohort_Dist_TTRAIN.AgeGroup, 
-        '2019/2020' AS Projection_Year, 
+        '2023/2024' AS Projection_Year, 
         Q012c5_Weighted_Cohort_Dist_TTRAIN.Count_Distributed, 
         Q012d_Weighted_Cohort_Dist_Total.Totals, 
         CASE WHEN Totals = 0 THEN 0 ELSE CAST(Count_Distributed AS FLOAT)/CAST(Totals AS FLOAT) END AS [Percent]
@@ -207,7 +248,8 @@ INNER JOIN Q012d_Weighted_Cohort_Dist_Total
 # ---- Q013a_Check_PDEG_CLP_07_Only_CIP_22 ---- 
 Q013a_Check_PDEG_CLP_07_Only_CIP_22 <- 
 "SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, 
-        CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_Credential]) AS PSSM_CRED, 
+        CONCAT
+        (CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_Credential]) AS PSSM_CRED, 
         tbl_Program_Projection_Input.FINAL_CIP_CODE_4, qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD AS LCIPPC_CD, 
         CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [LCIP_LCIPPC_CD], ' - ',
            [T_PSSM_Projection_Cred_Grp].[PSSM_Credential]) AS LCIPPC_CRED, 
@@ -222,7 +264,7 @@ INNER JOIN (tbl_Program_Projection_Input
   ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY) 
 INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 
   ON tbl_Program_Projection_Input.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
-WHERE (((T_Weights_STP.Model)='2019-2020') 
+WHERE (((T_Weights_STP.Model)='2023-2024') 
 AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) In ('PDEG')))
 GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, 
 		    CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_Credential]),
@@ -252,7 +294,7 @@ INNER JOIN (tbl_Program_Projection_Input
   ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY) 
 INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 
   ON tbl_Program_Projection_Input.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
-WHERE (((T_Weights_STP.Model)='2019-2020') 
+WHERE (((T_Weights_STP.Model)='2023-2024') 
 AND   ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) In ('GRCT or GRDP','PDEG','MAST','DOCT')))
 GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, 
 	    CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_Credential]), 
@@ -293,13 +335,13 @@ GROUP BY Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_Credential,
 # ---- Q013e_Weighted_Cohort_Distribution ---- 
 Q013e_Weighted_Cohort_Distribution <- "
 INSERT INTO Cohort_Program_Distributions_Static (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], [Total], [Percent] )
-SELECT 'Program_Projections_2019-2020_Q013e' AS Survey, 
+SELECT 'Program_Projections_2023-2024_Q013e' AS Survey, 
         Q013c_Weighted_Cohort_Dist.PSSM_Credential, 
         Q013c_Weighted_Cohort_Dist.PSSM_CRED, 
         Q013c_Weighted_Cohort_Dist.LCIPPC_CD, 
         Q013c_Weighted_Cohort_Dist.LCIPPC_CRED, 
         Q013c_Weighted_Cohort_Dist.AgeGroup, 
-        '2019/2020' AS Year, 
+        '2023/2024' AS Year, 
         Q013c_Weighted_Cohort_Dist.Count, 
         Q013d_Weighted_Cohort_Dist_Total.Totals, 
         CASE WHEN Totals = 0 THEN 0 ELSE CAST([Count] AS FLOAT)/CAST([Totals] AS FLOAT) END AS [Percent]
@@ -367,14 +409,14 @@ GROUP BY Q014b_Weighted_Cohort_Dist_APPR.PSSM_Credential,
 Q014e_Weighted_Cohort_Distribution_Projected <- 
 "INSERT INTO Cohort_Program_Distributions_Projected 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_Q014e' AS Survey, 
+SELECT 'Program_Projections_2023-2024_Q014e' AS Survey, 
         Q014c_Weighted_Cohort_Dist.PSSM_Credential, 
         Q014c_Weighted_Cohort_Dist.PSSM_CRED, 
         Q014c_Weighted_Cohort_Dist.LCP4_CD, 
         Q014c_Weighted_Cohort_Dist.LCIP4_CRED, 
         Q014c_Weighted_Cohort_Dist.LCIP2_CRED, 
         Q014c_Weighted_Cohort_Dist.Age_Group, 
-        '2019/2020' AS Projection_Year, 
+        '2023/2024' AS Projection_Year, 
         Q014c_Weighted_Cohort_Dist.Count, Q014d_Weighted_Cohort_Dist_Total.Totals, 
         CASE WHEN Totals = 0 THEN 0 ELSE Count/Totals END AS [Percent]
 FROM    Q014c_Weighted_Cohort_Dist 
@@ -386,13 +428,13 @@ INNER JOIN Q014d_Weighted_Cohort_Dist_Total
 Q014e_Weighted_Cohort_Distribution_Static <- 
 "INSERT INTO Cohort_Program_Distributions_Static 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_Q014e' AS Survey, 
+SELECT 'Program_Projections_2023-2024_Q014e' AS Survey, 
         Q014c_Weighted_Cohort_Dist.PSSM_Credential, 
         Q014c_Weighted_Cohort_Dist.PSSM_CRED, 
         Q014c_Weighted_Cohort_Dist.LCP4_CD, 
         Q014c_Weighted_Cohort_Dist.LCIP4_CRED, 
         Q014c_Weighted_Cohort_Dist.LCIP2_CRED, 
-        Q014c_Weighted_Cohort_Dist.Age_Group, '2019/2020' AS Projection_Year, 
+        Q014c_Weighted_Cohort_Dist.Age_Group, '2023/2024' AS Projection_Year, 
         Q014c_Weighted_Cohort_Dist.Count, Q014d_Weighted_Cohort_Dist_Total.Totals, 
         CASE WHEN Totals = 0 THEN 0 ELSE Count/Totals END AS [Percent]
 FROM    Q014c_Weighted_Cohort_Dist
@@ -417,7 +459,7 @@ WHERE   (((Graduate_Projections.Survey)='APPSO'));"
 Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected <- 
 "INSERT INTO Cohort_Program_Distributions_Projected 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], [Total], [Percent] )
-SELECT 'Program_Projections_2019-2020_Q015e21' AS Survey, 
+SELECT 'Program_Projections_2023-2024_Q015e21' AS Survey, 
         Cohort_Program_Distributions_Static.PSSM_Credential, 
         Cohort_Program_Distributions_Static.PSSM_CRED, 
         Cohort_Program_Distributions_Static.LCP4_CD, 
@@ -440,7 +482,7 @@ WHERE   (((Cohort_Program_Distributions_Static.PSSM_CRED) In ('APPRAPPR','APPRCE
 Q015e22_Append_Distribution_Y2_to_Y12_Static <- 
 "INSERT INTO Cohort_Program_Distributions_Static 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-        SELECT 'Program_Projections_2019-2020_Q015e22' AS Survey, 
+        SELECT 'Program_Projections_2023-2024_Q015e22' AS Survey, 
         Cohort_Program_Distributions_Static.PSSM_Credential, 
         Cohort_Program_Distributions_Static.PSSM_CRED, 
         Cohort_Program_Distributions_Static.LCP4_CD, 
@@ -462,8 +504,8 @@ qry_05_Flip_T_Predict_CIP_CRED_AGE_1 <-
 "SELECT T_Predict_CIP_CRED_AGE.CIP,
 T_Predict_CIP_CRED_AGE.CRED, 
 T_Predict_CIP_CRED_AGE.AGE, 
-T_Predict_CIP_CRED_AGE.[2019/2020] AS [Count], 
-'2019/2020' AS [Year] 
+T_Predict_CIP_CRED_AGE.[2023/2024] AS [Count], 
+'2023/2024' AS [Year] 
 INTO T_Predict_CIP_CRED_AGE_Flipped
 FROM T_Predict_CIP_CRED_AGE;"
 
@@ -537,7 +579,7 @@ GROUP BY qry_10a_Program_Dist_Count.PSSM_Credential,
 qry_10c_Program_Dist_Distribution <- 
 "INSERT INTO Cohort_Program_Distributions_Projected 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_qry10c' AS Survey, 
+SELECT 'Program_Projections_2023-2024_qry10c' AS Survey, 
         qry_10a_Program_Dist_Count.PSSM_Credential, 
         qry_10a_Program_Dist_Count.PSSM_CRED, 
         qry_10a_Program_Dist_Count.CIP AS LCP4_CD, 
@@ -602,7 +644,7 @@ GROUP BY qry_12a_Program_Dist_Count.PSSM_Credential,
 qry_12c_Program_Dist_Distribution <-
 "INSERT INTO Cohort_Program_Distributions_Projected 
 ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_qry12c' AS Survey, 
+SELECT 'Program_Projections_2023-2024_qry12c' AS Survey, 
         qry_12a_Program_Dist_Count.PSSM_Credential, 
         qry_12a_Program_Dist_Count.PSSM_CRED, 
         qry_12a_Program_Dist_Count.LCIPPC_CD, 
@@ -665,9 +707,9 @@ qry_13a_Near_completers <-
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_CRED, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCP4_CD, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_GRAD_STATUS_LGDS_CD_Group, 
-        T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_TTRAIN, 
+        T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.TTRAIN AS COSC_TTRAIN, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCIP4_CRED, 
-        CAST([COSC_GRAD_STATUS_LGDS_CD_Group] as NVARCHAR(50)) + ' - ' + Left([LCP4_CD],2) + ' - ' + CAST([COSC_TTRAIN] as NVARCHAR(50)) + ' - ' + [PSSM_Credential] AS LCIP2_CRED, 
+        CAST([COSC_GRAD_STATUS_LGDS_CD_Group] as NVARCHAR(50)) + ' - ' + Left([LCP4_CD],2) + ' - ' + CAST([TTRAIN] as NVARCHAR(50)) + ' - ' + [PSSM_Credential] AS LCIP2_CRED, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.Age_Group as AgeGroup, 
         Sum(T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.[Near_completers_STP_Credentials]) AS [Count]
 INTO    qry_13a_Near_completers
@@ -676,9 +718,9 @@ GROUP BY T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_Credential,
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_CRED, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCP4_CD, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_GRAD_STATUS_LGDS_CD_Group, 
-        T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_TTRAIN, 
+        T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.TTRAIN, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCIP4_CRED, 
-        CAST([COSC_GRAD_STATUS_LGDS_CD_Group] as NVARCHAR(50)) + ' - ' + Left([LCP4_CD],2) + ' - ' + CAST([COSC_TTRAIN] as NVARCHAR(50)) + ' - ' + [PSSM_Credential], 
+        CAST([COSC_GRAD_STATUS_LGDS_CD_Group] as NVARCHAR(50)) + ' - ' + Left([LCP4_CD],2) + ' - ' + CAST([TTRAIN] as NVARCHAR(50)) + ' - ' + [PSSM_Credential], 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.Age_Group;"
 
 # ---- qry_13b_Near_Completers_Total ---- 
@@ -717,7 +759,7 @@ INNER JOIN qry_13a_Near_completers
 qry_13d_Append_Near_Completers_Program_Dist_Projected_TTRAIN <- 
 "INSERT INTO  Cohort_Program_Distributions_Projected 
         (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_qry_13d' AS Survey, 
+SELECT 'Program_Projections_2023-2024_qry_13d' AS Survey, 
         qry_13c_Near_Completers_Program_Dist.PSSM_Credential, 
         qry_13c_Near_Completers_Program_Dist.PSSM_CRED, 
         qry_13c_Near_Completers_Program_Dist.LCP4_CD, 
@@ -725,7 +767,7 @@ SELECT 'Program_Projections_2019-2020_qry_13d' AS Survey,
         qry_13c_Near_Completers_Program_Dist.COSC_TTRAIN, 
         qry_13c_Near_Completers_Program_Dist.LCIP4_CRED, 
         qry_13c_Near_Completers_Program_Dist.LCIP2_CRED, 
-        tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, '2019/2020' AS Projection_Year, 
+        tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, '2023/2024' AS Projection_Year, 
         qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, 
         qry_13c_Near_Completers_Program_Dist.[%]
 FROM    qry_13c_Near_Completers_Program_Dist 
@@ -737,7 +779,7 @@ INNER JOIN tbl_Age_Groups_Near_Completers
 qry_13d_Append_Near_Completers_Program_Dist_Static_TTRAIN <- 
 "INSERT INTO Cohort_Program_Distributions_Static 
         ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-SELECT 'Program_Projections_2019-2020_qry_13d' AS Survey, 
+SELECT 'Program_Projections_2023-2024_qry_13d' AS Survey, 
         qry_13c_Near_Completers_Program_Dist.PSSM_Credential, 
         qry_13c_Near_Completers_Program_Dist.PSSM_CRED, 
         qry_13c_Near_Completers_Program_Dist.LCP4_CD, 
@@ -745,7 +787,7 @@ SELECT 'Program_Projections_2019-2020_qry_13d' AS Survey,
         qry_13c_Near_Completers_Program_Dist.COSC_TTRAIN, 
         qry_13c_Near_Completers_Program_Dist.LCIP4_CRED, 
         qry_13c_Near_Completers_Program_Dist.LCIP2_CRED, 
-        tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, '2019/2020' AS Projection_Year, 
+        tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, '2023/2024' AS Projection_Year, 
         qry_13c_Near_Completers_Program_Dist.Count, 
         qry_13c_Near_Completers_Program_Dist.Totals, 
         qry_13c_Near_Completers_Program_Dist.[%]
