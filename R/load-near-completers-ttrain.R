@@ -11,7 +11,7 @@ db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 
-source(glue::glue("{lan}/data/student-outcomes/sql/qry_make_tmp_table_Age_step1.sql"))
+source(glue::glue("./sql/03-near-completers/qry_make_tmp_table_Age_step1.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -36,6 +36,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 stp_dacso_prgm_credential_lookup <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/STP_DACSO_PRGM_CREDENTIAL_LOOKUP.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+
 combine_creds <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/combine_creds.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -47,6 +48,7 @@ t_pssm_projection_cred_grp <-
            PSSM_CREDENTIAL = 'ADGR OR UT', 
            PSSM_CREDENTIAL_NAME = 'Associate Degree/University Transfer', 
            COSC_GRAD_STATUS_LGDS_CD = 1)
+
 tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps") %>%
@@ -60,11 +62,7 @@ age_group_lookup <-
   mutate(AGE_INDEX = AGE_INDEX -1) %>%
   add_case(AGE_INDEX = 5, AGE_GROUP = "35 to 64", LOWER_BOUND = 35, UPPER_BOUND = 64)
 
-
-# ---- Testing Only ---- 
-t_dacso_data_part_1 <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/03/t_dacso_data_part_1.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
+# ---- Rollover Tables ---- 
 tmp_tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -80,15 +78,6 @@ dbWriteTable(decimal_con, name = "combine_creds", value = combine_creds )
 dbWriteTable(decimal_con, name = "stp_dacso_prgm_credential_lookup", value = stp_dacso_prgm_credential_lookup)
 dbWriteTable(decimal_con, name = "t_pssm_projection_cred_grp", value = t_pssm_projection_cred_grp)
 dbWriteTable(decimal_con, name = "AgeGroupLookup", age_group_lookup, overwrite = TRUE)
-
-
-t_dacso_data_part_1_1 <- t_dacso_data_part_1 %>% slice(1:200000)
-t_dacso_data_part_1_2 <- t_dacso_data_part_1 %>% slice(200001:376895)
-dbWriteTable(decimal_con, name = "t_dacso_data_part_1", value = t_dacso_data_part_1_1)
-dbWriteTable(decimal_con, name = "t_dacso_data_part_1_2", value = t_dacso_data_part_1_2)
-dbExecute(decimal_con, "INSERT INTO t_dacso_data_part_1 SELECT * FROM t_dacso_data_part_1_2")
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_2")
-dbExecute(decimal_con, "DELETE FROM t_dacso_data_part_1 WHERE COCI_SUBM_CD IN ('C_Outc19','C_Outc18','C_Outc06')")
 
 # ---- Clean up and disconnect ----
 dbDisconnect(decimal_con)
