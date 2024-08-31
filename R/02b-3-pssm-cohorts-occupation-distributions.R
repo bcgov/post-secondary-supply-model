@@ -9,6 +9,7 @@
 
 # Note:  create Weight_Age is used to calculate the age for the private institution credentials 
 # and needed if the data set doesn’t have age.
+# Check PDCT or PDDP	
 
 
 library(tidyverse)
@@ -30,8 +31,10 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-# ---- Read raw data ----
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-occupation-distributions.R"))
+# ---- Source Queries ----
+source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-occupation-distributions.R"))
+
+# ---- Check for required data tables ----
 dbExistsTable(decimal_con, "t_cohorts_recoded")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
@@ -214,12 +217,12 @@ dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 # --- just for testing - do not run as part of the workflow
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_No_TT")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC_No_TT")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_No_TT")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC")
+# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC_No_TT")
 
 # ---- Keep ----
 dbExistsTable(decimal_con, "Occupation_Distributions")

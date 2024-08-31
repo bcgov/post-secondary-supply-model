@@ -33,7 +33,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("{lan}/data/student-outcomes/sql/dacso-data.sql"))
+source(glue::glue("./sql/02b-pssm-cohorts/dacso-data.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -65,9 +65,7 @@ T_PSSM_Credential_Grouping <-
 t_year_survey_year <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/t_year_survey_year.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-tbl_noc_skill_level_aged_17_34 <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
+
 t_cohorts_recoded <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/02/T_Cohorts_Recoded.csv"), 
                   col_types = cols(PEN = "c", STQU_ID = "c", Survey = "c", LCIP_CD = "c", LCP4_CD = "c", NOC_CD = "c", INST_CD = "c",
@@ -83,16 +81,22 @@ t_current_region_pssm_rollup_codes_bc <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
+# --- Required lookup - read directly from SSMS 
+#tbl_noc_skill_level_aged_17_34 <- 
+#  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
+#  janitor::clean_names(case = "all_caps")
+
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
+dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+
 # load via SQL Server: 
 # dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34) 
 dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-# dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
+dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
 dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
@@ -120,10 +124,89 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPO
 rm(t_dacso_data_part_1_stepa)
 gc()
 
-infoware_c_outc_clean_short_resp <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
-dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp)
-rm(infoware_c_outc_clean_short_resp)
-gc()
+# tictoc::tic()
+# infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
+# tictoc::toc()
+# 
+# tictoc::tic()
+# dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp_dat)
+# tictoc::toc()
+
+## year by year? 
+year_start <- 18
+year_end <- 23
+for (year in year_start:year_end){
+  print(glue::glue('Starting year {year}'))
+  sql_by_year <- glue::glue("
+  SELECT *
+  FROM c_outc_clean_short_resp
+  WHERE subm_cd = 'C_Outc{year}'
+  ")
+  tictoc::tic()
+  tmp <- dbGetQueryArrow(outcomes_con, sql_by_year)
+  print('Loaded year to R.')
+  tictoc::toc()
+  
+  tictoc::tic()
+  dbWriteTableArrow(decimal_con, name = glue::glue("infoware_by_year_{year}"), value = tmp)
+  print('Loaded year to MS SQL.')
+  tictoc::toc()
+  print('')
+  print('')
+  
+  rm(tmp)
+  gc()
+}
+
+full_sql <- "
+SELECT *
+INTO infoware_c_outc_clean_short_resp 
+FROM (
+"
+
+for (year in year_start:year_end){
+  full_sql <- paste0(full_sql, glue::glue("SELECT * FROM infoware_by_year_{year}
+"
+  ))
+  
+  if (year<year_end){
+    full_sql <- paste0(full_sql, "
+UNION ALL
+")
+  } else{
+    full_sql <- paste0(full_sql, "
+) t1")
+  }
+}
+
+cat(full_sql)
+
+# combine
+dbExecute(decimal_con, full_sql)
+
+# confirm that the count by year is the same in both databases
+dbGetQuery(
+  outcomes_con,
+  "SELECT subm_cd, count(*)
+  FROM c_outc_clean_short_resp
+  WHERE subm_cd IN ('C_Outc18', 'C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
+  GROUP BY subm_cd
+  ORDER BY 1"
+)
+
+dbGetQuery(
+  decimal_con,
+  "SELECT subm_cd, count(*)
+  FROM infoware_c_outc_clean_short_resp
+  GROUP BY subm_cd
+  ORDER BY 1"
+)
+
+# drop tmp
+for (year in year_start:year_end){
+  dbExecute(decimal_con, glue::glue("DROP TABLE infoware_by_year_{year}"))
+}
+
 
 # ---- Clean Up ---
 dbDisconnect(outcomes_con)

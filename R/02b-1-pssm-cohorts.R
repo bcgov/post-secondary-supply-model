@@ -48,10 +48,10 @@ lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 # ---- Query Defs ----
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-trd.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-appso.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-bgs.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-trd.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-appso.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-bgs.R")
+source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -75,7 +75,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
 # BGS
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_Data_Final"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_INST_Recode"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_outcomesmatching2020"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_outcomesmatching"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Weights"')))
 
 # DACSO
@@ -89,6 +89,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age_groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_credential_grouping"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"')))
 
 
 # ---- TRD Queries ----

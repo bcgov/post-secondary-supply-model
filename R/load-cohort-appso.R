@@ -26,15 +26,16 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                  password = db_config$password)
 
 # ---- Read outcomes data ----
-source(glue::glue("{lan}/data/student-outcomes/sql/appso-data.sql"))
+source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
 
 T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
-APPSO_Graduates <- dbGetQuery(outcomes_con, APPSO_Graduates)
+APPSO_Graduates_dat <- dbGetQuery(outcomes_con, APPSO_Graduates)
 
 # Convert some variables that should be numeric
 T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
   mutate(TTRAIN = as.numeric(TTRAIN))
 
+# Make sure this is updated to only the last 6 years of data 
 T_APPSO_DATA_Final <-
   T_APPSO_DATA_Final %>% 
   mutate(CURRENT_REGION_PSSM_CODE =  case_when (
@@ -64,19 +65,21 @@ T_APPSO_DATA_Final <-
     APP_AGE_AT_SURVEY %in% 45:54 ~ 7,
     APP_AGE_AT_SURVEY %in% 55:64 ~ 8,
     TRUE ~ NA)) %>%
+  # check that these years are correct
+  # TODO: this should be automated 
   mutate(WEIGHT = case_when (
-    SUBM_CD == 'C_Outc15' ~ 1,
-    SUBM_CD == 'C_Outc16' ~ 2,
-    SUBM_CD == 'C_Outc17' ~ 3,
-    SUBM_CD == 'C_Outc18' ~ 4,
-    SUBM_CD == 'C_Outc19' ~ 5,
+    SUBM_CD == 'C_Outc19' ~ 1,
+    SUBM_CD == 'C_Outc20' ~ 2,
+    SUBM_CD == 'C_Outc21' ~ 3,
+    SUBM_CD == 'C_Outc22' ~ 4,
+    SUBM_CD == 'C_Outc23' ~ 5,
     TRUE ~ 0)) %>%
   mutate(WEIGHTQI = case_when ( # QI weight: 1 year lag
-    SUBM_CD == 'C_Outc14' ~ 1,
-    SUBM_CD == 'C_Outc15' ~ 2,
-    SUBM_CD == 'C_Outc16' ~ 3,
-    SUBM_CD == 'C_Outc17' ~ 4,
-    SUBM_CD == 'C_Outc18' ~ 5,
+    SUBM_CD == 'C_Outc18' ~ 1,
+    SUBM_CD == 'C_Outc19' ~ 2,
+    SUBM_CD == 'C_Outc20' ~ 3,
+    SUBM_CD == 'C_Outc21' ~ 4,
+    SUBM_CD == 'C_Outc22' ~ 5,
     TRUE ~ 0)) %>% 
   mutate(NEW_LABOUR_SUPPLY = case_when(
     APP_LABR_EMPLOYED == 1 ~ 1,
@@ -86,7 +89,7 @@ T_APPSO_DATA_Final <-
     TRUE ~ 0))
 
 # prepare graduate dataset
-APPSO_Graduates  %>%
+APPSO_Graduates_dat  %>%
   mutate(AGE_GROUP_LABEL = case_when (
     APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
     APP_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
@@ -97,7 +100,7 @@ APPSO_Graduates  %>%
     APP_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
     APP_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
     APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
-    TRUE ~ NA)) -> APPSO_Graduates 
+    TRUE ~ NA)) -> APPSO_Graduates_dat 
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -108,7 +111,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Trusted_Connection = "True")
 
 dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates)
+dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates_dat)
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)

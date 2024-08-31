@@ -14,7 +14,10 @@
 
 # Notes:  create Weight_Age is used to calculate the age for the private institution credentials 
 # and needed if the data set doesn’t have age. Some invalid NOC codes (see documentation)
-# NO PDEG 
+#         PDEG included at the end of occupation_distribution scripts.   
+#
+# FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
+# FIXME Missing Graduate Distributions (Non-Student Outcomes)
 
 library(tidyverse)
 library(RODBC)
@@ -34,15 +37,19 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
-# ---- Read raw data ----
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
-source(glue::glue("{lan}/development/sql/gh-source/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
+# ---- Source Queries ----
+source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
+source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
+
+# ---- Check for required data tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
 dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
 dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 
 # ---- Execute SQL ----
+# TODO: would move this out of the dacso script as it's not DACSO specific
+# and would remove the need to source it above. 
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check base weights
 
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
@@ -92,7 +99,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
-
 
 # apply nls weights to group totals
 dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
@@ -190,11 +196,12 @@ dbExistsTable(decimal_con, "Labour_Supply_Distribution")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
+dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
 
 # ---- Just for testing ----
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
+# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
+# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
+# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
+# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
 
 
