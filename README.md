@@ -9,31 +9,9 @@
 
 A repository to house Post-Secondary Supply Model (PSSM) code base.
 
-### To Run
+### Requirements
 
-This repo stores all data on the LAN or on secure SQL Servers. To connect to LAN folders, use [safepaths](https://github.com/bcgov/safepaths) to securely store a path to a LAN folder.  After installing [safepaths](https://github.com/bcgov/safepaths), write the following code at your console:
-
-```r
-library(safepaths)
-
-# For PC users:
-set_network_path("DRIVELETTER:/folder_name")
-
-# For Mac users:
-set_network_path("/Volumes/server_name/folder_name") 
-```
-
-To securely read and write to a LAN drive, the following snippet of code may be used:
-
-```r
-library(safepaths)
-
-# Use safepaths anywhere in your code script!
-path <- get_network_path()
-write.csv(mydataframe, path)
-```
-
-To connect to SQL Servers, we also require a configuration file to connect securely to various required databases, and use [config](https://rstudio.github.io/config/) to read in the configuration. 
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use [config](https://rstudio.github.io/config/) to read in the configuration. 
 
 To connect securely to a database, the following snippet of code may be used:
 
@@ -57,6 +35,28 @@ df <- dbGetQuery(con, strSQL)
 
 df
 ```
+### Running the model
+
+Scripts are labeled sequentially and run in that order with a few exceptions (WIP).  Each analysis script has a corresponding script that 
+handles loading of the data required for analysis.  Currently the model has only been tested data load scripts run prior to analysis, although future work may change this.  The run order is:
+
+01a-enrolment-preprocessing.R 
+01b-credential-preprocessing.R 
+01c-credential-analysis.R 
+01d-enrolment-analysis.R 
+02a-appso-programs.R 
+02a-bgs-program-matching.R 
+02a-dacso-program-matching.R 
+02a-update-cred-non-dup.R 
+02b-1-pssm-cohorts.R 
+02b-2-pssm-cohorts-new-labour-supply.R 
+02b-3-pssm-cohorts-occupation-distributions.R 
+03-near-completers-ttrain.R 
+04-graduate-projections.R 
+05-ptib-analysis.R 
+06-program-projections.R 
+07-occupation-projections.R 
+
 
 
 ### Getting Help or Reporting an Issue
