@@ -40,9 +40,9 @@ df
 Scripts are labeled sequentially and run in that order with a few exceptions (WIP).  Each analysis script has a corresponding script that 
 handles loading of the data required for analysis.  Currently the model has only been tested data load scripts run prior to analysis, although future work may change this.  The run order is:
 
-01a-enrolment-preprocessing.R 
-01b-credential-preprocessing.R 
-01c-credential-analysis.R 
+- 01a-enrolment-preprocessing.R 
+- 01b-credential-preprocessing.R 
+- 01c-credential-analysis.R 
 01d-enrolment-analysis.R 
 02a-appso-programs.R 
 02a-bgs-program-matching.R 
