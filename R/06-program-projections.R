@@ -21,6 +21,9 @@
 # Year 2+: 2020/2021 - 2030/2031
 # Notes: Years need to be updated each model run.  Check we are projecting 12 years.  Also which age groupings 
 # will we be using?
+# FIXME: lookups T_APPR_Y2_to_Y10 and T_Cohort_Program_Distributions_Y2_to_Y12 ID fields aren't sequential
+#        keep eyes open for impacts of this.
+#        04-graduate-projections: remove space in final table name, add survey column and populate
 
 library(tidyverse)
 library(RODBC)
@@ -32,7 +35,7 @@ db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
-source(glue::glue("{lan}/development/sql/gh-source/06-program-projections/06-program-projections.R"))
+source("./sql/06-program-projections/06-program-projections.R")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -64,7 +67,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Co
 # We can probably just create this table here and skip saving and uploading from year to year.
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')))
 
-# ---- survey == 'Program_Projections_2019-2020_qry_13d' (Static and Projected) ----
+# ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
 # Add near completers to projected and static distribution datasets
 dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Projected)
 dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Static)
@@ -78,7 +81,7 @@ dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
 dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
 
 
-# survey == 'Program_Projections_2019-2020_Q012e' (Static) ----
+# survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
 # Add program cohorts to static distribution datasets
 # Note: many lcip2 creds are NULL for BACH
 dbGetQuery(decimal_con, Q012a_Check_Total_for_Invalid_CIPs)
@@ -101,7 +104,7 @@ dbExecute(decimal_con, "drop table Q012c4_Weighted_Cohort_Distribution_Projected
 dbExecute(decimal_con, "drop table Q012c5_Weighted_Cohort_Dist_TTRAIN") 
 dbExecute(decimal_con, "drop table Q012d_Weighted_Cohort_Dist_Total") 
 
-# survey == 'Program_Projections_2019-2020_Q013e' (Static) ----
+# survey == 'Program_Projections_2023-2024_Q013e' (Static) ----
 # Add masters and doctorates to static distribution datasets
 # Note: lcip4_cd showing as 2D for masters and doct - cluster.  
 # (same in prior model runs)
@@ -111,21 +114,21 @@ dbExecute(decimal_con, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others)
 dbExecute(decimal_con, Q013c_Weighted_Cohort_Dist)
 dbExecute(decimal_con, Q013d_Weighted_Cohort_Dist_Total)
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2019-2020_Q013e'") # Added
+          WHERE Survey LIKE 'Program_Projections_2023-2024_Q013e'") # Added
 dbExecute(decimal_con, Q013e_Weighted_Cohort_Distribution)
 dbExecute(decimal_con, "drop table Q013b_Weight_Cohort_Dist_MAST_DOCT_Others")
 dbExecute(decimal_con, "drop table Q013c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q013d_Weighted_Cohort_Dist_Total")
 
-# survey == 'Program_Projections_2019-2020_Q014e' (Static and Projected) ----
+# survey == 'Program_Projections_2023-2024_Q014e' (Static and Projected) ----
 # adds apprenticeships to static and projected datasets
 dbExecute(decimal_con, Q014b_Weighted_Cohort_Dist_APPR)
 dbExecute(decimal_con, Q014c_Weighted_Cohort_Dist)
 dbExecute(decimal_con, Q014d_Weighted_Cohort_Dist_Total)
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2019-2020_Q014e'") # Added
+          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'") # Added
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2019-2020_Q014e'") # Added
+          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'") # Added
 dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Projected)
 dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Static )
 dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
@@ -154,14 +157,14 @@ appso_2_yr_avg <- APPSO_Graduates %>%
 # expands static appr in graduate projections - holding counts constant
 dbExecute(decimal_con, Q014f_APPSO_Grads_Y2_to_Y10)
 
-# survey == 'Program_Projections_2019-2020_Q015e21' (Static and Projected) ----
+# survey == 'Program_Projections_2023-2024_Q015e21' (Static and Projected) ----
 # expands apprenticeships and near-completers to include 2020+12YR where
-#  survey == Program_Projections_2019-2020_qry_13d
-#  survey == Program_Projections_2019-2020_Q014e
+#  survey == Program_Projections_2023-2024_qry_13d
+#  survey == Program_Projections_2023-2024_Q014e
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2019-2020_Q015e21'") # Added
+          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e21'") # Run if you've been messing with iterations
 dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2019-2020_Q015e22'") # Added
+          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e22'") # Run if you've been messing with iterations
 dbExecute(decimal_con, Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected)
 dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
 
@@ -182,22 +185,23 @@ write_csv(input_data, glue::glue("{lan}/development/csv/gh-source/tmp/06/input-d
 
 ## STOP! flip over Werner here ----
 output_data <- read_delim(glue::glue("{lan}/development/csv/gh-source/tmp/06/output.csv"), delim = "\t", col_names = TRUE)
-names(output_data)<- paste0(2019:(2019+11), "/", 2020:(2020+11))
+names(output_data)<- paste0(2023:(2023+11), "/", 2024:(2024+11))
 
 T_Predict_CIP_CRED_AGE <- cbind(input_data, output_data)
 
 # pivot T_Predict_CIP_CRED_AGE from wide to long
 T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>% 
   pivot_longer(-c(CIP, CRED, AGE), names_to = "Year", values_to = "Count") %>%
-  filter(Year %in% c('2019/2020', '2020/2021','2021/2022','2022/2023','2023/2024','2024/2025','2025/2026',
-                   '2026/2027','2027/2028','2028/2029','2029/2030','2030/2031'))
+  filter(Year %in% c('2023/2024','2024/2025','2025/2026', '2026/2027','2027/2028',
+                     '2028/2029','2029/2030','2030/2031','2031/2032', '2032/2033', 
+                     '2033/2034', '2034/2035'))
 
 dbWriteTable(decimal_con, "T_Predict_CIP_CRED_AGE_Flipped", T_Predict_CIP_CRED_AGE_Flipped)
 dbGetQuery(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_2_Check)
 
 dbExecute(decimal_con, qry_09_Delete_Selected_Static_Cohort_Dist_from_Projected)
 
-# survey == 'Program_Projections_2019-2020_qry10c' (Projected) ----
+# survey == 'Program_Projections_2023-2024_qry10c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential NOT IN ('GRCT or GRDP','PDEG','MAST','DOCT') 
 # (ALSO NOT IN ('APPRAPPR','APPRCERT') as these were done earlier)
 dbExecute(decimal_con, qry_10a_Program_Dist_Count)
@@ -206,7 +210,7 @@ dbExecute(decimal_con, qry_10c_Program_Dist_Distribution)
 dbExecute(decimal_con, "DROP TABLE qry_10a_Program_Dist_Count")
 dbExecute(decimal_con, "DROP TABLE qry_10b_Program_Dist_Total")
 
-# survey == 'Program_Projections_2019-2020_qry12c' (Projected) ----
+# survey == 'Program_Projections_2023-2024_qry12c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential IN ('GRCT or GRDP','PDEG','MAST','DOCT')
 dbExecute(decimal_con, qry_12a_Program_Dist_Count)
 dbExecute(decimal_con, qry_12b_Program_Dist_Total)
@@ -220,18 +224,23 @@ dbExecute(decimal_con, "drop table T_Predict_CIP_CRED_AGE_Flipped")
 dbGetQuery(decimal_con, qry_12d_Check_Missing)
 
 # ---- Clean Up ----
-# Test Data
-dbExecute(decimal_con, "drop table tbl_Program_Projection_Input")
 # Lookups
-dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
-dbExecute(decimal_con, "drop table T_Weights_STP")
-dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
-dbExecute(decimal_con, "drop table t_pssm_projection_cred_grp")
-dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
+dbExecute(decimal_con, "drop table AgeGroupLookup")
 dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
+dbExecute(decimal_con, "drop table tbl_Age_Groups")
+dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
+dbExecute(decimal_con, "drop table T_APPR_Y2_to_Y10")
+dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
+dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
+dbExecute(decimal_con, "drop table T_PSSM_Projection_Cred_Grp")
+dbExecute(decimal_con, "drop table T_Weights_STP")
+
 # Keep for next workflow
 dbExistsTable(decimal_con, "Cohort_Program_Distributions_Projected")
 dbExistsTable(decimal_con, "Cohort_Program_Distributions_Static")
+
+# Keep in DB
+dbExistsTable(decimal_con, "tbl_Program_Projection_Input")
 
 
 
