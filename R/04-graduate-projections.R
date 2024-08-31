@@ -210,17 +210,18 @@ f_graduates_nc <- f_graduates_nc %>%
 
 f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
   group_by(PSI_CREDENTIAL_CATEGORY, PSSM_CRED, YEAR, AGE_GROUP) %>%
-  summarise(N=sum(N))
+  summarise(N=sum(N)) %>%
+  mutate(survey = 'Credential_Projections_Transp')
 
 f_graduates_agg  %>%
   mutate(N=round(N,1)) %>%
   pivot_wider(id_cols = c(AGE_GROUP, PSI_CREDENTIAL_CATEGORY, GENDER), values_from = N, names_from = YEAR) %>% 
   View()
 
-dbWriteTable(decimal_con, name = "Graduate Projections", f_graduates_agg, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "Graduate_Projections", f_graduates_agg, overwrite = TRUE)
 
 
 # ---- Graduate Projections for Apprenticeship ----
-# to be held constant
+# add APPSO grads here
 
   
