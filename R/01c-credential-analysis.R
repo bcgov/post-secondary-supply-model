@@ -444,6 +444,8 @@ dbExecute(con, qry13_UpdateDelayedCredDate)
 dbExecute(con, qry14_ResearchUniversity)
 dbExecute(con, qry15_OutcomeCredential)
 
+# update non-dup table here
+
 # ---- Break and do Program Matching ----
 # IMPORTANT!!! THIS SECTION CAN ONLY BE RUN AFTER THE PROGRAM MATCHING WORK HAS BEEN DONE 
 # TODO: This will later be moved to a different script. 

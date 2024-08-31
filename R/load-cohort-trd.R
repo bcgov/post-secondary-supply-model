@@ -1,3 +1,11 @@
+# This script loads student outcomes data for students who students who were formerly enrolled in 
+# a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
+#
+# The following data sets are read into SQL server from the student outcomes survey database:
+#   Q000_TRD_DATA_01: unique survey responses for each person/survey year (a few duplicates)
+#   Q000_TRD_Graduates: a count of graduates by credential type, age and survey year
+#
+# Notes: Age group labels are assigned.  Note there are two different groupings used to group students by age in the model.
 
 library(tidyverse)
 library(RODBC)
@@ -21,7 +29,7 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                           password = db_config$password)
 
 # ---- Read raw data and disconnect ----
-source(glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
+source(glue::glue("{lan}/data/student-outcomes/sql/trd-data.sql"))
 
 Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
 Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
@@ -36,7 +44,31 @@ Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
   mutate(LCIP4_CRED = paste0(GRADSTAT_GROUP, ' - ' , LCIP_LCP4_CD , ' - ' , TTRAIN , ' - ' , PSSM_CREDENTIAL))
 
-dbDisconnect(outcomes_con)
+Q000_TRD_DATA_01 <-
+  Q000_TRD_DATA_01 %>% 
+  mutate(CURRENT_REGION_PSSM_CODE =  case_when (
+    CURRENT_REGION1 %in% 1:8 ~ CURRENT_REGION1, 
+    CURRENT_REGION4 == 5 ~ 9,
+    CURRENT_REGION4 == 6 ~ 10,
+    CURRENT_REGION4 == 7 ~ 11,
+    CURRENT_REGION4 == 8 ~ -1,
+    TRUE ~ NA)) 
+
+
+# prepare graduate dataset
+Q000_TRD_Graduates   %>%
+  mutate(AGE_GROUP_LABEL = case_when (
+    TRD_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
+    TRD_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
+    TRD_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
+    TRD_AGE_AT_SURVEY %in% 25:29 ~ "25 to 29",
+    TRD_AGE_AT_SURVEY %in% 30:34 ~ "30 to 34",
+    TRD_AGE_AT_SURVEY %in% 35:44 ~ "35 to 44",
+    TRD_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
+    TRD_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
+    TRD_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
+    TRUE ~ NA)) -> Q000_TRD_Graduates 
+
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -49,3 +81,4 @@ dbWriteTable(decimal_con, name = "T_TRD_DATA", value = Q000_TRD_DATA_01)
 dbWriteTable(decimal_con, name = "Q000_TRD_Graduates", value = Q000_TRD_Graduates)
 
 dbDisconnect(decimal_con)
+dbDisconnect(outcomes_con)

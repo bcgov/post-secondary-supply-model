@@ -279,18 +279,16 @@ dbExecute(con, qry09c_MinEnrolment)
 # dbExecute(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential_Record_Type;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Record_Type;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Enrolment_Valid;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].STP_Credential;"))
 
-# ---- These tables used later ----
+# ---- Keep ----
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type;"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type;"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment;"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid;"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential;"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."MinEnrolment"')))
+
 dbDisconnect(con)
-
-
-
 
 
 
