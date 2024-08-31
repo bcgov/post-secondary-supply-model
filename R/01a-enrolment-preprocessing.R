@@ -1,8 +1,7 @@
-# Workflow #1
-# Enrolment Preprocessing 
+# STP Enrolment Preprocessing: Workflow #1
 # Description: 
-# Relies on STP_Enrolment data table
-# Creates tables STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment used in subsequent workflows
+# Relies on: STP_Enrolment data table
+# Creates tables: STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment
 
 library(arrow)
 library(tidyverse)
@@ -64,7 +63,8 @@ dbExecute(con, qrydates_update1)
 dbExecute(con, qrydates_update2)
 dbExecute(con, qrydates_update3)
 dbExecute(con, qrydates_update4)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))  
+dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];")) 
+
 
 # ---- Create Record Type Table ----
 
@@ -128,8 +128,9 @@ dbExecute(con, qry03g_c2_Update_More_Selkirk)
 dbExecute(con, qry03g_d_EnrolCoursesSeen)
 dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
 dbExecute(con, qry03i_Find_Suspect_Skills_Based) 
-dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)  
+dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)   #see documentation, this is related to some manula work that wasn't done in 2023
 dbExecute(con, qry03j_Update_Suspect_Skills_Based) 
+dbGetQuery(con, RecordTypeSummary)
 
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd_More];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
@@ -218,13 +219,10 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry13b_FirstEnrolme
 dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
 dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
 dbExecute(con, qry14c_Update_FirstEnrolmentNA)
-
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
 dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
 
 # ---- Clean Birthdates ----
-## Documentation: development\documentation\01-pssm-2020-2021-notes-on-enrolment-and-graduate-projections\birthdates-and-gender.docx
-# Creates some temp tables to flag if each record represents the min or max birthdate
 dbExecute(con, qry01_BirthdateCleaning) 
 dbExecute(con, qry02_BirthdateCleaning)
 dbExecute(con, qry03_BirthdateCleaning)
@@ -255,6 +253,8 @@ dbExecute(con, qry10_BirthdateCleaning)
 dbExecute(con, qry11_BirthdateCleaning)
 
 dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+
+#Update STP Enrolment with birthdates for those EPENS which have > 1 birthdate records 
 dbExecute(con, qry12_BirthdateCleaning)
 
 # some records have a null PSI_BIRTHDATE, search for non-null PSI_BIRTHDATE for these EPENS
@@ -264,6 +264,8 @@ dbExecute(con, qry15_BirthdateCleaning)
 dbExecute(con, "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
 dbExecute(con, qry16_BirthdateCleaning)
 dbExecute(con, qry17_BirthdateCleaning)
+
+# Update STP_Enrolment with birthdates found in non-null records 
 dbExecute(con, qry18_BirthdateCleaning)
 dbExecute(con, qry19_BirthdateCleaning)
 
@@ -271,17 +273,16 @@ dbExecute(con, qry19_BirthdateCleaning)
 dbExecute(con, qry20_BirthdateCleaning)
 dbGetQuery(con, qry21_BirthdateCleaning)
 
+# ---- Clean Up and check tables to keep ----
 dbExecute(con, "DROP TABLE tmp_BirthDate")
 dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
 dbExecute(con, "DROP TABLE tmp_NullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
 dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
-dbExecute(con, "DROP TABLE tmp_TEST_multi_birthdate")
 
-# ---- Clean Up and check tables to keep ----
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Record_Type;"))  
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment_Valid;"))  
-dbExistsTable(con, glue::glue("{my_schema}.STP_Enrolment;"))  
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
+dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
 dbDisconnect(con)
 
