@@ -43,19 +43,19 @@ handles loading of the data required for analysis.  Currently the model has only
 - 01a-enrolment-preprocessing.R 
 - 01b-credential-preprocessing.R 
 - 01c-credential-analysis.R 
-01d-enrolment-analysis.R 
-02a-appso-programs.R 
-02a-bgs-program-matching.R 
-02a-dacso-program-matching.R 
-02a-update-cred-non-dup.R 
-02b-1-pssm-cohorts.R 
-02b-2-pssm-cohorts-new-labour-supply.R 
-02b-3-pssm-cohorts-occupation-distributions.R 
-03-near-completers-ttrain.R 
-04-graduate-projections.R 
-05-ptib-analysis.R 
-06-program-projections.R 
-07-occupation-projections.R 
+- 01d-enrolment-analysis.R 
+- 02a-appso-programs.R 
+- 02a-bgs-program-matching.R 
+- 02a-dacso-program-matching.R 
+- 02a-update-cred-non-dup.R 
+- 02b-1-pssm-cohorts.R 
+- 02b-2-pssm-cohorts-new-labour-supply.R 
+- 02b-3-pssm-cohorts-occupation-distributions.R 
+- 03-near-completers-ttrain.R 
+- 04-graduate-projections.R 
+- 05-ptib-analysis.R 
+- 06- -program-projections.R 
+- 07-occupation-projections.R 
 
 
 
