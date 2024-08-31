@@ -2,13 +2,14 @@
 # Private Training Institutions Branch (PTIB)
 # 
 # Required Tables
-#   PTIB_Credentials
+#   T_Private_Institutions_Credentials_Raw
 #   T_PSSM_Credential_Grouping
 #   INFOWARE_L_CIP_6DIGITS_CIP2016
-#   Graduate_Projections
-#   Cohort_Program_Distributions_Projected
-#   Cohort_Program_Distributions_Static
 #   T_PTIB_Y1_to_Y10
+#
+# Resulting Tables
+#   qry_Private_Credentials_05i1_Grads_by_Year (PTIB data for Graduate_Projections)
+#   qry_Private_Credentials_06d1_Cohort_Dist (PTIB data for Cohort_Program_Distributions_Projected & _Static)
 #
 # Part 1: Clean PTIB data
 # * Update age groups, CIPs
@@ -28,7 +29,6 @@ library(RJDBC) ## loads DBI
 
 # Setup
 # ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
@@ -40,14 +40,15 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-source(glue::glue("{lan}/development/sql/gh-source/05-ptib-analysis/05-private-training-institutions-sql.R"))
+# import sql queries
+## ** IMPORTANT - update queries with table years **
+source("./sql/05-ptib-analysis/05-private-training-institutions.R")
 
 # ---- Required data tables and SQL ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
 
 # Part 1 ----
 ## ---- Add PSSM_Credential to PTIB data ----
@@ -58,7 +59,7 @@ dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length)
 
 ## ---- Remove periods from CIPs ----
 dbExecute(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
-dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length) # sanity check
+dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length) %>% filter(Expr1!=6) # sanity check
 
 ## ---- Check CIPs against infoware 6digit CIPs ----
 dbGetQuery(decimal_con, qry_Private_Credentials_00d_Check_CIPs)
@@ -101,12 +102,18 @@ dbExecute(decimal_con, "SELECT *
 dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
                 ALTER COLUMN intYear VARCHAR(255);")
 
+# check relevant years to update queries below
+tbl(decimal_con, "T_Private_Institutions_Credentials") %>% collect() %>% 
+  count(intYear)
+
+## !! update DATA years in below queries
+
 dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
 dbExecute(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
-                WHERE intYear <> 'Avg 2017 & 2018'")
+                WHERE intYear <> 'Avg 2021 & 2022'")
 
 # Part 2 ----
-## STOP !!! Update model year in queries ----
+## STOP !!! Update MODEL year in queries ----
 
 ## ---- Count domestic grads ----
 dbExecute(decimal_con, qry_Private_Credentials_01a_Domestic)
@@ -129,15 +136,13 @@ dbExecute(decimal_con, qry_Private_Credentials_01f_Grads)
 ## ---- Summarize the Grads by Credential/Age ----
 dbExecute(decimal_con, qry_Private_Credentials_05i_Grads)
 
-## ---- Delete PTIB rows from Graduate_Projections ----
-dbExecute(decimal_con, qry_Private_Credentials_05i0_Grads_by_Year_Delete)
-
-## ---- Update Graduate_Projections ----
+## ---- Get Grads by all years, saved as table to update Graduate_Projections later ----
 dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
 
 ## ---- Delete excess age groups ----
 dbExecute(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
 
+## ---- Drop tmp part2 qry datasets ----
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01b_Domestic_International")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01c_Percent_Domestic")
@@ -151,20 +156,13 @@ dbExecute(decimal_con, qry_Private_Credentials_06b_Cohort_Dist)
 ## ---- Sums total by age ----
 dbExecute(decimal_con, qry_Private_Credentials_06c_Cohort_Dist_Total)
 
-## ---- Delete PTIB rows from Cohort_Program_Distributions_Projected ----
-dbExecute(decimal_con, qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected)
+## ---- Prepare and save as table to update necessary tables later ----
+# Use the same table to update Cohort_Program_Distributions_Static and Cohort_Program_Distributions_Projected
+dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist)
 
-## ---- Delete PTIB rows from Cohort_Program_Distributions_Static ----
-dbExecute(decimal_con, qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static)
+## ---- Delete excess age groups ----
+dbExecute(decimal_con, qry_Private_Credentials_06d2_Delete_AgeGrps)
 
-## ---- Update Cohort_Program_Distributions_Projected ----
-dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Projected)
-
-## ---- Update Cohort_Program_Distributions_Static ----
-dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist_Static)
-
-dbExecute(decimal_con, qry_Private_Credentials_06d2_Projected_Delete_AgeGrps)
-dbExecute(decimal_con, qry_Private_Credentials_06d2_Static_Delete_AgeGrps)
 
 # Clean up ----
 ## ---- Drop tmp qry datasets ----
@@ -177,14 +175,9 @@ dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06c_Cohort_Dist_Total
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials")
 dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
 
-dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Projected")
-
 ## ---- Drop Lookups
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
 dbExecute(decimal_con, "DROP TABLE T_PTIB_Y1_to_Y10")
-dbExecute(decimal_con, "DROP TABLE INFOWARE_L_CIP_6DIGITS_CIP2016")
 
 ## ---- disconnect_connect ----
 dbDisconnect(decimal_con)
