@@ -142,11 +142,6 @@ f_graduates <- f_graduates_t  %>%
   select(-P) %>% 
   summarize(N=sum(N_GRAD_FORECASTED), .by  = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER))
 
-f_graduates  %>%
-  mutate(N=round(N,1))%>%
-  pivot_wider(id_cols = c(AGE_GROUP, PSI_CREDENTIAL_CATEGORY, GENDER), values_from = N, names_from = YEAR) %>% 
-  View()
-
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
 T_DACSO_Near_Completers_RatioByGender <- dbReadTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender") %>%
@@ -207,21 +202,34 @@ f_graduates_nc <- f_graduates_nc %>%
     toupper(PSI_CREDENTIAL_CATEGORY) == "UNIVERSITY TRANSFER" ~ "3 - ADGR OR UT", 
     TRUE ~ "NA"))
 
-
 f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
   group_by(PSI_CREDENTIAL_CATEGORY, PSSM_CRED, YEAR, AGE_GROUP) %>%
-  summarise(N=sum(N)) %>%
-  mutate(survey = 'Credential_Projections_Transp')
+  summarise(GRADUATES=sum(N)) %>%
+  mutate(SURVEY = 'Credential_Projections_Transp')
 
-f_graduates_agg  %>%
-  mutate(N=round(N,1)) %>%
-  pivot_wider(id_cols = c(AGE_GROUP, PSI_CREDENTIAL_CATEGORY, GENDER), values_from = N, names_from = YEAR) %>% 
-  View()
-
-dbWriteTable(decimal_con, name = "Graduate_Projections", f_graduates_agg, overwrite = TRUE)
+f_graduates_agg <- f_graduates_agg %>%
+  mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1)))
 
 
 # ---- Graduate Projections for Apprenticeship ----
-# add APPSO grads here
+APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
 
+appso_2_yr_avg <- APPSO_Graduates %>% 
+  mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
+  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
+  summarize(N = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
+  filter(YEAR %in% c('2022','2023')) %>%
+  summarize(GRADUATES = sum(N/2, na.rm = TRUE), .by = c(PSSM_CRED, AGE_GROUP)) %>%
+  mutate(YEAR = "2023/2024") %>%
+  mutate(SURVEY = 'APPSO') %>%
+  mutate(PSI_CREDENTIAL_CATEGORY = "NA")
+
+f_graduates_agg <- f_graduates_agg %>% 
+  rbind(appso_2_yr_avg) %>%
+  mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
+
+dbWriteTable(decimal_con, name = "Graduate_Projections", f_graduates_agg, overwrite = TRUE)
+
+# ---- Graduate Projections for PTIB ----
+  
   

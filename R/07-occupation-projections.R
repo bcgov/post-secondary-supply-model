@@ -18,6 +18,8 @@
 #   - T_Exclude_from_Projections_LCIP4_CRED
 #	  - T_Exclude_from_Projections_LCP4_CD
 #	  - T_Exclude_from_Projections_PSSM_Credential
+#
+# When switching between models, copy Static/Projected into Cohort_Program_Distributions
 
 library(tidyverse)
 library(RODBC)
@@ -29,7 +31,7 @@ db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
-source(glue::glue("{lan}/development/sql/gh-source/07-occupation-projections/occupation-projections.R"))
+source("./sql/07-occupation-projections/occupation-projections.R")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -69,6 +71,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Ag
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
+dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
+                        FROM Cohort_Program_Distributions_Projected")
+
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
 dbGetQuery(decimal_con, Count_Labour_Supply_Distribution1) 
@@ -81,16 +86,16 @@ dbGetQuery(decimal_con, Occupation_Unknown)
 dbExecute(decimal_con, Q_0_LCP2_LCP4) 
 
 # use these to delete PTIB for running a model without private institutions
-dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
-dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 
-dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution) 
-dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2) 
+#dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
+#dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 
+#dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution) 
+#dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2) 
 
 # essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
-dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
-dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D) 
-dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
-dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
+#dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
+#dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D) 
+#dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
+#dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 
 # ---- Q_1 Series ---- 
 dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 
@@ -123,7 +128,7 @@ dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
 dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy) 
 dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union) 
 dbExecute(decimal_con, Q_2f_Labour_Supply) 
-dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) 
+dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
 
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_2_Labour_Supply_by_LCIP4_CRED")
@@ -148,15 +153,17 @@ dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_
 
 # ---- Q_3 Series ---- 
 dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED) 
-dbExecute(decimal_con, Q_3b_Occupations_Unknown) 
-dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) 
+dbExecute(decimal_con, Q_3b_Occupations_Unknown) # numbers too high
+dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) # numbers too high
 dbExecute(decimal_con, q_3b12_Occupations_by_LCIP4_CRED_No_TT_Proxy_Union) 
 dbExecute(decimal_con, Q_3b13_Occupations) 
 dbExecute(decimal_con, Q_3b14_Occupations_Unknown) 
 dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy) 
 dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union) 
 dbExecute(decimal_con, Q_3b4_Occupations_Unknown) 
+
 dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy) 
+
 dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union) 
 dbExecute(decimal_con, Q_3d2_Occupations) 
 dbExecute(decimal_con, Q_3d2_Occupations_Unknown) 
@@ -165,12 +172,12 @@ dbExecute(decimal_con, Q_3d22_Occupations_by_LCIP4_CRED_LCP2_No_T_Proxy_Union)
 dbExecute(decimal_con, Q_3d24_Occupations_Unknown) 
 dbExecute(decimal_con, Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy) 
 dbExecute(decimal_con, Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union) 
+
 dbExecute(decimal_con, Q_3e_Occupations_Unknown) 
 dbExecute(decimal_con, Q_3e2_Occupations_Unknown) 
-dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union) 
+dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union) # FIXME rows where NOC like 403X
 dbExecute(decimal_con, Q_3f_Occupations) 
 
-dbExecute(decimal_con, "DROP TABLE T_LCP2_LCP4")
 dbExecute(decimal_con, "DROP TABLE Q_3_Occupations_by_LCIP4_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_3b_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3b11_Ocupations_Unknown_No_TT_Proxy")
@@ -191,9 +198,9 @@ dbExecute(decimal_con, "DROP TABLE Q_3e_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e2_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
 
-# ---- Q_4_NOC_D Series ---- 
+# ---- Q_4_NOC_D Series ---- Q_3e2_Occupations_Unknown 
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
 dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
@@ -206,8 +213,7 @@ dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
 dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
 
 # ---- Q_4_NOC_Totals Series ---- 
-#dbGetQuery(decimal_con, )
-#dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) 
+dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) # FIXME Broken SQL
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year) 
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC) 
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
@@ -245,6 +251,7 @@ dbExecute(decimal_con, Q_7_QI)
 dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) 
 
 # Note: these queries rely on a table called tmp_tbl_QI built in a workflow similar to this one:
+# Note: checked years to here
 
 # dbExecute(decimal_con, qry_10a_Model) 
 # dbExecute(decimal_con, qry_10a_Model_Public_Release) 

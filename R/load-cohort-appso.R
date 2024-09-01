@@ -90,7 +90,7 @@ T_APPSO_DATA_Final <-
 
 # prepare graduate dataset
 APPSO_Graduates_dat  %>%
-  mutate(AGE_GROUP_LABEL = case_when (
+  mutate(AGE_GROUP = case_when (
     APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
     APP_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
     APP_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
@@ -110,7 +110,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final)
 dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates_dat)
 
 dbDisconnect(decimal_con)

@@ -135,25 +135,6 @@ dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
 dbExecute(decimal_con, "drop table Q014c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q014d_Weighted_Cohort_Dist_Total")
 
-# add apprenticeships to graduate projections ----
-APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
-
-appso_2_yr_avg <- APPSO_Graduates %>%  
-  mutate(AGE_GROUP_LABEL = case_when (
-  APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
-  APP_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
-  APP_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
-  APP_AGE_AT_SURVEY %in% 25:29 ~ "25 to 29",
-  APP_AGE_AT_SURVEY %in% 30:34 ~ "30 to 34",
-  APP_AGE_AT_SURVEY %in% 35:44 ~ "35 to 44",
-  APP_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
-  APP_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
-  APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
-  TRUE ~ NA)) %>%
-  summarize(n = sum(EXPR1, na.rm = TRUE), .by = c(SUBM_CD, PSSM_CREDENTIAL, AGE_GROUP_LABEL)) %>%
-  filter(SUBM_CD %in% c('C_Outc18','C_Outc19')) %>%
-  summarize(avg = sum(n/2, na.rm = TRUE), .by = c(PSSM_CREDENTIAL, AGE_GROUP_LABEL))
-
 # expands static appr in graduate projections - holding counts constant
 dbExecute(decimal_con, Q014f_APPSO_Grads_Y2_to_Y10)
 
