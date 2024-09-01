@@ -53,6 +53,7 @@ dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check base weights
 
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
+# update invalid NOCS (i.e. 403X, 503X)
 #dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
