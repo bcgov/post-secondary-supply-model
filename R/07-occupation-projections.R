@@ -18,6 +18,8 @@
 #   - T_Exclude_from_Projections_LCIP4_CRED
 #	  - T_Exclude_from_Projections_LCP4_CD
 #	  - T_Exclude_from_Projections_PSSM_Credential
+#
+# When switching between models, copy Static/Projected into Cohort_Program_Distributions
 
 library(tidyverse)
 library(RODBC)
@@ -69,6 +71,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Ag
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
+dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
+                        FROM Cohort_Program_Distributions_Projected")
+
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
 dbGetQuery(decimal_con, Count_Labour_Supply_Distribution1) 
@@ -167,10 +172,9 @@ dbExecute(decimal_con, Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy)
 dbExecute(decimal_con, Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union) 
 dbExecute(decimal_con, Q_3e_Occupations_Unknown) 
 dbExecute(decimal_con, Q_3e2_Occupations_Unknown) 
-dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union) 
+dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union) # FIXME rows where NOC like 403X
 dbExecute(decimal_con, Q_3f_Occupations) 
 
-dbExecute(decimal_con, "DROP TABLE T_LCP2_LCP4")
 dbExecute(decimal_con, "DROP TABLE Q_3_Occupations_by_LCIP4_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_3b_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3b11_Ocupations_Unknown_No_TT_Proxy")
@@ -245,6 +249,7 @@ dbExecute(decimal_con, Q_7_QI)
 dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) 
 
 # Note: these queries rely on a table called tmp_tbl_QI built in a workflow similar to this one:
+# checked to here for years
 
 # dbExecute(decimal_con, qry_10a_Model) 
 # dbExecute(decimal_con, qry_10a_Model_Public_Release) 
