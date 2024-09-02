@@ -52,12 +52,21 @@ dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
 # and would remove the need to source it above. 
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check base weights
 
+# handle invalid noc codes
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
-# update invalid NOCS (i.e. 403X, 503X)
-#dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+
+# No invalid nocs in dacso survey data
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
+
+# NOTE: setting all 403X to 4031 for now, but these need would need to be
+# imputed to 4031, 4032, 9999 to be accurate.  move qry to 02b1
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
+dbExecute(decimal_con, "UPDATE T_Cohorts_Recoded
+                        SET    T_Cohorts_Recoded.noc_cd = '4031'
+                        WHERE T_Cohorts_Recoded.noc_cd = '403X'")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
+
 
 # recode new labour supply for those with an NLS-2 record and no NLS1
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS1)
