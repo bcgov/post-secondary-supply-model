@@ -216,7 +216,7 @@ APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
 
 appso_2_yr_avg <- APPSO_Graduates %>% 
   mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
-  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
+  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL", "AGE_GROUP" = "AGE_GROUP_LABEL") %>%
   summarize(N = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
   filter(YEAR %in% c('2022','2023')) %>%
   summarize(GRADUATES = sum(N/2, na.rm = TRUE), .by = c(PSSM_CRED, AGE_GROUP)) %>%
