@@ -286,21 +286,6 @@ dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year)
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
 
-# Test Data
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
-dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_No_TT")
-dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Static")
-dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions_Projected")
-dbExecute(decimal_con, "DROP TABLE Graduate_Projections")
-dbExecute(decimal_con, "DROP TABLE T_Cohorts_Recoded")
-
 # Lookups
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
