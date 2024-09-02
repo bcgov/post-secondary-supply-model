@@ -202,7 +202,6 @@ dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
 
 # ---- Clean Up ----
-dbDisconnect(decimal_con)
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
@@ -231,6 +230,8 @@ dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")
+
+dbDisconnect(decimal_con)
 
 
 
