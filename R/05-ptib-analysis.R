@@ -136,11 +136,17 @@ dbExecute(decimal_con, qry_Private_Credentials_01f_Grads)
 ## ---- Summarize the Grads by Credential/Age ----
 dbExecute(decimal_con, qry_Private_Credentials_05i_Grads)
 
-## ---- Get Grads by all years, saved as table to update Graduate_Projections later ----
+## ---- Get Grads by all years, saved as table  ----
 dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
 
 ## ---- Delete excess age groups ----
 dbExecute(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
+
+## ---- Update Graduate_Projections ----
+dbExecute(decimal_con, "INSERT INTO Graduate_Projections ( Survey, PSSM_CRED, Age_Group, [Year], Graduates )
+          SELECT Survey, PSSM_CRED, Age_Group, [Year], Graduates
+          FROM qry_Private_Credentials_05i1_Grads_by_Year;")
+
 
 ## ---- Drop tmp part2 qry datasets ----
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")

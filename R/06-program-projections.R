@@ -67,6 +67,19 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Co
 # We can probably just create this table here and skip saving and uploading from year to year.
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')))
 
+# ---- survey == "PTIB" (Static and Projected) ----
+dbExecute(decimal_con, 
+            "INSERT INTO Cohort_Program_Distributions_Projected 
+            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
+            FROM qry_Private_Credentials_06d1_Cohort_Dist;")
+dbExecute(decimal_con, 
+            "INSERT INTO Cohort_Program_Distributions_Static
+            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
+            FROM qry_Private_Credentials_06d1_Cohort_Dist;")
+dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
+
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
 # Add near completers to projected and static distribution datasets
 dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Projected)
@@ -79,7 +92,6 @@ dbExecute(decimal_con, qry_13d_Append_Near_Completers_Program_Dist_Static_TTRAIN
 dbExecute(decimal_con, "drop table qry_13a_Near_completers")
 dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
 dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
-
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
 # Add program cohorts to static distribution datasets
@@ -165,6 +177,7 @@ input_data <- dbGetQuery(decimal_con, "SELECT * FROM tbl_Program_Projection_Inpu
 write_csv(input_data, glue::glue("{lan}/development/csv/gh-source/tmp/06/input-data.csv"))
 
 ## STOP! flip over Werner here ----
+# TODO: source(glue::glue("{lan}/development/R/program_projections.R")) 
 output_data <- read_delim(glue::glue("{lan}/development/csv/gh-source/tmp/06/output.csv"), delim = "\t", col_names = TRUE)
 names(output_data)<- paste0(2023:(2023+11), "/", 2024:(2024+11))
 
@@ -211,8 +224,6 @@ dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
 dbExecute(decimal_con, "drop table tbl_Age_Groups")
 dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
 dbExecute(decimal_con, "drop table T_APPR_Y2_to_Y10")
-dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
-dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
 dbExecute(decimal_con, "drop table T_PSSM_Projection_Cred_Grp")
 dbExecute(decimal_con, "drop table T_Weights_STP")
 

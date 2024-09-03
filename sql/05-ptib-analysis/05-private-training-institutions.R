@@ -244,6 +244,16 @@ qry_Private_Credentials_06b_Cohort_Dist.Credential,
 qry_Private_Credentials_06b_Cohort_Dist.PSSM_CRED, 
 qry_Private_Credentials_06b_Cohort_Dist.Age_Group;"
 
+## qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected ----
+qry_Private_Credentials_06d0_Cohort_Dist_Delete_Projected <- 
+  "DELETE FROM Cohort_Program_Distributions_Projected
+WHERE (((Cohort_Program_Distributions_Projected.Survey)='PTIB'));"
+
+## qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static ----
+qry_Private_Credentials_06d0_Cohort_Dist_Delete_Static <- 
+  "DELETE FROM Cohort_Program_Distributions_Static
+WHERE (((Cohort_Program_Distributions_Static.Survey)='PTIB'));"
+
 ## qry_Private_Credentials_06d1_Cohort_Dist ----
 qry_Private_Credentials_06d1_Cohort_Dist <- 
 "SELECT 'PTIB' AS Survey, 
