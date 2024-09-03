@@ -71,8 +71,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Ag
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
-dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
-                        FROM Cohort_Program_Distributions_Projected")
+dbExecute(decimal_con, "DELETE FROM Cohort_Program_Distributions")
+dbExecute(decimal_con, "INSERT INTO Cohort_Program_Distributions 
+                        SELECT * FROM Cohort_Program_Distributions_Projected;")
 
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
@@ -198,7 +199,7 @@ dbExecute(decimal_con, "DROP TABLE Q_3e_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e2_Occupations_Unknown")
 dbExecute(decimal_con, "DROP TABLE Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
 
 # ---- Q_4_NOC_D Series ---- Q_3e2_Occupations_Unknown 
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 

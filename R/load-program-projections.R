@@ -78,6 +78,7 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_
 
 
 # ---- Rollover data ----
+# TODO make schema instead
 Cohort_Program_Distributions_Projected <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -85,9 +86,6 @@ Cohort_Program_Distributions_Projected <-
 Cohort_Program_Distributions_Static <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
-# ---- Build tbl_Program_Projection_Input ---- 
-tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projection_Input)
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = "AgeGroupLookup", AgeGroupLookup)
@@ -99,6 +97,9 @@ dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CI
 dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, name = "T_PSSM_Projection_Cred_Grp", T_PSSM_Projection_Cred_Grp)
 dbWriteTable(decimal_con, name = "T_Weights_STP",  T_Weights_STP)
+
+# ---- Build tbl_Program_Projection_Input ---- 
+tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projection_Input)
 dbWriteTable(decimal_con, name = "tbl_Program_Projection_Input", tbl_Program_Projection_Input)
 
 # ---- Rollover ----
