@@ -198,30 +198,22 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
-# missing tbl_Age_Groups_Rollup but otherwise this might be important
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
 
 # ---- Clean Up ----
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
+dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
 dbExecute(decimal_con, "DROP TABLE tbl_Age")
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
-dbExecute(decimal_con, "DROP TABLE infoware_c_outc_clean_short_resp")
+#dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
+#dbExecute(decimal_con, "DROP TABLE infoware_c_outc_clean_short_resp")
 dbExecute(decimal_con, "DROP TABLE T_Weights")
 dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
-
-# --- just for testing - do not run as part of the workflow
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions")
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_No_TT")
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2")
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_No_TT")
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC")
-# dbExecute(decimal_con, "DROP TABLE Occupation_Distributions_LCP2_BC_No_TT")
 
 # ---- Keep ----
 dbExistsTable(decimal_con, "Occupation_Distributions")
