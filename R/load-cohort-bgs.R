@@ -97,7 +97,7 @@ T_BGS_Data_Final <- BGS_Data_Update %>%
 #  rbind(T_BGS_Data)
 
 # ---- Write to decimal----
-dbWriteTable(decimal_con, name = "T_Weights", value = T_weights)
+dbWriteTable(decimal_con, name = "T_Weights", value = T_weights, overwrite = TRUE)
 dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final)
 dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode, overwrite = TRUE)
 

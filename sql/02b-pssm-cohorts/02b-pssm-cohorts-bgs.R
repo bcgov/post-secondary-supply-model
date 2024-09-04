@@ -73,6 +73,33 @@ LEFT JOIN tbl_age_groups
 WHERE  t_weights.model = '2022-2023'
 AND    t_weights.survey = 'BGS';"
 
+BGS_Q003c_Derived_And_Weights_QI <- "
+UPDATE t_bgs_data_final
+SET    t_bgs_data_final.BGS_New_Labour_Supply =  
+        CASE
+	        	WHEN CURRENT_ACTIVITY = 1 THEN 1
+	        	WHEN CURRENT_ACTIVITY = 4 And FULL_TM_WRK = 1 THEN 1
+	        	WHEN CURRENT_ACTIVITY = 4 And FULL_TM_WRK = 0 THEN 2
+	        	WHEN CURRENT_ACTIVITY = 3 And IN_LBR_FRC = 1 THEN 1 
+	        	WHEN CURRENT_ACTIVITY IS NULL  And  FULL_TM_WRK IS NULL And IN_LBR_FRC = 1 THEN 1 
+	        	WHEN CURRENT_ACTIVITY IS NULL And IN_LBR_FRC = 1 THEN 1
+	        	WHEN srv_y_n = 0 THEN 0
+	        	ELSE 0 
+	      END,
+       t_bgs_data_final.weight = t_weights.weight_QI,
+       t_bgs_data_final.age_group = tbl_age.age_group,
+       t_bgs_data_final.age_group_rollup = tbl_age_groups.age_group_rollup
+FROM ((t_bgs_data_final
+INNER JOIN t_weights
+  ON t_bgs_data_final.survey_year = t_weights.survey_year)
+LEFT JOIN tbl_age
+  ON t_bgs_data_final.age = tbl_age.age)
+LEFT JOIN tbl_age_groups
+  ON tbl_age.age_group = tbl_age_groups.age_group
+WHERE  t_weights.model = '2022-2023'
+AND    t_weights.survey = 'BGS';"
+
+
 BGS_Q005_1b1_Delete_Cohort <- "
 DELETE T_Cohorts_Recoded
 FROM T_Cohorts_Recoded
