@@ -60,7 +60,7 @@ dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
 dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null)
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_OCC FLOAT NULL")
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_Age FLOAT NULL")
-dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update) # run directly on SQL server (~15 min to complete)
+dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update) 
 dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc)
 dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
 

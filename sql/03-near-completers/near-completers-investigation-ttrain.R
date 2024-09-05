@@ -679,7 +679,8 @@ FROM
 SELECT COSC_GRAD_STATUS_LGDS_CD_Group, COCI_STQU_ID , COCI_SUBM_CD 
 FROM T_DACSO_DATA_Part_1_TempSelection
 WHERE (((T_DACSO_DATA_Part_1_TempSelection.COSC_GRAD_STATUS_LGDS_CD_Group) Is Not Null) 
-AND ((T_DACSO_DATA_Part_1_TempSelection.Age_At_Grad)>=17 And (T_DACSO_DATA_Part_1_TempSelection.Age_At_Grad)<=64))
+AND ((T_DACSO_DATA_Part_1_TempSelection.Age_At_Grad)>=17 
+And (T_DACSO_DATA_Part_1_TempSelection.Age_At_Grad)<=64))
 ) As P
 PIVOT (
   Count(COCI_STQU_ID) 
@@ -931,8 +932,7 @@ FROM   t_dacso_data_part_1
               AND t_dacso_data_part_1.age_at_grad <= AgeGroupLookup.upper_bound
        LEFT OUTER JOIN credentialrank
                     ON t_dacso_data_part_1.prgm_credential_awarded_name = CredentialRank.psi_credential_category
-WHERE  ( t_dacso_data_part_1.coci_subm_cd IN (
-         'C_Outc12','C_Outc13','C_Outc14') )
+WHERE  ( t_dacso_data_part_1.coci_subm_cd IN ('C_Outc19', 'C_Outc20'))
        AND ( t_dacso_data_part_1.age_at_grad >= 17 )
        AND ( t_dacso_data_part_1.age_at_grad <= 64 )
        AND ( t_dacso_data_part_1.cosc_grad_status_lgds_cd_group = '1' )
@@ -1237,7 +1237,8 @@ qry99_Near_Completes_vs_Graduates_by_Year <-
 "TRANSFORM Count(*) AS Expr1
 SELECT agegrouplookup.Age_Group_Label, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, T_DACSO_DATA_Part_1.coci_SUBM_CD
 FROM (T_DACSO_DATA_Part_1 INNER JOIN tbl_Age ON T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY = tbl_Age.Age) INNER JOIN agegrouplookup ON tbl_Age.Age_Group = agegrouplookup.Age_Group
-WHERE (((T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc09' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc08' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc10') AND ((T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD_Group) Is Not Null) AND ((T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)>=17 And (T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)<=64))
+WHERE (((T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc09' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc08' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc10') 
+AND ((T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD_Group) Is Not Null) AND ((T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)>=17 And (T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)<=64))
 GROUP BY agegrouplookup.Age_Group_Label, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, T_DACSO_DATA_Part_1.coci_SUBM_CD
 PIVOT T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD_Group;"
 

@@ -66,7 +66,7 @@ INNER JOIN tbl_Age_Groups
 	AND (Cohort_Program_Distributions.Age_Group = tbl_Age_Groups.Age_Group_Label)
 WHERE (((Occupation_Distributions.LCIP4_CRED) Is Null) 
 AND ((Occupation_Distributions.Age_Group_Rollup) Is Null) 
-AND ((Cohort_Program_Distributions.Year)='2017/2018'));"
+AND ((Cohort_Program_Distributions.Year)='2023/2024'));"
 
 
 

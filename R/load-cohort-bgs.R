@@ -92,9 +92,6 @@ BGS_Data_Update <- BGS_Data_Update %>%
 # ---- Make T_BGS_Data_Final ----
 T_BGS_Data_Final <- BGS_Data_Update %>% 
   select(-c(CUR_RES,REGION_CD,CURRENT_REGION))
-#%>%
-#  filter(SURVEY_YEAR %in% 2018:2019) %>%
-#  rbind(T_BGS_Data)
 
 # ---- Write to decimal----
 dbWriteTable(decimal_con, name = "T_Weights", value = T_weights, overwrite = TRUE)

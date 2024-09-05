@@ -17,7 +17,7 @@
 #         PDEG included at the end of occupation_distribution scripts.   
 #
 # FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
-# FIXME Missing Graduate Distributions (Non-Student Outcomes)
+# FIXME Missing Non-Student Outcomes and PDEG at this point.  To be brought in after 
 
 library(tidyverse)
 library(RODBC)
@@ -208,10 +208,5 @@ dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")
 dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
 dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
 
-# ---- Just for testing ----
-# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution")
-# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_No_TT")
-# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2")
-# dbExecute(decimal_con, "DROP TABLE Labour_Supply_Distribution_LCP2_No_TT")
 
 
