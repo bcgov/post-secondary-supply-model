@@ -204,15 +204,15 @@ dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT
 
 # ---- Q_4_NOC_D Series ---- Q_3e2_Occupations_Unknown 
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year) 
+dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year)                                                                                                                                    
 dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED) 
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix) 
+dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix)                                    
 dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year) 
 dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED) 
 dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year) 
 dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED) 
 dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year) 
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding) 
+dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding)                                                                                                                                                                                                                                                         
 
 # ---- Q_4_NOC_Totals Series ---- 
 dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED) # FIXME Broken SQL
