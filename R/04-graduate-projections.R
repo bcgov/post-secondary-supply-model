@@ -9,6 +9,7 @@
 
 # Notes: Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019) and documentation reveal different #'s
 # of output years.  Used 12 for PSSM2023.
+# Script handles only Male and Female 
 
 
 library(tidyverse)
@@ -104,11 +105,11 @@ f_enrolments_t %>%
 ## Graduation Rates (annual, as a percentage of enrolment) ----
 annual_grad_rate <- credentials %>% 
   summarize(N_GRADS = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)) %>%
-  inner_join(
+  inner_join( # removes Gender Diverse
     min_enrolments %>%
       summarize(N_ENROL = sum(N, na.rm = TRUE), .by = c(GENDER, AGE_GROUP, YEAR)), 
     by = join_by(GENDER, AGE_GROUP, YEAR)) %>%
-  mutate(P_GRADS_ENROL = 100*N_GRADS/N_ENROL)
+  mutate(P_GRADS_ENROL = 100*N_GRADS/N_ENROL) 
 
 ## Graduation Rate (2-yr average, as percentage of enrolment) ----
 avg_2_yr_grad_rate <- annual_grad_rate %>% 
@@ -127,7 +128,7 @@ f_graduates_t  <- f_graduates_t  %>%
 
 ## 2-yr average distribution of graduates by credential ----
 avg_2_yr_credentials <- credentials %>% 
-  filter(YEAR %in% 2021:2022) %>%
+  filter(YEAR %in% 2021:2022, GENDER != 'Gender Diverse') %>%
   summarise(YR_2_N = sum(N), .by = c(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY)) %>%
   group_by(GENDER, AGE_GROUP) %>%
   mutate(N=sum(YR_2_N), 
@@ -203,26 +204,26 @@ f_graduates_nc <- f_graduates_nc %>%
     TRUE ~ "NA"))
 
 f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
-  group_by(PSI_CREDENTIAL_CATEGORY, PSSM_CRED, YEAR, AGE_GROUP) %>%
+  group_by(PSSM_CRED, YEAR, AGE_GROUP) %>%
   summarise(GRADUATES=sum(N)) %>%
-  mutate(SURVEY = 'Credential_Projections_Transp')
-
-f_graduates_agg <- f_graduates_agg %>%
-  mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1)))
-
+  mutate(SURVEY = 'Credential_Projections_Transp') %>%
+  mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
+  filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
 
 # ---- Graduate Projections for Apprenticeship ----
 APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
 
 appso_2_yr_avg <- APPSO_Graduates %>% 
   mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
-  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL", "AGE_GROUP" = "AGE_GROUP_LABEL") %>%
+  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
   summarize(N = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
   filter(YEAR %in% c('2022','2023')) %>%
   summarize(GRADUATES = sum(N/2, na.rm = TRUE), .by = c(PSSM_CRED, AGE_GROUP)) %>%
   mutate(YEAR = "2023/2024") %>%
   mutate(SURVEY = 'APPSO') %>%
-  mutate(PSI_CREDENTIAL_CATEGORY = "NA")
+  mutate(PSI_CREDENTIAL_CATEGORY = "NA") %>%
+  filter(!is.na(AGE_GROUP)) %>%
+  filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
 
 f_graduates_agg <- f_graduates_agg %>% 
   rbind(appso_2_yr_avg) %>%
