@@ -98,6 +98,25 @@ INNER JOIN t_weights
 WHERE  t_weights.model = '2022-2023'
 AND    t_weights.survey = 'DACSO';"
 
+DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI <- "
+UPDATE t_dacso_data_part_1
+SET    t_dacso_data_part_1.new_labour_supply = 
+       CASE 
+	     		WHEN PFST_CURRENT_ACTIVITY = 3 THEN 1
+	     		WHEN PFST_CURRENT_ACTIVITY = 2 And LABR_EMPLOYED_FULL_PART_TIME = 1 THEN 1
+	     		WHEN PFST_CURRENT_ACTIVITY = 2 And LABR_EMPLOYED_FULL_PART_TIME = 0 THEN 2
+	     		WHEN PFST_CURRENT_ACTIVITY = 4 And LABR_IN_LABOUR_MARKET = 1 THEN 1
+	     		WHEN RESPONDENT = '1' THEN 0
+	        ELSE 0 
+	     END,
+       t_dacso_data_part_1.weight = t_weights.weight_QI
+FROM t_dacso_data_part_1
+INNER JOIN t_weights
+  ON t_dacso_data_part_1.coci_subm_cd = t_weights.subm_cd
+WHERE  t_weights.model = '2022-2023'
+AND    t_weights.survey = 'DACSO';"
+
+
 DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort <- "
 DELETE t_cohorts_recoded
 FROM   t_cohorts_recoded

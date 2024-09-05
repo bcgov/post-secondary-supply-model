@@ -80,7 +80,7 @@ ADD PSI_PEN NVARCHAR(255) NULL;"
 
 sql <- "UPDATE N
 SET N.PSI_PEN = C.PSI_PEN
-FROM credential_non_dup AS N
+FROM pssm2023.[YOUR_SCHEMA].credential_non_dup AS N
 INNER JOIN dbo.STP_Credential AS C
 ON N.ID = C.ID
 "
@@ -188,7 +188,6 @@ dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYearCleaning_MaxID")
 dbExecute(decimal_con, "DROP TABLE DACSO_Matching_STP_Credential_PEN")
 dbExecute(decimal_con, "DROP TABLE nearcompleters_in_stp_credential_step1")
 
-
 # ----- Check Near Completers Ratios -----
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_Credential_by_Year)
@@ -204,7 +203,6 @@ NearCompleters_CIP4_CombinedCred <- dbReadTable(decimal_con, "NearCompleters_CIP
 NearCompleters_CIP4_CombinedCred$lcip4_cred <- gsub("-\\s(0|1)\\s","", NearCompleters_CIP4_CombinedCred$lcip4_cred)
 NearCompleters_CIP4_CombinedCred <- NearCompleters_CIP4_CombinedCred %>% 
   summarise(count = sum(CombinedCredCount, na.rm = TRUE), .by = c(age_group, lcip4_cred, lcp4_cd))
-
 
 #2 (col I in Excel sheet)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4)
@@ -244,11 +242,11 @@ dbExecute(decimal_con, "update completerscip4
 
 dbExecute(decimal_con, qry_Make_Completers_CIP4_CombinedCred) 
 Completers_CIP4_CombinedCred <- dbReadTable(decimal_con, "Completers_CIP4_CombinedCred")
-Completers_CIP4_CombinedCred $lcip4_cred <- gsub("-\\s(0|1)\\s","", Completers_CIP4_CombinedCred$lcip4_cred_cleaned)
+Completers_CIP4_CombinedCred$lcip4_cred <- gsub("-\\s(0|1)\\s","", Completers_CIP4_CombinedCred$lcip4_cred_cleaned)
 Completers_CIP4_CombinedCred  <- Completers_CIP4_CombinedCred  %>% 
   summarise(c_not_factoring_stp = sum(CombinedCredCount, na.rm = TRUE), .by = c(age_group, lcip4_cred, lcp4_cd))
 
-ratio.df <- NearCompleters_CIP4_CombinedCred %>%
+T_DACSO_Near_Completers_RatioAgeAtGradCIP4 <- NearCompleters_CIP4_CombinedCred %>%
   left_join(NearCompleters_CIP4_With_STP_CombinedCred, by = join_by(age_group, lcip4_cred, lcp4_cd)) %>%
   left_join(CompletersFactoringInSTP_CIP4_CombinedCred, by = join_by(age_group, lcip4_cred, lcp4_cd)) %>%
   left_join(Completers_CIP4_CombinedCred, by = join_by(age_group, lcip4_cred, lcp4_cd)) %>%
@@ -259,7 +257,7 @@ ratio.df <- NearCompleters_CIP4_CombinedCred %>%
   mutate(across(where(is.double), ~na_if(., Inf)))%>%
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioAgeAtGradCIP4", ratio.df)
+dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioAgeAtGradCIP4", T_DACSO_Near_Completers_RatioAgeAtGradCIP4)
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
 dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
@@ -311,7 +309,7 @@ T_DACSO_Near_Completers_RatioByGender <-
 dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", T_DACSO_Near_Completers_RatioByGender)
 
 # random query
-dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
+#dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 
 # ---- TTRAIN tables ----
 # This part is not completed  - see notes
@@ -325,26 +323,13 @@ dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
 
 # ---- Clean Up ----
-# TO DO: clean up this section
+# TODO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
 dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
 dbExecute(decimal_con, "DROP TABLE combine_creds")
-dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1")
 dbExecute(decimal_con, "DROP TABLE t_pssm_projection_cred_grp")
-
-
-dbExecute(decimal_con, "drop table NearCompleters_CIP4")
-dbExecute(decimal_con, "drop table completerscip4")
-dbExecute(decimal_con, "drop table Near_completes_total_by_CIP4_TTRAIN")
-dbExecute(decimal_con, "drop table Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
-dbExecute(decimal_con, "drop table NearCompleters_CIP4_with_STP_Credential")
-dbExecute(decimal_con, "drop table near_completer_ratio")
-dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
-dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
-dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
-dbExecute(decimal_con, "drop table completersfactoringinstp_cip4")
 dbExecute(decimal_con, "drop table nearcompleters_cip4_combinedcred")
 dbExecute(decimal_con, "drop table NearCompleters_CIP4_With_STP_CombinedCred")
 dbExecute(decimal_con, "drop table CompletersFactoringInSTP_CIP4_CombinedCred")

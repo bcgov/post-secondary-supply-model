@@ -56,6 +56,9 @@ decimal_con <- dbConnect(odbc::odbc(),
 tbl_Age_Groups <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age_Groups.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+tbl_Age_Groups_Rollup <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age_Groups_Rollup.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 tbl_Age <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_Age.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -90,6 +93,7 @@ t_current_region_pssm_rollup_codes_bc <-
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
 dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
+dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup", value = tbl_Age_Groups_Rollup)
 dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
 

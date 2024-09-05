@@ -46,6 +46,29 @@ LEFT JOIN tbl_age_groups
 WHERE  t_weights.model = '2022-2023'
   AND t_weights.survey = 'TRD';"
 
+Q000_TRD_Q003c_Derived_And_Weights_QI <- "
+UPDATE t_trd_data
+SET    t_trd_data.new_labour_supply =
+       CASE 
+          WHEN TRD_LABR_EMPLOYED = 1 THEN 1 
+          WHEN TRD_LABR_IN_LABOUR_MARKET = 1 And TRD_LABR_EMPLOYED = 0 THEN 1
+          WHEN TRD_LABR_EMPLOYED = 0 THEN 0
+          WHEN RESPONDENT = '1' THEN 0
+          ELSE 0 
+      END, 
+      T_TRD_Data.Weight = T_Weights.Weight_QI,
+      T_TRD_Data.age_group = tbl_age.age_group,
+      T_TRD_Data.age_group_rollup = tbl_age_groups.age_group_rollup
+FROM ((t_trd_data
+INNER JOIN t_weights
+  ON t_trd_data.subm_cd = t_weights.subm_cd)
+LEFT JOIN tbl_age
+  ON t_trd_data.trd_age_at_survey = tbl_age.age)
+LEFT JOIN tbl_age_groups
+  ON tbl_age.age_group = tbl_age_groups.age_group
+WHERE  t_weights.model = '2022-2023'
+  AND t_weights.survey = 'TRD';"
+
 Q000_TRD_Q005_1b1_Delete_Cohort <- "
 DELETE  T_Cohorts_Recoded
 FROM T_Cohorts_Recoded

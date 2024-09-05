@@ -43,6 +43,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
+source("./sql/06-program-projections/06-program-projections.R")
 
 # ---- Lookups  ----
 T_Cohort_Program_Distributions_Y2_to_Y12 <-  
@@ -116,3 +117,4 @@ stopifnot(exprs = {
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)
+rm(list=ls())

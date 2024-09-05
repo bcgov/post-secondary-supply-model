@@ -97,6 +97,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"'))
 dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
 dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
 dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
+#dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
 
 # Refresh trd survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, Q000_TRD_Q005_1b1_Delete_Cohort)
@@ -118,6 +119,7 @@ dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 # Applies weight for model year and derives New Labour Supply
 dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
 dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
+#dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
 
 # Refresh bgs survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
@@ -139,13 +141,13 @@ dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
 
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
+#dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
 
 # Refresh dacso survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Keep  ----
-dbExistsTable(decimal_con, "Q000_TRD_Graduates")
 dbExistsTable(decimal_con, "APPSO_Graduates")
 dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
@@ -155,6 +157,16 @@ dbExecute(decimal_con, "DROP TABLE T_TRD_DATA")
 dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
 dbExecute(decimal_con, "DROP TABLE T_BGS_Data_Final")
 dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
+dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
+dbExecute(decimal_con, "DROP TABLE Q000_TRD_Graduates;") # TODO: where do we add trades in?
+dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
+dbExecute(decimal_con, "DROP TABLE tbl_Age")
+dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
+dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
+dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
+
 dbDisconnect(decimal_con)
 
 

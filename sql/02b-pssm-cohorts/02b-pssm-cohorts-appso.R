@@ -78,6 +78,31 @@ LEFT JOIN tbl_age_groups
 WHERE t_weights.model = '2022-2023'
   AND t_weights.survey = 'APPSO';"
 
+
+APPSO_Q003c_Derived_And_Weights_QI <- "
+UPDATE t_appso_data_final
+SET   new_labour_supply = 
+      CASE 
+          WHEN APP_LABR_EMPLOYED = 1 THEN 1 
+          WHEN APP_LABR_IN_LABOUR_MARKET = 1 And APP_LABR_EMPLOYED = 0 THEN 1
+          WHEN APP_LABR_EMPLOYED = 0 THEN 0
+          WHEN RESPONDENT = '1' THEN 0
+          ELSE 0 
+      END,
+      weight = t_weights.weight,
+      t_appso_data_final.age_group = tbl_age.age_group,
+      t_appso_data_final.age_group_rollup = tbl_age_groups.age_group_rollup
+FROM ((t_appso_data_final
+INNER JOIN t_weights
+  ON t_appso_data_final.subm_cd = t_weights.subm_cd)
+LEFT JOIN tbl_age
+  ON t_appso_data_final.app_age_at_survey = tbl_age.age)
+LEFT JOIN tbl_age_groups
+  ON tbl_age.age_group = tbl_age_groups.age_group
+WHERE t_weights.model = '2022-2023'
+  AND t_weights.survey = 'APPSO';"
+
+
 APPSO_Q005_1b1_Delete_Cohort <- 
 "DELETE T_Cohorts_Recoded
 FROM T_Cohorts_Recoded
