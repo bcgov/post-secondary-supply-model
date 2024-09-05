@@ -162,7 +162,6 @@ dbExecute(decimal_con, Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Pro
 dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
 
 # Werner program ----
-# Program saved at {lan}/development/R/program_projections.R and step through
 # Program takes input_data and returns output_data (write to/read from LAN below)
 input_data <- dbGetQuery(decimal_con, "SELECT * FROM tbl_Program_Projection_Input") %>% 
   select(-Expr1) %>%
@@ -176,8 +175,9 @@ input_data <- dbGetQuery(decimal_con, "SELECT * FROM tbl_Program_Projection_Inpu
 
 write_csv(input_data, glue::glue("{lan}/development/csv/gh-source/tmp/06/input-data.csv"))
 
-## STOP! flip over Werner here ----
-# TODO: source(glue::glue("{lan}/development/R/program_projections.R")) 
+## run Werner program ----
+source(glue::glue("{lan}/development/R/program projections.R")) 
+
 output_data <- read_delim(glue::glue("{lan}/development/csv/gh-source/tmp/06/output.csv"), delim = "\t", col_names = TRUE)
 names(output_data)<- paste0(2023:(2023+11), "/", 2024:(2024+11))
 
