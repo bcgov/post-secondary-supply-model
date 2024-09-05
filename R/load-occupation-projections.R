@@ -80,7 +80,6 @@ dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T
 dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
 dbWriteTable(decimal_con, name = "T_Current_Region_PSSM_Rollup_Codes", T_Current_Region_PSSM_Rollup_Codes)
 dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping_Appendix", T_PSSM_Credential_Grouping_Appendix)
-
 dbWriteTable(decimal_con, name = "T_LCP2_LCP4",  T_LCP2_LCP4)
 dbWriteTable(decimal_con, name = "tbl_Age_Groups",  tbl_Age_Groups)
 dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup",  tbl_Age_Groups_Rollup)
