@@ -78,7 +78,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 dbWriteTable(decimal_con, name = "T_TRD_DATA", value = Q000_TRD_DATA_01)
-dbWriteTable(decimal_con, name = "Q000_TRD_Graduates", value = Q000_TRD_Graduates)
+dbWriteTable(decimal_con, name = "TRD_Graduates", value = Q000_TRD_Graduates)
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)

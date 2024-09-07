@@ -1,19 +1,4 @@
-BGS_Q00_Checking_Age <- "
-SELECT infoware_bgs_cohort_info.brthmnth,
-infoware_bgs_cohort_info.brthyear,
-infoware_bgs_cohort_info.subm_cd,
-Datevalue([brthdate_string])                       AS Birth_Date,
-[infoware_bgs_cohort_info].[brthyear] & '-' &
-  [infoware_bgs_cohort_info].[brthmnth] & '-' & '15' AS BRTHDATE_STRING,
-'20' & RIGHT([subm_cd], 2) & '-12-01'              AS Survey_Date,
-infoware_bgs_cohort_info.subm_cd, Datediff('yyyy', [Birth_Date],
-                                           [Survey_Date])+([Survey_Date]<Dateserial(Year([Survey_Date]), Month([Birth_Date]
-                                           ), Day([Birth_Date]))) AS expr1, infoware_bgs_dist.age
-FROM   infoware_bgs_cohort_info
-INNER JOIN infoware_bgs_dist
-ON infoware_bgs_cohort_info.stqu_id = infoware_bgs_dist.stqu_id
-WHERE  (((infoware_bgs_cohort_info.subm_cd)='C_Outc16' OR (
-  infoware_bgs_cohort_info.subm_cd)='C_Outc17'));"
+
 
 BGS_Q001b_INST_Recode <- "
 UPDATE t_bgs_data_final
@@ -133,7 +118,7 @@ SELECT t_bgs_data_final.pen,
        t_bgs_data_final.inst,
        t_bgs_data_final.cip_code_4,
        CASE 
-          WHEN t_bgs_data_final.noc = 'XXXX' THEN '9999' 
+          WHEN t_bgs_data_final.noc = 'XXXXX' THEN '99999' 
 			    ELSE t_bgs_data_final.noc
 	     END AS NOC_CD,
        t_bgs_data_final.age,
@@ -158,3 +143,19 @@ SET    t_cohorts_recoded.enddt = ( [survey_year] - 2 ) & '-06'
 WHERE  ( ( ( t_cohorts_recoded.enddt ) IS NULL )
          AND ( ( t_cohorts_recoded.survey ) = 'BGS' ) ); "
 
+BGS_Q00_Checking_Age <- "
+SELECT infoware_bgs_cohort_info.brthmnth,
+infoware_bgs_cohort_info.brthyear,
+infoware_bgs_cohort_info.subm_cd,
+Datevalue([brthdate_string])                       AS Birth_Date,
+[infoware_bgs_cohort_info].[brthyear] & '-' &
+  [infoware_bgs_cohort_info].[brthmnth] & '-' & '15' AS BRTHDATE_STRING,
+'20' & RIGHT([subm_cd], 2) & '-12-01'              AS Survey_Date,
+infoware_bgs_cohort_info.subm_cd, Datediff('yyyy', [Birth_Date],
+                                           [Survey_Date])+([Survey_Date]<Dateserial(Year([Survey_Date]), Month([Birth_Date]
+                                           ), Day([Birth_Date]))) AS expr1, infoware_bgs_dist.age
+FROM   infoware_bgs_cohort_info
+INNER JOIN infoware_bgs_dist
+ON infoware_bgs_cohort_info.stqu_id = infoware_bgs_dist.stqu_id
+WHERE  (((infoware_bgs_cohort_info.subm_cd)='C_Outc16' OR (
+  infoware_bgs_cohort_info.subm_cd)='C_Outc17'));"

@@ -37,6 +37,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
+
 # ---- Source Queries ----
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
@@ -45,7 +46,8 @@ source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
 dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
-dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
+dbExistsTable(decimal_con, "T_NOC_Broad_Categories")
+dbExistsTable(decimal_con, "Labour_Supply_Distribution_Stat_Can")
 
 # ---- Execute SQL ----
 # TODO: would move this out of the dacso script as it's not DACSO specific
@@ -63,15 +65,15 @@ dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
 # imputed to 4031, 4032, 9999 to be accurate.  move qry to 02b1
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
 dbExecute(decimal_con, "UPDATE T_Cohorts_Recoded
-                        SET    T_Cohorts_Recoded.noc_cd = '4031'
-                        WHERE T_Cohorts_Recoded.noc_cd = '403X'")
+                        SET    T_Cohorts_Recoded.noc_cd = '99999'
+                        WHERE T_Cohorts_Recoded.noc_cd = '4122X'")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q99A_STQUI_ID")
 
 
 # recode new labour supply for those with an NLS-2 record and no NLS1
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS1)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2)
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode) 
+dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode)
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS1") 
 dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS2")
 
@@ -81,7 +83,7 @@ dbGetQuery(decimal_con, DACSO_Q005_Z_Cohort_Resp_by_Region)
 # create base weights for the full cohort
 dbExecute(decimal_con, DACSO_Q005_Z01_Base_NLS)
 
-# not used (see documentation)
+# not used but consider investigating (see documentation)
 #dbExecute(decimal_con, DACSO_Q005_Z02a_Base)
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents)
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Region_9999)
@@ -198,6 +200,33 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_No_T
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT")
+
+dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD TTRAIN NVARCHAR(50)")
+dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
+dbExecute(decimal_con, "INSERT INTO Labour_Supply_Distribution SELECT * FROM Labour_Supply_Distribution_Stat_Can")
+
+dbExecute(decimal_con, "INSERT INTO Labour_Supply_Distribution (
+	   [SURVEY]
+      ,[PSSM_CREDENTIAL]
+      ,[PSSM_CRED]
+      ,[LCP4_CD]
+      ,[LCIP4_CRED]
+      ,[CURRENT_REGION_PSSM_CODE_ROLLUP]
+      ,[AGE_GROUP_ROLLUP]
+      ,[COUNT]
+      ,[TOTAL]
+      ,[NEW_LABOUR_SUPPLY])
+SELECT '2021 Census PSSM 2023-2024' as Survey
+      ,[PSSM_CREDENTIAL]
+      ,[PSSM_CRED]
+      ,[LCP4_CD]
+      ,[LCIP4_CRED]
+      ,[CURRENT_REGION_PSSM_CODE_ROLLUP]
+      ,[AGE_GROUP_ROLLUP]
+      ,[COUNT]
+      ,[TOTAL]
+      ,[NEW_LABOUR_SUPPLY] FROM Labour_Supply_Distribution_Stat_Can")
+
 
 # ---- Clean Up ----
 

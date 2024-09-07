@@ -10,6 +10,7 @@
 # Note:  create Weight_Age is used to calculate the age for the private institution credentials 
 # and needed if the data set doesn’t have age.
 # Check PDCT or PDDP	
+# DACSO_Q008_Z01_Base_OCC documentation - records should be the same as equivalent NLS query
 
 
 library(tidyverse)
@@ -39,14 +40,15 @@ dbExistsTable(decimal_con, "t_cohorts_recoded")
 dbExistsTable(decimal_con, "t_current_region_pssm_codes")
 dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
 dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
-dbExistsTable(decimal_con, "tbl_noc_skill_level_aged_17_34")
+dbExistsTable(decimal_con, "T_NOC_Broad_Categories")
+dbExistsTable(decimal_con, "Occupation_Distributions_Stat_Can")
 
 # ---- Execute SQL ----
-dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC)
+dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC) 
 dbExecute(decimal_con, DACSO_Q008_Z02a_Base)
 dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents)
-dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_NOC_9999)
-dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc)
+dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_NOC_99999)
+dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc)
 dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_Union)
 dbExecute(decimal_con, DACSO_Q008_Z02c_Weight)
 dbExecute(decimal_con, DACSO_Q008_Z03_Weight_Total)
@@ -61,9 +63,8 @@ dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null)
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_OCC FLOAT NULL")
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_Age FLOAT NULL")
 dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update) 
-dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc)
+dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_NOC_99999_100_perc)
 dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
-
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z01_Base_OCC")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02a_Base")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents")
@@ -200,6 +201,35 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
 
+dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD TTRAIN NVARCHAR(50)")
+dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
+dbExecute(decimal_con, "INSERT INTO Occupation_Distributions ([Survey]
+      ,[PSSM_Credential]
+      ,[PSSM_CRED]
+      ,[LCP4_CD]
+      ,[TTRAIN]
+      ,[LCIP4_CRED]
+      ,[LCIP2_CRED]
+      ,[NOC]
+      ,[Current_Region_PSSM_Code_Rollup]
+      ,[Age_Group_Rollup]
+      ,[Count]
+      ,[Total]
+      ,[Percent])
+          SELECT '2021 Census PSSM 2023-2024' as Survey
+      ,[PSSM_Credential]
+      ,[PSSM_CRED]
+      ,[LCP4_CD]
+      ,[TTRAIN]
+      ,[LCIP4_CRED]
+      ,[LCIP2_CRED]
+      ,[NOC]
+      ,[Current_Region_PSSM_Code_Rollup]
+      ,[Age_Group_Rollup]
+      ,[Count]
+      ,[Total]
+      ,[Percent] FROM Occupation_Distributions_Stat_Can")
+
 # ---- Clean Up ----
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
@@ -214,6 +244,9 @@ dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_NOC_99999")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc")
 
 # ---- Keep ----
 dbExistsTable(decimal_con, "Occupation_Distributions")
