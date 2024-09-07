@@ -1,6 +1,7 @@
 Q000_TRD_Graduates_Projection_Input <- 
 "SELECT T_TRD_Data.PSSM_Credential, T_TRD_Data.PSSM_Credential AS PSSM_CRED, tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year, Count(*) AS [Count]
-FROM (T_TRD_Data INNER JOIN T_Year_Survey_Year ON T_TRD_Data.SUBM_CD = T_Year_Survey_Year.SUBM_CD) INNER JOIN (tbl_Age INNER JOIN tbl_Age_Groups ON tbl_Age.Age_Group = tbl_Age_Groups.Age_Group) ON T_TRD_Data.TRD_AGE_AT_SURVEY = tbl_Age.Age
+FROM (T_TRD_Data INNER JOIN T_Year_Survey_Year ON T_TRD_Data.SUBM_CD = T_Year_Survey_Year.SUBM_CD) 
+INNER JOIN (tbl_Age INNER JOIN tbl_Age_Groups ON tbl_Age.Age_Group = tbl_Age_Groups.Age_Group) ON T_TRD_Data.TRD_AGE_AT_SURVEY = tbl_Age.Age
 WHERE (((T_Year_Survey_Year.Survey)='TRD'))
 GROUP BY T_TRD_Data.PSSM_Credential, tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year, T_TRD_Data.PSSM_Credential
 ORDER BY tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year;"
@@ -105,7 +106,7 @@ SELECT t_trd_data.pen,
        t_trd_data.lcip_cd,
        t_trd_data.lcip_lcp4_cd,
        CASE WHEN ttrain = 2 THEN 1 ELSE ttrain END AS ttrain,
-       CASE WHEN t_trd_data.noc_cd = 'XXXX' THEN '9999' ELSE t_trd_data.noc_cd END AS NOC_CD,
+       CASE WHEN t_trd_data.noc_cd = 'XXXXX' THEN '99999' ELSE t_trd_data.noc_cd END AS NOC_CD,
        t_trd_data.trd_age_at_survey,
        tbl_age_groups.age_group,
        tbl_age_groups.age_group_rollup,
