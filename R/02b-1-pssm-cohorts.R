@@ -61,8 +61,6 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-
-
 # ---- Check for required data tables ----
 # TRD
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_Graduates"')))
@@ -149,6 +147,7 @@ dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Keep  ----
 dbExistsTable(decimal_con, "APPSO_Graduates")
+dbExistsTable(decimal_con, "TRD_Graduates")
 dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
@@ -158,7 +157,6 @@ dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
 dbExecute(decimal_con, "DROP TABLE T_BGS_Data_Final")
 dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
 dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
-dbExecute(decimal_con, "DROP TABLE Q000_TRD_Graduates;") # TODO: where do we add trades in?
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
 dbExecute(decimal_con, "DROP TABLE tbl_Age")
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")

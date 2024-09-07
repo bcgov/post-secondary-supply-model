@@ -231,5 +231,7 @@ f_graduates_agg <- f_graduates_agg %>%
 
 dbWriteTable(decimal_con, name = "Graduate_Projections", f_graduates_agg, overwrite = TRUE)
 
+# ---- Graduate Projections for Trades ----
+# TODO
   
   
