@@ -81,11 +81,12 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_
 # ---- Rollover data ----
 # TODO make schema instead
 Cohort_Program_Distributions_Projected <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"),  col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"), n_max = 200, col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 Cohort_Program_Distributions_Static <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),  col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),  n_max = 200,
+                  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----

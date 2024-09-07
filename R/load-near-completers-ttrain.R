@@ -30,9 +30,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-
 # ---- Read LAN data ----
-
 stp_dacso_prgm_credential_lookup <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/STP_DACSO_PRGM_CREDENTIAL_LOOKUP.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
