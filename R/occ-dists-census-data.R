@@ -30,7 +30,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Import all csv outputs ----
-output_folder <- glue::glue("{lan}/data/statcan/output")
+output_folder <- glue::glue("{lan}/development/work/graduate noc imputation/output/")
 
 # Get a list of all new counts CSV files in the output folder
 new_counts_file_list <- list.files(path = output_folder, pattern = "\\- new counts.csv$", full.names = TRUE)
