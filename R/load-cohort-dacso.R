@@ -85,10 +85,8 @@ t_current_region_pssm_rollup_codes <-
 t_current_region_pssm_rollup_codes_bc <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
-# --- Required lookup - read directly from within SSMS 
 T_NOC_Broad_Categories <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories.csv"), col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Write LAN data to decimal ----
@@ -133,7 +131,6 @@ gc()
 
 # ---- Clean Up ---
 rm(list = ls())
-dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
 
 
