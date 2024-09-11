@@ -87,7 +87,7 @@ t_current_region_pssm_rollup_codes_bc <-
   janitor::clean_names(case = "all_caps")
 T_NOC_Broad_Categories <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"), col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") 
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
@@ -128,6 +128,13 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPONDENT INT NULL")
 rm(t_dacso_data_part_1_stepa)
 gc()
+
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN BROAD_CATEGORY_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN MAJOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN SUB_MAJOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN MINOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN UNIT_GROUP_CODE NVARCHAR(50) NULL;")
+
 
 # ---- Clean Up ---
 rm(list = ls())
