@@ -58,11 +58,12 @@ dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check ba
 dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
 dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
 
-# No invalid nocs in dacso survey data
+# 2019: No invalid nocs in dacso survey data
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
 
-# NOTE: setting all 403X to 4031 for now, but these need would need to be
+# NOTE: 2019: setting all 403X to 4031 for now, but these need would need to be
 # imputed to 4031, 4032, 9999 to be accurate.  move qry to 02b1
+# for 2021: 
 #dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
 dbExecute(decimal_con, "UPDATE T_Cohorts_Recoded
                         SET    T_Cohorts_Recoded.noc_cd = '99999'
@@ -114,6 +115,7 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
 
 # apply nls weights to group totals
 dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
+
 # calculate weighted new labor supply - various distribution
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0)
@@ -203,8 +205,6 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT"
 
 dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD TTRAIN NVARCHAR(50)")
 dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
-dbExecute(decimal_con, "INSERT INTO Labour_Supply_Distribution SELECT * FROM Labour_Supply_Distribution_Stat_Can")
-
 dbExecute(decimal_con, "INSERT INTO Labour_Supply_Distribution (
 	   [SURVEY]
       ,[PSSM_CREDENTIAL]
