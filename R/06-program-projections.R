@@ -70,15 +70,16 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distr
 # ---- survey == "PTIB" (Static and Projected) ----
 dbExecute(decimal_con, 
             "INSERT INTO Cohort_Program_Distributions_Projected 
-            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
+            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] 
             FROM qry_Private_Credentials_06d1_Cohort_Dist;")
 dbExecute(decimal_con, 
             "INSERT INTO Cohort_Program_Distributions_Static
-            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
+            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] 
             FROM qry_Private_Credentials_06d1_Cohort_Dist;")
 dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
+
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
 # Add near completers to projected and static distribution datasets
