@@ -81,11 +81,11 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_
 # ---- Rollover data ----
 # TODO make schema instead
 Cohort_Program_Distributions_Projected <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"), n_max = 200, col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 Cohort_Program_Distributions_Static <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),  n_max = 200,
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),
                   col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
@@ -107,8 +107,15 @@ dbWriteTable(decimal_con, name = "tbl_Program_Projection_Input", tbl_Program_Pro
 # ---- Rollover ----
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Static",  Cohort_Program_Distributions_Static)
 dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)")
+
 dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
 dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)")
 
 # check that only required survey years are in T_Cohorts_Recoded
 stopifnot(exprs = {
