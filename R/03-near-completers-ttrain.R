@@ -2,7 +2,7 @@
 # Near completers who later received a credential according to the STP Credential 
 # file or had an earlier credential are subtracted from the total of all near completers.
 # 
-# Age groups: 17 to 19, 20 to 24, 25 to 29, and 30 to 34, and 35 to 64
+# Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64
 # Credentials: From Diploma, Associate Degree, and Certificate Outcomes Survey cohorts. 
 # Survey years: 2018, 2019, 2020, 2021, 2022, 2023 for PSSM 2023
 # STP Credential years searched: 2002/03 - 2022/23 
@@ -75,15 +75,17 @@ dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 
 # ---- Add PEN to Non-Dup table ----
 # Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
-sql <- "ALTER TABLE pssm2023.[IDIR\BASHCROF].credential_non_dup
+sql <- "ALTER TABLE pssm2023.[your_schema].credential_non_dup
 ADD PSI_PEN NVARCHAR(255) NULL;"
+dbExecute(decimal_con, sql)
 
 sql <- "UPDATE N
 SET N.PSI_PEN = C.PSI_PEN
-FROM pssm2023.[YOUR_SCHEMA].credential_non_dup AS N
+FROM pssm2023.[your_schema].credential_non_dup AS N
 INNER JOIN dbo.STP_Credential AS C
 ON N.ID = C.ID
 "
+dbExecute(decimal_con, sql)
 
 # ---- DACSO Matching STP Credential ----
 dbExecute(decimal_con, qry01_Match_DACSO_to_STP_Credential_Non_DUP_on_PEN)
@@ -312,9 +314,8 @@ dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", T_DACS
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 
 # ---- TTRAIN tables ----
-# This part is not completed  - see notes
+# This part is not completed  - see documentation
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
-# The second one doesn't
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_program_dist_count) 
