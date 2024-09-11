@@ -79,7 +79,6 @@ dbWriteTable(decimal_con, name = "AgeGroupLookup", age_group_lookup, overwrite =
 
 # ---- Clean up and disconnect ----
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
 gc()
 rm(list = ls())
 
