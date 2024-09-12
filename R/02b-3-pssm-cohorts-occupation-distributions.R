@@ -255,6 +255,7 @@ dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")
+dbExistsTable(decimal_con, "tmp_tbl_Weights_OCC")
 
 dbDisconnect(decimal_con)
 
