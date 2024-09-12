@@ -20,6 +20,9 @@
 #	  - T_Exclude_from_Projections_PSSM_Credential
 #
 # When switching between models, copy Static/Projected into Cohort_Program_Distributions
+# Fixes To do: some of the CIP2 variable names are missing an "I" in the Labour_Supply_Distribution datasets.  
+
+
 
 library(tidyverse)
 library(RODBC)
@@ -71,9 +74,11 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Ag
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
-#dbExecute(decimal_con, "DROP TABLE Cohort_Program_Distributions")
+# toggle static or projected. 
 dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
                         FROM Cohort_Program_Distributions_Projected;")
+# dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
+#                         FROM Cohort_Program_Distributions_Static;")
 
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
@@ -88,7 +93,7 @@ dbExecute(decimal_con, Q_0_LCP2_LCP4)
 
 # essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
-dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D) #FIXME: LCP2_CRED => LCIP2_CRED
+dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D)
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 
@@ -236,8 +241,8 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_BC")
 dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 
 # ---- Q_6 Series ---- 
-#dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
-dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) 
+dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
+#dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 
