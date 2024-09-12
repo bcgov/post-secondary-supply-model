@@ -103,8 +103,11 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates_dat, overwrite = TRUE)
+# should specify the DBO schema for final run, individual IDIRS for testing
+schema <- config::get("myschema")
+
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_APPSO_DATA_Final"')), value = T_APPSO_DATA_Final, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."APPSO_Graduates"')), value = APPSO_Graduates_dat, overwrite = TRUE)
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)

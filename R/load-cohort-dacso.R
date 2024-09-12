@@ -51,6 +51,8 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
+# should specify the DBO schema for final run, individual IDIRS for testing
+schema <- config::get("myschema")
 
 # ---- retrieve data from decimal ----
 infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
@@ -91,24 +93,24 @@ T_NOC_Broad_Categories <-
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup", value = tbl_Age_Groups_Rollup)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."tbl_Age_Groups"')), value = tbl_Age_Groups)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."tbl_Age_Groups_Rollup"')), value = tbl_Age_Groups_Rollup)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."tbl_Age"')), value = tbl_Age)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_PSSM_Credential_Grouping"')), value = T_PSSM_Credential_Grouping)
 
 # load via SQL Server: 
-dbWriteTable(decimal_con, name = "T_NOC_Broad_Categories", value = T_NOC_Broad_Categories, overwrite = TRUE) 
-dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_NOC_Broad_Categories"')), value = T_NOC_Broad_Categories, overwrite = TRUE) 
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."t_year_survey_year"')), value = t_year_survey_year)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."t_cohorts_recoded"')), value = t_cohorts_recoded)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."t_current_region_pssm_codes"')), value = t_current_region_pssm_codes)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."t_current_region_pssm_rollup_codes"')), value = t_current_region_pssm_rollup_codes)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc)
 
 # --- Read SO DACSO data and write to decimal ----
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
-dbWriteTableArrow(decimal_con, "infoware_c_outc_clean_short_resp", infoware_c_outc_clean_short_resp_dat)
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
 
-dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
 dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
                        SET CURRENT_REGION_PSSM_CODE =  
