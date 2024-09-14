@@ -80,7 +80,7 @@ dbExecute(decimal_con, "UPDATE T_Private_Institutions_Credentials
            SET T_Private_Institutions_Credentials.Exclude = 1
            WHERE (((T_Private_Institutions_Credentials.LCIP_NAME) ='English as a second language') OR
           ((T_Private_Institutions_Credentials.LCIP_NAME) LIKE '%not for credit%') OR
-          ((T_Private_Institutions_Credentials.LCIP_CD)='999999') );")
+          ((T_Private_Institutions_Credentials.LCIP_CD)='99999') );")
 
 dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
                 DROP COLUMN LCIP_NAME;")
