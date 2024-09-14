@@ -75,13 +75,13 @@ dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 
 # ---- Add PEN to Non-Dup table ----
 # Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
-sql <- "ALTER TABLE pssm2023.[your_schema].credential_non_dup
+sql <- "ALTER TABLE pssm2023.[IDIR\\BASHCROF].credential_non_dup
 ADD PSI_PEN NVARCHAR(255) NULL;"
 dbExecute(decimal_con, sql)
 
 sql <- "UPDATE N
 SET N.PSI_PEN = C.PSI_PEN
-FROM pssm2023.[your_schema].credential_non_dup AS N
+FROM pssm2023.[IDIR\\BASHCROF].credential_non_dup AS N
 INNER JOIN dbo.STP_Credential AS C
 ON N.ID = C.ID
 "
@@ -259,7 +259,7 @@ T_DACSO_Near_Completers_RatioAgeAtGradCIP4 <- NearCompleters_CIP4_CombinedCred %
   mutate(across(where(is.double), ~na_if(., Inf)))%>%
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioAgeAtGradCIP4", T_DACSO_Near_Completers_RatioAgeAtGradCIP4)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioAgeAtGradCIP4"')), T_DACSO_Near_Completers_RatioAgeAtGradCIP4)
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
 dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
@@ -308,7 +308,7 @@ T_DACSO_Near_Completers_RatioByGender <-
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
   select(-ratio_adgt)
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", T_DACSO_Near_Completers_RatioByGender)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender"')), T_DACSO_Near_Completers_RatioByGender)
 
 # random query
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
@@ -340,7 +340,6 @@ dbExecute(decimal_con, "drop table Completers_CIP4_CombinedCred")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioAgeAtGradCIP4")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")
-
 
 
 

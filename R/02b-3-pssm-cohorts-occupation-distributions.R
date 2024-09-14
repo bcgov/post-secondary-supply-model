@@ -117,11 +117,12 @@ occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_C
               TTRAIN = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
               Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", Percent = "float")
 
+
 if(!dbExistsTable(decimal_con, "Occupation_Distributions")){
-  dbCreateTable(decimal_con, "Occupation_Distributions",  occs_def)
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions"')),  occs_def)
 } 
 if(!dbExistsTable(decimal_con, "Occupation_Distributions_No_TT")){
-  dbCreateTable(decimal_con, "Occupation_Distributions_No_TT",  occs_def)
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"')),  occs_def)
 }
 
 dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution)
@@ -134,6 +135,8 @@ dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP2_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
               Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", Percent = "float")
+
+
 
 if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")){
   dbCreateTable(decimal_con, "Occupation_Distributions_LCP2",  occs_def)
@@ -201,8 +204,13 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
 
-dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD TTRAIN NVARCHAR(50)")
-dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
+dbExecute(decimal_con, "DELETE 
+                        FROM Occupation_Distributions
+                        WHERE (((Occupation_Distributions.Survey)='2021 Census PSSM 2023-2024'));")
+
+# uncomment if running for the first time
+# dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD TTRAIN NVARCHAR(50)")
+# dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
 dbExecute(decimal_con, "INSERT INTO Occupation_Distributions ([Survey]
       ,[PSSM_Credential]
       ,[PSSM_CRED]
@@ -237,16 +245,11 @@ dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
 dbExecute(decimal_con, "DROP TABLE tbl_Age")
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-#dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
-#dbExecute(decimal_con, "DROP TABLE infoware_c_outc_clean_short_resp")
 dbExecute(decimal_con, "DROP TABLE T_Weights")
 dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
 dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
-
-dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_NOC_99999")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc")
 
 # ---- Keep ----
 dbExistsTable(decimal_con, "Occupation_Distributions")

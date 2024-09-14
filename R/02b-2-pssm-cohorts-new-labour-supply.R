@@ -158,10 +158,10 @@ nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CR
               TTRAIN = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", 
               Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", New_Labour_Supply = "float")
 
-if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution")){
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"')))){
   dbCreateTable(decimal_con, "Labour_Supply_Distribution",  nls_def)
 } 
-if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")){
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"')))){
   dbCreateTable(decimal_con, "Labour_Supply_Distribution_No_TT",  nls_def)
 }
 
@@ -178,11 +178,11 @@ nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CR
              TTRAIN = "nvarchar(50)", LCP2_CRED = "nvarchar(50)", 
              Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", New_Labour_Supply = "float")
 
-if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")){
-  dbCreateTable(decimal_con, "Labour_Supply_Distribution_LCP2",  nls_def)
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')),  nls_def)
 } 
-if(!dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")){
-  dbCreateTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT",  nls_def)
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')),  nls_def)
 }
 
 dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)

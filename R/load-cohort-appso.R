@@ -15,6 +15,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -68,11 +69,11 @@ T_APPSO_DATA_Final <-
   # check that these years are correct
   # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
   mutate(WEIGHT = case_when (
-    SUBM_CD == 'C_Outc19' ~ 1,
-    SUBM_CD == 'C_Outc20' ~ 2,
-    SUBM_CD == 'C_Outc21' ~ 3,
-    SUBM_CD == 'C_Outc22' ~ 4,
-    SUBM_CD == 'C_Outc23' ~ 5,
+    SUBM_CD == 'C_Outc19' ~ 2,
+    SUBM_CD == 'C_Outc20' ~ 3,
+    SUBM_CD == 'C_Outc21' ~ 4,
+    SUBM_CD == 'C_Outc22' ~ 5,
+    SUBM_CD == 'C_Outc23' ~ 0,
     TRUE ~ 0)) %>%
   mutate(NEW_LABOUR_SUPPLY = case_when(
     APP_LABR_EMPLOYED == 1 ~ 1,
@@ -103,8 +104,16 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates_dat, overwrite = TRUE)
+dbWriteTable(decimal_con, 
+             name = SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')), 
+             value = T_APPSO_DATA_Final,
+             overwrite = TRUE)
+
+
+dbWriteTable(decimal_con, 
+             name = SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')),
+             value = APPSO_Graduates_dat, 
+             overwrite = TRUE)
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)

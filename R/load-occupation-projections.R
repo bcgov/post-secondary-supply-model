@@ -54,12 +54,6 @@ tbl_Age_Groups <-
 tbl_Age_Groups_Rollup <-  
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_Age_Groups_Rollup.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-tbl_NOC_Skill_Level_Aged_17_34 <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/tbl_NOC_Skill_Level_Aged_17_34.csv"),  col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
-T_NOC_Skill_Type <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_NOC_Skill_Type.csv"),  col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
 T_Current_Region_PSSM_Rollup_Codes <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_Current_Region_PSSM_Rollup_Codes.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
@@ -72,21 +66,24 @@ T_PSSM_CRED_RECODE <-
 T_PSSM_Credential_Grouping_Appendix <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_PSSM_Credential_Grouping_Appendix.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
+T_NOC_Skill_Type <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_NOC_Skill_Type.csv"),  col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----
-dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCP4_CD", T_Exclude_from_Projections_LCP4_CD)
-dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_LCIP4_CRED",  T_Exclude_from_Projections_LCIP4_CRED)
-dbWriteTable(decimal_con, name = "T_Exclude_from_Projections_PSSM_Credential", T_Exclude_from_Projections_PSSM_Credential)
-dbWriteTable(decimal_con, name = "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy", T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
-dbWriteTable(decimal_con, name = "T_Current_Region_PSSM_Rollup_Codes", T_Current_Region_PSSM_Rollup_Codes)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping_Appendix", T_PSSM_Credential_Grouping_Appendix)
-dbWriteTable(decimal_con, name = "T_LCP2_LCP4",  T_LCP2_LCP4)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups",  tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup",  tbl_Age_Groups_Rollup)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCP4_CD"')), T_Exclude_from_Projections_LCP4_CD)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCIP4_CRED"')),  T_Exclude_from_Projections_LCIP4_CRED)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_PSSM_Credential"')), T_Exclude_from_Projections_PSSM_Credential)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"')), T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes"')), T_Current_Region_PSSM_Rollup_Codes)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping_Appendix"')), T_PSSM_Credential_Grouping_Appendix)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"')),  T_LCP2_LCP4)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),  tbl_Age_Groups)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')),  tbl_Age_Groups_Rollup)
 # dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
-dbWriteTable(decimal_con, name = "T_NOC_Skill_Type",  T_NOC_Skill_Type)
-dbWriteTable(decimal_con, name = "T_Current_Region_PSSM_Rollup_Codes_BC", T_Current_Region_PSSM_Rollup_Codes_BC)
-dbWriteTable(decimal_con, name = "T_PSSM_CRED_RECODE", T_PSSM_CRED_RECODE)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes_BC"')), T_Current_Region_PSSM_Rollup_Codes_BC)
+dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_CRED_RECODE"')), T_PSSM_CRED_RECODE)
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)

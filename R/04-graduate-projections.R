@@ -229,9 +229,11 @@ f_graduates_agg <- f_graduates_agg %>%
   rbind(appso_2_yr_avg) %>%
   mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
 
-dbWriteTable(decimal_con, name = "Graduate_Projections", f_graduates_agg, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), f_graduates_agg, overwrite = TRUE)
 
 # ---- Graduate Projections for Trades ----
-# TODO
+# TODO: add in trades to Graduate Projections (above) and project same as APPSO. 
+TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
+
   
   

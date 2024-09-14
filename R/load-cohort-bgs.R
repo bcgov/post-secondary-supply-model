@@ -94,9 +94,9 @@ T_BGS_Data_Final <- BGS_Data_Update %>%
   select(-c(CUR_RES,REGION_CD,CURRENT_REGION))
 
 # ---- Write to decimal----
-dbWriteTable(decimal_con, name = "T_Weights", value = T_weights, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final)
-dbWriteTable(decimal_con, name = "T_BGS_INST_Recode", value = T_BGS_INST_Recode, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
+dbWriteTable(decimal_con, name = "T_BGS_Data_Final", value = T_BGS_Data_Final,overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
 
 # ---- Clean Up ----
 dbDisconnect(outcomes_con)

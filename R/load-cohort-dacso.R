@@ -91,18 +91,18 @@ T_NOC_Broad_Categories <-
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup", value = tbl_Age_Groups_Rollup)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), value = tbl_Age_Groups)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')), value = tbl_Age_Groups_Rollup)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age"')), value = tbl_Age)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), value = T_PSSM_Credential_Grouping)
 
 # load via SQL Server: 
-dbWriteTable(decimal_con, name = "T_NOC_Broad_Categories", value = T_NOC_Broad_Categories, overwrite = TRUE) 
-dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')), value = T_NOC_Broad_Categories, overwrite = TRUE) 
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_year_survey_year"')), value = t_year_survey_year)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')), value = t_cohorts_recoded)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')), value = t_current_region_pssm_codes)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')), value = t_current_region_pssm_rollup_codes)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc)
 
 # --- Read SO DACSO data and write to decimal ----
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)

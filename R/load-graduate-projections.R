@@ -38,7 +38,7 @@ raw_data_file <- readr::read_csv(raw_data_file_path, col_types = cols(.default =
   janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----
-dbWriteTable(decimal_con, name = "population_projections", raw_data_file)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."population_projections"')), raw_data_file)
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
