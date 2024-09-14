@@ -23,7 +23,6 @@
 # Fixes To do: some of the CIP2 variable names are missing an "I" in the Labour_Supply_Distribution datasets.  
 
 
-
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -70,15 +69,16 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Project
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_NOC_Skill_Level_Aged_17_34"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
 # toggle static or projected. 
+
+#dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
+#                        FROM Cohort_Program_Distributions_Projected;")
 dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
-                        FROM Cohort_Program_Distributions_Projected;")
-# dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
-#                         FROM Cohort_Program_Distributions_Static;")
+                         FROM Cohort_Program_Distributions_Static;")
 
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
@@ -242,7 +242,7 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 
 # ---- Q_6 Series ---- 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
-#dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) 
+dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 
@@ -250,17 +250,25 @@ dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
 
 # ---- model with QI ----
-dbExecute(decimal_con, Q_7_QI) 
-dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) 
-dbExecute(decimal_con, qry_10a_Model) 
+dbGetQuery(decimal_con, Q_7_QI) %>% 
+  write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
+
+dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>% 
+  write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
+
+dbExecute(decimal_con, qry_10a_Model)
+
+dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>% 
+  write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
 
 # ---- public release ----
-dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_Public_Release_Union") %>% 
-  write_csv(glue::glue("{lan}/reports-final/drafts/occupation_projections_public_release.csv"))
 dbExecute(decimal_con, qry_10a_Model_Public_Release) 
 dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed) 
 dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed_Total) 
 dbExecute(decimal_con, qry_10a_Model_Public_Release_Union) 
+
+dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_Public_Release_Union") %>% 
+  write_csv(glue::glue("{lan}/reports-final/drafts/public_release_static_incl_ptib.csv"))
 
 
 # ---- internal release ----
@@ -269,7 +277,7 @@ dbExecute(decimal_con, qry_10a_Model_Public_Release_Union)
 # dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed) 
 # dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed_Total) 
 dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_QI_PPCI_No_Supp") %>% 
-   write_csv(glue::glue("{lan}/reports-final/drafts/occupation_projections_internal_only.csv"))
+   write_csv(glue::glue("{lan}/reports-final/drafts/internal_only_static_no_ptib.csv"))
  
 dbExecute(decimal_con, qry_10b_Quality_Indicator) 
 dbExecute(decimal_con, qry_10c_Coverage_Indicator) 
@@ -284,7 +292,7 @@ dbGetQuery(decimal_con, qry_LCIP4_CRED_NOC)
 # ---- public release ----
 dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix) %>% 
   mutate(across(where(is.numeric), round)) %>%
-  write_csv(glue::glue("{lan}/reports-final/drafts/graduate_projections.csv"))
+  write_csv(glue::glue("{lan}/reports-final/drafts/graduate_projections_noc_2021_static_incl_ptib.csv"))
 
 
 dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix_by_Age_Group_Totals) 
@@ -298,11 +306,17 @@ dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix_by_Age_Group_Tota
 # dbExecute(decimal_con, qry9999_NOC_4031_4032) 
 
 # ---- Clean Up ----
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static")
 dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program_LCP2")
+dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 
 # Lookups
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
