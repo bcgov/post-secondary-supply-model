@@ -127,7 +127,7 @@ AND ((Labour_Supply_Distribution_No_TT.LCIP4_CRED) Not Like '3 - %'));"
 # ---- Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D ----
 Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D <- 
 "INSERT INTO Labour_Supply_Distribution_LCP2_No_TT 
-( Survey, PSSM_Credential, PSSM_CRED, LCP2_CD, LCIP2_CRED, 
+( Survey, PSSM_Credential, PSSM_CRED, LCP2_CD, LCP2_CRED, 
 Current_Region_PSSM_Code_Rollup, Age_Group_Rollup, [Count], Total, New_Labour_Supply )
 SELECT 'PTIB' AS Survey, Labour_Supply_Distribution_LCP2_No_TT.PSSM_Credential, 
 'P - ' + [Labour_Supply_Distribution_LCP2_No_TT].[PSSM_Credential] AS PSSM_CRED, 
@@ -1977,7 +1977,7 @@ ORDER BY 2, 7, 5, 3, 9;"
 qry_10a_Model_Public_Release <- 
 "SELECT tmp_tbl_Model.Expr1, tmp_tbl_Model.Age_Group_Rollup_Label, 
 tmp_tbl_Model.NOC, tmp_tbl_Model.ENGLISH_NAME, 
-tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
+tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
 CEILING([tmp_tbl_Model].[2023/2024]) AS [2023/2024], 
 CEILING([tmp_tbl_Model].[2024/2025]) AS [2024/2025], 
 CEILING([tmp_tbl_Model].[2025/2026]) AS [2025/2026], 
@@ -2042,7 +2042,7 @@ ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC;"
 
 # ---- qry_10a_Model_Public_Release_Suppressed_Total ----
 qry_10a_Model_Public_Release_Suppressed_Total <- 
-"SELECT '' AS Expr1, tmp_tbl_Model.Age_Group_Rollup_Label, '5' AS NOC_Level, '9998' AS [NOC 2016], 'Other' AS [Occupation Description], 
+"SELECT '' AS Expr1, tmp_tbl_Model.Age_Group_Rollup_Label, '99998' AS [NOC], 'Other' AS [ENGLISH_NAME], 
 tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
 Sum(CEILING(CASE WHEN [tmp_tbl_Model].[2023/2024] IS NULL THEN 0 ELSE [tmp_tbl_Model].[2023/2024] END)) AS [2023/2024], 
 Sum(CEILING(CASE WHEN [tmp_tbl_Model].[2024/2025] IS NULL THEN 0 ELSE [tmp_tbl_Model].[2024/2025] END)) AS [2024/2025], 
