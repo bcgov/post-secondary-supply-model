@@ -104,6 +104,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
+
 dbWriteTable(decimal_con, 
              name = SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')), 
              value = T_APPSO_DATA_Final,
@@ -114,6 +115,7 @@ dbWriteTable(decimal_con,
              name = SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')),
              value = APPSO_Graduates_dat, 
              overwrite = TRUE)
+
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)
