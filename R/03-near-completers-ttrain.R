@@ -75,16 +75,16 @@ dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 
 # ---- Add PEN to Non-Dup table ----
 # Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
-sql <- "ALTER TABLE pssm2023.[IDIR\\BASHCROF].credential_non_dup
-ADD PSI_PEN NVARCHAR(255) NULL;"
+sql <- glue::glue("ALTER TABLE pssm2023.[{my_schema}].credential_non_dup
+ADD PSI_PEN NVARCHAR(255) NULL;")
 dbExecute(decimal_con, sql)
 
-sql <- "UPDATE N
+sql <- glue::glue("UPDATE N
 SET N.PSI_PEN = C.PSI_PEN
-FROM pssm2023.[IDIR\\BASHCROF].credential_non_dup AS N
+FROM pssm2023.[{my_schema}].credential_non_dup AS N
 INNER JOIN dbo.STP_Credential AS C
 ON N.ID = C.ID
-"
+")
 dbExecute(decimal_con, sql)
 
 # ---- DACSO Matching STP Credential ----
@@ -309,6 +309,56 @@ T_DACSO_Near_Completers_RatioByGender <-
   select(-ratio_adgt)
 
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender"')), T_DACSO_Near_Completers_RatioByGender)
+
+# 4. Same as above (3.) but by year - to get historical 
+
+# 4.1: paste to col E
+dbExecute(decimal_con, qry99_Near_completes_total_byGender_year)
+Near_completes_total_byGender_year <-  dbReadTable(decimal_con, "Near_completes_total_byGender_year")
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_byGender_year")
+
+# 4.2: paste to col F
+dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender_year)
+Near_completes_total_with_STP_Credential_by_Gender_year <- dbReadTable(decimal_con, "Near_completes_total_with_STP_Credential_by_Gender_year") %>% 
+  rename("nc_with_early_or_late" = "Count")  %>% 
+  select(-has_stp_credential)
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_by_Gender_year")
+
+# 4.3 get full ratio 
+dbExecute(decimal_con, qry99_Completers_agg_by_gender_age_year) 
+Completers_agg_by_gender_age_year <- dbReadTable(decimal_con, "Completers_agg_by_gender_age_year") %>%
+  rename("completers" = "Count")
+dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender_age_year")
+
+ratio.df = Near_completes_total_byGender_year %>% 
+  left_join(Near_completes_total_with_STP_Credential_by_Gender_year)  %>%
+  left_join(Completers_agg_by_gender_age_year) %>%
+  rename("gender" = "tpid_lgnd_cd")
+
+# we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
+ratio.df  <- ratio.df %>%
+  mutate(across(where(is.numeric), ~replace_na(.,0))) %>%
+  mutate(n_nc_stp = Count - nc_with_early_or_late) %>%
+  mutate(ratio = n_nc_stp/completers)
+
+ratio.df2 <- ratio.df %>%
+  filter(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer")) %>%
+  mutate(prgm_credential_awarded_name = "Associate Degree") %>%
+  summarise(ratio_adgt= sum(n_nc_stp)/sum(completers), .by = c(gender, age_group, prgm_credential_awarded_name))
+
+# my question here - is this the right year to switch to?
+T_DACSO_Near_Completers_RatioByGender_year <- 
+  ratio.df %>% 
+  left_join(ratio.df2) %>%
+  mutate(ratio = if_else(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer"), ratio_adgt, ratio)) %>%
+  mutate(across(where(is.double), ~na_if(., Inf))) %>%
+  mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
+  select(-ratio_adgt) %>% 
+  mutate(
+    year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7,8)))
+  )
+
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender_year"')), T_DACSO_Near_Completers_RatioByGender_year)
 
 # random query
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)

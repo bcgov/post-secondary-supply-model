@@ -101,6 +101,21 @@ f_enrolments_t  <- f_enrolments_t %>%
 f_enrolments_t %>% 
   pivot_wider(id_cols = c(AGE_GROUP, GENDER), values_from = N_ENROL_FORECASTED, names_from = YEAR) 
 
+# HISTORICAL - Pop/Enrolments ----
+# grab historical data and append 
+historical_forecasted_enrolments <- tibble(p_enrolments %>% 
+                                             select(YEAR, AGE_GROUP, GENDER, N=N) %>% 
+                                             mutate(TYPE='H. ENROLMENT') %>% 
+                                             bind_rows(f_enrolments_t %>% 
+                                                         select(YEAR, AGE_GROUP, GENDER, N=N_ENROL_FORECASTED) %>% 
+                                                         mutate(TYPE='F. ENROLMENT')))
+
+pop_projections_for_compare <- population_projections %>% 
+  mutate(N = POP) %>% 
+  select(YEAR, AGE_GROUP, GENDER, N) %>% 
+  mutate(TYPE='POPULATION') %>% 
+  filter(YEAR<2035)
+
 # ---- Forecasted Graduates ----
 ## Graduation Rates (annual, as a percentage of enrolment) ----
 annual_grad_rate <- credentials %>% 
@@ -121,10 +136,20 @@ f_graduates_t <- f_enrolments_t %>%
   inner_join(avg_2_yr_grad_rate, by = join_by(AGE_GROUP, GENDER)) %>%
   mutate(N_GRAD_FORECASTED = N_ENROL_FORECASTED * GRAD_RATE)
 
-
 ## Forecasted Graduates by Credential ----
 f_graduates_t  <- f_graduates_t  %>% 
   select(YEAR, AGE_GROUP, GENDER, N_GRAD_FORECASTED)
+
+
+# HISTORICAL - grads ----
+historical_forecasted_grads <- annual_grad_rate %>% 
+  select(YEAR, AGE_GROUP, GENDER, N=N_GRADS) %>% 
+  mutate(TYPE = 'H. GRADS') %>% 
+  bind_rows(
+    f_graduates_t %>% 
+      select(YEAR, AGE_GROUP, GENDER, N=N_GRAD_FORECASTED) %>% 
+      mutate(TYPE = 'F. GRADS')
+  )
 
 ## 2-yr average distribution of graduates by credential ----
 avg_2_yr_credentials <- credentials %>% 
@@ -142,6 +167,50 @@ f_graduates <- f_graduates_t  %>%
   mutate(N_GRAD_FORECASTED = N_GRAD_FORECASTED*P) %>%
   select(-P) %>% 
   summarize(N=sum(N_GRAD_FORECASTED), .by  = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER))
+
+## HISTORICAL - combined GRAD CRED ----
+historical_forecasted_grad_creds <- 
+  credentials %>% 
+  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>% 
+  mutate(TYPE = 'H. GRADS by Cred') %>% 
+  bind_rows(
+    f_graduates %>% 
+      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>% 
+      mutate(TYPE = 'F. GRADS by Cred')
+  )
+
+# get things on same ish scale
+library(ggplot2)
+min_ns <- historical_forecasted_enrolments %>% 
+  bind_rows(pop_projections_for_compare) %>% 
+  bind_rows(historical_forecasted_grads) %>% 
+  bind_rows(historical_forecasted_grad_creds) %>%
+  mutate(GROUP = case_when(
+    TYPE=='POPULATION' ~ TYPE,
+    TRUE ~ str_sub(TYPE, start=4)
+    )
+  ) %>% 
+  group_by(YEAR, GROUP) %>% 
+  mutate(n = sum(N)) %>%
+  ungroup() %>% 
+  group_by(GROUP) %>% 
+  mutate(min_n = min(n)) %>% 
+  ungroup() %>% 
+  distinct(GROUP, TYPE, min_n)
+
+historical_forecasted_enrolments %>% 
+  bind_rows(pop_projections_for_compare) %>% 
+  bind_rows(historical_forecasted_grads) %>% 
+  #bind_rows(historical_forecasted_grad_creds) %>% 
+  left_join(min_ns, by = 'TYPE') %>% 
+  group_by(YEAR, GROUP) %>% 
+  summarize(n = sum(N), min_n=min(min_n)) %>%  # View()
+  mutate(
+    n = n/min_n
+  ) %>% 
+  ggplot(aes(x=YEAR, y=n, color=GROUP)) +
+  geom_line(linewidth=1) +
+  geom_vline(aes(xintercept = 2023))
 
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
@@ -165,6 +234,47 @@ f_graduates_nc <- f_graduates %>%
   inner_join(T_DACSO_Near_Completers_RatioByGender) %>%
   mutate(N=N*RATIO) %>%
   select(-RATIO)
+
+# HISTORICAL - near-completers ----
+# note that near-completer data (right now) only goes back 5 years to 2019
+# will want to make sure that comparisons only go that far back
+# could in theory go farther, just easier right now to stay at 2019
+# preprocess nc data before joining with graduates
+T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender_year") %>%
+  janitor::clean_names("all_caps") %>%
+  mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
+  select(YEAR, PSI_CREDENTIAL_CATEGORY, AGE_GROUP, GENDER, N_NC_STP) %>%
+  mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
+
+# recode age groups 35-44, 45-54, 55-64  => 35 to 64 
+T_DACSO_Near_Completers_RatioByGender_year <- f_graduates %>% 
+  distinct(AGE_GROUP) %>%
+  rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
+  mutate(AGE_GROUP = if_else(AGE_GROUP_RECODE %in% c("35 to 44", "45 to 54", "55 to 64"), "35 to 64", AGE_GROUP_RECODE)) %>%
+  full_join(T_DACSO_Near_Completers_RatioByGender_year, relationship = "many-to-many") %>%
+  select(-AGE_GROUP) %>%
+  rename("AGE_GROUP" = "AGE_GROUP_RECODE")
+
+f_graduates_nc_historical <- T_DACSO_Near_Completers_RatioByGender_year %>% 
+  select(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER, N=N_NC_STP) %>% 
+  filter(YEAR < 2023)
+
+historical_forecasted_grad_ncs <- 
+  f_graduates_nc_historical %>% 
+  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>% 
+  mutate(TYPE = 'H. NCs') %>% 
+  bind_rows(
+    f_graduates_nc %>% 
+      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>% 
+      mutate(TYPE = 'F. NCs')
+  )
+
+f_graduates_nc %>% 
+  bind_rows(f_graduates_nc_historical) %>% 
+  group_by(YEAR) %>% 
+  summarize(n = sum(N)) %>% 
+  ggplot(aes(x=YEAR,y=n)) +
+  geom_line() + geom_point()
 
 # make pssm cred label
 f_graduates <- f_graduates %>% 
@@ -209,6 +319,85 @@ f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
   mutate(SURVEY = 'Credential_Projections_Transp') %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
+
+# HISTORICAL - Update PSSM CRED LABEL for GRADS/NCs
+hf_grad_creds <- historical_forecasted_grad_creds %>%
+  filter(!AGE_GROUP %in% c("15 to 16")) %>%
+  mutate(PSSM_CRED = case_when(
+    toupper(PSI_CREDENTIAL_CATEGORY) == "ADVANCED CERTIFICATE" ~ "1 - ADCT OR ADIP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "ASSOCIATE DEGREE" ~ "1 - ADGR OR UT",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "ADVANCED DIPLOMA" ~ "1 - ADCT OR ADIP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "BACHELORS DEGREE" ~ "BACH",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "CERTIFICATE" ~ "1 - CERT",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "DIPLOMA" ~ "1 - DIPL",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "DOCTORATE" ~ "DOCT",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "GRADUATE CERTIFICATE" ~ "GRCT OR GRDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "GRADUATE DIPLOMA" ~ "GRCT OR GRDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "MASTERS DEGREE" ~ "MAST",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "NONE" ~ "INVALID",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "OTHER" ~ "",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "POST-DEGREE CERTIFICATE" ~ "1 - PDCT OR PDDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "POST-DEGREE DIPLOMA" ~ "1 - PDCT OR PDDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "FIRST PROFESSIONAL DEGREE" ~ "PDEG",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "SHORT CERTIFICATE" ~ "INVALID",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "UNIVERSITY TRANSFER" ~ "1 - ADGR OR UT", 
+    TRUE ~ NA))
+
+hf_nc <- historical_forecasted_grad_ncs %>%
+  filter(!AGE_GROUP %in% c("15 to 16")) %>%
+  mutate(PSSM_CRED = case_when(
+    toupper(PSI_CREDENTIAL_CATEGORY) == "ASSOCIATE DEGREE" ~ "3 - ADGR OR UT",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "ADVANCED DIPLOMA" ~ "3 - ADCT OR ADIP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "CERTIFICATE" ~ "3 - CERT",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "DIPLOMA" ~ "3 - DIPL",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "POST-DEGREE CERTIFICATE" ~ "3 - PDCT OR PDDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "POST-DEGREE DIPLOMA" ~ "3 - PDCT OR PDDP",
+    toupper(PSI_CREDENTIAL_CATEGORY) == "UNIVERSITY TRANSFER" ~ "3 - ADGR OR UT", 
+    TRUE ~ "NA"))
+
+hf_grad_nc_creds_agg <- hf_grad_creds %>% rbind(hf_nc) %>%
+  group_by(PSSM_CRED, YEAR, AGE_GROUP) %>%
+  summarise(GRADUATES=sum(N)) %>%
+  mutate(TYPE = if_else(YEAR<2023, 'H. Total G NC by Cred', 'F. Total G NC By Cred')) %>% 
+  mutate(SURVEY = 'Credential_Projections_Transp') %>%
+  mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
+  filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
+
+# get things on same ish scale
+library(ggplot2)
+min_ns <- historical_forecasted_enrolments %>% 
+  bind_rows(pop_projections_for_compare) %>% 
+  bind_rows(historical_forecasted_grads) %>% 
+  bind_rows(historical_forecasted_grad_creds) %>%
+  bind_rows(historical_forecasted_grad_ncs) %>% 
+  mutate(GROUP = case_when(
+    TYPE=='POPULATION' ~ TYPE,
+    TRUE ~ str_sub(TYPE, start=4)
+  )
+  ) %>% 
+  group_by(YEAR, GROUP) %>% 
+  mutate(n = sum(N)) %>%
+  ungroup() %>% 
+  group_by(GROUP) %>% 
+  mutate(min_n = min(n)) %>% 
+  ungroup() %>% 
+  distinct(GROUP, TYPE, min_n)
+
+historical_forecasted_enrolments %>% 
+  bind_rows(pop_projections_for_compare) %>% 
+  #bind_rows(historical_forecasted_grads) %>% 
+  bind_rows(historical_forecasted_grad_creds) %>% 
+  bind_rows(historical_forecasted_grad_ncs) %>% 
+  left_join(min_ns, by = 'TYPE') %>% 
+  group_by(YEAR, GROUP) %>% 
+  summarize(n = sum(N), min_n=min(min_n)) %>%  # View()
+  mutate(
+    n = n/min_n
+  ) %>% 
+  ggplot(aes(x=YEAR, y=n, color=GROUP)) +
+  geom_line(linewidth=1) +
+  geom_vline(aes(xintercept = 2023))
+
 
 # ---- Graduate Projections for Apprenticeship ----
 APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")

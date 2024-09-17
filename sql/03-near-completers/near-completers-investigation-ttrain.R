@@ -917,6 +917,93 @@ ORDER BY T_DACSO_DATA_Part_1.TPID_LGND_CD Desc,
 agegrouplookup.age_group, 
 T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name"
 
+# HISTORICAL ----
+# ---- qry99_Completers_agg_by_gender_age_year ----
+qry99_Completers_agg_by_gender_age_year <-
+  "SELECT     T_DACSO_DATA_Part_1.coci_subm_cd, T_DACSO_DATA_Part_1.tpid_lgnd_cd, agegrouplookup.age_group, 
+T_DACSO_DATA_Part_1.prgm_credential_awarded_name, COUNT(*)
+AS Count
+INTO Completers_agg_by_gender_age_year
+FROM         T_DACSO_DATA_Part_1 
+INNER JOIN agegrouplookup
+ON T_DACSO_DATA_Part_1.Age_At_Grad >= agegrouplookup.lower_bound 
+AND T_DACSO_DATA_Part_1.Age_At_Grad <= agegrouplookup.upper_bound 
+LEFT OUTER JOIN CredentialRank
+ON T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name = CredentialRank.PSI_CREDENTIAL_CATEGORY
+WHERE     
+    (T_DACSO_DATA_Part_1.Age_At_Grad >= 17) 
+AND (T_DACSO_DATA_Part_1.Age_At_Grad <= 64) 
+AND (T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD_Group = '1')
+GROUP BY 
+T_DACSO_DATA_Part_1.COCI_SUBM_CD,
+agegrouplookup.age_group, 
+T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, 
+agegrouplookup.age_group, 
+T_DACSO_DATA_Part_1.TPID_LGND_CD
+HAVING      (T_DACSO_DATA_Part_1.TPID_LGND_CD <> '0')
+ORDER BY T_DACSO_DATA_Part_1.TPID_LGND_CD Desc, 
+agegrouplookup.age_group, 
+T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name"
+
+# ---- qry99_Near_completes_total_byGender ----
+qry99_Near_completes_total_byGender_year <-"
+SELECT t_dacso_data_part_1.coci_subm_cd, 
+  t_dacso_data_part_1.tpid_lgnd_cd,
+       agegrouplookup.age_group,
+       t_dacso_data_part_1.prgm_credential_awarded_name,
+       Count(*) AS Count
+INTO Near_completes_total_byGender_year
+FROM   t_dacso_data_part_1
+       INNER JOIN agegrouplookup
+               ON t_dacso_data_part_1.age_at_grad >=
+                  agegrouplookup.lower_bound
+                  AND t_dacso_data_part_1.age_at_grad <=
+                      agegrouplookup.upper_bound
+       LEFT OUTER JOIN credentialrank
+                    ON t_dacso_data_part_1.prgm_credential_awarded_name =
+                       credentialrank.psi_credential_category
+WHERE  ( t_dacso_data_part_1.cosc_grad_status_lgds_cd_group = '3' )
+GROUP  BY agegrouplookup.age_group, t_dacso_data_part_1.coci_subm_cd,
+          t_dacso_data_part_1.prgm_credential_awarded_name,
+          t_dacso_data_part_1.tpid_lgnd_cd
+HAVING ( t_dacso_data_part_1.tpid_lgnd_cd <> '0' )
+ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
+          agegrouplookup.age_group,
+          t_dacso_data_part_1.prgm_credential_awarded_name;"
+
+# ---- qry99_Near_completes_total_with_STP_Credential_by_Gender ----
+qry99_Near_completes_total_with_STP_Credential_by_Gender_year <-"
+SELECT t_dacso_data_part_1.tpid_lgnd_cd,
+t_dacso_data_part_1.coci_subm_cd,
+       agegrouplookup.age_group,
+       t_dacso_data_part_1.prgm_credential_awarded_name,
+       Count(*) AS Count,
+       t_dacso_data_part_1_tempselection.has_stp_credential
+INTO Near_completes_total_with_STP_Credential_by_Gender_year
+FROM   t_dacso_data_part_1
+       INNER JOIN agegrouplookup
+               ON t_dacso_data_part_1.age_at_grad >=
+                  agegrouplookup.lower_bound
+                  AND t_dacso_data_part_1.age_at_grad <=
+                      agegrouplookup.upper_bound
+       INNER JOIN t_dacso_data_part_1_tempselection
+               ON t_dacso_data_part_1.coci_stqu_id =
+                  t_dacso_data_part_1_tempselection.coci_stqu_id
+       LEFT OUTER JOIN credentialrank
+                    ON t_dacso_data_part_1.prgm_credential_awarded_name =
+                       credentialrank.psi_credential_category
+GROUP  BY agegrouplookup.age_group,
+t_dacso_data_part_1.coci_subm_cd,
+          t_dacso_data_part_1.prgm_credential_awarded_name,
+          t_dacso_data_part_1_tempselection.has_stp_credential,
+          t_dacso_data_part_1.tpid_lgnd_cd
+HAVING ( t_dacso_data_part_1_tempselection.has_stp_credential = 'Yes' )
+       AND ( t_dacso_data_part_1.tpid_lgnd_cd <> '0' )
+ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
+          agegrouplookup.age_group,
+          t_dacso_data_part_1.prgm_credential_awarded_name;"
+
+# END HISTORICAL ----
 # ---- qry99_Completers_agg_byCIP4---- 
 qry99_Completers_agg_byCIP4 <- "
 SELECT AgeGroupLookup.age_group,
