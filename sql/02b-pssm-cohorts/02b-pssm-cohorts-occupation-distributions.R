@@ -1101,7 +1101,7 @@ FROM DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT;"
 DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply <- 
 "DELETE 
 FROM Labour_Supply_Distribution
-WHERE (((Labour_Supply_Distribution.Survey)='PSSM_2017-2018 Non-Outcomes Graduates Labour Supply.xlsx') 
+WHERE (((Labour_Supply_Distribution.Survey)='2021 Census PSSM 2023-2024') 
 AND   ((Labour_Supply_Distribution.PSSM_Credential)='PDEG') 
 AND   ((Labour_Supply_Distribution.LCP4_CD)='07'));"
 
@@ -1111,7 +1111,7 @@ AND   ((Labour_Supply_Distribution.LCP4_CD)='07'));"
 DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI <- 
 "DELETE 
 FROM Labour_Supply_Distribution_QI
-WHERE (((Labour_Supply_Distribution_QI.Survey)='PSSM_2017-2018 Non-Outcomes Graduates Labour Supply.xlsx') 
+WHERE (((Labour_Supply_Distribution_QI.Survey)='2021 Census PSSM 2023-2024') 
 AND ((Labour_Supply_Distribution_QI.PSSM_Credential)='PDEG') 
 AND ((Labour_Supply_Distribution_QI.LCP4_CD)='07'));"
 
