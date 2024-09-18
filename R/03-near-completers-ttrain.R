@@ -373,6 +373,16 @@ dbExecute(decimal_con, qry99_Near_completes_program_dist_count)
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
 
+# ---- HISTORICAL TTRAIN queries ----
+# note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
+dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
+dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history)
+dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history) 
+
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+
+
 # ---- Clean Up ----
 # TODO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
