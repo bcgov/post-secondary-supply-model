@@ -179,6 +179,7 @@ historical_forecasted_grad_creds <-
       mutate(TYPE = 'F. GRADS by Cred')
   )
 
+# PLOT INTERLUDE ----
 # get things on same ish scale
 library(ggplot2)
 min_ns <- historical_forecasted_enrolments %>% 
@@ -269,6 +270,7 @@ historical_forecasted_grad_ncs <-
       mutate(TYPE = 'F. NCs')
   )
 
+# PLOT ----
 f_graduates_nc %>% 
   bind_rows(f_graduates_nc_historical) %>% 
   group_by(YEAR) %>% 
@@ -320,7 +322,7 @@ f_graduates_agg <- f_graduates %>% rbind(f_graduates_nc) %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
 
-# HISTORICAL - Update PSSM CRED LABEL for GRADS/NCs
+# HISTORICAL - Update PSSM CRED LABEL for GRADS/NCs ----
 hf_grad_creds <- historical_forecasted_grad_creds %>%
   filter(!AGE_GROUP %in% c("15 to 16")) %>%
   mutate(PSSM_CRED = case_when(
@@ -363,6 +365,7 @@ hf_grad_nc_creds_agg <- hf_grad_creds %>% rbind(hf_nc) %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
 
+# PLOT comparison ----
 # get things on same ish scale
 library(ggplot2)
 min_ns <- historical_forecasted_enrolments %>% 
@@ -414,11 +417,43 @@ appso_2_yr_avg <- APPSO_Graduates %>%
   filter(!is.na(AGE_GROUP)) %>%
   filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
 
+# All grad data, forecast
 f_graduates_agg <- f_graduates_agg %>% 
   rbind(appso_2_yr_avg) %>%
   mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
 
+# HISTORICAL - APPSO ----
+appso_historical <- APPSO_Graduates %>% 
+  mutate(YEAR = as.numeric(str_replace(SUBM_CD, "C_Outc", "20"))) %>%
+  filter(YEAR<2023) %>% 
+  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
+  summarize(GRADUATES = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
+  mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
+  mutate(SURVEY = 'APPSO') %>%
+  mutate(PSI_CREDENTIAL_CATEGORY = "NA") %>%
+  filter(!is.na(AGE_GROUP)) %>%
+  filter(!AGE_GROUP %in% c('65 to 89','15 to 16'))
+
+historical_forecast_appso <-  
+  appso_historical %>% 
+  select(YEAR, PSSM_CRED, AGE_GROUP, GRADUATES, SURVEY, PSI_CREDENTIAL_CATEGORY) %>% 
+  mutate(TYPE = 'H. APPSO') %>% 
+  bind_rows(
+    appso_2_yr_avg %>% 
+      select(YEAR, PSSM_CRED, AGE_GROUP, GRADUATES, SURVEY, PSI_CREDENTIAL_CATEGORY) %>% 
+      mutate(TYPE = 'F. APPSO')
+  )
+
+# HISTORICAL - All grad data ----
+hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>% 
+  rbind(historical_forecast_appso) %>% 
+  mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
+
+# SAVE TO SQL DATABASE ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), f_graduates_agg, overwrite = TRUE)
+
+# SAVE Historical ----
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Graduate_Projections_Include_Historical"')), hf_grad_nc_appso_agg, overwrite = TRUE)
 
 # ---- Graduate Projections for Trades ----
 # TODO: add in trades to Graduate Projections (above) and project same as APPSO. 
