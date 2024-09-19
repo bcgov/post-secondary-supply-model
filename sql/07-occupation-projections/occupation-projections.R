@@ -2295,7 +2295,7 @@ qry99_Presentations_Graduates_Appendix_old <-
 "TRANSFORM (Int(Sum([Grads])+2.5)\5)*5 AS Expr1
 SELECT Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.PSSM_Credential_Name
 FROM T_PSSM_Credential_Grouping_Appendix INNER JOIN Q_1c_Grad_Projections_by_Program ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 GROUP BY Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.PSSM_Credential_Name, T_PSSM_Credential_Grouping_Appendix.ORDER
 ORDER BY Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.ORDER
 PIVOT Q_1c_Grad_Projections_by_Program.Year;"
@@ -2324,7 +2324,7 @@ Grads
 FROM T_PSSM_Credential_Grouping_Appendix 
 INNER JOIN Q_1c_Grad_Projections_by_Program 
 	ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 ) AS SourceTable
 PIVOT (
     Sum([Grads]) FOR Yr IN ([2023/2024], 
@@ -2349,7 +2349,7 @@ SELECT Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label
 FROM T_PSSM_Credential_Grouping_Appendix 
 INNER JOIN Q_1c_Grad_Projections_by_Program 
 ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 GROUP BY Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label
 PIVOT Q_1c_Grad_Projections_by_Program.Year;"
 
@@ -2376,7 +2376,7 @@ Grads
 FROM T_PSSM_Credential_Grouping_Appendix 
 INNER JOIN Q_1c_Grad_Projections_by_Program 
 	ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 ) AS SourceTable
 PIVOT (
     Sum([Grads]) FOR Yr IN ([2023/2024], 
@@ -2401,7 +2401,7 @@ qry99_Presentations_Graduates_Appendix_Unrounded <-
 "TRANSFORM Sum(Q_1c_Grad_Projections_by_Program.Grads) AS SumOfGrads
 SELECT Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.PSSM_Credential_Name
 FROM T_PSSM_Credential_Grouping_Appendix INNER JOIN Q_1c_Grad_Projections_by_Program ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 GROUP BY Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.PSSM_Credential_Name, T_PSSM_Credential_Grouping_Appendix.ORDER
 ORDER BY Q_1c_Grad_Projections_by_Program.Age_Group_Rollup_Label, T_PSSM_Credential_Grouping_Appendix.ORDER
 PIVOT Q_1c_Grad_Projections_by_Program.Year;"
@@ -2412,7 +2412,7 @@ PIVOT Q_1c_Grad_Projections_by_Program.Year;"
 qry99_Presentations_Graduates_Including_those_not_projected <- 
 "SELECT T_PSSM_CRED_RECODE.PSSM_CRED_Group, Sum(Graduate_Projections.Graduates) AS SumOfGraduates
 FROM Graduate_Projections INNER JOIN T_PSSM_CRED_RECODE ON Graduate_Projections.PSSM_CRED = T_PSSM_CRED_RECODE.PSSM_CRED
-WHERE ((((Graduate_Projections.Year)='2015/2016' Or (Graduate_Projections.Year)='2016/2017')=False) And (((Graduate_Projections.Age_Group)='15 to 16' Or (Graduate_Projections.Age_Group)='65 to 89')=False) And ((Graduate_Projections.PSSM_CRED) Not Like 'P - *'))
+WHERE ((((Graduate_Projections.Year)='2015/2016' Or (Graduate_Projections.Year)='2016/2017')=False) And (((Graduate_Projections.Age_Group)='15 to 16' Or (Graduate_Projections.Age_Group)='65 to 89')=False) And ((Graduate_Projections.PSSM_CRED) Not Like 'P - %'))
 GROUP BY T_PSSM_CRED_RECODE.PSSM_CRED_Group, T_PSSM_CRED_RECODE.ORDER
 ORDER BY T_PSSM_CRED_RECODE.ORDER DESC;"
 
@@ -2422,7 +2422,7 @@ ORDER BY T_PSSM_CRED_RECODE.ORDER DESC;"
 qry99_Presentations_Labour_Force <- 
 "SELECT tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_Credential, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup_Label, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Year, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.LCP4_CD, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.LCIP4_CRED, Sum(tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.New_Labour_Supply) AS SumOfNew_Labour_Supply, T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup, Sum(tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.NLS) AS SumOfNLS
 FROM tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC ON tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup
-WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - *'))
+WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - %'))
 GROUP BY tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_Credential, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup_Label, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Year, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.LCP4_CD, tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.LCIP4_CRED, T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup;"
 
 
@@ -2431,7 +2431,7 @@ GROUP BY tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_Credential, tm
 qry99_Presentations_Labour_Force_BC <- 
 "SELECT T_PSSM_CRED_RECODE.PSSM_CRED_Group, Sum(tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.NLS) AS SumOfNLS
 FROM ((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union INNER JOIN T_PSSM_CRED_RECODE ON tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED = T_PSSM_CRED_RECODE.PSSM_CRED) INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC ON tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup) INNER JOIN T_Current_Region_PSSM_Rollup_Codes ON T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup_BC = T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Code_Rollup
-WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - *'))
+WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - %'))
 GROUP BY T_PSSM_CRED_RECODE.PSSM_CRED_Group, T_PSSM_CRED_RECODE.ORDER
 ORDER BY T_PSSM_CRED_RECODE.ORDER DESC;"
 
@@ -2441,7 +2441,7 @@ ORDER BY T_PSSM_CRED_RECODE.ORDER DESC;"
 qry99_Presentations_Labour_Force_Overall <- 
 "SELECT T_PSSM_CRED_RECODE.PSSM_CRED_Group, Sum(tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.NLS) AS SumOfNLS
 FROM tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union INNER JOIN T_PSSM_CRED_RECODE ON tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED = T_PSSM_CRED_RECODE.PSSM_CRED
-WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - *'))
+WHERE (((tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - %'))
 GROUP BY T_PSSM_CRED_RECODE.PSSM_CRED_Group, T_PSSM_CRED_RECODE.ORDER
 ORDER BY T_PSSM_CRED_RECODE.ORDER DESC;"
 
@@ -2452,7 +2452,7 @@ qry99_Presentations_Occs <-
 "SELECT tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_Credential, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_CRED, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup_Label, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Year, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.LCP4_CD, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.LCIP4_CRED, T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Code_Rollup, T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Name_Rollup, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.NOC, Sum(tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.OccsN) AS SumOfOccsN
 FROM (tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC ON tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup) INNER JOIN T_Current_Region_PSSM_Rollup_Codes ON T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup_BC = T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Code_Rollup
 GROUP BY tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_Credential, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_CRED, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Age_Group_Rollup_Label, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Year, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.LCP4_CD, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.LCIP4_CRED, T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Code_Rollup, T_Current_Region_PSSM_Rollup_Codes.Current_Region_PSSM_Name_Rollup, tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.NOC
-HAVING (((tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - *'));"
+HAVING (((tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.PSSM_CRED) Not Like 'P - %'));"
 
 
 # ---- qry99_Presentations_PPSCI_Graduates ----

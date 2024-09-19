@@ -77,7 +77,7 @@ Grads
 FROM T_PSSM_Credential_Grouping_Appendix 
 INNER JOIN Q_1c_Grad_Projections_by_Program 
 	ON T_PSSM_Credential_Grouping_Appendix.PSSM_Credential = Q_1c_Grad_Projections_by_Program.PSSM_Credential
-WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - *'))
+WHERE (((Q_1c_Grad_Projections_by_Program.PSSM_CRED) Not Like 'P - %'))
 ) AS SourceTable
 PIVOT (
     Sum([Grads]) FOR Yr IN ([2023/2024], 
