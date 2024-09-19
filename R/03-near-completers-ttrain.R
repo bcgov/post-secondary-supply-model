@@ -347,6 +347,7 @@ ratio.df2 <- ratio.df %>%
   summarise(ratio_adgt= sum(n_nc_stp)/sum(completers), .by = c(gender, age_group, prgm_credential_awarded_name))
 
 # my question here - is this the right year to switch to?
+# in lookup table, DACSO data should be sent back by one 
 T_DACSO_Near_Completers_RatioByGender_year <- 
   ratio.df %>% 
   left_join(ratio.df2) %>%
@@ -354,8 +355,9 @@ T_DACSO_Near_Completers_RatioByGender_year <-
   mutate(across(where(is.double), ~na_if(., Inf))) %>%
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
   select(-ratio_adgt) %>% 
+  # subtract one here so that it's the first half of the school year
   mutate(
-    year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7,8)))
+    year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7,8)))-1
   )
 
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender_year"')), T_DACSO_Near_Completers_RatioByGender_year)
