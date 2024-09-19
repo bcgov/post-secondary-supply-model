@@ -422,6 +422,14 @@ f_graduates_agg <- f_graduates_agg %>%
   rbind(appso_2_yr_avg) %>%
   mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
 
+# fix APPSO forward projection to go to the end 
+f_graduates_agg <- f_graduates_agg %>% 
+  ungroup() %>% 
+  arrange(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>% 
+  complete(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>% 
+  group_by(PSSM_CREDENTIAL, AGE_GROUP) %>% 
+  fill(GRADUATES)
+
 # HISTORICAL - APPSO ----
 appso_historical <- APPSO_Graduates %>% 
   mutate(YEAR = as.numeric(str_replace(SUBM_CD, "C_Outc", "20"))) %>%
@@ -448,6 +456,13 @@ historical_forecast_appso <-
 hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>% 
   rbind(historical_forecast_appso) %>% 
   mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED)) 
+# fix APPSO forward projection to go to the end 
+hf_grad_nc_appso_agg <- hf_grad_nc_appso_agg %>% 
+  ungroup() %>% 
+  arrange(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>% 
+  complete(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>% 
+  group_by(PSSM_CREDENTIAL, AGE_GROUP) %>% 
+  fill(GRADUATES)
 
 # SAVE TO SQL DATABASE ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')), f_graduates_agg, overwrite = TRUE)

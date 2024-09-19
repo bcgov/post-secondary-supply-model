@@ -5,6 +5,7 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
+library(ggplot2)
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -49,6 +50,8 @@ dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 
 
 # historical numbers - bringing into R instead of multiple queries 
+my_schema <- 'IDIR\\BASHCROF'
+my_schema <- 'IDIR\\LFREDRIC'
 grads <- tibble(dbGetQuery(
   decimal_con,
   glue::glue('
@@ -64,7 +67,15 @@ grads <- tibble(dbGetQuery(
   )
 )
 )
-grads %>% distinct(age_group)
+
+years <- grads %>% distinct(year) %>% pull()
+
+# only do if apprenticeships weren't filled properly 
+grads_completed <- grads %>% 
+  arrange(pssm_credential_name, age_group, year) %>% 
+  complete(age_group, pssm_credential_name, year) %>% 
+  group_by(age_group, pssm_credential_name) %>% 
+  fill(graduates)
 
 grads %>% 
   mutate(age_group_rollup = case_when(
@@ -72,14 +83,34 @@ grads %>%
     age_group %in% c('30 to 34', '35 to 44') ~ '30 to 44',
     TRUE ~ '45 to 64'
   )) %>% 
-  # fill forward the APPSO data
-  group_by(age_group_rollup, pssm_credential_name) %>% 
-  fill(graduates) %>% 
-  ungroup() %>% 
   filter(year>='2023/2024') %>% 
   group_by(age_group_rollup, pssm_credential_name, year) %>% 
   summarise(n = round(sum(graduates),0)) %>% 
   pivot_wider(id_cols = c('age_group_rollup', 'pssm_credential_name'), names_from = 'year', values_from = 'n') %>% 
-  arrange(pssm_credential_name, age_group_rollup) %>% 
+  arrange(pssm_credential_name, age_group_rollup) %>%  View()
   ungroup() %>% 
   summarize(sum(`2023/2024`))
+  
+grads %>% 
+    mutate(age_group_rollup = case_when(
+      age_group %in% c('17 to 19', '20 to 24', '25 to 29') ~ '17 to 29',
+      age_group %in% c('30 to 34', '35 to 44') ~ '30 to 44',
+      TRUE ~ '45 to 64'
+    )) %>% 
+    filter(year>='2023/2024') %>% 
+    group_by(year) %>% 
+    summarise(n = round(sum(graduates),0)) %>% 
+    ungroup() 
+
+
+grads %>% 
+  filter(year=='2023/2024') %>% 
+  filter(pssm_credential_name %in% c('Diploma', 'Certificate'))
+
+grads %>% 
+  mutate(year = as.numeric(str_sub(year, 1,4))) %>% 
+  group_by(pssm_credential_name, year) %>% 
+  summarize(n = sum(graduates)) %>% View() 
+  ggplot(aes(x = year, y=n, color=pssm_credential_name)) +
+  geom_line()+
+  geom_vline(aes(xintercept = 2023))

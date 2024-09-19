@@ -70,7 +70,7 @@ tmp_tbl_Age_AppendNewYears <- dbGetQuery(outcomes_con, qry_make_tmp_table_Age_st
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')), value = tmp_tbl_Age_AppendNewYears)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')), value = tmp_tbl_Age)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')), value = tmp_tbl_Age, overwrite=TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age"')), value = tbl_Age, overwrite = TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."combine_creds"')), value = combine_creds )
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')), value = stp_dacso_prgm_credential_lookup)
