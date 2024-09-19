@@ -62,7 +62,7 @@ grads <- tibble(dbGetQuery(
     t2.pssm_credential_name,
     t1.year,
     t1.graduates
-  FROM "{my_schema}".[Graduate_Projections_Include_Historical] t1
+  FROM "{my_schema}".[Graduate_Projections] t1
   LEFT JOIN "{my_schema}".[T_PSSM_Credential_Grouping_Appendix] t2
 	ON t1.PSSM_CREDENTIAL = t2.PSSM_CREDENTIAL
   LEFT JOIN "{my_schema}".[tbl_Age_Groups] t3
