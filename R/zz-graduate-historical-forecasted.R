@@ -52,17 +52,23 @@ dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 # historical numbers - bringing into R instead of multiple queries 
 my_schema <- 'IDIR\\BASHCROF'
 my_schema <- 'IDIR\\LFREDRIC'
+my_schema <- 'IDIR\\ALOWERY'
 grads <- tibble(dbGetQuery(
   decimal_con,
   glue::glue('
-  SELECT 
-    age_group,
-    pssm_credential_name,
-    year,
-    graduates
+   SELECT 
+	t1.age_group,
+    t4.age_group_rollup_label,
+    t2.pssm_credential_name,
+    t1.year,
+    t1.graduates
   FROM "{my_schema}".[Graduate_Projections_Include_Historical] t1
   LEFT JOIN "{my_schema}".[T_PSSM_Credential_Grouping_Appendix] t2
-    ON t1.PSSM_CREDENTIAL = t2.PSSM_CREDENTIAL
+	ON t1.PSSM_CREDENTIAL = t2.PSSM_CREDENTIAL
+  LEFT JOIN "{my_schema}".[tbl_Age_Groups] t3
+	ON t1.age_group = t3.age_group_label
+  LEFT JOIN "{my_schema}".[tbl_Age_Groups_Rollup] t4
+	ON t3.age_group_rollup = t4.age_group_rollup
              '
   )
 )
@@ -70,33 +76,16 @@ grads <- tibble(dbGetQuery(
 
 years <- grads %>% distinct(year) %>% pull()
 
-# only do if apprenticeships weren't filled properly 
-grads_completed <- grads %>% 
-  arrange(pssm_credential_name, age_group, year) %>% 
-  complete(age_group, pssm_credential_name, year) %>% 
-  group_by(age_group, pssm_credential_name) %>% 
-  fill(graduates)
-
 grads %>% 
-  mutate(age_group_rollup = case_when(
-    age_group %in% c('17 to 19', '20 to 24', '25 to 29') ~ '17 to 29',
-    age_group %in% c('30 to 34', '35 to 44') ~ '30 to 44',
-    TRUE ~ '45 to 64'
-  )) %>% 
   filter(year>='2023/2024') %>% 
-  group_by(age_group_rollup, pssm_credential_name, year) %>% 
+  group_by(age_group_rollup_label, pssm_credential_name, year) %>% 
   summarise(n = round(sum(graduates),0)) %>% 
-  pivot_wider(id_cols = c('age_group_rollup', 'pssm_credential_name'), names_from = 'year', values_from = 'n') %>% 
-  arrange(pssm_credential_name, age_group_rollup) %>%  View()
+  pivot_wider(id_cols = c('age_group_rollup_label', 'pssm_credential_name'), names_from = 'year', values_from = 'n') %>% 
+  arrange(pssm_credential_name, age_group_rollup_label) %>%  View()
   ungroup() %>% 
   summarize(sum(`2023/2024`))
   
 grads %>% 
-    mutate(age_group_rollup = case_when(
-      age_group %in% c('17 to 19', '20 to 24', '25 to 29') ~ '17 to 29',
-      age_group %in% c('30 to 34', '35 to 44') ~ '30 to 44',
-      TRUE ~ '45 to 64'
-    )) %>% 
     filter(year>='2023/2024') %>% 
     group_by(year) %>% 
     summarise(n = round(sum(graduates),0)) %>% 
@@ -110,7 +99,7 @@ grads %>%
 grads %>% 
   mutate(year = as.numeric(str_sub(year, 1,4))) %>% 
   group_by(pssm_credential_name, year) %>% 
-  summarize(n = sum(graduates)) %>% View() 
+  summarize(n = sum(graduates)) %>% # View() 
   ggplot(aes(x = year, y=n, color=pssm_credential_name)) +
   geom_line()+
   geom_vline(aes(xintercept = 2023))
