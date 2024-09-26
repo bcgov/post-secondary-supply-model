@@ -44,10 +44,10 @@ source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
 
 # ---- Check for required data tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
-dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
-dbExistsTable(decimal_con, "t_current_region_pssm_codes")
-dbExistsTable(decimal_con, "T_NOC_Broad_Categories")
-dbExistsTable(decimal_con, "Labour_Supply_Distribution_Stat_Can")
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"')))
 
 # ---- Execute SQL ----
 # TODO: would move this out of the dacso script as it's not DACSO specific
@@ -203,8 +203,13 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT")
 
-dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD TTRAIN NVARCHAR(50)")
-dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
+dbExecute(decimal_con, "DELETE 
+                        FROM Labour_Supply_Distribution
+                        WHERE (((Labour_Supply_Distribution.Survey)='2021 Census PSSM 2023-2024'));")
+
+# uncomment if running for the first time
+# dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD TTRAIN NVARCHAR(50)")
+# dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
 dbExecute(decimal_con, "INSERT INTO Labour_Supply_Distribution (
 	   [SURVEY]
       ,[PSSM_CREDENTIAL]
