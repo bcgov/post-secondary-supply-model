@@ -256,26 +256,27 @@ dbGetQuery(decimal_con, Q_7_QI) %>%
 dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>% 
   write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
 
+# gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
 dbExecute(decimal_con, qry_10a_Model)
 
 dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>% 
   write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
 
 # ---- public release ----
-dbExecute(decimal_con, qry_10a_Model_Public_Release) 
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed) 
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed_Total) 
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Union) 
+dbExecute(decimal_con, qry_10a_Model_Public_Release) # gives rounded 5-digit NOC result
+dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed) # shows the 5-digit NOCs that have been suppressed
+dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed and can be included in final public release
+dbExecute(decimal_con, qry_10a_Model_Public_Release_Union) # final output with suppressed counts for public release
 
 dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_Public_Release_Union") %>% 
   write_csv(glue::glue("{lan}/reports-final/drafts/public_release_static_incl_ptib.csv"))
 
 
 # ---- internal release ----
- dbExecute(decimal_con, qry_10a_Model_QI_PPCI) 
- dbExecute(decimal_con, qry_10a_Model_QI_PPCI_No_Supp) 
-# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed) 
-# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed_Total) 
+ dbExecute(decimal_con, qry_10a_Model_QI_PPCI) # gives rounded 5-digit NOC output with quality indicator and coverage indicator as calculated percentages-internal use only
+ dbExecute(decimal_con, qry_10a_Model_QI_PPCI_No_Supp) # for internal use release only-no suppression applied; LMIO needs it to work on the Labour Market Outlook 
+# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed) # shows the 5-digit NOCs that have been suppressed
+# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed
 dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_QI_PPCI_No_Supp") %>% 
    write_csv(glue::glue("{lan}/reports-final/drafts/internal_only_static_no_ptib.csv"))
  
