@@ -63,7 +63,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- Check for required data tables ----
 # TRD
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_Graduates"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."TRD_Graduates"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_TRD_DATA"')))
 
 # APP
@@ -151,7 +151,6 @@ dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
 # ---- Clean Up Lookups (if desired, not a needed step) ----
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1;")
 dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
 dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
 dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
