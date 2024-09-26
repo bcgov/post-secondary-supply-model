@@ -1590,7 +1590,7 @@ FROM (
 	SELECT year,	
 		tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.occsn,
 		[age_group_rollup_label] + '-'
-			+ CAST([noc]  AS NVARCHAR(50)) + '-' 
+			+ RIGHT(REPLICATE('0', 5) + CAST([noc] AS NVARCHAR(5)), 5) + '-' 
 			+ CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)) AS Expr1,
 		tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.age_group_rollup_label,
 		Len(unit_group_code) AS NOC_Level,
@@ -1619,7 +1619,7 @@ ORDER BY age_group_rollup_label, NOC, current_region_pssm_code_rollup;"
 Q_4_NOC_5D_Totals_by_Year_Input_for_Rounding <- 
 "SELECT 
   [age_group_rollup_label] + '-' 
-    + CAST([noc] AS NVARCHAR(50)) + '-' 
+    + RIGHT(REPLICATE('0', 5) + CAST([noc] AS NVARCHAR(5)), 5) + '-' 
     + CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)) AS Expr1,
   tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.age_group_rollup_label,
   Len(unit_group_code) AS NOC_Level,
@@ -1635,7 +1635,7 @@ FROM   (t_current_region_pssm_rollup_codes
   ON t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup = tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.current_region_pssm_code_rollup)
 INNER JOIN T_NOC_Broad_Categories
    ON tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.noc = T_NOC_Broad_Categories.unit_group_code
-GROUP  BY [age_group_rollup_label] + '-' + '-' + CAST([noc] AS NVARCHAR(50)) + '-' +
+GROUP  BY [age_group_rollup_label] + '-' + '-' + RIGHT(REPLICATE('0', 5) + CAST([noc] AS NVARCHAR(5)), 5) + '-' +
   CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)) ,
   tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union.age_group_rollup_label,
   Len(unit_group_code),
@@ -1789,7 +1789,7 @@ HAVING (((tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union.Year) In ('2011/2012
 # ---- Q_4_NOC_Totals_by_Year_BC ----
 Q_4_NOC_Totals_by_Year_BC <- 
 "SELECT [q_4_noc_totals_by_year].[age_group_rollup_label] + '-'
-       + CAST([q_4_noc_totals_by_year].[noc] AS NVARCHAR(50)) + '-'
+       + [q_4_noc_totals_by_year].[noc] + '-'
        + CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50))  AS  Expr1000,
        q_4_noc_totals_by_year.age_group_rollup_label,
        q_4_noc_totals_by_year.noc_level,
@@ -1816,7 +1816,7 @@ FROM   (q_4_noc_totals_by_year
   INNER JOIN t_current_region_pssm_rollup_codes
     ON t_current_region_pssm_rollup_codes_bc.current_region_pssm_code_rollup_bc = t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup
 GROUP  BY [q_4_noc_totals_by_year].[age_group_rollup_label] 
-          + '-' + CAST([q_4_noc_totals_by_year].[noc] AS NVARCHAR(50)) + '-'
+          + '-' + [q_4_noc_totals_by_year].[noc] + '-'
           + CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)),
           q_4_noc_totals_by_year.age_group_rollup_label,
           q_4_noc_totals_by_year.noc_level,
@@ -1829,7 +1829,7 @@ GROUP  BY [q_4_noc_totals_by_year].[age_group_rollup_label]
 # ---- Q_4_NOC_Totals_by_Year_Total ----
 Q_4_NOC_Totals_by_Year_Total <- "
 SELECT [q_4_noc_totals_by_year].[age_group_rollup_label]
-    + '-' + CAST([q_4_noc_totals_by_year].[noc] AS NVARCHAR(50)) + '-' +
+    + '-' + [q_4_noc_totals_by_year].[noc] + '-' +
     CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)) AS Expr1000,
     q_4_noc_totals_by_year.age_group_rollup_label,
     q_4_noc_totals_by_year.noc_level,
@@ -1856,7 +1856,7 @@ ON q_4_noc_totals_by_year.current_region_pssm_code_rollup = t_current_region_pss
 INNER JOIN t_current_region_pssm_rollup_codes 
 ON t_current_region_pssm_rollup_codes_bc.current_region_pssm_code_rollup_total= t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup
 GROUP BY [q_4_noc_totals_by_year].[age_group_rollup_label]
-    + '-' + CAST([q_4_noc_totals_by_year].[noc] AS NVARCHAR(50))+ '-' +
+    + '-' + [q_4_noc_totals_by_year].[noc] + '-' +
     CAST([t_current_region_pssm_rollup_codes].[current_region_pssm_code_rollup] AS NVARCHAR(50)),
     q_4_noc_totals_by_year.age_group_rollup_label,
     q_4_noc_totals_by_year.noc_level,
@@ -2079,31 +2079,38 @@ ORDER BY 2, 6, 4, 5, 8;"
 
 # ---- qry_10a_Model_QI_PPCI ----
 qry_10a_Model_QI_PPCI <- 
-"SELECT tmp_tbl_Model.Expr1, tmp_tbl_Model.Age_Group_Rollup_Label, 
-tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, tmp_tbl_Model.NOC_Level, 
-tmp_tbl_Model.NOC_SKILL_TYPE, tmp_tbl_Model.NOC, tmp_tbl_Model.ENGLISH_NAME, 
-tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
-RoundToLarger([tmp_tbl_Model].[2019/2020],0) AS [2019/2020], 
-RoundToLarger([tmp_tbl_Model].[2020/2021],0) AS [2020/2021], 
-RoundToLarger([tmp_tbl_Model].[2021/2022],0) AS [2021/2022], 
-RoundToLarger([tmp_tbl_Model].[2022/2023],0) AS [2022/2023], 
-RoundToLarger([tmp_tbl_Model].[2023/2024],0) AS [2023/2024], 
-RoundToLarger([tmp_tbl_Model].[2024/2025],0) AS [2024/2025], 
-RoundToLarger([tmp_tbl_Model].[2025/2026],0) AS [2025/2026], 
-RoundToLarger([tmp_tbl_Model].[2026/2027],0) AS [2026/2027], 
-RoundToLarger([tmp_tbl_Model].[2027/2028],0) AS [2027/2028], 
-RoundToLarger([tmp_tbl_Model].[2028/2029],0) AS [2028/2029], 
-RoundToLarger([tmp_tbl_Model].[2029/2030],0) AS [2029/2030], 
-RoundToLarger([tmp_tbl_Model].[2030/2031],0) AS [2030/2031], 
-(Abs([tmp_tbl_Model].[2019/2020]-[tmp_tbl_QI].[2019/2020])/[tmp_tbl_QI].[2019/2020]) AS [Quality Indicator], 
-IIf(IsNull([tmp_tbl_Model_Inc_Private_Inst].[2019/2020]),0,[tmp_tbl_Model].[2019/2020]/[tmp_tbl_Model_Inc_Private_Inst].[2019/2020]) AS [Coverage Indicator]
+"SELECT tmp_tbl_Model.Expr1, 
+tmp_tbl_Model.Age_Group_Rollup_Label, 
+--no longer present in NOC data
+--tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
+tmp_tbl_Model.NOC_Level, 
+-- no longer present in NOC data
+--tmp_tbl_Model.NOC_SKILL_TYPE, 
+tmp_tbl_Model.NOC, 
+tmp_tbl_Model.ENGLISH_NAME, 
+tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
+tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
+Ceiling([tmp_tbl_Model].[2023/2024]) AS [2023/2024], 
+Ceiling([tmp_tbl_Model].[2024/2025]) AS [2024/2025], 
+Ceiling([tmp_tbl_Model].[2025/2026]) AS [2025/2026], 
+Ceiling([tmp_tbl_Model].[2026/2027]) AS [2026/2027], 
+Ceiling([tmp_tbl_Model].[2027/2028]) AS [2027/2028], 
+Ceiling([tmp_tbl_Model].[2028/2029]) AS [2028/2029], 
+Ceiling([tmp_tbl_Model].[2029/2030]) AS [2029/2030], 
+Ceiling([tmp_tbl_Model].[2030/2031]) AS [2030/2031], 
+Ceiling([tmp_tbl_Model].[2031/2032]) AS [2031/2032], 
+Ceiling([tmp_tbl_Model].[2032/2033]) AS [2032/2033], 
+Ceiling([tmp_tbl_Model].[2033/2034]) AS [2033/2034], 
+Ceiling([tmp_tbl_Model].[2034/2035]) AS [2034/2035], 
+(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]) AS [Quality Indicator], 
+IIf(IsNull([tmp_tbl_Model_Inc_Private_Inst].[2023/2024]),0,[tmp_tbl_Model].[2023/2024]/[tmp_tbl_Model_Inc_Private_Inst].[2023/2024]) AS [Coverage Indicator]
 FROM ((tmp_tbl_Model 
 LEFT JOIN tmp_tbl_QI ON tmp_tbl_Model.Expr1 = tmp_tbl_QI.Expr1) 
 LEFT JOIN tmp_tbl_Model_Inc_Private_Inst ON tmp_tbl_Model.Expr1 = tmp_tbl_Model_Inc_Private_Inst.Expr1) 
 LEFT JOIN T_Suppression_Public_Release_NOC ON (tmp_tbl_Model.Age_Group_Rollup_Label = T_Suppression_Public_Release_NOC.Age_Group_Rollup_Label) 
 AND (tmp_tbl_Model.NOC = T_Suppression_Public_Release_NOC.NOC_CD)
-WHERE (((tmp_tbl_Model.NOC_Level)=4) 
-AND ((tmp_tbl_Model.NOC)<>'9999') 
+WHERE (((tmp_tbl_Model.NOC_Level)=5) 
+AND ((tmp_tbl_Model.NOC)<>'99999') 
 AND ((T_Suppression_Public_Release_NOC.Age_Group_Rollup_Label) Is Null) 
 AND ((T_Suppression_Public_Release_NOC.NOC_CD) Is Null))
 ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC, 2, 5, 4, 8;"
@@ -2111,44 +2118,61 @@ ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC, 2, 5, 4, 8;"
 
 # ---- qry_10a_Model_QI_PPCI_No_Supp ----
 qry_10a_Model_QI_PPCI_No_Supp <- 
-"SELECT tmp_tbl_Model.Expr1, tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
-tmp_tbl_Model.NOC_Level, tmp_tbl_Model.NOC_SKILL_TYPE, tmp_tbl_Model.NOC, tmp_tbl_Model.ENGLISH_NAME, 
-tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
-RoundToLarger([tmp_tbl_Model].[2019/2020],0) AS [2019/2020], RoundToLarger([tmp_tbl_Model].[2020/2021],0) AS [2020/2021], 
-RoundToLarger([tmp_tbl_Model].[2021/2022],0) AS [2021/2022], RoundToLarger([tmp_tbl_Model].[2022/2023],0) AS [2022/2023], 
-RoundToLarger([tmp_tbl_Model].[2023/2024],0) AS [2023/2024], RoundToLarger([tmp_tbl_Model].[2024/2025],0) AS [2024/2025], 
-RoundToLarger([tmp_tbl_Model].[2025/2026],0) AS [2025/2026], RoundToLarger([tmp_tbl_Model].[2026/2027],0) AS [2026/2027], 
-RoundToLarger([tmp_tbl_Model].[2027/2028],0) AS [2027/2028], RoundToLarger([tmp_tbl_Model].[2028/2029],0) AS [2028/2029], 
-RoundToLarger([tmp_tbl_Model].[2029/2030],0) AS [2029/2030], RoundToLarger([tmp_tbl_Model].[2030/2031],0) AS [2030/2031], 
-IIf((Abs([tmp_tbl_Model].[2019/2020]-[tmp_tbl_QI].[2019/2020])/[tmp_tbl_QI].[2019/2020])<0.25,(Abs([tmp_tbl_Model].[2019/2020]-[tmp_tbl_QI].[2019/2020])/[tmp_tbl_QI].[2019/2020]),
-IIf([tmp_tbl_Model].[2019/2020]<10 
-Or [tmp_tbl_QI].[2019/2020]<10 Or [tmp_tbl_Model].[2019/2020]=Null Or [tmp_tbl_QI].[2019/2020]=Null,'999999999',(Abs([tmp_tbl_Model].[2019/2020]-[tmp_tbl_QI].[2019/2020])/[tmp_tbl_QI].[2019/2020]))) AS [Quality Indicator], 
-IIf(IsNull([tmp_tbl_Model_Inc_Private_Inst].[2019/2020]),0,[tmp_tbl_Model].[2019/2020]/[tmp_tbl_Model_Inc_Private_Inst].[2019/2020]) AS [Coverage Indicator]
+"SELECT tmp_tbl_Model.Expr1, 
+tmp_tbl_Model.Age_Group_Rollup_Label, 
+--tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
+tmp_tbl_Model.NOC_Level, 
+--tmp_tbl_Model.NOC_SKILL_TYPE, 
+tmp_tbl_Model.NOC, 
+tmp_tbl_Model.ENGLISH_NAME, 
+tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
+tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
+Ceiling([tmp_tbl_Model].[2023/2024]) AS [2023/2024], 
+Ceiling([tmp_tbl_Model].[2024/2025]) AS [2024/2025], 
+Ceiling([tmp_tbl_Model].[2025/2026]) AS [2025/2026],
+Ceiling([tmp_tbl_Model].[2026/2027]) AS [2026/2027], 
+Ceiling([tmp_tbl_Model].[2027/2028]) AS [2027/2028], 
+Ceiling([tmp_tbl_Model].[2028/2029]) AS [2028/2029],
+Ceiling([tmp_tbl_Model].[2029/2030]) AS [2029/2030],
+Ceiling([tmp_tbl_Model].[2030/2031]) AS [2030/2031], 
+Ceiling([tmp_tbl_Model].[2031/2032]) AS [2031/2032], 
+Ceiling([tmp_tbl_Model].[2032/2033]) AS [2032/2033], 
+Ceiling([tmp_tbl_Model].[2033/2034]) AS [2033/2034], 
+Ceiling([tmp_tbl_Model].[2034/2035]) AS [2034/2035], 
+IIf((Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024])<0.25,(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]),
+IIf([tmp_tbl_Model].[2023/2024]<10 
+Or [tmp_tbl_QI].[2023/2024]<10 Or [tmp_tbl_Model].[2023/2024]=Null Or [tmp_tbl_QI].[2023/2024]=Null,'999999999',(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]))) AS [Quality Indicator], 
+IIf(IsNull([tmp_tbl_Model_Inc_Private_Inst].[2023/2024]),0,[tmp_tbl_Model].[2023/2024]/[tmp_tbl_Model_Inc_Private_Inst].[2023/2024]) AS [Coverage Indicator]
 FROM (tmp_tbl_Model LEFT JOIN tmp_tbl_QI ON tmp_tbl_Model.Expr1 = tmp_tbl_QI.Expr1) 
 LEFT JOIN tmp_tbl_Model_Inc_Private_Inst ON tmp_tbl_Model.Expr1 = tmp_tbl_Model_Inc_Private_Inst.Expr1
-WHERE (((tmp_tbl_Model.NOC_Level)=4))
+WHERE (((tmp_tbl_Model.NOC_Level)=5))
 ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC, 2, 5, 4, 8;"
 
 
 # ---- qry_10a_Model_QI_PPCI_Suppressed ----
 qry_10a_Model_QI_PPCI_Suppressed <- 
-"SELECT tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
-tmp_tbl_Model.NOC_SKILL_TYPE, tmp_tbl_Model.NOC, tmp_tbl_Model.ENGLISH_NAME, tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
-tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, RoundToLarger(Sum([tmp_tbl_Model].[2019/2020]),0) AS [2019/2020], 
-RoundToLarger(Sum([tmp_tbl_Model].[2020/2021]),0) AS [2020/2021], 
-RoundToLarger(Sum([tmp_tbl_Model].[2021/2022]),0) AS [2021/2022], 
-RoundToLarger(Sum([tmp_tbl_Model].[2022/2023]),0) AS [2022/2023], 
-RoundToLarger(Sum([tmp_tbl_Model].[2023/2024]),0) AS [2023/2024], 
-RoundToLarger(Sum([tmp_tbl_Model].[2024/2025]),0) AS [2024/2025], 
-RoundToLarger(Sum([tmp_tbl_Model].[2025/2026]),0) AS [2025/2026], 
-RoundToLarger(Sum([tmp_tbl_Model].[2026/2027]),0) AS [2026/2027], 
-RoundToLarger([tmp_tbl_Model].[2027/2028],0) AS [2027/2028], 
-RoundToLarger([tmp_tbl_Model].[2028/2029],0) AS [2028/2029], 
-RoundToLarger([tmp_tbl_Model].[2029/2030],0) AS [2029/2030], 
-RoundToLarger([tmp_tbl_Model].[2030/2031],0) AS [2030/2031], 
+"SELECT tmp_tbl_Model.Age_Group_Rollup_Label, 
+--tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
+--tmp_tbl_Model.NOC_SKILL_TYPE, 
+tmp_tbl_Model.NOC, 
+tmp_tbl_Model.ENGLISH_NAME, 
+tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
+tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
+Ceiling(Sum([tmp_tbl_Model].[2023/2024])) AS [2023/2024], 
+Ceiling(Sum([tmp_tbl_Model].[2024/2025])) AS [2024/2025], 
+Ceiling(Sum([tmp_tbl_Model].[2025/2026])) AS [2025/2026], 
+Ceiling(Sum([tmp_tbl_Model].[2026/2027])) AS [2026/2027], 
+Ceiling(Sum([tmp_tbl_Model].[2027/2028])) AS [2027/2028], 
+Ceiling(Sum([tmp_tbl_Model].[2028/2029])) AS [2028/2029], 
+Ceiling(Sum([tmp_tbl_Model].[2029/2030])) AS [2029/2030], 
+Ceiling(Sum([tmp_tbl_Model].[2030/2031])) AS [2030/2031], 
+Ceiling(Sum([tmp_tbl_Model].[2031/2032])) AS [2031/2032], 
+Ceiling(Sum([tmp_tbl_Model].[2032/2033])) AS [2032/2033], 
+Ceiling(Sum([tmp_tbl_Model].[2033/2034])) AS [2033/2034], 
+Ceiling(Sum([tmp_tbl_Model].[2034/2035])) AS [2034/2035], 
 qry_10a_Model_QI_PPCI.Expr1
 FROM tmp_tbl_Model LEFT JOIN qry_10a_Model_QI_PPCI ON tmp_tbl_Model.Expr1 = qry_10a_Model_QI_PPCI.Expr1
-WHERE (((tmp_tbl_Model.NOC_Level)=4))
+WHERE (((tmp_tbl_Model.NOC_Level)=5))
 GROUP BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.SKILL_LEVEL_CATEGORY_CODE, 
 tmp_tbl_Model.NOC_SKILL_TYPE, tmp_tbl_Model.NOC, 
 tmp_tbl_Model.ENGLISH_NAME, 
@@ -2161,28 +2185,37 @@ ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC;"
 
 # ---- qry_10a_Model_QI_PPCI_Suppressed_Total ----
 qry_10a_Model_QI_PPCI_Suppressed_Total <- 
-"SELECT tmp_tbl_Model.Age_Group_Rollup_Label, 'N/A' AS [NOC Skill Level], 
-tmp_tbl_Model.NOC_Level, 'N/A' AS [NOC Skill Type], '9998' AS [NOC 2016], 
-'Other' AS [Occupation Description], tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
-tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, Sum(RoundToLarger([tmp_tbl_Model].[2019/2020],0)) AS [2019/2020], 
-Sum(RoundToLarger([tmp_tbl_Model].[2020/2021],0)) AS [2020/2021], 
-Sum(RoundToLarger([tmp_tbl_Model].[2021/2022],0)) AS [2021/2022], 
-Sum(RoundToLarger([tmp_tbl_Model].[2022/2023],0)) AS [2022/2023], 
-Sum(RoundToLarger([tmp_tbl_Model].[2023/2024],0)) AS [2023/2024], 
-Sum(RoundToLarger([tmp_tbl_Model].[2024/2025],0)) AS [2024/2025], 
-Sum(RoundToLarger([tmp_tbl_Model].[2025/2026],0)) AS [2025/2026], 
-Sum(RoundToLarger([tmp_tbl_Model].[2026/2027],0)) AS [2026/2027], 
-Sum(RoundToLarger([tmp_tbl_Model].[2027/2028],0)) AS [2027/2028], 
-Sum(RoundToLarger([tmp_tbl_Model].[2028/2029],0)) AS [2028/2029], 
-RoundToLarger([tmp_tbl_Model].[2029/2030],0) AS [2029/2030], 
-RoundToLarger([tmp_tbl_Model].[2030/2031],0) AS [2030/2031]
+"SELECT tmp_tbl_Model.Age_Group_Rollup_Label, 
+--'N/A' AS [NOC Skill Level], 
+tmp_tbl_Model.NOC_Level, 
+--'N/A' AS [NOC Skill Type], 
+'99998' AS [NOC 2021], 
+'Other' AS [Occupation Description], 
+tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
+tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 
+Sum(Ceiling([tmp_tbl_Model].[2023/2024])) AS [2023/2024], 
+Sum(Ceiling([tmp_tbl_Model].[2024/2025])) AS [2024/2025], 
+Sum(Ceiling([tmp_tbl_Model].[2025/2026])) AS [2025/2026], 
+Sum(Ceiling([tmp_tbl_Model].[2026/2027])) AS [2026/2027], 
+Sum(Ceiling([tmp_tbl_Model].[2027/2028])) AS [2027/2028], 
+Sum(Ceiling([tmp_tbl_Model].[2028/2029])) AS [2028/2029], 
+Sum(Ceiling([tmp_tbl_Model].[2029/2030])) AS [2029/2030], 
+Sum(Ceiling([tmp_tbl_Model].[2030/2031])) AS [2030/2031], 
+Sum(Ceiling([tmp_tbl_Model].[2031/2032])) AS [2031/2032], 
+Sum(Ceiling([tmp_tbl_Model].[2032/2033])) AS [2032/2033], 
+Sum(Ceiling([tmp_tbl_Model].[2033/2034])) AS [2033/2034], 
+Sum(Ceiling([tmp_tbl_Model].[2034/2035])) AS [2034/2035]
 FROM tmp_tbl_Model LEFT JOIN qry_10a_Model_QI_PPCI ON tmp_tbl_Model.Expr1 = qry_10a_Model_QI_PPCI.Expr1
 WHERE (((qry_10a_Model_QI_PPCI.Expr1) Is Null))
-GROUP BY tmp_tbl_Model.Age_Group_Rollup_Label, 
-tmp_tbl_Model.NOC_Level, 'N/A', '9998', 'Other', 
+GROUP BY 
+tmp_tbl_Model.Age_Group_Rollup_Label, 
+tmp_tbl_Model.NOC_Level, 
+--'N/A', 
+'99998', 
+'Other', 
 tmp_tbl_Model.Current_Region_PSSM_Code_Rollup, 
-tmp_tbl_Model.Current_Region_PSSM_Name_Rollup, 'N/A'
-HAVING (((tmp_tbl_Model.NOC_Level)=4));"
+tmp_tbl_Model.Current_Region_PSSM_Name_Rollup
+HAVING (((tmp_tbl_Model.NOC_Level)=5));"
 
 # ---- qry_10b_Quality_Indicator ----
 qry_10b_Quality_Indicator <- 
