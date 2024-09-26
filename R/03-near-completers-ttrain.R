@@ -389,6 +389,7 @@ dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCI
 # TODO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
+dbExecute(decimal_con, "DROP TABLE tbl_Age")
 dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
 dbExecute(decimal_con, "DROP TABLE combine_creds")

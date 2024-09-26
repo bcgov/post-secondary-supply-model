@@ -36,12 +36,12 @@ decimal_con <- dbConnect(odbc::odbc(),
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-occupation-distributions.R"))
 
 # ---- Check for required data tables ----
-dbExistsTable(decimal_con, "t_cohorts_recoded")
-dbExistsTable(decimal_con, "t_current_region_pssm_codes")
-dbExistsTable(decimal_con, "t_current_region_pssm_rollup_codes")
-dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
-dbExistsTable(decimal_con, "T_NOC_Broad_Categories")
-dbExistsTable(decimal_con, "Occupation_Distributions_Stat_Can")
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Weights_NLS"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
+dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_Stat_Can"')))
 
 # ---- Execute SQL ----
 dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC) 
@@ -118,10 +118,10 @@ occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_C
               Current_Region_PSSM_Code_Rollup = "integer", Age_Group_Rollup = "integer", Count = "float", Total = "float", Percent = "float")
 
 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions")){
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions"')))){
   dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions"')),  occs_def)
 } 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions_No_TT")){
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"')))){
   dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"')),  occs_def)
 }
 
@@ -138,11 +138,11 @@ occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_C
 
 
 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")){
-  dbCreateTable(decimal_con, "Occupation_Distributions_LCP2",  occs_def)
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"')),  occs_def)
 } 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")){
-  dbCreateTable(decimal_con, "Occupation_Distributions_LCP2_No_TT",  occs_def)
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"')),  occs_def)
 }
 
 dbExecute(decimal_con, DACSO_Q010b0_Delete_Occupational_Distribution_LCP2)
@@ -155,11 +155,11 @@ dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
 occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", PSSM_CRED  = "nvarchar(50)",  LCP2_CD = "nvarchar(50)", 
               TTRAIN = "nvarchar(50)", LCIP2_CRED = "nvarchar(50)", NOC = "nvarchar(50)" ,  Count = "float", Total = "float", Percent = "float")
 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")){
-  dbCreateTable(decimal_con, "Occupation_Distributions_LCP2_BC",  occs_def)
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC"')),  occs_def)
 }
 
-if(!dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")){
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC_No_TT"')))){
   dbCreateTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT",  occs_def)
 }
 
@@ -258,7 +258,7 @@ dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")
 dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")
-dbExistsTable(decimal_con, "tmp_tbl_Weights_OCC")
+
 
 dbDisconnect(decimal_con)
 

@@ -52,7 +52,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 # should specify the DBO schema for final run, individual IDIRS for testing
-schema <- config::get("myschema")
+my_schema <- config::get("myschema")
 
 # ---- retrieve data from decimal ----
 infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
@@ -108,9 +108,9 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region
 
 # --- Read SO DACSO data and write to decimal ----
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
-dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
 
-dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
 dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
                        SET CURRENT_REGION_PSSM_CODE =  
@@ -139,8 +139,8 @@ dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN UNIT_GRO
 
 
 # ---- Clean Up ---
-rm(list = ls())
 dbDisconnect(decimal_con)
+rm(list = ls())
 
 
 
