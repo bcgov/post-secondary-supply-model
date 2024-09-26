@@ -10,6 +10,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
 
 source(glue::glue("./sql/03-near-completers/qry_make_tmp_table_Age_step1.sql"))
 
