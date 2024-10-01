@@ -25,6 +25,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -102,7 +103,7 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')
 
 # ---- Build tbl_Program_Projection_Input ---- 
 tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projection_Input)
-dbWriteTable(decimal_con, name = "tbl_Program_Projection_Input", tbl_Program_Projection_Input)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')), tbl_Program_Projection_Input)
 
 # ---- Rollover ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')),  Cohort_Program_Distributions_Static, overwrite = TRUE)
