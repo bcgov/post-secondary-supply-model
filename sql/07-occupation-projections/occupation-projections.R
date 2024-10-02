@@ -2141,12 +2141,17 @@ Ceiling([tmp_tbl_Model].[2033/2034]) AS [2033/2034],
 Ceiling([tmp_tbl_Model].[2034/2035]) AS [2034/2035], 
 IIf((Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024])<0.25,(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]),
 IIf([tmp_tbl_Model].[2023/2024]<10 
-Or [tmp_tbl_QI].[2023/2024]<10 Or [tmp_tbl_Model].[2023/2024]=Null Or [tmp_tbl_QI].[2023/2024]=Null,'999999999',(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]))) AS [Quality Indicator], 
-IIf(IsNull([tmp_tbl_Model_Inc_Private_Inst].[2023/2024]),0,[tmp_tbl_Model].[2023/2024]/[tmp_tbl_Model_Inc_Private_Inst].[2023/2024]) AS [Coverage Indicator]
+Or [tmp_tbl_QI].[2023/2024]<10 
+Or [tmp_tbl_Model].[2023/2024]=Null 
+Or [tmp_tbl_QI].[2023/2024]=Null,'999999999',
+(Abs([tmp_tbl_Model].[2023/2024]-[tmp_tbl_QI].[2023/2024])/[tmp_tbl_QI].[2023/2024]))) AS [Quality Indicator], 
+IIf(
+IsNull([tmp_tbl_Model_Inc_Private_Inst].[2023/2024],0)=0,0,
+[tmp_tbl_Model].[2023/2024]/[tmp_tbl_Model_Inc_Private_Inst].[2023/2024]) AS [Coverage Indicator]
 FROM (tmp_tbl_Model LEFT JOIN tmp_tbl_QI ON tmp_tbl_Model.Expr1 = tmp_tbl_QI.Expr1) 
 LEFT JOIN tmp_tbl_Model_Inc_Private_Inst ON tmp_tbl_Model.Expr1 = tmp_tbl_Model_Inc_Private_Inst.Expr1
 WHERE (((tmp_tbl_Model.NOC_Level)=5))
-ORDER BY tmp_tbl_Model.Age_Group_Rollup_Label, tmp_tbl_Model.NOC, 2, 5, 4, 8;"
+ORDER BY 2,4,6;"
 
 
 # ---- qry_10a_Model_QI_PPCI_Suppressed ----
