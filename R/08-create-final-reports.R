@@ -25,6 +25,8 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
+library(openxlsx)
+library(lubridate)
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -126,7 +128,8 @@ grads <- grads_rounded %>%
   rename(
     `Age Group` = AGE_GROUP_ROLLUP_LABEL,
     `Credential Type` = PSSM_CREDENTIAL_NAME
-    )
+    ) %>% 
+  select(-is_total)
 
 # 2. Create Final Occupation Projections ---- 
 
@@ -148,7 +151,7 @@ internal_release_data <- tmp_tbl_model %>%
     NOC,
     Current_Region_PSSM_Code_Rollup
     ) %>% 
-  mutate(`Coverage Indicator`=ifelse(is.na(CI),0,X2023.2024/CI)) %>% 
+  mutate(`Public Post-Secondary Coverage Indicator`=ifelse(is.na(CI),0,X2023.2024/CI)) %>% 
   mutate(QI_calc = (abs(X2023.2024-QI)/QI)) %>% 
   mutate(`Quality Indicator`= case_when(QI_calc < 0.25 ~ QI_calc,
                                         (X2023.2024 < 10 | QI < 10 | is.na(X2023.2024) | is.na(QI)) ~ NA_integer_,
@@ -174,9 +177,84 @@ internal_release_data <- tmp_tbl_model %>%
     `Region Name`,
     matches('^\\d'),
     `Quality Indicator`,
-    `Coverage Indicator`
+    `Public Post-Secondary Coverage Indicator`
   )
 
 internal_release_data
 
-# 3. Join into final excel file 
+# 3. Join into final excel file ---- 
+
+is_draft <- TRUE
+today_string <- format(today(), '%Y%m%d')
+
+# get readme template 
+###################################################
+# WARNING!! 
+# (MAY REQUIRE MANUAL UPDATES TO THE NOTES STILL!)
+#################################################
+template <- glue::glue('{lan}\\development\\work\\internal_use_template.xlsx')
+final_excel <- glue::glue('{lan}\\development\\work\\adhoc-outputs\\draft_internal_use_PSSM_2023-24_to_2034-35_{today_string}.xlsx')
+
+# load template 
+outwb <- loadWorkbook(template)
+
+# set a couple of styles
+csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold")
+csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
+csCount <- createStyle(halign = "right")  
+csPerc <- createStyle(halign = "right", numFmt = "0%")  ## Percent cells 
+
+# add new sheet for grads ----
+sheet <- addWorksheet(outwb, sheetName="Graduate Projections") 
+n_rows <- nrow(grads)
+n_cols <- length(grads)
+
+# add data to sheet
+startRow <- 1
+if (is_draft){
+  writeData(outwb, sheet, x='DRAFT', startRow=1, startCol=1)
+  addStyle(outwb, sheet, style = csDraft, rows = 1, cols = 1, gridExpand = TRUE)
+  startRow <- 2
+} 
+
+writeData(outwb, sheet, grads, colNames = TRUE, rowNames = FALSE, startRow=startRow, startCol=1, withFilter = FALSE,
+          keepNA = FALSE)
+
+# Freeze top row
+freezePane(outwb,sheet, firstActiveRow=startRow+1)
+
+# style headers
+addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
+
+
+# add new sheet for occupations ----
+sheet <- addWorksheet(outwb, sheetName="Occupation Projections") 
+n_rows <- nrow(internal_release_data)
+n_cols <- length(internal_release_data)
+
+# add data to sheet 
+startRow <- 1
+if (is_draft){
+  writeData(outwb, sheet, x='DRAFT', startRow=1, startCol=1)
+  addStyle(outwb, sheet, style = csDraft, rows = 1, cols = 1, gridExpand = TRUE)
+  startRow <- 2
+} 
+
+writeData(outwb, sheet, internal_release_data, colNames = TRUE, rowNames = FALSE, startRow=startRow, startCol=1, withFilter = TRUE,
+          keepNA = FALSE)
+
+# Freeze top row
+freezePane(outwb,sheet, firstActiveRow=startRow+1)
+
+# style headers
+addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
+
+# style the percentages 
+qi_col <- which(names(internal_release_data) == "Quality Indicator")
+ci_col <- which(names(internal_release_data) =="Public Post-Secondary Coverage Indicator")
+addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+1), cols=qi_col)
+addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+1), cols=ci_col)
+
+# save output 
+saveWorkbook(outwb, final_excel, overwrite=TRUE)
+
