@@ -128,6 +128,55 @@ grads <- grads_rounded %>%
     `Credential Type` = PSSM_CREDENTIAL_NAME
     )
 
-grads
+# 2. Create Final Occupation Projections ---- 
 
+# join all 3 models together and create 
+# QI (quality indicator) and 
+# CI (coverage indicator) columns
+internal_release_data <- tmp_tbl_model %>% 
+  left_join(
+    tmp_tbl_qi %>% select(Expr1,QI=X2023.2024),
+    by="Expr1"
+    ) %>% 
+  left_join(
+    tmp_tbl_ptib %>% select(Expr1,CI=X2023.2024),
+    by="Expr1"
+    ) %>% 
+  filter(NOC_Level==5) %>% 
+  arrange(
+    Age_Group_Rollup_Label,
+    NOC,
+    Current_Region_PSSM_Code_Rollup
+    ) %>% 
+  mutate(`Coverage Indicator`=ifelse(is.na(CI),0,X2023.2024/CI)) %>% 
+  mutate(QI_calc = (abs(X2023.2024-QI)/QI)) %>% 
+  mutate(`Quality Indicator`= case_when(QI_calc < 0.25 ~ QI_calc,
+                                        (X2023.2024 < 10 | QI < 10 | is.na(X2023.2024) | is.na(QI)) ~ NA_integer_,
+                                        TRUE ~ QI_calc)) %>% 
+  # round values to ceiling 
+  mutate(across(starts_with('X'), ~ceiling(.))) %>% 
+  # get nice names for things 
+  rename(
+    `Age Group` = Age_Group_Rollup_Label,
+    `NOC Level` = NOC_Level,
+    `NOC 2021`= `NOC`,
+    `Occupation Description` = ENGLISH_NAME,
+    `Region ID` = Current_Region_PSSM_Code_Rollup,
+    `Region Name` = Current_Region_PSSM_Name_Rollup
+  ) %>% 
+  rename_with(~gsub('X(\\d{4}).\\d{2}(\\d{2})', '\\1/\\2', .)) %>% 
+  select(
+    `Age Group`,
+    `NOC Level`, 
+    `NOC 2021`, 
+    `Occupation Description`,
+    `Region ID`,
+    `Region Name`,
+    matches('^\\d'),
+    `Quality Indicator`,
+    `Coverage Indicator`
+  )
 
+internal_release_data
+
+# 3. Join into final excel file 
