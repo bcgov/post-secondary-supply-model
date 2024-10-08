@@ -67,9 +67,9 @@ T_PSSM_CRED_RECODE <-
 T_PSSM_Credential_Grouping_Appendix <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_PSSM_Credential_Grouping_Appendix.csv"),  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-T_NOC_Skill_Type <- 
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_NOC_Skill_Type.csv"),  col_types = cols(.default = col_guess())) %>%
-  janitor::clean_names(case = "all_caps")
+# T_NOC_Skill_Type <- 
+#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/07/T_NOC_Skill_Type.csv"),  col_types = cols(.default = col_guess())) %>%
+#   janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCP4_CD"')), T_Exclude_from_Projections_LCP4_CD)
@@ -82,7 +82,7 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"')),  T_LCP
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),  tbl_Age_Groups)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')),  tbl_Age_Groups_Rollup)
 # dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
-dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
+#dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes_BC"')), T_Current_Region_PSSM_Rollup_Codes_BC)
 dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_CRED_RECODE"')), T_PSSM_CRED_RECODE)
 
