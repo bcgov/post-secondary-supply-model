@@ -151,12 +151,12 @@ dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
 # ---- Clean Up Lookups (if desired, not a needed step) ----
-dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
-dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
+# dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
+# dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
+# dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 dbDisconnect(decimal_con)
 rm(list=ls())
