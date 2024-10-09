@@ -70,7 +70,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Labour_
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
+#dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
 # toggle static or projected. 
@@ -231,7 +231,7 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_PSSM_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year")
 dbExecute(decimal_con, "DROP TABLE Q_4_NOC_5D_Totals_by_PSSM_CRED")
 dbExecute(decimal_con, "DROP TABLE Q_4_NOC_5D_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding")
+#dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding")
 
 # ---- Q_5 Series ---- 
 dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC) 
@@ -312,7 +312,7 @@ dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_U
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
 
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program")
 dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static")
@@ -322,7 +322,7 @@ dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 # Lookups
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
 dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
-dbExecute(decimal_con, "DROP TABLE T_NOC_Skill_Type")
+#dbExecute(decimal_con, "DROP TABLE T_NOC_Skill_Type")
 #dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
 dbExecute(decimal_con, "DROP TABLE T_Current_Region_PSSM_Rollup_Codes")
 dbExecute(decimal_con, "DROP TABLE T_Current_Region_PSSM_Rollup_Codes_BC")
