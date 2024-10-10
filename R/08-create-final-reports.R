@@ -249,6 +249,12 @@ freezePane(outwb,sheet, firstActiveRow=startRow+1)
 # style headers
 addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
 
+# set col widths
+rg_col <- which(names(internal_release_data) == "Region Name")
+setColWidths(outwb,sheet,cols = rg_col, widths = "auto")
+occ_col <- which(names(internal_release_data) == "Occupation Description")
+setColWidths(outwb,sheet,cols = occ_col, widths = 40)
+
 # style the percentages 
 qi_col <- which(names(internal_release_data) == "Quality Indicator")
 ci_col <- which(names(internal_release_data) =="Public Post-Secondary Coverage Indicator")
