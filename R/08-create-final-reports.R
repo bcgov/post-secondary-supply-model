@@ -252,8 +252,8 @@ addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
 # style the percentages 
 qi_col <- which(names(internal_release_data) == "Quality Indicator")
 ci_col <- which(names(internal_release_data) =="Public Post-Secondary Coverage Indicator")
-addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+1), cols=qi_col)
-addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+1), cols=ci_col)
+addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+2), cols=qi_col)
+addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+2), cols=ci_col)
 
 # save output 
 saveWorkbook(outwb, final_excel, overwrite=TRUE)
