@@ -241,6 +241,9 @@ freezePane(outwb,sheet, firstActiveRow=startRow+1)
 # style headers
 addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
 
+# set col widths
+cred_col <- which(names(grads) == "Credential Type")
+setColWidths(outwb,sheet,cols = cred_col, widths = "auto")
 
 # add new sheet for occupations ----
 sheet <- addWorksheet(outwb, sheetName="Occupation Projections") 
