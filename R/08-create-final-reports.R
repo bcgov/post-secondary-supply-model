@@ -118,7 +118,10 @@ grads_rounded <- grads_agg %>%
 grad_totals <- grads_rounded %>% 
   group_by(AGE_GROUP_ROLLUP_LABEL, YEAR) %>% 
   summarize(GRADS = sum(GRADS), PSSM_CREDENTIAL_NAME = 'Total')
-
+grad_totals <- grads_agg %>% 
+  group_by(AGE_GROUP_ROLLUP_LABEL, YEAR) %>% 
+  summarize(GRADS = sum(GRADS), PSSM_CREDENTIAL_NAME = 'Total')  %>% 
+  mutate(GRADS = as.integer(5*round(GRADS/5, 0)))
 # pivot years to columns, sort, and make nice names
 grads <- grads_rounded %>% 
   bind_rows(grad_totals) %>% 
