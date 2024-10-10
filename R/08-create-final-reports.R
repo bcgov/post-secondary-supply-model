@@ -202,7 +202,7 @@ outwb <- loadWorkbook(template)
 csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold")
 csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
 csCount <- createStyle(halign = "right")  
-csPerc <- createStyle(halign = "right", numFmt = "0%")  ## Percent cells 
+csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
 
 # add new sheet for grads ----
 sheet <- addWorksheet(outwb, sheetName="Graduate Projections") 
