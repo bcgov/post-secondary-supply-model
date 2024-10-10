@@ -202,7 +202,7 @@ outwb <- loadWorkbook(template)
 csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold")
 csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
 csCount <- createStyle(halign = "right")  
-csPerc <- createStyle(halign = "right", numFmt = "0%")  ## Percent cells 
+csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
 
 # add new sheet for grads ----
 sheet <- addWorksheet(outwb, sheetName="Graduate Projections") 
@@ -248,6 +248,12 @@ freezePane(outwb,sheet, firstActiveRow=startRow+1)
 
 # style headers
 addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
+
+# set col widths
+rg_col <- which(names(internal_release_data) == "Region Name")
+setColWidths(outwb,sheet,cols = rg_col, widths = "auto")
+occ_col <- which(names(internal_release_data) == "Occupation Description")
+setColWidths(outwb,sheet,cols = occ_col, widths = 40)
 
 # style the percentages 
 qi_col <- which(names(internal_release_data) == "Quality Indicator")
