@@ -193,7 +193,13 @@ today_string <- format(today(), '%Y%m%d')
 # (MAY REQUIRE MANUAL UPDATES TO THE NOTES STILL!)
 #################################################
 template <- glue::glue('{lan}\\development\\work\\internal_use_template.xlsx')
-final_excel <- glue::glue('{lan}\\development\\work\\adhoc-outputs\\draft_internal_use_PSSM_2023-24_to_2034-35_{today_string}.xlsx')
+
+if (is_draft){
+  start_file <- "draft_"
+} else {
+  start_file <- ""
+}
+final_excel <- glue::glue('{lan}\\development\\work\\adhoc-outputs\\{start_file}internal_use_PSSM_2023-24_to_2034-35_{today_string}.xlsx')
 
 # load template 
 outwb <- loadWorkbook(template)
@@ -203,6 +209,12 @@ csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bo
 csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
 csCount <- createStyle(halign = "right")  
 csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
+
+# if draft, add 'DRAFT' to first page 
+if (is_draft){
+  writeData(outwb, "User Guide", x='DRAFT', startRow=1, startCol=1)
+  addStyle(outwb, "User Guide", style = csDraft, rows = 1, cols = 1, gridExpand = TRUE)
+} 
 
 # add new sheet for grads ----
 sheet <- addWorksheet(outwb, sheetName="Graduate Projections") 
