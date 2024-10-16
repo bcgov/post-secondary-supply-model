@@ -185,7 +185,7 @@ tmp_occ <- tmp_tbl_model %>%
                                         (first_year < 10 | QI < 10 | is.na(first_year) | is.na(QI)) ~ NA_integer_,
                                         TRUE ~ QI_calc)) %>% 
   # round outputs 
-  mutate(across(starts_with('X'), ~ceiling(.)))
+  mutate(across(starts_with('X'), ~round(.)))
   
 # get nice names for things 
 internal_release_data <- tmp_occ %>%
