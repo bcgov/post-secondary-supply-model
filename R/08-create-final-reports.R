@@ -377,8 +377,8 @@ create_final_excel <- function(
     # style the percentages 
     qi_col <- which(names(occ_data) == "Quality Indicator")
     ci_col <- which(names(occ_data) =="Public Post-Secondary Coverage Indicator")
-    addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+2), cols=qi_col)
-    addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+2), cols=ci_col)
+    addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+startRow), cols=qi_col)
+    addStyle(outwb, sheet, style = csPerc, rows=(startRow+1):(n_rows+startRow), cols=ci_col)
   }
   
   # delete excess rows? not sure why happening
