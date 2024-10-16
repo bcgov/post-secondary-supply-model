@@ -244,67 +244,68 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
-dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
+#dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
 
-# ---- model with QI ----
-dbGetQuery(decimal_con, Q_7_QI) %>% 
-  write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
-
-dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>% 
-  write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
-
-# gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
-dbExecute(decimal_con, qry_10a_Model)
-
-dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>% 
-  write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
-
-# ---- public release ----
-dbExecute(decimal_con, qry_10a_Model_Public_Release) # gives rounded 5-digit NOC result
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed) # shows the 5-digit NOCs that have been suppressed
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed and can be included in final public release
-dbExecute(decimal_con, qry_10a_Model_Public_Release_Union) # final output with suppressed counts for public release
-
-dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_Public_Release_Union") %>% 
-  write_csv(glue::glue("{lan}/reports-final/drafts/public_release_static_incl_ptib.csv"))
-
-
-# ---- internal release ----
- dbExecute(decimal_con, qry_10a_Model_QI_PPCI) # gives rounded 5-digit NOC output with quality indicator and coverage indicator as calculated percentages-internal use only
- dbExecute(decimal_con, qry_10a_Model_QI_PPCI_No_Supp) # for internal use release only-no suppression applied; LMIO needs it to work on the Labour Market Outlook 
-# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed) # shows the 5-digit NOCs that have been suppressed
-# dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed
-dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_QI_PPCI_No_Supp") %>% 
-   write_csv(glue::glue("{lan}/reports-final/drafts/internal_only_static_no_ptib.csv"))
- 
-dbExecute(decimal_con, qry_10b_Quality_Indicator) 
-dbExecute(decimal_con, qry_10c_Coverage_Indicator) 
-# dbExecute(decimal_con, qry_10d_tmp_No_Near_Completers) 
-
- 
-dbGetQuery(decimal_con, qry_LCIP4_CRED) 
-#dbGetQuery(decimal_con, qry_LCIP4_CRED_Filtered_NOC) 
-dbGetQuery(decimal_con, qry_LCIP4_CRED_NOC) 
-# dbExecute(decimal_con, qry100_Grad_Skill_Level) 
-
-# ---- public release ----
-dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix) %>% 
-  mutate(across(where(is.numeric), round)) %>%
-  write_csv(glue::glue("{lan}/reports-final/drafts/graduate_projections_noc_2021_static_incl_ptib.csv"))
-
-
-dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix_by_Age_Group_Totals) 
-# dbExecute(decimal_con, qry99_Presentations_Graduates_Appendix_Unrounded) 
-# dbExecute(decimal_con, qry99_Presentations_Graduates_Including_those_not_projected) 
-# dbExecute(decimal_con, qry99_Presentations_Labour_Force) 
-# dbExecute(decimal_con, qry99_Presentations_Labour_Force_BC) 
-# dbExecute(decimal_con, qry99_Presentations_Labour_Force_Overall) 
-# dbExecute(decimal_con, qry99_Presentations_Occs) 
-# dbExecute(decimal_con, qry99_Presentations_PPSCI_Graduates) 
-# dbExecute(decimal_con, qry9999_NOC_4031_4032) 
+# see 08 script to replace below
+# # ---- model with QI ----
+# dbGetQuery(decimal_con, Q_7_QI) %>% 
+#   write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
+# 
+# dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>% 
+#   write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
+# 
+# # gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
+# dbExecute(decimal_con, qry_10a_Model)
+# 
+# dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>% 
+#   write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
+# 
+# # ---- public release ----
+# dbExecute(decimal_con, qry_10a_Model_Public_Release) # gives rounded 5-digit NOC result
+# dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed) # shows the 5-digit NOCs that have been suppressed
+# dbExecute(decimal_con, qry_10a_Model_Public_Release_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed and can be included in final public release
+# dbExecute(decimal_con, qry_10a_Model_Public_Release_Union) # final output with suppressed counts for public release
+# 
+# dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_Public_Release_Union") %>% 
+#   write_csv(glue::glue("{lan}/reports-final/drafts/public_release_static_incl_ptib.csv"))
+# 
+# 
+# # ---- internal release ----
+#  dbExecute(decimal_con, qry_10a_Model_QI_PPCI) # gives rounded 5-digit NOC output with quality indicator and coverage indicator as calculated percentages-internal use only
+#  dbExecute(decimal_con, qry_10a_Model_QI_PPCI_No_Supp) # for internal use release only-no suppression applied; LMIO needs it to work on the Labour Market Outlook 
+# # dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed) # shows the 5-digit NOCs that have been suppressed
+# # dbExecute(decimal_con, qry_10a_Model_QI_PPCI_Suppressed_Total) # sum of the 5-digit NOCs that have been suppressed
+# dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model_QI_PPCI_No_Supp") %>% 
+#    write_csv(glue::glue("{lan}/reports-final/drafts/internal_only_static_no_ptib.csv"))
+#  
+# dbExecute(decimal_con, qry_10b_Quality_Indicator) 
+# dbExecute(decimal_con, qry_10c_Coverage_Indicator) 
+# # dbExecute(decimal_con, qry_10d_tmp_No_Near_Completers) 
+# 
+#  
+# dbGetQuery(decimal_con, qry_LCIP4_CRED) 
+# #dbGetQuery(decimal_con, qry_LCIP4_CRED_Filtered_NOC) 
+# dbGetQuery(decimal_con, qry_LCIP4_CRED_NOC) 
+# # dbExecute(decimal_con, qry100_Grad_Skill_Level) 
+# 
+# # ---- public release ----
+# dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix) %>% 
+#   mutate(across(where(is.numeric), round)) %>%
+#   write_csv(glue::glue("{lan}/reports-final/drafts/graduate_projections_noc_2021_static_incl_ptib.csv"))
+# 
+# 
+# dbGetQuery(decimal_con, qry99_Presentations_Graduates_Appendix_by_Age_Group_Totals) 
+# # dbExecute(decimal_con, qry99_Presentations_Graduates_Appendix_Unrounded) 
+# # dbExecute(decimal_con, qry99_Presentations_Graduates_Including_those_not_projected) 
+# # dbExecute(decimal_con, qry99_Presentations_Labour_Force) 
+# # dbExecute(decimal_con, qry99_Presentations_Labour_Force_BC) 
+# # dbExecute(decimal_con, qry99_Presentations_Labour_Force_Overall) 
+# # dbExecute(decimal_con, qry99_Presentations_Occs) 
+# # dbExecute(decimal_con, qry99_Presentations_PPSCI_Graduates) 
+# # dbExecute(decimal_con, qry9999_NOC_4031_4032) 
 
 # ---- Clean Up ----
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
