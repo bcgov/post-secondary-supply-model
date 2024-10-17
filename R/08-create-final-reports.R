@@ -129,9 +129,6 @@ grads_rounded <- grads_agg %>%
   mutate(GRADS = as.integer(5*round(GRADS/5, 0)))
 
 # get totals per age_group and join back in 
-grad_totals <- grads_rounded %>% 
-  group_by(AGE_GROUP_ROLLUP_LABEL, YEAR) %>% 
-  summarize(GRADS = sum(GRADS), PSSM_CREDENTIAL_NAME = 'Total')
 grad_totals <- grads_agg %>% 
   group_by(AGE_GROUP_ROLLUP_LABEL, YEAR) %>% 
   summarize(GRADS = sum(GRADS), PSSM_CREDENTIAL_NAME = 'Total')  %>% 
