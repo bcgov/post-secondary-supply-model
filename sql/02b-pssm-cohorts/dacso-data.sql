@@ -20,8 +20,8 @@ SELECT  surv_cohort_collection_info.coci_pen,
         c_outc_clean_short_resp.labr_employed_full_part_time,
         c_outc_clean_short_resp.labr_job_search_time_gp,
         c_outc_clean_short_resp.labr_job_training_related,
-        c_outc_clean_short_resp.labr_occupation_lnoc_cd,
-        --c_outc_clean_short_resp.labr_occ_LNOC_2021_CD, 
+        --c_outc_clean_short_resp.labr_occupation_lnoc_cd,
+        c_outc_clean_short_resp.labr_occ_LNOC_2021_CD as labr_occupation_lnoc_cd, 
         surv_cohort_collection_info.coci_age_at_survey,
         0 AS Age_Group,
         0 AS Age_Group_Rollup,
@@ -56,7 +56,22 @@ WHERE  (( surv_cohort_collection_info.coci_subm_cd = 'C_Outc23' OR
   AND     l_cip_6digits_cip2016.lcip_lcippc_name  <> 'Personal Improvement and Leisure')"
 
 infoware_c_outc_clean_short_resp <- "
-SELECT *
-FROM c_outc_clean_short_resp
+SELECT STQU_ID, 
+SUBM_CD, 
+INST_CD, 
+PRGM_ID, 
+LRST_CD, 
+TTRAIN, 
+q08,
+FINAL_DISPOSITION, 
+RESPONDENT, 
+CREDENTIAL_DERIVED, 
+STARTMONTH, 
+STARTYEAR, 
+ENDMONTH, 
+ENDYEAR, 
+pfst_furstdy_incl_still_attd,
+pfst_had_previous_cdtl
+FROM C_OUTC_CLEAN_SHORT_RESP
 WHERE subm_cd IN ('C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
 "

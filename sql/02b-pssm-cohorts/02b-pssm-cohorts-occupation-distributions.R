@@ -98,7 +98,7 @@ HAVING
   ON t_cohorts_recoded.current_region_pssm_code =
     t_current_region_pssm_codes.current_region_pssm_code
   WHERE  ( ( ( t_cohorts_recoded.noc_cd ) IS NOT NULL
-             AND ( t_cohorts_recoded.noc_cd ) <> '9999' )
+             AND ( t_cohorts_recoded.noc_cd ) <> '99999' )
            AND ( ( t_cohorts_recoded.new_labour_supply ) = 1
                  OR ( t_cohorts_recoded.new_labour_supply ) = 3 )
            AND ( ( t_cohorts_recoded.weight ) > 0 ) )
@@ -116,8 +116,8 @@ HAVING
   
 
 
-# ---- DACSO_Q008_Z02b_Respondents_NOC_9999 ----
-DACSO_Q008_Z02b_Respondents_NOC_9999 <- 
+# ---- DACSO_Q008_Z02b_Respondents_NOC_99999 ----
+DACSO_Q008_Z02b_Respondents_NOC_99999 <- 
 "
 SELECT t_cohorts_recoded.survey,
 t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup,
@@ -132,7 +132,7 @@ Sum(CASE
     AND t_cohorts_recoded.current_region_pssm_code <>- 1 THEN 1
     ELSE 0
     END) AS Respondents
-INTO DACSO_Q008_Z02b_Respondents_NOC_9999
+INTO DACSO_Q008_Z02b_Respondents_NOC_99999
 FROM   t_cohorts_recoded
 INNER JOIN (t_current_region_pssm_codes
             INNER JOIN t_current_region_pssm_rollup_codes
@@ -141,7 +141,7 @@ INNER JOIN (t_current_region_pssm_codes
               t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup)
 ON t_cohorts_recoded.current_region_pssm_code =
   t_current_region_pssm_codes.current_region_pssm_code
-WHERE  ( ( ( t_cohorts_recoded.noc_cd ) = '9999' )
+WHERE  ( ( ( t_cohorts_recoded.noc_cd ) = '99999' )
          AND ( ( t_cohorts_recoded.new_labour_supply ) = 1
                OR ( t_cohorts_recoded.new_labour_supply ) = 3 )
          AND ( ( t_cohorts_recoded.weight ) > 0 ) )
@@ -159,8 +159,8 @@ HAVING ( ( ( t_cohorts_recoded.age_group_rollup ) IS NOT NULL )
 
 
 
-# ---- DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc ----
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc <- 
+# ---- DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc ----
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc <- 
 "
 SELECT dacso_q008_z02a_base.survey,
        dacso_q008_z02a_base.current_region_pssm_code_rollup,
@@ -172,25 +172,25 @@ SELECT dacso_q008_z02a_base.survey,
        dacso_q008_z02a_base.lcip4_cred,
        dacso_q008_z02a_base.count,
        dacso_q008_z02a_base.base,
-       dacso_q008_z02b_respondents_noc_9999.respondents,
+       dacso_q008_z02b_respondents_noc_99999.respondents,
        respondents / count AS Expr1
-INTO DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc
+INTO DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc
 FROM   dacso_q008_z02a_base
-       INNER JOIN dacso_q008_z02b_respondents_noc_9999
+       INNER JOIN dacso_q008_z02b_respondents_noc_99999
                ON ( dacso_q008_z02a_base.lcip4_cred =
-                               dacso_q008_z02b_respondents_noc_9999.lcip4_cred )
+                               dacso_q008_z02b_respondents_noc_99999.lcip4_cred )
                   AND ( dacso_q008_z02a_base.grad_status =
-                            dacso_q008_z02b_respondents_noc_9999.grad_status )
+                            dacso_q008_z02b_respondents_noc_99999.grad_status )
                   AND ( dacso_q008_z02a_base.age_group_rollup =
-dacso_q008_z02b_respondents_noc_9999.age_group_rollup )
+dacso_q008_z02b_respondents_noc_99999.age_group_rollup )
 AND ( dacso_q008_z02a_base.inst_cd =
-dacso_q008_z02b_respondents_noc_9999.inst_cd )
+dacso_q008_z02b_respondents_noc_99999.inst_cd )
 AND ( dacso_q008_z02a_base.survey_year =
-dacso_q008_z02b_respondents_noc_9999.survey_year )
+dacso_q008_z02b_respondents_noc_99999.survey_year )
 AND ( dacso_q008_z02a_base.current_region_pssm_code_rollup =
-dacso_q008_z02b_respondents_noc_9999.current_region_pssm_code_rollup )
+dacso_q008_z02b_respondents_noc_99999.current_region_pssm_code_rollup )
 AND ( dacso_q008_z02a_base.survey =
-dacso_q008_z02b_respondents_noc_9999.survey )
+dacso_q008_z02b_respondents_noc_99999.survey )
 WHERE  (( ( respondents / count ) = 1 ));"
 
 
@@ -210,15 +210,16 @@ DACSO_Q008_Z02b_Respondents.Respondents
 INTO DACSO_Q008_Z02b_Respondents_Union
 FROM DACSO_Q008_Z02b_Respondents
 UNION ALL 
-SELECT DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.Survey, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.Current_Region_PSSM_Code_Rollup, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.Survey_Year, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.INST_CD, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.Age_Group_Rollup, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.GRAD_STATUS,  
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.TTRAIN, 
-DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.LCIP4_CRED,DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc.Respondents
-FROM DACSO_Q008_Z02b_Respondents_NOC_9999_100_perc;"
+SELECT DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Survey, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Survey_Year, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.INST_CD, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Age_Group_Rollup, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.GRAD_STATUS,  
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.TTRAIN, 
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.LCIP4_CRED,
+DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Respondents
+FROM DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc;"
 
 
 
@@ -353,12 +354,12 @@ INTO DACSO_Q008_Z05b_NOC4D_NLS_XTab
 FROM(
 SELECT t_cohorts_recoded.age_group_rollup,
        t_cohorts_recoded.noc_cd,
-       tbl_noc_skill_level_aged_17_34.english_name, 
+       T_NOC_Broad_Categories.english_name, 
 	   t_cohorts_recoded.new_labour_supply, 
 	   (CASE WHEN respondent='1' THEN 1 ELSE 0 END)*weight_nls as weight_nls
 FROM   t_cohorts_recoded
-LEFT JOIN tbl_noc_skill_level_aged_17_34
-	ON t_cohorts_recoded.noc_cd = tbl_noc_skill_level_aged_17_34.unit_group_code
+LEFT JOIN T_NOC_Broad_Categories
+	ON t_cohorts_recoded.noc_cd = T_NOC_Broad_Categories.unit_group_code
 WHERE t_cohorts_recoded.age_group_rollup IS NOT NULL 
  AND t_cohorts_recoded.noc_cd IS NOT NULL 
  AND ( t_cohorts_recoded.new_labour_supply = 1 OR t_cohorts_recoded.new_labour_supply = 3 )
@@ -434,15 +435,12 @@ INNER JOIN DACSO_Q008_Z01_Base_OCC
 SET T_Cohorts_Recoded.Weight_OCC = tmp_tbl_Weights_OCC.Weight_OCC
 WHERE (((T_Cohorts_Recoded.CURRENT_REGION_PSSM_CODE)<>-1) 
   AND ((T_Cohorts_Recoded.NOC_CD) Is Not Null 
-  And (T_Cohorts_Recoded.NOC_CD) <> '9999''));"
-
-
+  And (T_Cohorts_Recoded.NOC_CD) <> '99999''));"
 
 
 # ---- DACSO_Q008_Z08_Weight_OCC_Update ----
 DACSO_Q008_Z08_Weight_OCC_Update <-
-"
-UPDATE T_Cohorts_Recoded
+"UPDATE T_Cohorts_Recoded
 SET T_Cohorts_Recoded.Weight_OCC = tmp_tbl_Weights_OCC.Weight_OCC 
 from T_Cohorts_Recoded
 inner join tmp_tbl_Weights_OCC
@@ -458,16 +456,16 @@ inner join DACSO_Q008_Z01_Base_OCC
 on DACSO_Q008_Z01_Base_OCC.STQU_ID = T_Cohorts_Recoded.STQU_ID
 WHERE T_Cohorts_Recoded.CURRENT_REGION_PSSM_CODE <> -1
 AND T_Cohorts_Recoded.NOC_CD Is Not Null 
-And T_Cohorts_Recoded.NOC_CD <> '9999';"
+And T_Cohorts_Recoded.NOC_CD <> '99999';"
 
-# ---- DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc ----
-DACSO_Q008_Z08_Weight_OCC_Update_NOC_9999_100_perc <- 
+# ---- DACSO_Q008_Z08_Weight_OCC_Update_NOC_99999_100_perc ----
+DACSO_Q008_Z08_Weight_OCC_Update_NOC_99999_100_perc <- 
 "UPDATE t_cohorts_recoded
 SET        t_cohorts_recoded.weight_occ = tmp_tbl_weights_occ.weight_occ
 from t_cohorts_recoded
 INNER JOIN t_current_region_pssm_codes
  ON t_current_region_pssm_codes.current_region_pssm_code = t_cohorts_recoded.current_region_pssm_code
-inner JOIN tmp_tbl_weights_occ
+INNER JOIN tmp_tbl_weights_occ
 ON         tmp_tbl_weights_occ.age_group_rollup = t_cohorts_recoded.age_group_rollup
 AND        tmp_tbl_weights_occ.inst_cd = t_cohorts_recoded.inst_cd
 AND        tmp_tbl_weights_occ.survey_year = t_cohorts_recoded.survey_year
@@ -476,14 +474,14 @@ AND        tmp_tbl_weights_occ.lcip4_cred = t_cohorts_recoded.lcip4_cred
 AND        tmp_tbl_weights_occ.current_region_pssm_code = t_cohorts_recoded.current_region_pssm_code
 INNER JOIN dacso_q008_z01_base_occ
 ON         t_cohorts_recoded.stqu_id = dacso_q008_z01_base_occ.stqu_id
-INNER JOIN dacso_q008_z02b_respondents_noc_9999_100_perc
-ON         tmp_tbl_weights_occ.survey = dacso_q008_z02b_respondents_noc_9999_100_perc.survey
-AND        tmp_tbl_weights_occ.current_region_pssm_code_rollup = dacso_q008_z02b_respondents_noc_9999_100_perc.current_region_pssm_code_rollup
-AND        tmp_tbl_weights_occ.survey_year = dacso_q008_z02b_respondents_noc_9999_100_perc.survey_year
-AND        tmp_tbl_weights_occ.inst_cd = dacso_q008_z02b_respondents_noc_9999_100_perc.inst_cd
-AND        dacso_q008_z02b_respondents_noc_9999_100_perc.age_group_rollup = tmp_tbl_weights_occ.age_group_rollup
-AND        tmp_tbl_weights_occ.grad_status = dacso_q008_z02b_respondents_noc_9999_100_perc.grad_status
-AND        tmp_tbl_weights_occ.lcip4_cred = dacso_q008_z02b_respondents_noc_9999_100_perc.lcip4_cred
+INNER JOIN dacso_q008_z02b_respondents_noc_99999_100_perc
+ON         tmp_tbl_weights_occ.survey = dacso_q008_z02b_respondents_noc_99999_100_perc.survey
+AND        tmp_tbl_weights_occ.current_region_pssm_code_rollup = dacso_q008_z02b_respondents_noc_99999_100_perc.current_region_pssm_code_rollup
+AND        tmp_tbl_weights_occ.survey_year = dacso_q008_z02b_respondents_noc_99999_100_perc.survey_year
+AND        tmp_tbl_weights_occ.inst_cd = dacso_q008_z02b_respondents_noc_99999_100_perc.inst_cd
+AND        dacso_q008_z02b_respondents_noc_99999_100_perc.age_group_rollup = tmp_tbl_weights_occ.age_group_rollup
+AND        tmp_tbl_weights_occ.grad_status = dacso_q008_z02b_respondents_noc_99999_100_perc.grad_status
+AND        tmp_tbl_weights_occ.lcip4_cred = dacso_q008_z02b_respondents_noc_99999_100_perc.lcip4_cred
 WHERE      t_cohorts_recoded.current_region_pssm_code<>-1
 AND        t_cohorts_recoded.noc_cd IS NOT NULL;"
 
@@ -538,7 +536,7 @@ t_cohorts_recoded.lcp4_cd,
 t_cohorts_recoded.ttrain,
 t_cohorts_recoded.lcip4_cred,
 t_cohorts_recoded.lcip2_cred,
-(CASE WHEN t_cohorts_recoded.noc_cd = 'XXXX' THEN '9999' ELSE t_cohorts_recoded.noc_cd END) AS NOC_CD,
+(CASE WHEN t_cohorts_recoded.noc_cd = 'XXXXX' THEN '99999' ELSE t_cohorts_recoded.noc_cd END) AS NOC_CD,
 Count(*) AS Count,
 t_cohorts_recoded.weight_occ,
 Count(*) * weight_occ AS Weighted
@@ -562,17 +560,17 @@ t_cohorts_recoded.lcp4_cd,
 t_cohorts_recoded.ttrain,
 t_cohorts_recoded.lcip4_cred,
 t_cohorts_recoded.lcip2_cred,
-Iif(t_cohorts_recoded.noc_cd = 'XXXX', '9999',
+Iif(t_cohorts_recoded.noc_cd = 'XXXXX', '99999',
     t_cohorts_recoded.noc_cd),
 t_cohorts_recoded.weight_occ
-HAVING t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup  <> 9999 
+HAVING t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup  <> 99999 
   AND t_cohorts_recoded.age_group_rollup IS NOT NULL
   AND ( t_cohorts_recoded.grad_status  = '1' OR t_cohorts_recoded.grad_status = '3' )
-  AND Iif(t_cohorts_recoded.noc_cd = 'XXXX', '9999', t_cohorts_recoded.noc_cd) IS NOT NULL
+  AND Iif(t_cohorts_recoded.noc_cd = 'XXXXX', '99999', t_cohorts_recoded.noc_cd) IS NOT NULL
   AND t_cohorts_recoded.weight_occ IS NOT NULL
 ORDER  BY t_cohorts_recoded.grad_status,
 	t_cohorts_recoded.lcip4_cred,
-	CASE WHEN t_cohorts_recoded.noc_cd = 'XXXX' THEN '9999' ELSE t_cohorts_recoded.noc_cd END;"
+	CASE WHEN t_cohorts_recoded.noc_cd = 'XXXXX' THEN '99999' ELSE t_cohorts_recoded.noc_cd END;"
   
 
 
@@ -637,35 +635,51 @@ FROM DACSO_Q009_Weight_Occs
 INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC 
 ON DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup
 WHERE (((T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup_BC) Is Not Null))
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential, DACSO_Q009_Weight_Occs.NOC_CD;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, 
+DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential, DACSO_Q009_Weight_Occs.NOC_CD;"
 
 
 
 # ---- DACSO_Q009_Weighted_Occs_2D_No_TT ----
 DACSO_Q009_Weighted_Occs_2D_No_TT <- 
-"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2) AS LCP2_CD, IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential AS LCIP2_CRED, DACSO_Q009_Weight_Occs.NOC_CD, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Count
+"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, 
+DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2) AS LCP2_CD, IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential AS LCIP2_CRED, 
+DACSO_Q009_Weight_Occs.NOC_CD, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Count
 INTO DACSO_Q009_Weighted_Occs_2D_No_TT
 FROM DACSO_Q009_Weight_Occs
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential, DACSO_Q009_Weight_Occs.NOC_CD;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential, DACSO_Q009_Weight_Occs.NOC_CD;"
 
 
 
 # ---- DACSO_Q009_Weighted_Occs_Total_2D ----
 DACSO_Q009_Weighted_Occs_Total_2D <- 
-"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2) AS LCP2_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
+"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+Left(LCP4_CD,2) AS LCP2_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED, 
+Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
 INTO DACSO_Q009_Weighted_Occs_Total_2D 
 FROM DACSO_Q009_Weight_Occs
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2), DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+Left(LCP4_CD,2), DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED;"
 
 
 
 # ---- DACSO_Q009_Weighted_Occs_Total_2D_BC ----
 DACSO_Q009_Weighted_Occs_Total_2D_BC <- 
-"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2) AS LCP2_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
+"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, 
+DACSO_Q009_Weight_Occs.PSSM_CRED, 
+Left(LCP4_CD,2) AS LCP2_CD, 
+DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
 INTO DACSO_Q009_Weighted_Occs_Total_2D_BC
-FROM DACSO_Q009_Weight_Occs INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC ON DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup
+FROM DACSO_Q009_Weight_Occs INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC 
+  ON DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup
 WHERE (((T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup_BC) Is Not Null))
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2), DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+Left(LCP4_CD,2), DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP2_CRED;"
 
 
 
@@ -675,25 +689,41 @@ DACSO_Q009_Weighted_Occs_Total_2D_BC_No_TT <-
 INTO DACSO_Q009_Weighted_Occs_Total_2D_BC_No_TT
 FROM DACSO_Q009_Weight_Occs INNER JOIN T_Current_Region_PSSM_Rollup_Codes_BC ON DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup = T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup
 WHERE (((T_Current_Region_PSSM_Rollup_Codes_BC.Current_Region_PSSM_Code_Rollup_BC) Is Not Null))
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, 
+DACSO_Q009_Weight_Occs.PSSM_CRED, Left(LCP4_CD,2), 
+IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),
+Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential;"
 
 
 
 # ---- DACSO_Q009_Weighted_Occs_Total_2D_No_TT ----
 DACSO_Q009_Weighted_Occs_Total_2D_No_TT <- 
-"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2) AS LCP2_CD, IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential AS LCIP2_CRED, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
+"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+Left(LCP4_CD,2) AS LCP2_CD, IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),
+Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential AS LCIP2_CRED, 
+Sum(DACSO_Q009_Weight_Occs.Weighted) AS Total
 INTO DACSO_Q009_Weighted_Occs_Total_2D_No_TT
 FROM DACSO_Q009_Weight_Occs
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential;"
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, 
+DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+Left(LCP4_CD,2), IIf((Left(PSSM_CRED,1)='1' Or Left(PSSM_CRED,1)='3'),Left(PSSM_CRED,1) + ' - ','') + Left(LCP4_CD,2) + ' - ' + PSSM_Credential;"
 
 
 
 # ---- DACSO_Q009b_Weighted_Occs ----
 DACSO_Q009b_Weighted_Occs <- 
-"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, DACSO_Q009_Weight_Occs.LCP4_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP4_CRED, DACSO_Q009_Weight_Occs.LCIP2_CRED, DACSO_Q009_Weight_Occs.NOC_CD, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Count
+"SELECT DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+DACSO_Q009_Weight_Occs.LCP4_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP4_CRED, 
+DACSO_Q009_Weight_Occs.LCIP2_CRED, DACSO_Q009_Weight_Occs.NOC_CD, Sum(DACSO_Q009_Weight_Occs.Weighted) AS Count
 INTO DACSO_Q009b_Weighted_Occs
 FROM DACSO_Q009_Weight_Occs
-GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, DACSO_Q009_Weight_Occs.LCP4_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP4_CRED, DACSO_Q009_Weight_Occs.LCIP2_CRED, DACSO_Q009_Weight_Occs.NOC_CD
+GROUP BY DACSO_Q009_Weight_Occs.PSSM_Credential, DACSO_Q009_Weight_Occs.PSSM_CRED, 
+DACSO_Q009_Weight_Occs.Current_Region_PSSM_Code_Rollup, DACSO_Q009_Weight_Occs.Age_Group_Rollup, 
+DACSO_Q009_Weight_Occs.LCP4_CD, DACSO_Q009_Weight_Occs.TTRAIN, DACSO_Q009_Weight_Occs.LCIP4_CRED, 
+DACSO_Q009_Weight_Occs.LCIP2_CRED, DACSO_Q009_Weight_Occs.NOC_CD
 ORDER BY DACSO_Q009_Weight_Occs.LCIP4_CRED, DACSO_Q009_Weight_Occs.NOC_CD;"
 
 
@@ -954,7 +984,18 @@ FROM DACSO_Q010_Weighted_Occs_Dist;"
 DACSO_Q010a1_Append_Occupational_Distribution_No_TT <- 
 "INSERT INTO Occupation_Distributions_No_TT ( Survey, PSSM_Credential, PSSM_CRED, Current_Region_PSSM_Code_Rollup, 
 Age_Group_Rollup, LCP4_CD, LCIP4_CRED, LCIP2_CRED, NOC, [Count], Total, [Percent])
-SELECT 'Student Outcomes' AS Survey, DACSO_Q010_Weighted_Occs_Dist_No_TT.PSSM_Credential, DACSO_Q010_Weighted_Occs_Dist_No_TT.PSSM_CRED, DACSO_Q010_Weighted_Occs_Dist_No_TT.Current_Region_PSSM_Code_Rollup, DACSO_Q010_Weighted_Occs_Dist_No_TT.Age_Group_Rollup, DACSO_Q010_Weighted_Occs_Dist_No_TT.LCP4_CD, DACSO_Q010_Weighted_Occs_Dist_No_TT.LCIP4_CRED, DACSO_Q010_Weighted_Occs_Dist_No_TT.LCIP2_CRED, DACSO_Q010_Weighted_Occs_Dist_No_TT.NOC_CD, DACSO_Q010_Weighted_Occs_Dist_No_TT.Count, DACSO_Q010_Weighted_Occs_Dist_No_TT.Total, DACSO_Q010_Weighted_Occs_Dist_No_TT.perc_Dist
+SELECT 'Student Outcomes' AS Survey, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.PSSM_Credential, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.PSSM_CRED, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.Age_Group_Rollup, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.LCP4_CD, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.LCIP4_CRED, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.LCIP2_CRED, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.NOC_CD, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.Count, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.Total, 
+DACSO_Q010_Weighted_Occs_Dist_No_TT.perc_Dist
 FROM DACSO_Q010_Weighted_Occs_Dist_No_TT;"
 
 
@@ -1060,7 +1101,7 @@ FROM DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT;"
 DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply <- 
 "DELETE 
 FROM Labour_Supply_Distribution
-WHERE (((Labour_Supply_Distribution.Survey)='PSSM_2017-2018 Non-Outcomes Graduates Labour Supply.xlsx') 
+WHERE (((Labour_Supply_Distribution.Survey)='2021 Census PSSM 2023-2024') 
 AND   ((Labour_Supply_Distribution.PSSM_Credential)='PDEG') 
 AND   ((Labour_Supply_Distribution.LCP4_CD)='07'));"
 
@@ -1070,7 +1111,7 @@ AND   ((Labour_Supply_Distribution.LCP4_CD)='07'));"
 DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI <- 
 "DELETE 
 FROM Labour_Supply_Distribution_QI
-WHERE (((Labour_Supply_Distribution_QI.Survey)='PSSM_2017-2018 Non-Outcomes Graduates Labour Supply.xlsx') 
+WHERE (((Labour_Supply_Distribution_QI.Survey)='2021 Census PSSM 2023-2024') 
 AND ((Labour_Supply_Distribution_QI.PSSM_Credential)='PDEG') 
 AND ((Labour_Supply_Distribution_QI.LCP4_CD)='07'));"
 
@@ -1141,7 +1182,8 @@ FROM DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply;"
 DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist <- 
 "DELETE  
 FROM Occupation_Distributions
-WHERE (((Occupation_Distributions.Survey)='2016 Census PSSM_2017-2018_Non_Outcomes_Graduates') AND ((Occupation_Distributions.PSSM_Credential)='PDEG') AND ((Occupation_Distributions.LCP4_CD)='07'));"
+WHERE (((Occupation_Distributions.Survey)='2021 Census PSSM 2022-2023') 
+AND ((Occupation_Distributions.PSSM_Credential)='PDEG') AND ((Occupation_Distributions.LCP4_CD)='07'));"
 
 
 
@@ -1149,7 +1191,8 @@ WHERE (((Occupation_Distributions.Survey)='2016 Census PSSM_2017-2018_Non_Outcom
 DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist_QI <- 
 "DELETE  
 FROM Occupation_Distributions_QI
-WHERE (((Occupation_Distributions_QI.Survey)='2016 Census PSSM_2017-2018_Non_Outcomes_Graduates') AND ((Occupation_Distributions_QI.PSSM_Credential)='PDEG') AND ((Occupation_Distributions_QI.LCP4_CD)='07'));"
+WHERE (((Occupation_Distributions_QI.Survey)='2021 Census PSSM 2022-2023') 
+AND ((Occupation_Distributions_QI.PSSM_Credential)='PDEG') AND ((Occupation_Distributions_QI.LCP4_CD)='07'));"
 
 
 
@@ -1226,7 +1269,10 @@ WHERE (((T_Cohorts_Recoded.ENDDT) Is Null) AND ((T_Cohorts_Recoded.Survey)='DACS
 
 # ---- DACSO_qry99_Suppression_Public_Release_NOC ----
 DACSO_qry99_Suppression_Public_Release_NOC <- 
-"SELECT T_Cohorts_Recoded.Age_Group_Rollup, tbl_Age_Groups_Rollup.Age_Group_Rollup_Label, T_Cohorts_Recoded.NOC_CD, Count(*) AS Expr1 INTO T_Suppression_Public_Release_NOC
+"SELECT T_Cohorts_Recoded.Age_Group_Rollup, 
+tbl_Age_Groups_Rollup.Age_Group_Rollup_Label, 
+T_Cohorts_Recoded.NOC_CD, 
+Count(*) AS Expr1 INTO T_Suppression_Public_Release_NOC
 FROM T_Cohorts_Recoded 
 INNER JOIN tbl_Age_Groups_Rollup ON T_Cohorts_Recoded.Age_Group_Rollup = tbl_Age_Groups_Rollup.Age_Group_Rollup
 WHERE (((T_Cohorts_Recoded.Weight)>0))

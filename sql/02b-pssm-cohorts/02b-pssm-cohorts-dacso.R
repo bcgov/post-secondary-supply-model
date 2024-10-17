@@ -134,7 +134,7 @@ SELECT t_dacso_data_part_1.coci_pen AS pen,
        t_dacso_data_part_1.coci_inst_cd,
        t_dacso_data_part_1.lcp4_cd,
        CASE WHEN ttrain = 2 THEN 1 ELSE ttrain END AS TTRAIN,
-       CASE WHEN t_dacso_data_part_1.labr_occupation_lnoc_cd = 'XXXX' THEN '9999' 
+       CASE WHEN t_dacso_data_part_1.labr_occupation_lnoc_cd = 'XXXXX' THEN '99999' 
 			ELSE t_dacso_data_part_1.labr_occupation_lnoc_cd END AS NOC_CD,
        t_dacso_data_part_1.coci_age_at_survey,
        t_dacso_data_part_1.age_group,
