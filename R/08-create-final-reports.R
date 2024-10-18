@@ -278,7 +278,7 @@ public_release_data
 # 4. Excel Workbook Settings ---- 
 
 # set a couple of styles
-csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold")
+csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold", wrapText=TRUE)
 csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
 csCount <- createStyle(halign = "right")  
 csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
@@ -307,8 +307,9 @@ create_final_excel <- function(
   
   # if draft, add 'DRAFT' to first page 
   if (is_draft){
-    writeData(outwb, "User Guide", x='DRAFT', startRow=1, startCol=1)
-    addStyle(outwb, "User Guide", style = csDraft, rows = 1, cols = 1)
+    writeData(outwb, "User Guide", x='DRAFT\nBC Post-Secondary Supply Model—2023/24 to 2034/35', startRow=1, startCol=1)
+    addStyle(outwb, "User Guide", style = csDraft, rows = 1, cols = 1, gridExpand = TRUE)
+    setRowHeights(outwb, "User Guide", rows=1, heights=60)
   }
   
   # update publication line
