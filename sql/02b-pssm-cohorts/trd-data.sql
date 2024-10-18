@@ -53,8 +53,8 @@ Q000_TRD_DATA_01 <-
        trades_short_resp.trd_labr_unemployed,
        trades_short_resp.trd_labr_job_search_time_gp,
        trades_short_resp.trd_labr_job_training_related,
-       trades_short_resp.noc_cd,
-       --trades_short_resp.noc_cd_2021,
+       --trades_short_resp.noc_cd,
+       trades_short_resp.noc_cd_2021 as noc_cd,
        -- gradstat_group || ' - ' || l_cip_6digits_cip2016.lcip_lcp4_cd || ' - ' || trades_cohort_info.ttrain || ' - ' || PSSM_Credential AS LCIP4_CRED,
        0 AS New_Labour_Supply,
        0 AS Weight
