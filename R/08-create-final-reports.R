@@ -279,10 +279,11 @@ public_release_data
 
 # set a couple of styles
 csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bold", wrapText=TRUE)
-csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
+csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold", border = "TopBottomLeftRight", borderColour = "#C0C0C0", borderStyle = "thin")
 csCount <- createStyle(halign = "right")  
-csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
+csPerc <- createStyle(halign = "right", numFmt = "0.0%", border = "TopBottomLeftRight", borderColour = "#C0C0C0", borderStyle = "thin")  ## Percent cells 
 csPub <- createStyle(textDecoration = "italic")
+csBorder <- createStyle(border = "TopBottomLeftRight", borderColour = "#C0C0C0", borderStyle = "thin")
 
 # create a function that will make all changes for both notebooks
 # inputs:
@@ -335,6 +336,9 @@ create_final_excel <- function(
   # Freeze top row
   freezePane(outwb,sheet, firstActiveRow=startRow+1)
   
+  # add borders
+  addStyle(outwb, sheet, csBorder, rows = startRow:(n_rows+startRow), cols = 1:n_cols, gridExpand = TRUE)
+  
   # style headers
   addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
   
@@ -366,6 +370,9 @@ create_final_excel <- function(
   # Freeze top row
   freezePane(outwb, sheet, firstActiveRow=startRow+1)
   
+  # add borders
+  addStyle(outwb, sheet, csBorder, rows = startRow:(n_rows+startRow), cols = 1:n_cols, gridExpand = TRUE)
+  
   # style headers
   addStyle(outwb, sheet, style=csRegularBold, rows=startRow, cols=1:n_cols)
   setRowHeights(outwb, sheet, rows=startRow, heights=60)
@@ -387,6 +394,14 @@ create_final_excel <- function(
   
   # delete excess rows? not sure why happening
   #deleteData(outwb, sheet, cols=1:n_cols, rows=)
+  
+  # prepare print settings
+  sheet_names <- sheets(outwb)
+  walk(sheet_names, ~setHeaderFooter(outwb, .x,
+                                     footer = c("BC Post-Secondary Supply Model 2023/24 to 2034/35", NA, "Page &[Page] of &[Pages]")))
+  
+  walk(sheet_names, ~pageSetup(outwb, .x,
+                                    orientation = "landscape", fitToWidth = TRUE, printTitleRows = startRow))
   
   # save output 
   saveWorkbook(outwb, final_excel, overwrite=TRUE)
