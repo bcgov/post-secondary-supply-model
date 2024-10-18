@@ -35,6 +35,7 @@ library(lubridate)
 
 # date for timestamping outputs 
 today_string <- format(today(), '%Y%m%d')
+publication_date <- format(today(),'%B %d, %Y')
 
 # draft flag
 # toggle this flag to switch between draft/final results 
@@ -281,6 +282,7 @@ csDraft <- createStyle(fontSize = 20, fontColour = "#FF0000", textDecoration="bo
 csRegularBold <- createStyle(valign="center", halign='center', wrapText=TRUE, textDecoration = "bold")
 csCount <- createStyle(halign = "right")  
 csPerc <- createStyle(halign = "right", numFmt = "0.0%")  ## Percent cells 
+csPub <- createStyle(textDecoration = "italic")
 
 # create a function that will make all changes for both notebooks
 # inputs:
@@ -307,7 +309,11 @@ create_final_excel <- function(
   if (is_draft){
     writeData(outwb, "User Guide", x='DRAFT', startRow=1, startCol=1)
     addStyle(outwb, "User Guide", style = csDraft, rows = 1, cols = 1)
-  } 
+  }
+  
+  # update publication line
+  writeData(outwb, "User Guide", x=paste0('Prepared by BC Stats, ',publication_date), startRow=2, startCol=1)
+  addStyle(outwb, "User Guide", style = csPub, rows = 2, cols = 1)
   
   ## add new sheet for grads 
   sheet <- addWorksheet(outwb, sheetName="Graduate Projections") 
