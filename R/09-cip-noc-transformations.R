@@ -47,3 +47,22 @@ dbExecute(decimal_con, CIP_NOC_Update_NewLabourSupply_CIP_NOC)
 # recode new labour supply cip-noc for those with an NLS-2 record and no NLS1
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS1_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode_CIP_NOC)
+
+# create base weights for the full cohort
+dbExecute(decimal_con, DACSO_Q005_Z01_Base_NLS_CIP_NOC)
+
+# create nls weights
+dbExecute(decimal_con, DACSO_Q005_Z02_Weight_CIP_NOC_tmp)
+dbExecute(decimal_con, DACSO_Q005_Z02_Weight_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS_CIP_NOC)
+
+# null and update weight_nls_cip_noc in T_Cohorts_Recoded_CIP_NOC
+dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update_CIP_NOC)
+
+# check weights
+dbExecute(decimal_con, DACSO_Q005_Z09_Check_Weights_CIP_NOC)
+
