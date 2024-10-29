@@ -63,6 +63,17 @@ dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update_CIP_NOC)
 
-# check weights
+# check weights?
 dbExecute(decimal_con, DACSO_Q005_Z09_Check_Weights_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP_NOC)
+
+# apply nls weights to group totals
+dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC)
+
+# calculate weighted new labor supply - various distribution
+# from documentation: Note that the queries with _2D in the name are not required for the CIP-NOC work. 
+dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC)
+
 
