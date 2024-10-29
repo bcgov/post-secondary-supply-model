@@ -80,6 +80,35 @@ dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Occupation_Distribu
 dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Occupation_Distributions_LCP2_bc_no_tt];"))
 dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Occupation_Distributions_LCP2_bc];"))
 
+
+# ---- 3. Copy tables required for re-run ----
+copy_tables = c(
+  '[dbo]."T_bgs_data_final_for_outcomesmatching"',
+  '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
+  '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
+  '[dbo]."Credential_Non_Dup"'
+)
+
+dbBegin(decimal_con)
+tryCatch({
+  for (table in copy_tables) {
+    # Extract the part after the dot
+    table_short <- str_extract(table, '(?<=\\.)"[^"]+"')
+    copy_statement <- glue::glue('SELECT * 
+               INTO [{myschema}].{table_short}
+               FROM {table};')  
+    dbExecute(decimal_con, copy_statement)
+  }
+  dbCommit(decimal_con)  # Commit transaction if all deletions succeed
+  print("All tables copied successfully.")
+}, error = function(e) {
+  dbRollback(decimal_con)  # Rollback if there's an error
+  print(paste("Error:", e$message))
+}, finally = {
+  dbDisconnect(decimal_con)
+})
+
+
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
 rm(list = ls())

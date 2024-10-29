@@ -92,11 +92,12 @@ dbGetQuery(decimal_con, Occupation_Unknown)
 dbExecute(decimal_con, Q_0_LCP2_LCP4) 
 
 # essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
+if (regular_run!= TRUE) {
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D)
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
-
+}
 # use these to delete PTIB for running a model without private institutions
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 

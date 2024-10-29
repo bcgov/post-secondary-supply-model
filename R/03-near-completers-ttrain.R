@@ -65,7 +65,7 @@ dbExecute(decimal_con, qry_make_tmp_table_Age_step4)
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
 
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Age_At_Grad FLOAT NULL")
-dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL")
+# dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL")
 dbExecute(decimal_con, qry99_Update_Age_At_Grad)
 dbExecute(decimal_con, qry99a_Update_Age_At_Grad)
 

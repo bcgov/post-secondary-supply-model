@@ -93,7 +93,7 @@ Cohort_Program_Distributions_Static <-
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')), AgeGroupLookup)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')), tbl_Age_Groups_Near_Completers)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), tbl_Age_Groups)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), tbl_Age_Groups, overwrite = TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')),  T_Cohort_Program_Distributions_Y2_to_Y12)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),  T_APPR_Y2_to_Y10)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')), INFOWARE_L_CIP_4DIGITS_CIP2016)
