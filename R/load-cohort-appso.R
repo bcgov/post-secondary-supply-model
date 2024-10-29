@@ -16,6 +16,7 @@ db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
+regular_run <- config::get("regular_run")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -81,6 +82,23 @@ T_APPSO_DATA_Final <-
     APP_LABR_EMPLOYED == 0 ~ 0,
     RESPONDENT == '1' ~ 0,
     TRUE ~ 0))
+
+# When running, make sure to update weights for the regular run. 
+# Replace the weights in the appropriate area in the code (~lines 71-77):
+  
+
+if (regular_run == TRUE){
+  T_APPSO_DATA_Final <-
+    T_APPSO_DATA_Final %>% 
+    mutate(WEIGHT = case_when (
+      SUBM_CD == 'C_Outc19' ~ 1,
+      SUBM_CD == 'C_Outc20' ~ 2,
+      SUBM_CD == 'C_Outc21' ~ 3,
+      SUBM_CD == 'C_Outc22' ~ 4,
+      SUBM_CD == 'C_Outc23' ~ 5,
+      TRUE ~ 0)) 
+  
+}
 
 # prepare graduate dataset
 APPSO_Graduates_dat  %>%
