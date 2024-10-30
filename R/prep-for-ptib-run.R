@@ -87,59 +87,52 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- 5. re-run step by step ----
+
+# Define the time_execution function to track execution time and handle errors
+time_execution <- function(file_path) {
+  start_time <- Sys.time()
+  print(paste("Starting:", file_path))
+  
+  # Execute the R script
+  tryCatch({
+    source(file_path)
+    end_time <- Sys.time()
+    elapsed <- end_time - start_time
+    print(paste("Completed:", file_path, "in", round(elapsed, 2), "seconds"))
+  }, error = function(e) {
+    # Print error message if execution fails
+    print(paste("Error in file:", file_path, " - ", e$message))
+  })
+}
+
+# List of R file paths
+r_files <- c(
+  "./R/load-cohort-appso.R",
+  "./R/load-cohort-bgs.R",
+  "./R/load-cohort-dacso.R",
+  "./R/load-cohort-trd.R", # not sure if this one
+  "./R/02b-1-pssm-cohorts.R",
+  "./R/02b-2-pssm-cohorts-new-labour-supply.R",
+  "./R/02b-3-pssm-cohorts-occupation-distributions.R",
+  "./R/load-near-completers-ttrain.R",
+  "./R/03-near-completers-ttrain.R",
+  "./R/load-graduate-projections.R",
+  "./R/04-graduate-projections.R",
+  "./R/load-ptib.R",
+  "./R/05-ptib-analysis.R",
+  "./R/load-program-projections.R",
+  "./R/06-program-projections.R",
+  "./R/load-occupation-projections.R",
+  "./R/07-occupation-projections.R"
+)
+
+
 if (ptib_flag == T) {
   
-  print("Loading ./R/load-cohort-appso.R")
-  source(glue::glue("./R/load-cohort-appso.R"))
-  
-  print("Loading ./R/load-cohort-bgs.R")
-  source(glue::glue("./R/load-cohort-bgs.R"))
-  
-  print("Loading ./R/load-cohort-dacso.R")
-  source(glue::glue("./R/load-cohort-dacso.R"))
-  
-  print("Loading ./R/load-cohort-trd.R") # not sure if this one
-  source(glue::glue("./R/load-cohort-trd.R"))
-  
-  print("Loading ./R/02b-1-pssm-cohorts.R")
-  source(glue::glue("./R/02b-1-pssm-cohorts.R"))
-  
-  print("Loading ./R/02b-2-pssm-cohorts-new-labour-supply.R")
-  source(glue::glue("./R/02b-2-pssm-cohorts-new-labour-supply.R"))
-  
-  print("Loading ./R/02b-3-pssm-cohorts-occupation-distributions.R")
-  source(glue::glue("./R/02b-3-pssm-cohorts-occupation-distributions.R"))
-  
-  print("Loading ./R/load-near-completers-ttrain.R")
-  source(glue::glue("./R/load-near-completers-ttrain.R"))
-  
-  print("Loading ./R/03-near-completers-ttrain.R")
-  source(glue::glue("./R/03-near-completers-ttrain.R"))
-  
-  print("Loading ./R/load-graduate-projections.R")
-  source(glue::glue("./R/load-graduate-projections.R"))
-  
-  print("Loading ./R/04-graduate-projections.R")
-  source(glue::glue("./R/04-graduate-projections.R"))
-  
-  print("Loading ./R/load-ptib.R")
-  source(glue::glue("./R/load-ptib.R"))
-  
-  print("Loading ./R/05-ptib-analysis.R")
-  source(glue::glue("./R/05-ptib-analysis.R"))
-  
-  print("Loading ./R/load-program-projections.R")
-  source(glue::glue("./R/load-program-projections.R"))
-  
-  print("Loading ./R/06-program-projections.R")
-  source(glue::glue("./R/06-program-projections.R"))
-  
-  print("Loading ./R/load-occupation-projections.R")
-  source(glue::glue("./R/load-occupation-projections.R"))
-  
-  print("Loading ./R/07-occupation-projections.R")
-  source(glue::glue("./R/07-occupation-projections.R"))
-  
+  # Loop through each file, calling time_execution for each
+  for (file_path in r_files) {
+    time_execution(file_path)
+  }
   
 } 
 
