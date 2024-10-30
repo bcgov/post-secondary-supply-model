@@ -41,6 +41,7 @@ source("./sql/09-cip-noc-transformations/cip-noc-transformations.R")
 ## Create T_Cohorts_Recoded_CIP_NOC from T_Cohorts_Recoded for desired years
 dbExecute(decimal_con, qry_Make_T_Cohorts_Recoded_for_CIP_NOC)
 
+## Labour Supply ----
 # Add NLS to NLS_CIP_NOC column
 dbExecute(decimal_con, CIP_NOC_Update_NewLabourSupply_CIP_NOC)
 
@@ -75,5 +76,34 @@ dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC)
 
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS1_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_DACSO_DATA_Part_1c_NLS2_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02_Weight_CIP_NOC_tmp")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02_Weight_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC")
+
+# append to labour supply distribution tables
+nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", Current_Region_PSSM_Code_Rollup = "integer",   
+             Age_Group_Rollup = "integer", LCP4_CD = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)",  
+             Count = "float", Total = "float", New_Labour_Supply_CIP_NOC = "float")
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_CIP_NOC"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_CIP_NOC"')),  nls_def)
+} 
+
+dbExecute(decimal_con,"DELETE FROM labour_Supply_Distribution_cip_noc")
+dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_CIP_NOC)
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC")
 

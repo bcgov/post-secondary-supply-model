@@ -1,5 +1,5 @@
 # ******************************************************************************
-# CIP-NOC Preparation Work ----
+# CIP-NOC Preparation Work Labour Supply ----
 
 ## qry_Make_T_Cohorts_Recoded_for_CIP_NOC ----
 qry_Make_T_Cohorts_Recoded_for_CIP_NOC <-
@@ -401,3 +401,72 @@ DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC.PSSM_Credential,
 DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC.LCP4_CD, 
 DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC.LCIP4_CRED, 
 DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC.Age_Group_Rollup;"
+
+## DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC ----
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC <- 
+"SELECT DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Survey, 
+DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Age_Group_Rollup, 
+DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.LCIP4_CRED, 
+DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Count, 
+DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Total, 
+DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.PSSM_Credential, 
+DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.LCP4_CD,
+ISNULL(Count,0)/Total AS perc
+INTO DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC
+FROM DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC 
+LEFT JOIN DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC 
+ON (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Age_Group_Rollup = DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Age_Group_Rollup) 
+AND (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.LCIP4_CRED = DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.LCIP4_CRED) 
+AND (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Survey = DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Survey)
+WHERE (((DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC.Current_Region_PSSM_Code_Rollup) Is Not Null));"
+
+## DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC ----
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC <- 
+"SELECT DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Survey, 
+DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.PSSM_Credential, 
+DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Age_Group_Rollup, 
+DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.LCP4_CD, 
+DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.LCIP4_CRED, 
+DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Count, 
+DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Total, 
+1-(ISNULL(Count,0)/Total) AS perc
+INTO DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC
+FROM DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC 
+LEFT JOIN DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC 
+ON (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Age_Group_Rollup = DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Age_Group_Rollup) 
+AND (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.LCIP4_CRED = DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.LCIP4_CRED) 
+AND (DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC.Survey = DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Survey)
+WHERE (((DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC.Count)>0) 
+AND ((1-(ISNULL(Count,0)/Total))=0));"
+
+## DACSO_Q007b1_Append_New_Labour_Supply_CIP_NOC ----
+DACSO_Q007b1_Append_New_Labour_Supply_CIP_NOC <- 
+"INSERT INTO Labour_Supply_Distribution_CIP_NOC 
+( Survey, Current_Region_PSSM_Code_Rollup, LCIP4_CRED, PSSM_Credential, Age_Group_Rollup, LCP4_CD, 
+  [Count], Total, New_Labour_Supply_CIP_NOC )
+SELECT DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.Survey, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.LCIP4_CRED, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.PSSM_Credential, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.Age_Group_Rollup, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.LCP4_CD, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.Count, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.Total, 
+DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC.perc
+FROM DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC;"
+
+## DACSO_Q007b2_Append_New_Labour_Supply_0_CIP_NOC ----
+DACSO_Q007b2_Append_New_Labour_Supply_0_CIP_NOC <- 
+"INSERT INTO Labour_Supply_Distribution_CIP_NOC ( Survey, PSSM_Credential, Current_Region_PSSM_Code_Rollup, Age_Group_Rollup, LCP4_CD, LCIP4_CRED, [Count], Total, New_Labour_Supply_CIP_NOC )
+SELECT DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.Survey,
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.PSSM_Credential, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.Age_Group_Rollup, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.LCP4_CD, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.LCIP4_CRED, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.Count, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.Total, 
+DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC.perc
+FROM DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC;"
