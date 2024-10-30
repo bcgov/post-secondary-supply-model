@@ -34,6 +34,8 @@ library(DBI)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
+# regular_run <- config::get("regular_run")
+# ptib_flag <- config::get("ptib_flag")
 
 source("./sql/06-program-projections/06-program-projections.R")
 
@@ -67,7 +69,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Co
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')))
 
 # ---- survey == "PTIB" (Static and Projected) ----
-if (regular_run!= TRUE) {
+if (ptib_flag == TRUE) {
   dbExecute(decimal_con, 
             "INSERT INTO Cohort_Program_Distributions_Projected 
             (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )

@@ -46,7 +46,8 @@ library(RJDBC)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-QI <- config::get("qi")
+
+
 # ---- Query Defs ----
 source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-trd.R")
 source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-appso.R")
@@ -93,10 +94,12 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"'))
 # Applies weight for model year and derives New Labour Supply
 dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
 dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
-dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
-if (QI == T){
+
+if (regular_run == T){
+  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
+}  else {
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
-}  
+}
 
 
 # Refresh trd survey records in T_Cohorts_Recoded
@@ -118,11 +121,13 @@ dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # Applies weight for model year and derives New Labour Supply
 dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
-dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
-if (QI == T){
+
+if (regular_run == T){
+  dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
+}  else {
   dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
 }
-#dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
+
 
 # Refresh bgs survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
@@ -143,11 +148,11 @@ dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
 # dbExecute(decimal_con, DACSO_Q004b_INST_Recode)
 
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
-if (QI == T){
+if (regular_run == T){
+  dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
+}  else {
   dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
 }
-#dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
 
 # Refresh dacso survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)

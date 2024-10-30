@@ -12,6 +12,9 @@ library(RJDBC)
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+# regular_run <- config::get("regular_run")
+regular_run <-  T
+ptib_flag <- F
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -59,6 +62,12 @@ my_schema
 # }, finally = {
 #   dbDisconnect(decimal_con)
 # })
+
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
   
 # ---- 2. Drop specific tables required for re-run ----
 # assumes you also ran the drops in 07-occupation-projections.R
@@ -95,7 +104,7 @@ tryCatch({
     # Extract the part after the dot
     table_short <- str_extract(table, '(?<=\\.)"[^"]+"')
     copy_statement <- glue::glue('SELECT * 
-               INTO [{myschema}].{table_short}
+               INTO [{my_schema}].{table_short}
                FROM {table};')  
     dbExecute(decimal_con, copy_statement)
   }
@@ -107,6 +116,51 @@ tryCatch({
 }, finally = {
   dbDisconnect(decimal_con)
 })
+
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
+
+# ---- 4. re-run step by step ----
+if (regular_run == T){
+  source(glue::glue("./R/load-cohort-appso.R"))
+  source(glue::glue("./R/load-cohort-bgs.R"))
+  source(glue::glue("./R/load-cohort-dacso.R"))
+  source(glue::glue("./R/load-cohort-trd.R"))
+  source(glue::glue("./R/02b-1-pssm-cohorts.R"))
+  source(glue::glue("./R/02b-2-pssm-cohorts-new-labour-supply.R"))
+  source(glue::glue("./R/02b-3-pssm-cohorts-occupation-distributions.R"))
+  source(glue::glue("./R/load-near-completers-ttrain.R"))
+  source(glue::glue("./R/03-near-completers-ttrain.R"))
+  source(glue::glue("./R/load-graduate-projections.R"))
+  source(glue::glue("./R/04-graduate-projections.R"))
+  source(glue::glue("./R/load-program-projections.R"))
+  source(glue::glue("./R/06-program-projections.R"))
+  source(glue::glue("./R/load-occupation-projections.R"))
+  source(glue::glue("./R/07-occupation-projections.R"))
+
+} else {
+  source(glue::glue("./R/load-cohort-appso.R"))
+  source(glue::glue("./R/load-cohort-bgs.R"))
+  source(glue::glue("./R/load-cohort-dacso.R"))
+  source(glue::glue("./R/load-cohort-trd.R"))
+  source(glue::glue("./R/02b-1-pssm-cohorts.R"))
+  source(glue::glue("./R/02b-2-pssm-cohorts-new-labour-supply.R"))
+  source(glue::glue("./R/02b-3-pssm-cohorts-occupation-distributions.R"))
+  source(glue::glue("./R/load-near-completers-ttrain.R"))
+  source(glue::glue("./R/03-near-completers-ttrain.R"))
+  source(glue::glue("./R/load-graduate-projections.R"))
+  source(glue::glue("./R/04-graduate-projections.R"))
+  source(glue::glue("./R/load-program-projections.R"))
+  source(glue::glue("./R/06-program-projections.R"))
+  source(glue::glue("./R/load-occupation-projections.R"))
+  source(glue::glue("./R/07-occupation-projections.R"))
+}
+
+
+source(glue::glue("./R/08-create-final-reports.R"))
 
 
 # ---- Disconnect ----

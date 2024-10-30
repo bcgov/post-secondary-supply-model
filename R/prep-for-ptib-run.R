@@ -10,7 +10,10 @@ library(RJDBC)
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-
+# regular_run <- config::get("regular_run")
+regular_run <- T
+# ptib_flag <- config::get("ptib_flag")
+ptib_flag <-  T
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),
@@ -44,6 +47,66 @@ dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Cohort_Program_Dist
 dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_PSSM_Credential_Grouping_Appendix];"))
 dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_LCP2_LCP4];"))
 dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
+
+
+# ---- 4. Copy tables required for re-run ----
+copy_tables = c(
+  # '[dbo]."T_bgs_data_final_for_outcomesmatching"',
+  # '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
+  # '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
+  '[dbo]."Credential_Non_Dup"'
+)
+
+dbBegin(decimal_con)
+tryCatch({
+  for (table in copy_tables) {
+    # Extract the part after the dot
+    table_short <- str_extract(table, '(?<=\\.)"[^"]+"')
+    copy_statement <- glue::glue('SELECT * 
+               INTO [{my_schema}].{table_short}
+               FROM {table};')  
+    dbExecute(decimal_con, copy_statement)
+  }
+  dbCommit(decimal_con)  # Commit transaction if all deletions succeed
+  print("All tables copied successfully.")
+}, error = function(e) {
+  dbRollback(decimal_con)  # Rollback if there's an error
+  print(paste("Error:", e$message))
+}, finally = {
+  dbDisconnect(decimal_con)
+})
+
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
+
+# ---- 5. re-run step by step ----
+if (ptib_flag == T) {
+  
+  source(glue::glue("./R/load-cohort-appso.R"))
+  source(glue::glue("./R/load-cohort-bgs.R"))
+  source(glue::glue("./R/load-cohort-dacso.R"))
+  source(glue::glue("./R/load-cohort-trd.R"))
+  source(glue::glue("./R/02b-1-pssm-cohorts.R"))
+  source(glue::glue("./R/02b-2-pssm-cohorts-new-labour-supply.R"))
+  source(glue::glue("./R/02b-3-pssm-cohorts-occupation-distributions.R"))
+  source(glue::glue("./R/load-near-completers-ttrain.R"))
+  source(glue::glue("./R/03-near-completers-ttrain.R"))
+  source(glue::glue("./R/load-graduate-projections.R"))
+  source(glue::glue("./R/04-graduate-projections.R"))
+  source(glue::glue("./R/load-ptib.R"))
+  source(glue::glue("./R/05-ptib-analysis.R"))
+  source(glue::glue("./R/load-program-projections.R"))
+  source(glue::glue("./R/06-program-projections.R"))
+  source(glue::glue("./R/load-occupation-projections.R"))
+  source(glue::glue("./R/07-occupation-projections.R"))
+  
+} 
+
+
+source(glue::glue("./R/08-create-final-reports.R"))
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)

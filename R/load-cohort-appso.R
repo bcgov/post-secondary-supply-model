@@ -87,7 +87,7 @@ T_APPSO_DATA_Final <-
 # Replace the weights in the appropriate area in the code (~lines 71-77):
   
 
-if (regular_run == TRUE){
+if (regular_run == TRUE | ptib_flag == T){
   T_APPSO_DATA_Final <-
     T_APPSO_DATA_Final %>% 
     mutate(WEIGHT = case_when (

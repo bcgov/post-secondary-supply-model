@@ -96,7 +96,7 @@ dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
 dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
 dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
 dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
-dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) 
+# dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) 
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_NLS Float NULL;")
 
 # null Weight_NLS field and update (if you’ve been messing with iterations)

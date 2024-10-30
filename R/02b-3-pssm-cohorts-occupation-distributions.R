@@ -58,7 +58,7 @@ dbExecute(decimal_con, DACSO_Q008_Z05b_Finding_NLS2_Missing)
 dbExecute(decimal_con, DACSO_Q008_Z05b_NOC4D_NLS_XTab)
 dbExecute(decimal_con, DACSO_Q008_Z05b_Weight_Comparison)
 
-dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
+# dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
 dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null)
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_OCC FLOAT NULL")
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_Age FLOAT NULL")
@@ -202,7 +202,18 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
-dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
+if (regular_run == FALSE |
+    ptib_flag == TRUE) {
+  # do  nothing
+} else {
+  tryCatch({
+    dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
+  }, error = function(e) {
+    print(paste("Error:", e$message))
+  })
+  
+}
+
 
 dbExecute(decimal_con, "DELETE 
                         FROM Occupation_Distributions

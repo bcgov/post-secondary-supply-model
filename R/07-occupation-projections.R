@@ -32,6 +32,8 @@ library(DBI)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
+# regular_run <- config::get("regular_run")
+# ptib_flag <- config::get("ptib_flag")
 
 source("./sql/07-occupation-projections/occupation-projections.R")
 
@@ -89,10 +91,10 @@ dbGetQuery(decimal_con, Count_Occupation_Distributions2)
 dbGetQuery(decimal_con, Occupation_Unknown) 
 
 # creates mapping for LCIP4 to LCIP2 
-dbExecute(decimal_con, Q_0_LCP2_LCP4) 
+# dbExecute(decimal_con, Q_0_LCP2_LCP4) # The table “T_LCP2_LCP4” has already been create in previous script: load-occupation-projections.R
 
 # essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
-if (regular_run!= TRUE) {
+if (ptib_flag == TRUE) {
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D)
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
@@ -242,8 +244,12 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_BC")
 dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 
 # ---- Q_6 Series ---- 
-dbExecute(decimal_con, Q_6_tmp_tbl_Model) 
-dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
+if (regular_run == T){
+dbExecute(decimal_con, Q_6_tmp_tbl_Model)
+  } else {
+  dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
+}
+
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
 #dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 
@@ -337,8 +343,8 @@ dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
 dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy")
 
 # Keep 
-dbExists(decimal_con, "")
-dbExists(decimal_con, "")
+# dbExists(decimal_con, "")
+# dbExists(decimal_con, "")
 
 
 
