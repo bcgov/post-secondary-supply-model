@@ -126,4 +126,4 @@ stopifnot(exprs = {
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)
-rm(list=ls())
+# rm(list=ls())

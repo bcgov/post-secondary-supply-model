@@ -93,5 +93,5 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-rm(list = ls())
+# rm(list = ls())
 gc()

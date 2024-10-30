@@ -173,5 +173,5 @@ dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 # dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 dbDisconnect(decimal_con)
-rm(list=ls())
+# rm(list=ls())
 

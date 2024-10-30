@@ -1,6 +1,7 @@
 # ******************************************************************************
 # After running the regular and QI model runs, prep for ptib run.  
 # ******************************************************************************
+rm(list = ls())
 library(tidyverse)
 library(RODBC)
 library(config)

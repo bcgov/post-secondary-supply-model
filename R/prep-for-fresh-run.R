@@ -3,6 +3,7 @@
 # Option 1: CAUTION: Drop EVERY single table in your SQL IDIR schema (2 ways)
 # Option 2: Drop select tables required for a fresh run from 02b of regular
 # *********************************************************************************
+rm(list = ls())
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -181,6 +182,8 @@ regular_run = T
 
 if (regular_run == T){
   regular_run = T # since rm function is executed in some R files to gc()
+  
+  
   # Loop through each file, calling time_execution for each
   for (file_path in r_files) {
     time_execution(file_path)

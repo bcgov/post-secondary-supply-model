@@ -140,7 +140,7 @@ dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN UNIT_GRO
 
 # ---- Clean Up ---
 dbDisconnect(decimal_con)
-rm(list = ls())
+# rm(list = ls())
 
 
 

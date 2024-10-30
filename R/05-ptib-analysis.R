@@ -187,4 +187,4 @@ dbExecute(decimal_con, "DROP TABLE T_PTIB_Y1_to_Y10")
 
 ## ---- disconnect_connect ----
 dbDisconnect(decimal_con)
-rm(list=ls())
+# rm(list=ls())

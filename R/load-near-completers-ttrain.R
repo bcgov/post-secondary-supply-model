@@ -81,7 +81,7 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"'
 # ---- Clean up and disconnect ----
 dbDisconnect(decimal_con)
 gc()
-rm(list = ls())
+# rm(list = ls())
 
 
 
