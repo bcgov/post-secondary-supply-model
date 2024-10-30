@@ -28,25 +28,26 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Model"')))
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_QI"')))
 
 # ---- Clean environment ----
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_BGS_Data_Final];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_Cohorts_Recoded];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[t_dacso_data_part_1_stepa];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[t_dacso_data_part_1];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[infoware_c_outc_clean_short_resp];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_TRD_DATA];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[TRD_Graduates];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Credential_Non_Dup];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioAgeAtGradCIP4];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender_year];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[population_projections];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[tbl_Program_Projection_Input];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Cohort_Program_Distributions_Projected];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_PSSM_Credential_Grouping_Appendix];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[T_LCP2_LCP4];"))
-dbExecute(decimal_con, glue::glue("DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_BGS_Data_Final', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_BGS_Data_Final];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_Cohorts_Recoded', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_Cohorts_Recoded];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1_stepa', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1_stepa];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.infoware_c_outc_clean_short_resp', 'U') IS NOT NULL DROP TABLE [{my_schema}].[infoware_c_outc_clean_short_resp];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_TRD_DATA', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_TRD_DATA];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.TRD_Graduates', 'U') IS NOT NULL DROP TABLE [{my_schema}].[TRD_Graduates];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Credential_Non_Dup', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Credential_Non_Dup];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioAgeAtGradCIP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioAgeAtGradCIP4];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender_year', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender_year];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.population_projections', 'U') IS NOT NULL DROP TABLE [{my_schema}].[population_projections];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.tbl_Program_Projection_Input', 'U') IS NOT NULL DROP TABLE [{my_schema}].[tbl_Program_Projection_Input];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions_Projected', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions_Projected];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_PSSM_Credential_Grouping_Appendix', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_PSSM_Credential_Grouping_Appendix];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_LCP2_LCP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_LCP2_LCP4];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
+
 
 
 # ---- 4. Copy tables required for re-run ----
@@ -61,11 +62,14 @@ dbBegin(decimal_con)
 tryCatch({
   for (table in copy_tables) {
     # Extract the part after the dot
-    table_short <- str_extract(table, '(?<=\\.)"[^"]+"')
-    copy_statement <- glue::glue('SELECT * 
+    table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>% str_remove_all("\"")
+    # must have the SQL to make dbExistsTable work
+    if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))){
+      copy_statement <- glue::glue('SELECT * 
                INTO [{my_schema}].{table_short}
                FROM {table};')  
-    dbExecute(decimal_con, copy_statement)
+      dbExecute(decimal_con, copy_statement)
+    }
   }
   dbCommit(decimal_con)  # Commit transaction if all deletions succeed
   print("All tables copied successfully.")
@@ -85,23 +89,57 @@ decimal_con <- dbConnect(odbc::odbc(),
 # ---- 5. re-run step by step ----
 if (ptib_flag == T) {
   
+  print("Loading ./R/load-cohort-appso.R")
   source(glue::glue("./R/load-cohort-appso.R"))
+  
+  print("Loading ./R/load-cohort-bgs.R")
   source(glue::glue("./R/load-cohort-bgs.R"))
+  
+  print("Loading ./R/load-cohort-dacso.R")
   source(glue::glue("./R/load-cohort-dacso.R"))
+  
+  print("Loading ./R/load-cohort-trd.R") # not sure if this one
   source(glue::glue("./R/load-cohort-trd.R"))
+  
+  print("Loading ./R/02b-1-pssm-cohorts.R")
   source(glue::glue("./R/02b-1-pssm-cohorts.R"))
+  
+  print("Loading ./R/02b-2-pssm-cohorts-new-labour-supply.R")
   source(glue::glue("./R/02b-2-pssm-cohorts-new-labour-supply.R"))
+  
+  print("Loading ./R/02b-3-pssm-cohorts-occupation-distributions.R")
   source(glue::glue("./R/02b-3-pssm-cohorts-occupation-distributions.R"))
+  
+  print("Loading ./R/load-near-completers-ttrain.R")
   source(glue::glue("./R/load-near-completers-ttrain.R"))
+  
+  print("Loading ./R/03-near-completers-ttrain.R")
   source(glue::glue("./R/03-near-completers-ttrain.R"))
+  
+  print("Loading ./R/load-graduate-projections.R")
   source(glue::glue("./R/load-graduate-projections.R"))
+  
+  print("Loading ./R/04-graduate-projections.R")
   source(glue::glue("./R/04-graduate-projections.R"))
+  
+  print("Loading ./R/load-ptib.R")
   source(glue::glue("./R/load-ptib.R"))
+  
+  print("Loading ./R/05-ptib-analysis.R")
   source(glue::glue("./R/05-ptib-analysis.R"))
+  
+  print("Loading ./R/load-program-projections.R")
   source(glue::glue("./R/load-program-projections.R"))
+  
+  print("Loading ./R/06-program-projections.R")
   source(glue::glue("./R/06-program-projections.R"))
+  
+  print("Loading ./R/load-occupation-projections.R")
   source(glue::glue("./R/load-occupation-projections.R"))
+  
+  print("Loading ./R/07-occupation-projections.R")
   source(glue::glue("./R/07-occupation-projections.R"))
+  
   
 } 
 
