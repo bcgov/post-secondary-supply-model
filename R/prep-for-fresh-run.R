@@ -191,7 +191,7 @@ if (regular_run == T){
   
 } 
 
-regular_run == F
+regular_run = F
 
 # for QI run
 if (regular_run == F){

@@ -32,8 +32,6 @@ library(DBI)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-# regular_run <- config::get("regular_run")
-# ptib_flag <- config::get("ptib_flag")
 
 source("./sql/07-occupation-projections/occupation-projections.R")
 
@@ -258,17 +256,20 @@ dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
 
 # see 08 script to replace below
 # # ---- model with QI ----
-# dbGetQuery(decimal_con, Q_7_QI) %>% 
-#   write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
-# 
-# dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>% 
-#   write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
-# 
-# # gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
-# dbExecute(decimal_con, qry_10a_Model)
-# 
-# dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>% 
-#   write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
+if (regular_run != T){
+  dbGetQuery(decimal_con, Q_7_QI) %>%
+    write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
+
+  dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>%
+    write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
+
+  # gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
+  dbExecute(decimal_con, qry_10a_Model)
+
+  dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>%
+    write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
+}
+
 # 
 # # ---- public release ----
 # dbExecute(decimal_con, qry_10a_Model_Public_Release) # gives rounded 5-digit NOC result
