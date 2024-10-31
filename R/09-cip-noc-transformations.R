@@ -41,7 +41,7 @@ source("./sql/09-cip-noc-transformations/cip-noc-transformations.R")
 ## Create T_Cohorts_Recoded_CIP_NOC from T_Cohorts_Recoded for desired years
 dbExecute(decimal_con, qry_Make_T_Cohorts_Recoded_for_CIP_NOC)
 
-## Labour Supply ----
+## Prepare Labour Supply table ----
 # Add NLS to NLS_CIP_NOC column
 dbExecute(decimal_con, CIP_NOC_Update_NewLabourSupply_CIP_NOC)
 
@@ -73,6 +73,7 @@ dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply_CIP_NOC)
 
 # calculate weighted new labor supply - various distribution
 # from documentation: Note that the queries with _2D in the name are not required for the CIP-NOC work. 
+# have excluded them from this script
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC)
 dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC)
@@ -92,10 +93,11 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_CIP_NO
 dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0_CIP_NOC")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_CIP_NOC")
 
-# append to labour supply distribution tables
+# append to labour supply distribution table
 nls_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", Current_Region_PSSM_Code_Rollup = "integer",   
              Age_Group_Rollup = "integer", LCP4_CD = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)",  
              Count = "float", Total = "float", New_Labour_Supply_CIP_NOC = "float")
+
 if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_CIP_NOC"')))){
   dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_CIP_NOC"')),  nls_def)
 } 
@@ -106,4 +108,70 @@ dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_CIP_NOC)
 
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_CIP_NOC")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS_CIP_NOC")
+
+## Prepare Occupation Distribution table ----
+
+# create base weights
+dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC_CIP_NOC)
+
+# weight calculations
+dbExecute(decimal_con, DACSO_Q008_Z02a_Base_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z02b_Respondents_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z02c_Weight_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z03_Weight_Total_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z04_Weight_Adj_Fac_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z05_Weight_OCC_CIP_NOC)
+
+# placeholder for some queries - investigate if needed
+# DACSO_Q008_Z05b_CIP2D_NLS_XTab
+# DACSO_Q008_Z05b_CIP4D_NLS_XTab
+# DACSO_Q008_Z05b_Finding_NLS2_Missing
+# DACSO_Q008_Z05b_NOC4D_NLS_XTab
+# DACSO_Q008_Z05b_Weight_Comparison 
+
+# null and update weight_occ_cip_noc in T_Cohorts_Recoded_CIP_NOC
+dbExecute(decimal_con, DACSO_Q008_Z07_Weight_OCC_Null_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q008_Z08_Weight_OCC_Update_CIP_NOC)
+
+# check weights?
+dbExecute(decimal_con, DACSO_Q008_Z09_Check_Weights_CIP_NOC)
+
+# apply weight occs by region 
+dbExecute(decimal_con, DACSO_Q009_Weight_Occs_CIP_NOC)
+
+# calculate weighted occs
+# from documentation: Note that the queries with _2D in the name are not required for the CIP-NOC work. 
+# have excluded them from this script
+dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total_CIP_NOC)
+dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_CIP_NOC)
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z01_Base_OCC_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02a_Base_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02b_Respondents_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z02c_Weight_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z03_Weight_Total_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q008_Z04_Weight_Adj_Fac_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q009_Weight_Occs_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q009b_Weighted_Occs_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE DACSO_Q009b_Weighted_Occs_Total_CIP_NOC")
+
+
+# append to occupation distributions table
+occs_def <- c(Survey = "nvarchar(50)", PSSM_Credential  = "nvarchar(50)", Current_Region_PSSM_Code_Rollup = "integer",
+              Age_Group_Rollup = "integer",  LCP4_CD = "nvarchar(50)", LCIP4_CRED = "nvarchar(50)", NOC = "nvarchar(50)" , 
+              Unweighted_Count = "float", Unweighted_Total = "float", Unweighted_Percent = "float",
+              Count = "float",Total = "float", Percent = "float")
+
+
+if(!dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_CIP_NOC"')))){
+  dbCreateTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_CIP_NOC"')),  occs_def)
+} 
+
+dbExecute(decimal_con,"DELETE FROM Occupation_Distributions_CIP_NOC")
+dbExecute(decimal_con, DACSO_Q010b_Append_Occupational_Distribution_CIP_NOC)
+
+dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_CIP_NOC")
 
