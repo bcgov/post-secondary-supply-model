@@ -44,18 +44,9 @@ tables_query <- paste0(
 )
 all_tables <- dbGetQuery(decimal_con, tables_query)$TABLE_NAME
 
-# keep those tables
-copy_tables = c(
-  '[dbo]."T_bgs_data_final_for_outcomesmatching"',
-  '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
-  '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
-  '[dbo]."Credential_Non_Dup"'
-)
 
-# only keep the table name without the schema name prefix
-keep_tables = copy_tables %>% str_extract( '(?<=\\.)"[^"]+"') %>% str_remove_all("\"")
 
-remove_tables = setdiff(all_tables, keep_tables)
+
 
 # Step 2: Begin transaction and delete tables
 # commented out to prevent accidental deletions
@@ -64,7 +55,7 @@ my_schema
 
 dbBegin(decimal_con)
 tryCatch({
-  for (table in remove_tables) {
+  for (table in all_tables) {
     drop_statement <- glue::glue('DROP TABLE "{my_schema}"."{table}"')
     dbExecute(decimal_con, drop_statement)
   }
@@ -106,6 +97,13 @@ dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Occupation_Distribu
 
 
 # ---- 3. Copy tables required for re-run ----
+# copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
+copy_tables = c(
+  '[dbo]."T_bgs_data_final_for_outcomesmatching"',
+  '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
+  '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
+  '[dbo]."Credential_Non_Dup"'
+)
 
 dbBegin(decimal_con)
 tryCatch({
@@ -152,15 +150,16 @@ time_execution <- function(file_path) {
   }, error = function(e) {
     # Print error message if execution fails
     print(paste("Error in file:", file_path, " - ", e$message))
+    stop()
   })
 }
 
 # List of R file paths
-r_files <- c(
+regular_run_files <- c(
   "./R/load-cohort-appso.R",
   "./R/load-cohort-bgs.R",
   "./R/load-cohort-dacso.R",
-  "./R/load-cohort-trd.R", # not sure if this one
+  "./R/load-cohort-trd.R", 
   "./R/02b-1-pssm-cohorts.R",
   "./R/02b-2-pssm-cohorts-new-labour-supply.R",
   "./R/02b-3-pssm-cohorts-occupation-distributions.R",
@@ -179,36 +178,59 @@ r_files <- c(
 
 # for regular run
 regular_run = T
-
+print("regular run")
 if (regular_run == T){
-  regular_run = T # since rm function is executed in some R files to gc()
   
   
   # Loop through each file, calling time_execution for each
-  for (file_path in r_files) {
+  for (file_path in regular_run_files) {
+    print(regular_run)
     time_execution(file_path)
   }
   
 } 
 
-regular_run = F
+
 
 # for QI run
+regular_run = F
+
+
+qi_run_files <- c(
+  "./R/load-cohort-appso.R",
+  "./R/load-cohort-bgs.R",
+  "./R/load-cohort-dacso.R",
+  # "./R/load-cohort-trd.R", # 
+  "./R/02b-1-pssm-cohorts.R",
+  "./R/02b-2-pssm-cohorts-new-labour-supply.R",
+  "./R/02b-3-pssm-cohorts-occupation-distributions.R",
+  # "./R/load-near-completers-ttrain.R",
+  # "./R/03-near-completers-ttrain.R",
+  # "./R/load-graduate-projections.R",
+  # "./R/04-graduate-projections.R",
+  # "./R/load-ptib.R",
+  # "./R/05-ptib-analysis.R",
+  "./R/load-program-projections.R",
+  # "./R/06-program-projections.R",
+  "./R/load-occupation-projections.R",
+  "./R/07-occupation-projections.R"
+)
+
+
+print("qi run")
 if (regular_run == F){
-  regular_run = F # since rm function is executed in some R files to gc()
   # Loop through each file, calling time_execution for each
-  for (file_path in r_files) {
+  for (file_path in qi_run_files) {
+    print(regular_run)
     time_execution(file_path)
   }
-  
-  
 }
 
 
-source(glue::glue("./R/08-create-final-reports.R"))
+
 
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-rm(list = ls())
-
+# rm(list = ls())
+gc()

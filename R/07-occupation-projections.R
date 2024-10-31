@@ -77,8 +77,11 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories
 
 #dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
 #                        FROM Cohort_Program_Distributions_Projected;")
-dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
+if (dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions"'))) == FALSE){
+  dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions 
                          FROM Cohort_Program_Distributions_Static;")
+}
+
 
 # Checks
 dbGetQuery(decimal_con, Count_Cohort_Program_Distributions) 
@@ -248,27 +251,29 @@ dbExecute(decimal_con, Q_6_tmp_tbl_Model)
   dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
 }
 
+if (regular_run == T){
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
 #dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
+}
 
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
 
 # see 08 script to replace below
 # # ---- model with QI ----
-if (regular_run != T){
-  dbGetQuery(decimal_con, Q_7_QI) %>%
-    write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
-
-  dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>%
-    write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
-
-  # gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
-  dbExecute(decimal_con, qry_10a_Model)
-
-  dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>%
-    write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
-}
+# if (regular_run != T){
+#   dbGetQuery(decimal_con, Q_7_QI) %>%
+#     write_csv(glue::glue("{lan}/reports-final/drafts/error_rate_by_noc_static_incl_ptib.csv"))
+# 
+#   dbGetQuery(decimal_con, Q_8_Labour_Supply_Total_by_Year) %>%
+#     write_csv(glue::glue("{lan}/reports-final/drafts/labour_supply_by_year_static_incl_ptib.csv"))
+# 
+#   # gives final model output with quality indicator and coverage indicator counts-not too useful for anything, better queries below
+#   dbExecute(decimal_con, qry_10a_Model)
+# 
+#   dbGetQuery(decimal_con, "SELECT * FROM qry_10a_Model") %>%
+#     write_csv(glue::glue("{lan}/reports-final/drafts/full_model_static_incl_ptib.csv"))
+# }
 
 # 
 # # ---- public release ----

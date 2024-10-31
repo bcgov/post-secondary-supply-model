@@ -92,10 +92,9 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"'))
 
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
-dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
-
 if (regular_run == T){
+  dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
+  dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
 }  else {
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
@@ -120,14 +119,12 @@ dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
 dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
-
 if (regular_run == T){
+  dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
   dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
 }  else {
   dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
 }
-
 
 # Refresh bgs survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
@@ -135,7 +132,7 @@ dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
 
 # ----DACSO Queries ----
 # adds age, updates credential, creates new LCIP4_CRED variable 
-dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
+if (regular_run == T){ dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB) }
 
 # Recode institution codes for CIP-NOC work
 dbExecute(decimal_con, DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed)

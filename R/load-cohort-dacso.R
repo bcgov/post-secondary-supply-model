@@ -28,7 +28,6 @@ library(config)
 library(DBI)
 library(RJDBC)
 
-
 # ---- Configure LAN and file paths ----
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
@@ -93,20 +92,20 @@ T_NOC_Broad_Categories <-
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')), value = tbl_Age_Groups_Rollup)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age"')), value = tbl_Age)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), value = T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), value = tbl_Age_Groups, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')), value = tbl_Age_Groups_Rollup, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age"')), value = tbl_Age, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), value = T_PSSM_Credential_Grouping, overwrite = TRUE)
 
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')), value = T_NOC_Broad_Categories, overwrite = TRUE) 
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_year_survey_year"')), value = t_year_survey_year)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')), value = t_cohorts_recoded)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')), value = t_current_region_pssm_codes)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')), value = t_current_region_pssm_rollup_codes)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc)
-
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_year_survey_year"')), value = t_year_survey_year, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')), value = t_cohorts_recoded, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')), value = t_current_region_pssm_codes, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')), value = t_current_region_pssm_rollup_codes, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc, overwrite = TRUE)
 
 # --- Read SO DACSO data and write to decimal ----
+if (regular_run == T) {
 t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
 
@@ -130,6 +129,7 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPONDENT INT NULL")
 rm(t_dacso_data_part_1_stepa)
 gc()
+}
 
 dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN BROAD_CATEGORY_CODE NVARCHAR(50) NULL;")
 dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN MAJOR_GROUP_CODE NVARCHAR(50) NULL;")

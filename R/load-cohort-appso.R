@@ -16,7 +16,6 @@ db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-regular_run <- config::get("regular_run")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -67,15 +66,6 @@ T_APPSO_DATA_Final <-
     APP_AGE_AT_SURVEY %in% 45:54 ~ 7,
     APP_AGE_AT_SURVEY %in% 55:64 ~ 8,
     TRUE ~ NA)) %>%
-  # check that these years are correct
-  # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
-  mutate(WEIGHT = case_when (
-    SUBM_CD == 'C_Outc19' ~ 2,
-    SUBM_CD == 'C_Outc20' ~ 3,
-    SUBM_CD == 'C_Outc21' ~ 4,
-    SUBM_CD == 'C_Outc22' ~ 5,
-    SUBM_CD == 'C_Outc23' ~ 0,
-    TRUE ~ 0)) %>%
   mutate(NEW_LABOUR_SUPPLY = case_when(
     APP_LABR_EMPLOYED == 1 ~ 1,
     APP_LABR_IN_LABOUR_MARKET == 1 & APP_LABR_EMPLOYED == 0 ~ 1,
@@ -97,7 +87,17 @@ if (regular_run == TRUE | ptib_flag == T){
       SUBM_CD == 'C_Outc22' ~ 4,
       SUBM_CD == 'C_Outc23' ~ 5,
       TRUE ~ 0)) 
-  
+} else {
+  # check that these years are correct
+  # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
+  T_APPSO_DATA_Final <-
+    T_APPSO_DATA_Final %>% mutate(WEIGHT = case_when (
+    SUBM_CD == 'C_Outc19' ~ 2,
+    SUBM_CD == 'C_Outc20' ~ 3,
+    SUBM_CD == 'C_Outc21' ~ 4,
+    SUBM_CD == 'C_Outc22' ~ 5,
+    SUBM_CD == 'C_Outc23' ~ 0,
+    TRUE ~ 0)) 
 }
 
 # prepare graduate dataset

@@ -63,43 +63,50 @@ T_BGS_INST_Recode <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read Outcomes Data ----
-BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2019_2023)
-BGS_Data_Update <- BGS_Data_Update %>% 
-  rename("FULL_TM_WRK" = FULL_TM, 
-         "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
-         "IN_LBR_FRC" = LBR_FRC_LABOUR_MARKET,
-         "EMPLOYED" = LBR_FRC_CURRENTLY_EMPLOYED,
-         "UNEMPLOYED" = LBR_FRC_UNEMPLOYED,
-         "TRAINING_RELATED" = E10_IN_TRAINING_RELATED_JOB, 
-         "TOOK_FURTH_ED" = D01_R1) %>% # this can be added to original query
-  mutate(AGE_17_34 = if_else(between(AGE, 17, 34), 1, 0)) %>%
-  mutate(OLD_LABOUR_SUPPLY = NA) %>% # I don't think we use this?
-  select(-c(D02_R1_CURRENTLY_STUDYING, SUBM_CD)) # nor these?
+if (regular_run == T) {
+  BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2019_2023)
+  BGS_Data_Update <- BGS_Data_Update %>% 
+    rename("FULL_TM_WRK" = FULL_TM, 
+           "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
+           "IN_LBR_FRC" = LBR_FRC_LABOUR_MARKET,
+           "EMPLOYED" = LBR_FRC_CURRENTLY_EMPLOYED,
+           "UNEMPLOYED" = LBR_FRC_UNEMPLOYED,
+           "TRAINING_RELATED" = E10_IN_TRAINING_RELATED_JOB, 
+           "TOOK_FURTH_ED" = D01_R1) %>% # this can be added to original query
+    mutate(AGE_17_34 = if_else(between(AGE, 17, 34), 1, 0)) %>%
+    mutate(OLD_LABOUR_SUPPLY = NA) %>% # I don't think we use this?
+    select(-c(D02_R1_CURRENTLY_STUDYING, SUBM_CD)) # nor these?
+  
+  BGS_Data_Update <- BGS_Data_Update %>%
+    mutate(CURRENT_REGION_PSSM_CODE =  case_when (
+      REGION_CD %in% 1:8 ~ REGION_CD, 
+      CURRENT_REGION %in%c(6,9,10) ~ 10,
+      CURRENT_REGION == 7 ~ 11,
+      CURRENT_REGION == 5 ~ 9,
+      CURRENT_REGION == 8 ~ -1,
+      TRUE ~ NA)) 
+  
+  BGS_Data_Update <- BGS_Data_Update %>% 
+    inner_join(tmp_BGS_INST_REGION_CDS, by = join_by(INST)) %>%
+    mutate(CURRENT_REGION_PSSM_CODE = 
+             if_else((CURRENT_REGION_PSSM_CODE == -1 | is.na(CURRENT_REGION_PSSM_CODE)) &
+                       (SRV_Y_N == 0 | is.na(SRV_Y_N)), as.numeric(CURRENT_REGION_PSSM), CURRENT_REGION_PSSM_CODE))
+  
+  # ---- Make T_BGS_Data_Final ----
+  T_BGS_Data_Final <- BGS_Data_Update %>% 
+    select(-c(CUR_RES,REGION_CD,CURRENT_REGION))
+}
 
-BGS_Data_Update <- BGS_Data_Update %>%
-  mutate(CURRENT_REGION_PSSM_CODE =  case_when (
-    REGION_CD %in% 1:8 ~ REGION_CD, 
-    CURRENT_REGION %in%c(6,9,10) ~ 10,
-    CURRENT_REGION == 7 ~ 11,
-    CURRENT_REGION == 5 ~ 9,
-    CURRENT_REGION == 8 ~ -1,
-    TRUE ~ NA)) 
 
-BGS_Data_Update <- BGS_Data_Update %>% 
-  inner_join(tmp_BGS_INST_REGION_CDS, by = join_by(INST)) %>%
-  mutate(CURRENT_REGION_PSSM_CODE = 
-           if_else((CURRENT_REGION_PSSM_CODE == -1 | is.na(CURRENT_REGION_PSSM_CODE)) &
-                    (SRV_Y_N == 0 | is.na(SRV_Y_N)), as.numeric(CURRENT_REGION_PSSM), CURRENT_REGION_PSSM_CODE))
 
-# ---- Make T_BGS_Data_Final ----
-T_BGS_Data_Final <- BGS_Data_Update %>% 
-  select(-c(CUR_RES,REGION_CD,CURRENT_REGION))
 
 # ---- Write to decimal----
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
 
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
+if (regular_run == T) {
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final)
+}
 
 # ---- Clean Up ----
 dbDisconnect(outcomes_con)

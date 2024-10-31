@@ -62,10 +62,10 @@ dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_CLEANED = ''
 dbExecute(decimal_con, qry_make_tmp_table_Age_step3)
 dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_DATE = NULL WHERE ENDDT_DATE = '1900-01-01'")
 dbExecute(decimal_con, qry_make_tmp_table_Age_step4)
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears") # drop the new table
 
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Age_At_Grad FLOAT NULL")
-# dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL")
+# dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL") # in 'load-near-completers-ttrain.R', we read the CSV for it and it has the age at grad. 
 dbExecute(decimal_con, qry99_Update_Age_At_Grad)
 dbExecute(decimal_con, qry99a_Update_Age_At_Grad)
 
