@@ -175,3 +175,30 @@ dbExecute(decimal_con, DACSO_Q010b_Append_Occupational_Distribution_CIP_NOC)
 
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_CIP_NOC")
 
+# Additional CIP-NOC work ----
+
+# clean LCIP4_CRED column (remove '1 - ' from DACSO records)
+dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_CIP_NOC 
+                ADD  LCIP4_CRED_Cleaned VARCHAR(255)")
+dbExecute(decimal_con, qry_update_Labour_Supply_Distribution_LCIP4_CRED_Cleaned_CIP_NOC)
+dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_CIP_NOC 
+                ADD  LCIP4_CRED_Cleaned VARCHAR(255)")
+dbExecute(decimal_con, qry_update_Occupation_Distributions_LCIP4_Cred_Cleaned_CIP_NOC)
+
+# exclude flag for regions outside BC
+dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_CIP_NOC 
+                ADD  Exclude_Flag VARCHAR(255)")
+dbExecute(decimal_con, qry_update_Occupation_Distributions_Exclude_Flag_CIP_NOC)
+
+# Complete Occupation Distributions table ----
+
+# Find the records in the Labour_Supply_Distribution that are not in the Occupation_Distribution table
+dbExecute(decimal_con, qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC)
+dbExecute(decimal_con, qry_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC)
+# add missing to occupation distributions
+dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_CIP_NOC 
+                ADD  Appended_from_LabourSupply VARCHAR(255)")
+dbExecute(decimal_con, qry_append_LabourSupplyDistribution_Missing_toOccDist_CIP_NOC)
+
+dbExecute(decimal_con, "DROP TABLE qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC")
+dbExecute(decimal_con, "DROP TABLE tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC")

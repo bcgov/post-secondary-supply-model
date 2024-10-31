@@ -839,3 +839,96 @@ DACSO_Q010_Weighted_Occs_Dist_CIP_NOC.Count,
 DACSO_Q010_Weighted_Occs_Dist_CIP_NOC.Total, 
 DACSO_Q010_Weighted_Occs_Dist_CIP_NOC.perc_dist
 FROM DACSO_Q010_Weighted_Occs_Dist_CIP_NOC;"
+
+# ******************************************************************************
+# Additional CIP-NOC work ----
+
+## qry_update_Labour_Supply_Distribution_LCIP4_CRED_Cleaned_CIP_NOC ----
+qry_update_Labour_Supply_Distribution_LCIP4_CRED_Cleaned_CIP_NOC <- 
+"UPDATE Labour_Supply_Distribution_CIP_NOC 
+SET LCIP4_CRED_Cleaned = 
+CASE WHEN Survey = 'DACSO' AND LCIP4_CRED Like '1 - %' 
+THEN SUBSTRING(LCIP4_CRED,5,LEN(LCIP4_CRED))
+ELSE LCIP4_CRED
+END;"
+
+## qry_update_Occupation_Distributions_Exclude_Flag_CIP_NOC ----
+qry_update_Occupation_Distributions_Exclude_Flag_CIP_NOC <- 
+"UPDATE Occupation_Distributions_CIP_NOC 
+SET Occupation_Distributions_CIP_NOC.Exclude_Flag = '1'
+WHERE (((Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup)=9910 
+Or (Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup)=9911 
+Or (Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup)=9999 
+Or (Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup)=9912));"
+
+## qry_update_Occupation_Distributions_LCIP4_Cred_Cleaned_CIP_NOC ----
+qry_update_Occupation_Distributions_LCIP4_Cred_Cleaned_CIP_NOC <- 
+"UPDATE Occupation_Distributions_CIP_NOC 
+SET LCIP4_CRED_Cleaned = 
+CASE WHEN Survey = 'DACSO' AND LCIP4_CRED Like '1 - %' 
+THEN SUBSTRING(LCIP4_CRED,5,LEN(LCIP4_CRED))
+ELSE LCIP4_CRED
+END;"
+
+# Complete Occupation Distributions table ----
+## qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC
+qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC <- 
+"SELECT Occupation_Distributions_CIP_NOC.Survey, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+Occupation_Distributions_CIP_NOC.Age_Group_Rollup
+INTO qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.Survey, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Occupation_Distributions_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+Occupation_Distributions_CIP_NOC.Age_Group_Rollup;"
+
+## qry_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC ----
+qry_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC <- 
+"SELECT Labour_Supply_Distribution_CIP_NOC.Survey, 
+Labour_Supply_Distribution_CIP_NOC.LCIP4_CRED, 
+Labour_Supply_Distribution_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+Labour_Supply_Distribution_CIP_NOC.Age_Group_Rollup, 
+Labour_Supply_Distribution_CIP_NOC.Count, 
+Labour_Supply_Distribution_CIP_NOC.Total, 
+Labour_Supply_Distribution_CIP_NOC.New_Labour_Supply_CIP_NOC, 
+Labour_Supply_Distribution_CIP_NOC.LCIP4_CRED_Cleaned, 
+Labour_Supply_Distribution_CIP_NOC.LCP4_CD, 
+Labour_Supply_Distribution_CIP_NOC.PSSM_Credential 
+INTO tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC
+FROM Labour_Supply_Distribution_CIP_NOC 
+LEFT JOIN qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC 
+ON (Labour_Supply_Distribution_CIP_NOC.Survey = qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Survey) 
+AND (Labour_Supply_Distribution_CIP_NOC.LCP4_CD = qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.LCP4_CD) 
+AND (Labour_Supply_Distribution_CIP_NOC.PSSM_Credential = qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.PSSM_Credential) 
+AND (Labour_Supply_Distribution_CIP_NOC.Current_Region_PSSM_Code_Rollup = qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Current_Region_PSSM_Code_Rollup) 
+AND (Labour_Supply_Distribution_CIP_NOC.Age_Group_Rollup = qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Age_Group_Rollup)
+WHERE (((qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Survey) Is Null) 
+AND ((qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.LCP4_CD) Is Null) 
+AND ((qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.PSSM_Credential) Is Null) 
+AND ((qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Current_Region_PSSM_Code_Rollup) Is Null) 
+AND ((qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC.Age_Group_Rollup) Is Null));"
+
+## qry_append_LabourSupplyDistributioN_Missing_toOccDist_CIP_NOC ----
+qry_append_LabourSupplyDistribution_Missing_toOccDist_CIP_NOC <- 
+"INSERT INTO Occupation_Distributions_CIP_NOC 
+( Survey, LCIP4_CRED, Current_Region_PSSM_Code_Rollup, 
+Age_Group_Rollup, [Count], Total, LCIP4_CRED_Cleaned, LCP4_CD, PSSM_Credential, NOC, 
+[Percent], Appended_from_LabourSupply )
+SELECT tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.Survey, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.LCIP4_CRED, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.Current_Region_PSSM_Code_Rollup, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.Age_Group_Rollup, 
+0 AS Expr1, 
+0 AS Expr2, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.LCIP4_CRED_Cleaned, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.LCP4_CD, 
+tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.PSSM_Credential, 
+99999 AS Expr3, 
+0 AS Expr4, 
+'Yes' AS Expr5
+FROM tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC;"
+
