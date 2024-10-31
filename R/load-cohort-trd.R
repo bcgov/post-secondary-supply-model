@@ -80,8 +80,8 @@ decimal_con <- dbConnect(odbc::odbc(),
 # should specify the DBO schema for final run, individual IDIRS for testing
 schema <- config::get("myschema")
 
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_TRD_DATA"')), value = Q000_TRD_DATA_01)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."TRD_Graduates"')), value = Q000_TRD_Graduates)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_TRD_DATA"')), value = Q000_TRD_DATA_01, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."TRD_Graduates"')), value = Q000_TRD_Graduates, overwrite = TRUE)
 
 dbDisconnect(decimal_con)
 dbDisconnect(outcomes_con)

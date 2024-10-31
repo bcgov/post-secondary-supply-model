@@ -92,11 +92,17 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"'))
 
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
-if (regular_run == T){
+if (regular_run == T & ptib_flag != T){
   dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
   dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
-}  else {
+} 
+
+if (regular_run == T & ptib_flag == T){
+  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
+}  
+
+if (regular_run != T & ptib_flag != T) {
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
 }
 
@@ -119,7 +125,7 @@ dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
 dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # Applies weight for model year and derives New Labour Supply
-if (regular_run == T){
+if (regular_run == T | ptib_flag == T){
   dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
   dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
 }  else {
@@ -132,7 +138,7 @@ dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
 
 # ----DACSO Queries ----
 # adds age, updates credential, creates new LCIP4_CRED variable 
-if (regular_run == T){ dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB) }
+if (regular_run == T | ptib_flag == T){ dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB) }
 
 # Recode institution codes for CIP-NOC work
 dbExecute(decimal_con, DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed)
@@ -145,7 +151,7 @@ dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
 # dbExecute(decimal_con, DACSO_Q004b_INST_Recode)
 
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
-if (regular_run == T){
+if (regular_run == T | ptib_flag == T){
   dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
 }  else {
   dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)

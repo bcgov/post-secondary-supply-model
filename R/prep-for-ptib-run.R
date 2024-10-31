@@ -1,7 +1,7 @@
 # ******************************************************************************
 # After running the regular and QI model runs, prep for ptib run.  
 # ******************************************************************************
-rm(list = ls())
+# rm(list = ls())
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -11,10 +11,6 @@ library(RJDBC)
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-# regular_run <- config::get("regular_run")
-regular_run <- T
-# ptib_flag <- config::get("ptib_flag")
-ptib_flag <-  T
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),
@@ -22,6 +18,54 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
+regular_run <-  T
+ptib_flag <-  T
+
+# ----  Copy tables required for re-run ----
+# copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
+copy_tables = c(
+  # '[dbo]."T_bgs_data_final_for_outcomesmatching"',
+  # '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
+  # '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
+  '[dbo]."Credential_Non_Dup"'
+)
+
+dbBegin(decimal_con)
+tryCatch({
+  for (table in copy_tables) {
+    # Extract the part after the dot
+    table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>% str_remove_all("\"")
+    # must have the SQL to make dbExistsTable work
+    # Some tables will be changed by the code so it is better to recreate them.
+    # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))){
+    drop_statement <- glue::glue(
+      "IF OBJECT_ID('{my_schema}.{table_short}', 'U') IS NOT NULL
+    DROP TABLE [{my_schema}].[{table_short}];"
+    )
+    dbExecute(decimal_con, drop_statement)
+    
+    # -- Create the table by copying data into it
+    copy_statement <- glue::glue('SELECT *
+               INTO [{my_schema}].{table_short}
+               FROM {table};')
+    dbExecute(decimal_con, copy_statement)
+    # }
+    
+  }
+  dbCommit(decimal_con)  # Commit transaction if all deletions succeed
+  print("All tables copied successfully.")
+}, error = function(e) {
+  dbRollback(decimal_con)  # Rollback if there's an error
+  print(paste("Error:", e$message))
+}, finally = {
+  dbDisconnect(decimal_con)
+})
+
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
 
 # ---- Required tables ----
 dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Suppression_Public_Release_NOC"')))
@@ -50,43 +94,6 @@ dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_LCP2_LCP4', 'U') 
 dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
 
 
-
-# ---- 4. Copy tables required for re-run ----
-copy_tables = c(
-  # '[dbo]."T_bgs_data_final_for_outcomesmatching"',
-  # '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
-  # '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
-  '[dbo]."Credential_Non_Dup"'
-)
-
-dbBegin(decimal_con)
-tryCatch({
-  for (table in copy_tables) {
-    # Extract the part after the dot
-    table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>% str_remove_all("\"")
-    # must have the SQL to make dbExistsTable work
-    if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))){
-      copy_statement <- glue::glue('SELECT * 
-               INTO [{my_schema}].{table_short}
-               FROM {table};')  
-      dbExecute(decimal_con, copy_statement)
-    }
-  }
-  dbCommit(decimal_con)  # Commit transaction if all deletions succeed
-  print("All tables copied successfully.")
-}, error = function(e) {
-  dbRollback(decimal_con)  # Rollback if there's an error
-  print(paste("Error:", e$message))
-}, finally = {
-  dbDisconnect(decimal_con)
-})
-
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
-
 # ---- 5. re-run step by step ----
 
 # Define the time_execution function to track execution time and handle errors
@@ -107,7 +114,7 @@ time_execution <- function(file_path) {
 }
 
 # List of R file paths
-r_files <- c(
+ptib_run_files <- c(
   "./R/load-cohort-appso.R",
   "./R/load-cohort-bgs.R",
   "./R/load-cohort-dacso.R",
@@ -128,10 +135,10 @@ r_files <- c(
 )
 
 
-if (ptib_flag == T) {
+if (regular_run==T & ptib_flag == T) {
   
   # Loop through each file, calling time_execution for each
-  for (file_path in r_files) {
+  for (file_path in ptib_run_files[1:5]) {
     time_execution(file_path)
   }
   

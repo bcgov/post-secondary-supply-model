@@ -111,16 +111,17 @@ tryCatch({
     # Extract the part after the dot
     table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>% str_remove_all("\"")
     # must have the SQL to make dbExistsTable work
-    if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))){
+    # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))){
+    # Some tables will be changed by the code so it is better to recreate them.
       copy_statement <- glue::glue('SELECT * 
                INTO [{my_schema}].{table_short}
                FROM {table};')  
       dbExecute(decimal_con, copy_statement)
-    }
+    # }
 
   }
   dbCommit(decimal_con)  # Commit transaction if all deletions succeed
-  print("All tables existed or copied successfully.")
+  print("All tables copied successfully.")
 }, error = function(e) {
   dbRollback(decimal_con)  # Rollback if there's an error
   print(paste("Error:", e$message))
