@@ -932,3 +932,155 @@ tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC.PSSM_Credential
 'Yes' AS Expr5
 FROM tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC;"
 
+# ******************************************************************************
+# Calculations ----
+
+# note commas/dashes have all been converted to _ from existing query names
+## CIP_CIP_Totals ----
+CIP_CIP_Totals <- 
+"SELECT Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Total, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS Total, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+INTO CIP_CIP_Totals
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+HAVING (((Occupation_Distributions_CIP_NOC.Exclude_Flag) Is Null));"
+
+## CIP_CIP_NOC_Counts ----
+CIP_CIP_NOC_Counts <- 
+"SELECT Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.NOC, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Count, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS [Count], 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+INTO CIP_CIP_NOC_Counts
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.NOC, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+HAVING (((Occupation_Distributions_CIP_NOC.Exclude_Flag) Is Null));"
+
+## CIP_CIP_NOC_Occ_Dist ----
+CIP_CIP_NOC_Occ_Dist <- 
+"SELECT CIP_CIP_NOC_Counts.LCP4_CD, 
+CIP_CIP_NOC_Counts.NOC, 
+CIP_CIP_NOC_Counts.Unweighted_Count, 
+CIP_CIP_Totals.Unweighted_Total, 
+[Unweighted_Count]/[Unweighted_Total] AS Unweighted_Percent, 
+CIP_CIP_NOC_Counts.Count, CIP_CIP_Totals.Total, 
+[Count]/[Total] AS [Percent] 
+INTO Occupation_Distributions_CIP4D
+FROM CIP_CIP_Totals 
+INNER JOIN CIP_CIP_NOC_Counts 
+ON CIP_CIP_Totals.LCP4_CD = CIP_CIP_NOC_Counts.LCP4_CD;"
+
+## CIP_CIP_CRED_Totals ----
+CIP_CIP_CRED_Totals <- 
+"SELECT Occupation_Distributions_CIP_NOC.LCIP4_CRED_Cleaned, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Total, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS Total, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+INTO CIP_CIP_CRED_Totals
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.LCIP4_CRED_Cleaned, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+HAVING (((Occupation_Distributions_CIP_NOC.Exclude_Flag) Is Null));"
+
+## CIP_CIP_CRED_NOC_Counts ----
+CIP_CIP_CRED_NOC_Counts <- 
+"SELECT Occupation_Distributions_CIP_NOC.LCIP4_CRED_Cleaned, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Occupation_Distributions_CIP_NOC.NOC, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Count, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS [Count], 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+INTO CIP_CIP_CRED_NOC_Counts
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.LCIP4_CRED_Cleaned, 
+Occupation_Distributions_CIP_NOC.LCP4_CD, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Occupation_Distributions_CIP_NOC.NOC, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+HAVING (((Occupation_Distributions_CIP_NOC.Exclude_Flag) Is Null));"
+
+## CIP_CIP_CRED_NOC_Occ_Dist ----
+CIP_CIP_CRED_NOC_Occ_Dist <- 
+"SELECT CIP_CIP_CRED_NOC_Counts.LCIP4_CRED_Cleaned, 
+CIP_CIP_CRED_NOC_Counts.LCP4_CD, 
+CIP_CIP_CRED_NOC_Counts.PSSM_Credential, 
+CIP_CIP_CRED_NOC_Counts.NOC, 
+CIP_CIP_CRED_NOC_Counts.Unweighted_Count, 
+CIP_CIP_Totals.Unweighted_Total, 
+[Unweighted_Count]/[Unweighted_Total] AS Unweighted_Percent, 
+CIP_CIP_CRED_NOC_Counts.Count, 
+CIP_CIP_Totals.Total, 
+[Count]/[Total] AS [Percent] 
+INTO Occupation_Distributions_CIP4D_Credential
+FROM CIP_CIP_Totals 
+INNER JOIN CIP_CIP_CRED_NOC_Counts 
+ON CIP_CIP_Totals.LCP4_CD = CIP_CIP_CRED_NOC_Counts.LCP4_CD
+ORDER BY CIP_CIP_CRED_NOC_Counts.LCP4_CD;"
+
+## CIP_NOC_Totals ----
+CIP_NOC_Totals <- 
+"SELECT Occupation_Distributions_CIP_NOC.NOC, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Total, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS Total, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+INTO CIP_NOC_Totals
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.NOC, 
+Occupation_Distributions_CIP_NOC.Exclude_Flag
+HAVING (((Occupation_Distributions_CIP_NOC.Exclude_Flag) Is Null));"
+
+## CIP_NOC_CIP_Occ_Dist ----
+CIP_NOC_CIP_Occ_Dist <- 
+"SELECT CIP_CIP_NOC_Counts.NOC, 
+CIP_CIP_NOC_Counts.LCP4_CD, 
+CIP_CIP_NOC_Counts.Unweighted_Count, 
+CIP_NOC_Totals.Unweighted_Total, 
+[Unweighted_Count]/[Unweighted_Total] AS Unweighted_Percent, 
+CIP_CIP_NOC_Counts.Count, 
+CIP_NOC_Totals.Total, 
+[Count]/[Total] AS [Percent] 
+INTO CIP4D_Distributions_NOC
+FROM CIP_NOC_Totals 
+INNER JOIN CIP_CIP_NOC_Counts 
+ON CIP_NOC_Totals.NOC = CIP_CIP_NOC_Counts.NOC
+ORDER BY CIP_CIP_NOC_Counts.NOC;"
+
+## CIP_NOC_CRED_Totals ----
+CIP_NOC_CRED_Totals <- 
+"SELECT Occupation_Distributions_CIP_NOC.NOC, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential, 
+Sum(Occupation_Distributions_CIP_NOC.Unweighted_Count) AS Unweighted_Total, 
+Sum(Occupation_Distributions_CIP_NOC.Count) AS Total
+INTO CIP_NOC_CRED_Totals
+FROM Occupation_Distributions_CIP_NOC
+GROUP BY Occupation_Distributions_CIP_NOC.NOC, 
+Occupation_Distributions_CIP_NOC.PSSM_Credential;"
+
+## CIP_NOC_CRED_CIP_Occ_Dist ----
+CIP_NOC_CRED_CIP_Occ_Dist <- 
+"SELECT CIP_CIP_CRED_NOC_Counts.NOC, 
+CIP_CIP_CRED_NOC_Counts.PSSM_Credential, 
+CIP_CIP_CRED_NOC_Counts.LCIP4_CRED_Cleaned, 
+CIP_CIP_CRED_NOC_Counts.LCP4_CD, 
+CIP_CIP_CRED_NOC_Counts.Unweighted_Count, 
+CIP_NOC_Totals.Unweighted_Total, 
+[Unweighted_Count]/[Unweighted_Total] AS Unweighted_Percent, 
+CIP_CIP_CRED_NOC_Counts.Count, 
+CIP_NOC_Totals.Total, 
+[Count]/[Total] AS [Percent] 
+INTO CIP4D_Distributions_NOC_Credential
+FROM CIP_NOC_Totals 
+INNER JOIN CIP_CIP_CRED_NOC_Counts
+ON CIP_NOC_Totals.NOC = CIP_CIP_CRED_NOC_Counts.NOC
+ORDER BY CIP_CIP_CRED_NOC_Counts.NOC;"

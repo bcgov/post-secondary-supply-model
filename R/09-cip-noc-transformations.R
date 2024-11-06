@@ -202,3 +202,22 @@ dbExecute(decimal_con, qry_append_LabourSupplyDistribution_Missing_toOccDist_CIP
 
 dbExecute(decimal_con, "DROP TABLE qry_SurveyCIP4CredAgeRegionCombos_in_OccDistributions_CIP_NOC")
 dbExecute(decimal_con, "DROP TABLE tmp_Append_LabourSupplyDistribution_Missing_from_OccDist_CIP_NOC")
+
+# Calculations ----
+
+# Produce the unweighted and weighted distribution by CIP – NOC combo across all surveys and credentials, and regions combined
+dbExecute(decimal_con, CIP_CIP_Totals)
+dbExecute(decimal_con, CIP_CIP_NOC_Counts)
+dbExecute(decimal_con, CIP_CIP_NOC_Occ_Dist)
+
+# Produce the unweighted and weighted distribution by CIP – NOC – CRED combo across all surveys
+dbExecute(decimal_con, CIP_CIP_CRED_Totals) ## not used?
+dbExecute(decimal_con, CIP_CIP_CRED_NOC_Counts)
+dbExecute(decimal_con, CIP_CIP_CRED_NOC_Occ_Dist)
+
+# repeat in reverse direction
+dbExecute(decimal_con, CIP_NOC_Totals)
+dbExecute(decimal_con, CIP_NOC_CIP_Occ_Dist)
+
+dbExecute(decimal_con, CIP_NOC_CRED_Totals) ## not used?
+dbExecute(decimal_con, CIP_NOC_CRED_CIP_Occ_Dist)
