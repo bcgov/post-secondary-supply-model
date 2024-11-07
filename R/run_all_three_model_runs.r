@@ -49,9 +49,10 @@ for (file_path0 in three_model_run_files) {
     time_execution(file_path0)
   }, error = function(e) {
     flog.error(paste("Error processing file:", file_path0, "-", e$message), name = "file_logger")
+    stop()
   })
 }
-end_time0 <- Sys.time()
-elapsed0 <- end_time0 - start_time0
-print(paste(Sys.time(), glue::glue("Complete three model runs ......"), "in", round(elapsed0, 2), "seconds"))
-flog.info(paste(Sys.time(), glue::glue("Complete three model runs ......"), "in", round(elapsed0, 2), "seconds"), name = "file_logger")
+# end_time0 <- Sys.time()
+# elapsed0 <- end_time0 - start_time0
+print(paste(Sys.time(), glue::glue("Complete three model runs ......")))
+flog.info(paste(Sys.time(), glue::glue("Complete three model runs ......")), name = "file_logger")
