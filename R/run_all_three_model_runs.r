@@ -20,7 +20,7 @@ source("./R/utils.R") # for time_execution function
 # List of R file paths
 three_model_run_files <- c(
   "./R/prep-for-fresh-run.R",
-  "./R/prep-for-qi-run-test.R",
+  "./R/prep-for-qi-run.R",
   "./R/prep-for-ptib-run.R"
 )
 
