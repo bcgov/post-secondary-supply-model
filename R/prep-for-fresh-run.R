@@ -9,13 +9,14 @@ library(RODBC)
 library(config)
 library(DBI)
 library(RJDBC)
-
+source("./R/utils.R")
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-# regular_run <- config::get("regular_run")
+# initiate flags
 regular_run <-  T
-ptib_flag <- F
+qi_run <- F
+ptib_run <- F
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -51,7 +52,7 @@ all_tables <- dbGetQuery(decimal_con, tables_query)$TABLE_NAME
 # Step 2: Begin transaction and delete tables
 # commented out to prevent accidental deletions
 # REMINDER: ALL IDIR tables WILL be deleted; confirm my_schema used in this process
-my_schema
+stopifnot(my_schema == "IDIR\\JDUAN") 
 
 dbBegin(decimal_con)
 tryCatch({
@@ -137,23 +138,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 # ---- 4. re-run step by step ----
 
-# Define the time_execution function to track execution time and handle errors
-time_execution <- function(file_path) {
-  start_time <- Sys.time()
-  print(paste("Starting:", file_path))
-  
-  # Execute the R script
-  tryCatch({
-    source(file_path)
-    end_time <- Sys.time()
-    elapsed <- end_time - start_time
-    print(paste("Completed:", file_path, "in", round(elapsed, 2), "seconds"))
-  }, error = function(e) {
-    # Print error message if execution fails
-    print(paste("Error in file:", file_path, " - ", e$message))
-    stop()
-  })
-}
+
 
 # List of R file paths
 regular_run_files <- c(
@@ -178,14 +163,16 @@ regular_run_files <- c(
 
 
 # for regular run
-regular_run = T
-print("regular run")
-if (regular_run == T){
+
+print(glue::glue("regular model run flag: {regular_run}"))
+if (regular_run == T & qi_run != T & ptib_run !=T ){
   
   
   # Loop through each file, calling time_execution for each
   for (file_path in regular_run_files) {
-    print(regular_run)
+    print(glue::glue("regular model run flag: {regular_run}"))
+    print(glue::glue("qi model run flag: {qi_run}"))
+    print(glue::glue("ptib model furn flag: {ptib_run}"))
     time_execution(file_path)
   }
   
@@ -193,39 +180,6 @@ if (regular_run == T){
 
 
 
-# for QI run
-regular_run = F
-
-
-qi_run_files <- c(
-  "./R/load-cohort-appso.R",
-  "./R/load-cohort-bgs.R",
-  "./R/load-cohort-dacso.R",
-  # "./R/load-cohort-trd.R", # 
-  "./R/02b-1-pssm-cohorts.R",
-  "./R/02b-2-pssm-cohorts-new-labour-supply.R",
-  "./R/02b-3-pssm-cohorts-occupation-distributions.R",
-  # "./R/load-near-completers-ttrain.R",
-  # "./R/03-near-completers-ttrain.R",
-  # "./R/load-graduate-projections.R",
-  # "./R/04-graduate-projections.R",
-  # "./R/load-ptib.R",
-  # "./R/05-ptib-analysis.R",
-  "./R/load-program-projections.R",
-  # "./R/06-program-projections.R",
-  "./R/load-occupation-projections.R",
-  "./R/07-occupation-projections.R"
-)
-
-
-print("qi run")
-if (regular_run == F){
-  # Loop through each file, calling time_execution for each
-  for (file_path in qi_run_files) {
-    print(regular_run)
-    time_execution(file_path)
-  }
-}
 
 
 

@@ -46,7 +46,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 source("./sql/06-program-projections/06-program-projections.R")
 
-if (regular_run == T){
+if (regular_run == T | ptib_run == T){
 # ---- Lookups  ----
 T_Cohort_Program_Distributions_Y2_to_Y12 <-  
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/06/T_Cohort_Program_Distributions_Y2_to_Y12.csv"),  col_types = cols(.default = col_guess())) %>%
@@ -123,7 +123,13 @@ dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTE
 stopifnot(exprs = {
   dbGetQuery(decimal_con, "select distinct survey_year from T_Cohorts_Recoded")$survey_year==c(2019:2023)
 })
-} else {
+
+
+
+}
+
+
+if (qi_run == T) {
   # ---- Read from Student Outcomes ----
   INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
   INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
