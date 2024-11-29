@@ -13,10 +13,10 @@ SELECT    dacso_q99a_stqui_id.stqu_id_only,
           t_cohorts_recoded.survey,
           t_cohorts_recoded.survey_year,
           t_cohorts_recoded.noc_cd,
-          tbl_noc_skill_level_aged_17_34.unit_group_code
+          T_NOC_Broad_Categories.unit_group_code
 FROM      (t_cohorts_recoded
-  LEFT JOIN tbl_noc_skill_level_aged_17_34
-    ON t_cohorts_recoded.noc_cd =  tbl_noc_skill_level_aged_17_34.unit_group_code)
+  LEFT JOIN T_NOC_Broad_Categories
+    ON t_cohorts_recoded.noc_cd =  T_NOC_Broad_Categories.unit_group_code)
   INNER JOIN dacso_q99a_stqui_id
    ON t_cohorts_recoded.stqu_id = dacso_q99a_stqui_id.survey_stqu_id
 WHERE     t_cohorts_recoded.age_group_rollup IS NOT NULL
@@ -26,11 +26,11 @@ GROUP  BY dacso_q99a_stqui_id.stqu_id_only,
           t_cohorts_recoded.survey,
           t_cohorts_recoded.survey_year,
           t_cohorts_recoded.noc_cd,
-          tbl_noc_skill_level_aged_17_34.unit_group_code
+          T_NOC_Broad_Categories.unit_group_code
 HAVING    t_cohorts_recoded.survey_year IN ('2019','2020','2021','2022','2023') 
   AND     t_cohorts_recoded.noc_cd IS NOT NULL
   AND     t_cohorts_recoded.noc_cd <> ''
-  AND     tbl_noc_skill_level_aged_17_34.unit_group_code IS NULL;"
+  AND     T_NOC_Broad_Categories.unit_group_code IS NULL;"
 
 
 DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding <- "

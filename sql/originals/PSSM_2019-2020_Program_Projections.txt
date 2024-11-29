@@ -1,0 +1,248 @@
+Query: Copy Of Q012b_Weight_Cohort_Dist
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential] AS PSSM_CRED, dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4 AS LCP4_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [FINAL_CIP_CODE_4] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIP4_CRED, dbo_tbl_Program_Projection_Input.AgeGroup, Sum(dbo_tbl_Program_Projection_Input.Count) AS Counts, T_Weights_STP.Weight, Sum([Count])*([Weight]) AS Weighted
+FROM T_PSSM_Projection_Cred_Grp INNER JOIN (dbo_tbl_Program_Projection_Input INNER JOIN T_Weights_STP ON dbo_tbl_Program_Projection_Input.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = dbo_tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY
+WHERE (((T_Weights_STP.Model)="2017-2018") AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ("APPRAPPR","APPRCERT","GRCT or GRDP","PDEG","MAST","DOCT"))) OR (((T_Weights_STP.Model)="2017-2018") AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ("APPRAPPR","APPRCERT","GRCT or GRDP","MAST","DOCT")) AND ((Left([FINAL_CIP_CODE_4],2))=22))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential], dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [FINAL_CIP_CODE_4] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], dbo_tbl_Program_Projection_Input.AgeGroup, T_Weights_STP.Weight
+HAVING (((T_Weights_STP.Weight)>0 Or (T_Weights_STP.Weight)>0));
+
+Query: Q012a_Check_Total_for_Invalid_CIPs
+  SQL: SELECT dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, dbo_tbl_Program_Projection_Input.Count
+FROM dbo_tbl_Program_Projection_Input INNER JOIN INFOWARE_L_CIP_4DIGITS_CIP2016 ON dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4 = INFOWARE_L_CIP_4DIGITS_CIP2016.LCP4_CD
+WHERE (((INFOWARE_L_CIP_4DIGITS_CIP2016.LCP4_CD) Is Null))
+GROUP BY dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, dbo_tbl_Program_Projection_Input.Count;
+
+Query: Q012b_Weight_Cohort_Dist
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential] AS PSSM_CRED, dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4 AS LCP4_CD, T_PSSM_Projection_Cred_Grp.COSC_GRAD_STATUS_LGDS_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [FINAL_CIP_CODE_4] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIP4_CRED, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & Left([FINAL_CIP_CODE_4],2) & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIP2_CRED, dbo_tbl_Program_Projection_Input.AgeGroup, Sum(dbo_tbl_Program_Projection_Input.Count) AS Counts, T_Weights_STP.Weight, Sum([Count])*([Weight]) AS Weighted
+FROM T_PSSM_Projection_Cred_Grp INNER JOIN (dbo_tbl_Program_Projection_Input INNER JOIN T_Weights_STP ON dbo_tbl_Program_Projection_Input.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = dbo_tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY
+WHERE (((T_Weights_STP.Model)="2019-2020") AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ("APPRAPPR","APPRCERT","GRCT or GRDP","PDEG","MAST","DOCT")))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential], dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, T_PSSM_Projection_Cred_Grp.COSC_GRAD_STATUS_LGDS_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [FINAL_CIP_CODE_4] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & Left([FINAL_CIP_CODE_4],2) & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], dbo_tbl_Program_Projection_Input.AgeGroup, T_Weights_STP.Weight
+HAVING (((T_Weights_STP.Weight)>0));
+
+Query: Q012c_Weighted_Cohort_Dist
+  SQL: SELECT Q012b_Weight_Cohort_Dist.PSSM_Credential, Q012b_Weight_Cohort_Dist.PSSM_CRED, Q012b_Weight_Cohort_Dist.LCP4_CD, Q012b_Weight_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD, Q012b_Weight_Cohort_Dist.LCIP4_CRED, Q012b_Weight_Cohort_Dist.LCIP2_CRED, Q012b_Weight_Cohort_Dist.AgeGroup, Sum(Q012b_Weight_Cohort_Dist.Weighted) AS [Count]
+FROM Q012b_Weight_Cohort_Dist
+GROUP BY Q012b_Weight_Cohort_Dist.PSSM_Credential, Q012b_Weight_Cohort_Dist.PSSM_CRED, Q012b_Weight_Cohort_Dist.LCP4_CD, Q012b_Weight_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD, Q012b_Weight_Cohort_Dist.LCIP4_CRED, Q012b_Weight_Cohort_Dist.LCIP2_CRED, Q012b_Weight_Cohort_Dist.AgeGroup;
+
+Query: Q012c1_Weighted_Cohort_Dist_TTRAIN
+  SQL: SELECT T_Cohorts_Recoded.PSSM_Credential, T_Cohorts_Recoded.PSSM_Credential AS PSSM_CRED, T_Cohorts_Recoded.LCP4_CD, T_Cohorts_Recoded.GRAD_STATUS, T_Cohorts_Recoded.TTRAIN, T_Cohorts_Recoded.LCIP4_CRED, T_Cohorts_Recoded.LCIP2_CRED, tbl_Age_Groups.Age_Group_Label AS Age_Group, Count(*) AS Counts, T_Cohorts_Recoded.Weight, Count(*)*([Weight]) AS Weighted
+FROM T_Cohorts_Recoded INNER JOIN tbl_Age_Groups ON T_Cohorts_Recoded.Age_Group = tbl_Age_Groups.Age_Group
+WHERE (((T_Cohorts_Recoded.GRAD_STATUS)<>"3"))
+GROUP BY T_Cohorts_Recoded.PSSM_Credential, T_Cohorts_Recoded.LCP4_CD, T_Cohorts_Recoded.GRAD_STATUS, T_Cohorts_Recoded.TTRAIN, T_Cohorts_Recoded.LCIP4_CRED, T_Cohorts_Recoded.LCIP2_CRED, tbl_Age_Groups.Age_Group_Label, T_Cohorts_Recoded.Weight, T_Cohorts_Recoded.PSSM_Credential
+HAVING (((T_Cohorts_Recoded.TTRAIN) Is Not Null) AND ((T_Cohorts_Recoded.Weight)>0));
+
+Query: Q012c2_Weighted_Cohort_Dist
+  SQL: SELECT Q012c1_Weighted_Cohort_Dist_TTRAIN.PSSM_Credential, Q012c1_Weighted_Cohort_Dist_TTRAIN.PSSM_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCP4_CD, Q012c1_Weighted_Cohort_Dist_TTRAIN.GRAD_STATUS, Q012c1_Weighted_Cohort_Dist_TTRAIN.TTRAIN, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCIP4_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCIP2_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.Age_Group, Sum(Q012c1_Weighted_Cohort_Dist_TTRAIN.Weighted) AS [Count]
+FROM Q012c1_Weighted_Cohort_Dist_TTRAIN
+GROUP BY Q012c1_Weighted_Cohort_Dist_TTRAIN.PSSM_Credential, Q012c1_Weighted_Cohort_Dist_TTRAIN.PSSM_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCP4_CD, Q012c1_Weighted_Cohort_Dist_TTRAIN.GRAD_STATUS, Q012c1_Weighted_Cohort_Dist_TTRAIN.TTRAIN, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCIP4_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.LCIP2_CRED, Q012c1_Weighted_Cohort_Dist_TTRAIN.Age_Group;
+
+Query: Q012c3_Weighted_Cohort_Dist_Total
+  SQL: SELECT Q012c2_Weighted_Cohort_Dist.PSSM_Credential, Q012c2_Weighted_Cohort_Dist.PSSM_CRED, Q012c2_Weighted_Cohort_Dist.LCP4_CD, Q012c2_Weighted_Cohort_Dist.GRAD_STATUS, Q012c2_Weighted_Cohort_Dist.Age_Group, Sum(Q012c2_Weighted_Cohort_Dist.Count) AS Totals
+FROM Q012c2_Weighted_Cohort_Dist
+GROUP BY Q012c2_Weighted_Cohort_Dist.PSSM_Credential, Q012c2_Weighted_Cohort_Dist.PSSM_CRED, Q012c2_Weighted_Cohort_Dist.LCP4_CD, Q012c2_Weighted_Cohort_Dist.GRAD_STATUS, Q012c2_Weighted_Cohort_Dist.Age_Group;
+
+Query: Q012c4_Weighted_Cohort_Distribution_Projected
+  SQL: SELECT "Program_Projections_2019-2020_Q015e" AS Survey, Q012c2_Weighted_Cohort_Dist.PSSM_Credential, Q012c2_Weighted_Cohort_Dist.PSSM_CRED, Q012c2_Weighted_Cohort_Dist.LCP4_CD, Q012c2_Weighted_Cohort_Dist.GRAD_STATUS, Q012c2_Weighted_Cohort_Dist.TTRAIN, Q012c2_Weighted_Cohort_Dist.Age_Group, "2019/2020" AS Projection_Year, Q012c2_Weighted_Cohort_Dist.Count, Q012c3_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM Q012c2_Weighted_Cohort_Dist INNER JOIN Q012c3_Weighted_Cohort_Dist_Total ON (Q012c2_Weighted_Cohort_Dist.Age_Group = Q012c3_Weighted_Cohort_Dist_Total.Age_Group) AND (Q012c2_Weighted_Cohort_Dist.PSSM_CRED = Q012c3_Weighted_Cohort_Dist_Total.PSSM_CRED) AND (Q012c2_Weighted_Cohort_Dist.GRAD_STATUS = Q012c3_Weighted_Cohort_Dist_Total.GRAD_STATUS) AND (Q012c2_Weighted_Cohort_Dist.LCP4_CD = Q012c3_Weighted_Cohort_Dist_Total.LCP4_CD);
+
+Query: Q012c5_Weighted_Cohort_Dist_TTRAIN
+  SQL: SELECT Q012c_Weighted_Cohort_Dist.PSSM_Credential, Q012c_Weighted_Cohort_Dist.PSSM_CRED, Q012c_Weighted_Cohort_Dist.LCP4_CD, Q012c_Weighted_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD, Q012c4_Weighted_Cohort_Distribution_Projected.TTRAIN, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [Q012c_Weighted_Cohort_Dist].[LCP4_CD] & " - " & IIf(IsNull([TTRAIN]),Null,[TTRAIN] & " - ") & [Q012c_Weighted_Cohort_Dist].[PSSM_Credential] AS LCIP4_CRED, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & Left([Q012c_Weighted_Cohort_Dist].[LCP4_CD],2) & " - " & IIf(IsNull([TTRAIN]),Null,[TTRAIN] & " - ") & [Q012c_Weighted_Cohort_Dist].[PSSM_Credential] AS LCIP2_CRED, Q012c_Weighted_Cohort_Dist.AgeGroup, Q012c_Weighted_Cohort_Dist.Count, Q012c4_Weighted_Cohort_Distribution_Projected.[%], IIf(IsNull([Q012c4_Weighted_Cohort_Distribution_Projected].[%]),[Q012c_Weighted_Cohort_Dist].[Count],[Q012c_Weighted_Cohort_Dist].[Count]*[Q012c4_Weighted_Cohort_Distribution_Projected].[%]) AS Count_Distributed
+FROM Q012c_Weighted_Cohort_Dist LEFT JOIN Q012c4_Weighted_Cohort_Distribution_Projected ON (Q012c_Weighted_Cohort_Dist.AgeGroup = Q012c4_Weighted_Cohort_Distribution_Projected.Age_Group) AND (Q012c_Weighted_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD = Q012c4_Weighted_Cohort_Distribution_Projected.GRAD_STATUS) AND (Q012c_Weighted_Cohort_Dist.LCP4_CD = Q012c4_Weighted_Cohort_Distribution_Projected.LCP4_CD) AND (Q012c_Weighted_Cohort_Dist.PSSM_Credential = Q012c4_Weighted_Cohort_Distribution_Projected.PSSM_Credential);
+
+Query: Q012d_Weighted_Cohort_Dist_Total
+  SQL: SELECT Q012b_Weight_Cohort_Dist.PSSM_Credential, Q012b_Weight_Cohort_Dist.PSSM_CRED, Q012b_Weight_Cohort_Dist.AgeGroup, Sum(Q012b_Weight_Cohort_Dist.Weighted) AS Totals
+FROM Q012b_Weight_Cohort_Dist
+GROUP BY Q012b_Weight_Cohort_Dist.PSSM_Credential, Q012b_Weight_Cohort_Dist.PSSM_CRED, Q012b_Weight_Cohort_Dist.AgeGroup;
+
+Query: Q012e_Delete_Weighted_Cohort_Distribution
+  SQL: DELETE Cohort_Program_Distributions_Static.Survey, Cohort_Program_Distributions_Static.*
+FROM Cohort_Program_Distributions_Static
+WHERE (((Cohort_Program_Distributions_Static.Survey) Like "*Q012e"));
+
+Query: Q012e_Weighted_Cohort_Distribution
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q012e" AS Survey, Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_Credential, Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_CRED, Q012c5_Weighted_Cohort_Dist_TTRAIN.LCP4_CD, Q012c5_Weighted_Cohort_Dist_TTRAIN.COSC_GRAD_STATUS_LGDS_CD, Q012c5_Weighted_Cohort_Dist_TTRAIN.TTRAIN, Q012c5_Weighted_Cohort_Dist_TTRAIN.LCIP4_CRED, Q012c5_Weighted_Cohort_Dist_TTRAIN.LCIP2_CRED, Q012c5_Weighted_Cohort_Dist_TTRAIN.AgeGroup, "2019/2020" AS Projection_Year, Q012c5_Weighted_Cohort_Dist_TTRAIN.Count_Distributed, Q012d_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count_Distributed]/[Totals]) AS [%]
+FROM Q012c5_Weighted_Cohort_Dist_TTRAIN INNER JOIN Q012d_Weighted_Cohort_Dist_Total ON (Q012c5_Weighted_Cohort_Dist_TTRAIN.AgeGroup = Q012d_Weighted_Cohort_Dist_Total.AgeGroup) AND (Q012c5_Weighted_Cohort_Dist_TTRAIN.PSSM_CRED = Q012d_Weighted_Cohort_Dist_Total.PSSM_CRED);
+
+Query: Q012e_Weighted_Cohort_Distribution_OLD_2021-04-19
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q012e" AS Survey, Q012c_Weighted_Cohort_Dist.PSSM_Credential, Q012c_Weighted_Cohort_Dist.PSSM_CRED, Q012c_Weighted_Cohort_Dist.LCP4_CD, Q012c_Weighted_Cohort_Dist.COSC_GRAD_STATUS_LGDS_CD, Q012c_Weighted_Cohort_Dist.LCIP4_CRED, Q012c_Weighted_Cohort_Dist.AgeGroup, "2019/2020" AS Projection_Year, Q012c_Weighted_Cohort_Dist.Count, Q012d_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM Q012c_Weighted_Cohort_Dist INNER JOIN Q012d_Weighted_Cohort_Dist_Total ON (Q012c_Weighted_Cohort_Dist.AgeGroup = Q012d_Weighted_Cohort_Dist_Total.AgeGroup) AND (Q012c_Weighted_Cohort_Dist.PSSM_CRED = Q012d_Weighted_Cohort_Dist_Total.PSSM_CRED);
+
+Query: Q013a_Check_PDEG_CLP_07_Only_CIP_22
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential] AS PSSM_CRED, dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD AS LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIPPC_CRED, dbo_tbl_Program_Projection_Input.AgeGroup, Sum(dbo_tbl_Program_Projection_Input.Count) AS Counts, T_Weights_STP.Weight, Sum([Count])*([Weight]) AS Weighted
+FROM (T_PSSM_Projection_Cred_Grp INNER JOIN (dbo_tbl_Program_Projection_Input INNER JOIN T_Weights_STP ON dbo_tbl_Program_Projection_Input.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = dbo_tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY) INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 ON dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
+WHERE (((T_Weights_STP.Model)="2019-2020") AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) In ("PDEG")))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential], dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4, qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], dbo_tbl_Program_Projection_Input.AgeGroup, T_Weights_STP.Weight
+HAVING (((T_Weights_STP.Weight)>0));
+
+Query: Q013b_Weight_Cohort_Dist_MAST_DOCT_Others
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential] AS PSSM_CRED, qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD AS LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIPPC_CRED, dbo_tbl_Program_Projection_Input.AgeGroup, Sum(dbo_tbl_Program_Projection_Input.Count) AS Counts, T_Weights_STP.Weight, Sum([Count])*([Weight]) AS Weighted
+FROM (T_PSSM_Projection_Cred_Grp INNER JOIN (dbo_tbl_Program_Projection_Input INNER JOIN T_Weights_STP ON dbo_tbl_Program_Projection_Input.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) ON T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential = dbo_tbl_Program_Projection_Input.PSI_CREDENTIAL_CATEGORY) INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 ON dbo_tbl_Program_Projection_Input.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
+WHERE (((T_Weights_STP.Model)="2019-2020") AND ((T_PSSM_Projection_Cred_Grp.PSSM_Credential) In ("GRCT or GRDP","PDEG","MAST","DOCT")))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [PSSM_Credential], qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], dbo_tbl_Program_Projection_Input.AgeGroup, T_Weights_STP.Weight
+HAVING (((T_Weights_STP.Weight)>0));
+
+Query: Q013c_Weighted_Cohort_Dist
+  SQL: SELECT Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_Credential, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.LCIPPC_CD, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.LCIPPC_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.AgeGroup, Sum(Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.Weighted) AS [Count]
+FROM Q013b_Weight_Cohort_Dist_MAST_DOCT_Others
+GROUP BY Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_Credential, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.LCIPPC_CD, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.LCIPPC_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.AgeGroup;
+
+Query: Q013d_Weighted_Cohort_Dist_Total
+  SQL: SELECT Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_Credential, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.AgeGroup, Sum(Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.Weighted) AS Totals
+FROM Q013b_Weight_Cohort_Dist_MAST_DOCT_Others
+GROUP BY Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_Credential, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.PSSM_CRED, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others.AgeGroup;
+
+Query: Q013e_Weighted_Cohort_Distribution
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q013e" AS Survey, Q013c_Weighted_Cohort_Dist.PSSM_Credential, Q013c_Weighted_Cohort_Dist.PSSM_CRED, Q013c_Weighted_Cohort_Dist.LCIPPC_CD, Q013c_Weighted_Cohort_Dist.LCIPPC_CRED, Q013c_Weighted_Cohort_Dist.AgeGroup, "2019/2020" AS Projection_Year, Q013c_Weighted_Cohort_Dist.Count, Q013d_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM Q013c_Weighted_Cohort_Dist INNER JOIN Q013d_Weighted_Cohort_Dist_Total ON (Q013c_Weighted_Cohort_Dist.AgeGroup = Q013d_Weighted_Cohort_Dist_Total.AgeGroup) AND (Q013c_Weighted_Cohort_Dist.PSSM_CRED = Q013d_Weighted_Cohort_Dist_Total.PSSM_CRED);
+
+Query: Q014b_Weighted_Cohort_Dist_APPR
+  SQL: SELECT T_Cohorts_Recoded.PSSM_Credential, T_Cohorts_Recoded.PSSM_Credential AS PSSM_CRED, T_Cohorts_Recoded.LCP4_CD, T_Cohorts_Recoded.TTRAIN, T_Cohorts_Recoded.LCIP4_CRED, T_Cohorts_Recoded.LCIP2_CRED, tbl_Age_Groups.Age_Group_Label AS Age_Group, Count(*) AS Counts, T_Cohorts_Recoded.Weight, Count(*)*([Weight]) AS Weighted
+FROM T_Cohorts_Recoded INNER JOIN tbl_Age_Groups ON T_Cohorts_Recoded.Age_Group = tbl_Age_Groups.Age_Group
+WHERE (((T_Cohorts_Recoded.PSSM_Credential) In ("APPRAPPR","APPRCERT")))
+GROUP BY T_Cohorts_Recoded.PSSM_Credential, T_Cohorts_Recoded.LCP4_CD, T_Cohorts_Recoded.TTRAIN, T_Cohorts_Recoded.LCIP4_CRED, T_Cohorts_Recoded.LCIP2_CRED, tbl_Age_Groups.Age_Group_Label, T_Cohorts_Recoded.Weight, T_Cohorts_Recoded.PSSM_Credential
+HAVING (((T_Cohorts_Recoded.Weight)>0));
+
+Query: Q014c_Weighted_Cohort_Dist
+  SQL: SELECT Q014b_Weighted_Cohort_Dist_APPR.PSSM_Credential, Q014b_Weighted_Cohort_Dist_APPR.PSSM_CRED, Q014b_Weighted_Cohort_Dist_APPR.LCP4_CD, Q014b_Weighted_Cohort_Dist_APPR.LCIP4_CRED, Q014b_Weighted_Cohort_Dist_APPR.LCIP2_CRED, Q014b_Weighted_Cohort_Dist_APPR.Age_Group, Sum(Q014b_Weighted_Cohort_Dist_APPR.Weighted) AS [Count]
+FROM Q014b_Weighted_Cohort_Dist_APPR
+GROUP BY Q014b_Weighted_Cohort_Dist_APPR.PSSM_Credential, Q014b_Weighted_Cohort_Dist_APPR.PSSM_CRED, Q014b_Weighted_Cohort_Dist_APPR.LCP4_CD, Q014b_Weighted_Cohort_Dist_APPR.LCIP4_CRED, Q014b_Weighted_Cohort_Dist_APPR.LCIP2_CRED, Q014b_Weighted_Cohort_Dist_APPR.Age_Group;
+
+Query: Q014d_Weighted_Cohort_Dist_Total
+  SQL: SELECT Q014b_Weighted_Cohort_Dist_APPR.PSSM_Credential, Q014b_Weighted_Cohort_Dist_APPR.PSSM_CRED, Q014b_Weighted_Cohort_Dist_APPR.Age_Group, Sum(Q014b_Weighted_Cohort_Dist_APPR.Weighted) AS Totals
+FROM Q014b_Weighted_Cohort_Dist_APPR
+GROUP BY Q014b_Weighted_Cohort_Dist_APPR.PSSM_Credential, Q014b_Weighted_Cohort_Dist_APPR.PSSM_CRED, Q014b_Weighted_Cohort_Dist_APPR.Age_Group;
+
+Query: Q014e_Weighted_Cohort_Distribution_Projected
+  SQL: INSERT INTO Cohort_Program_Distributions_Projected ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q014e" AS Survey, Q014c_Weighted_Cohort_Dist.PSSM_Credential, Q014c_Weighted_Cohort_Dist.PSSM_CRED, Q014c_Weighted_Cohort_Dist.LCP4_CD, Q014c_Weighted_Cohort_Dist.LCIP4_CRED, Q014c_Weighted_Cohort_Dist.LCIP2_CRED, Q014c_Weighted_Cohort_Dist.Age_Group, "2019/2020" AS Projection_Year, Q014c_Weighted_Cohort_Dist.Count, Q014d_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM Q014c_Weighted_Cohort_Dist INNER JOIN Q014d_Weighted_Cohort_Dist_Total ON (Q014c_Weighted_Cohort_Dist.Age_Group = Q014d_Weighted_Cohort_Dist_Total.Age_Group) AND (Q014c_Weighted_Cohort_Dist.PSSM_CRED = Q014d_Weighted_Cohort_Dist_Total.PSSM_CRED);
+
+Query: Q014e_Weighted_Cohort_Distribution_Static
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q014e" AS Survey, Q014c_Weighted_Cohort_Dist.PSSM_Credential, Q014c_Weighted_Cohort_Dist.PSSM_CRED, Q014c_Weighted_Cohort_Dist.LCP4_CD, Q014c_Weighted_Cohort_Dist.LCIP4_CRED, Q014c_Weighted_Cohort_Dist.LCIP2_CRED, Q014c_Weighted_Cohort_Dist.Age_Group, "2019/2020" AS Projection_Year, Q014c_Weighted_Cohort_Dist.Count, Q014d_Weighted_Cohort_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM Q014c_Weighted_Cohort_Dist INNER JOIN Q014d_Weighted_Cohort_Dist_Total ON (Q014c_Weighted_Cohort_Dist.Age_Group = Q014d_Weighted_Cohort_Dist_Total.Age_Group) AND (Q014c_Weighted_Cohort_Dist.PSSM_CRED = Q014d_Weighted_Cohort_Dist_Total.PSSM_CRED);
+
+Query: Q014f_APPSO_Grads_Y2_to_Y10
+  SQL: INSERT INTO Graduate_Projections ( Survey, PSSM_Credential, PSSM_CRED, Age_Group, [Year], Graduates )
+SELECT Graduate_Projections.Survey, Graduate_Projections.PSSM_Credential, Graduate_Projections.PSSM_CRED, Graduate_Projections.Age_Group, T_APPR_Y2_to_Y10.Y2_to_Y10, Graduate_Projections.Graduates
+FROM Graduate_Projections INNER JOIN T_APPR_Y2_to_Y10 ON Graduate_Projections.Year = T_APPR_Y2_to_Y10.Y1
+WHERE (((Graduate_Projections.Survey)="APPSO"));
+
+Query: Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected
+  SQL: INSERT INTO Cohort_Program_Distributions_Projected ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q015e21" AS Survey, Cohort_Program_Distributions_Static.PSSM_Credential, Cohort_Program_Distributions_Static.PSSM_CRED, Cohort_Program_Distributions_Static.LCP4_CD, Cohort_Program_Distributions_Static.GRAD_STATUS, Cohort_Program_Distributions_Static.TTRAIN, Cohort_Program_Distributions_Static.LCIP4_CRED, Cohort_Program_Distributions_Static.LCIP2_CRED, Cohort_Program_Distributions_Static.Age_Group, T_Cohort_Program_Distributions_Y2_to_Y12.Y2_to_Y10, Cohort_Program_Distributions_Static.Count, Cohort_Program_Distributions_Static.Total, Cohort_Program_Distributions_Static.Percent
+FROM Cohort_Program_Distributions_Static INNER JOIN T_Cohort_Program_Distributions_Y2_to_Y12 ON Cohort_Program_Distributions_Static.Year = T_Cohort_Program_Distributions_Y2_to_Y12.Y1
+WHERE (((Cohort_Program_Distributions_Static.PSSM_CRED) In ("APPRAPPR","APPRCERT") Or (Cohort_Program_Distributions_Static.PSSM_CRED) Like "3 -*"));
+
+Query: Q015e22_Append_Distribution_Y2_to_Y12_Static
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_Q015e22" AS Survey, Cohort_Program_Distributions_Static.PSSM_Credential, Cohort_Program_Distributions_Static.PSSM_CRED, Cohort_Program_Distributions_Static.LCP4_CD, Cohort_Program_Distributions_Static.GRAD_STATUS, Cohort_Program_Distributions_Static.TTRAIN, Cohort_Program_Distributions_Static.LCIP4_CRED, Cohort_Program_Distributions_Static.LCIP2_CRED, Cohort_Program_Distributions_Static.Age_Group, T_Cohort_Program_Distributions_Y2_to_Y12.Y2_to_Y10, Cohort_Program_Distributions_Static.Count, Cohort_Program_Distributions_Static.Total, Cohort_Program_Distributions_Static.Percent
+FROM Cohort_Program_Distributions_Static INNER JOIN T_Cohort_Program_Distributions_Y2_to_Y12 ON Cohort_Program_Distributions_Static.Year = T_Cohort_Program_Distributions_Y2_to_Y12.Y1;
+
+Query: qry_05_Flip_T_Predict_CIP_CRED_AGE_1
+  SQL: SELECT T_Predict_CIP_CRED_AGE.CIP, T_Predict_CIP_CRED_AGE.CRED, T_Predict_CIP_CRED_AGE.AGE, T_Predict_CIP_CRED_AGE.[2019/2020] AS [Count], "2019/2020" AS [Year] INTO T_Predict_CIP_CRED_AGE_Flipped
+FROM T_Predict_CIP_CRED_AGE;
+
+Query: qry_05_Flip_T_Predict_CIP_CRED_AGE_2
+  SQL: INSERT INTO T_Predict_CIP_CRED_AGE_Flipped ( CIP, CRED, AGE, [Year], [Count] )
+SELECT T_Predict_CIP_CRED_AGE.CIP, T_Predict_CIP_CRED_AGE.CRED, T_Predict_CIP_CRED_AGE.AGE, "2020/2021" AS [Year], T_Predict_CIP_CRED_AGE.[2020/2021]
+FROM T_Predict_CIP_CRED_AGE;
+
+Query: qry_05_Flip_T_Predict_CIP_CRED_AGE_2_Check
+  SQL: SELECT T_Predict_CIP_CRED_AGE_Flipped.Year, Sum(T_Predict_CIP_CRED_AGE_Flipped.Count) AS SumOfCount
+FROM T_Predict_CIP_CRED_AGE_Flipped
+GROUP BY T_Predict_CIP_CRED_AGE_Flipped.Year;
+
+Query: qry_09_Delete_Selected_Static_Cohort_Dist_from_Projected
+  SQL: DELETE Cohort_Program_Distributions_Projected.PSSM_CRED
+FROM Cohort_Program_Distributions_Projected
+WHERE (((Cohort_Program_Distributions_Projected.PSSM_CRED) Not In ("APPRAPPR","APPRCERT") And (Cohort_Program_Distributions_Projected.PSSM_CRED) Not Like "3 -*" And (Cohort_Program_Distributions_Projected.PSSM_CRED) Not Like "P -*"));
+
+Query: qry_10a_Program_Dist_Count
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS PSSM_CRED, T_Predict_CIP_CRED_AGE_Flipped.CIP, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [CIP] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIP4_CRED, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & Left([CIP],2) & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIP2_CRED, T_Predict_CIP_CRED_AGE_Flipped.AGE, T_Predict_CIP_CRED_AGE_Flipped.Year, Sum(T_Predict_CIP_CRED_AGE_Flipped.Count) AS [Count]
+FROM T_Predict_CIP_CRED_AGE_Flipped INNER JOIN T_PSSM_Projection_Cred_Grp ON T_Predict_CIP_CRED_AGE_Flipped.CRED = T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential
+WHERE (((T_PSSM_Projection_Cred_Grp.PSSM_Credential) Not In ("APPRAPPR","APPRCERT","GRCT or GRDP","PDEG","MAST","DOCT")))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], T_Predict_CIP_CRED_AGE_Flipped.CIP, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [CIP] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & Left([CIP],2) & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], T_Predict_CIP_CRED_AGE_Flipped.AGE, T_Predict_CIP_CRED_AGE_Flipped.Year;
+
+Query: qry_10b_Program_Dist_Total
+  SQL: SELECT qry_10a_Program_Dist_Count.PSSM_Credential, qry_10a_Program_Dist_Count.PSSM_CRED, qry_10a_Program_Dist_Count.AGE, qry_10a_Program_Dist_Count.Year, Sum(qry_10a_Program_Dist_Count.Count) AS Totals
+FROM qry_10a_Program_Dist_Count
+GROUP BY qry_10a_Program_Dist_Count.PSSM_Credential, qry_10a_Program_Dist_Count.PSSM_CRED, qry_10a_Program_Dist_Count.AGE, qry_10a_Program_Dist_Count.Year;
+
+Query: qry_10c_Program_Dist_Distribution
+  SQL: INSERT INTO Cohort_Program_Distributions_Projected ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_qry10c" AS Survey, qry_10a_Program_Dist_Count.PSSM_Credential, qry_10a_Program_Dist_Count.PSSM_CRED, qry_10a_Program_Dist_Count.CIP AS LCP4_CD, qry_10a_Program_Dist_Count.LCIP4_CRED, qry_10a_Program_Dist_Count.LCIP2_CRED, qry_10a_Program_Dist_Count.AGE AS Age_Group, qry_10a_Program_Dist_Count.Year, qry_10a_Program_Dist_Count.Count, qry_10b_Program_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM qry_10a_Program_Dist_Count INNER JOIN qry_10b_Program_Dist_Total ON (qry_10a_Program_Dist_Count.Year = qry_10b_Program_Dist_Total.Year) AND (qry_10a_Program_Dist_Count.AGE = qry_10b_Program_Dist_Total.AGE) AND (qry_10a_Program_Dist_Count.PSSM_CRED = qry_10b_Program_Dist_Total.PSSM_CRED);
+
+Query: qry_12_LCP4_LCIPPC_Recode_9999
+  SQL: SELECT INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD, IIf([LCIP_LCP4_CD]="9999","99",[INFOWARE_L_CIP_6DIGITS_CIP2016].[LCIP_LCIPPC_CD]) AS LCIP_LCIPPC_CD
+FROM INFOWARE_L_CIP_6DIGITS_CIP2016
+GROUP BY INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD, IIf([LCIP_LCP4_CD]="9999","99",[INFOWARE_L_CIP_6DIGITS_CIP2016].[LCIP_LCIPPC_CD]);
+
+Query: qry_12a_Program_Dist_Count
+  SQL: SELECT T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS PSSM_CRED, qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD AS LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential] AS LCIPPC_CRED, T_Predict_CIP_CRED_AGE_Flipped.AGE AS Age_Group, T_Predict_CIP_CRED_AGE_Flipped.Year, Sum(T_Predict_CIP_CRED_AGE_Flipped.Count) AS [Count]
+FROM (T_Predict_CIP_CRED_AGE_Flipped INNER JOIN T_PSSM_Projection_Cred_Grp ON T_Predict_CIP_CRED_AGE_Flipped.CRED = T_PSSM_Projection_Cred_Grp.PSSM_Projection_Credential) INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 ON T_Predict_CIP_CRED_AGE_Flipped.CIP = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
+WHERE (((T_PSSM_Projection_Cred_Grp.PSSM_Credential) In ("GRCT or GRDP","PDEG","MAST","DOCT")))
+GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_Credential, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD, IIf(IsNull([COSC_GRAD_STATUS_LGDS_CD]),Null,[COSC_GRAD_STATUS_LGDS_CD] & " - ") & [LCIP_LCIPPC_CD] & " - " & [T_PSSM_Projection_Cred_Grp].[PSSM_Credential], T_Predict_CIP_CRED_AGE_Flipped.AGE, T_Predict_CIP_CRED_AGE_Flipped.Year;
+
+Query: qry_12b_Program_Dist_Total
+  SQL: SELECT qry_12a_Program_Dist_Count.PSSM_Credential, qry_12a_Program_Dist_Count.PSSM_CRED, qry_12a_Program_Dist_Count.Age_Group, qry_12a_Program_Dist_Count.Year, Sum(qry_12a_Program_Dist_Count.Count) AS Totals
+FROM qry_12a_Program_Dist_Count
+GROUP BY qry_12a_Program_Dist_Count.PSSM_Credential, qry_12a_Program_Dist_Count.PSSM_CRED, qry_12a_Program_Dist_Count.Age_Group, qry_12a_Program_Dist_Count.Year;
+
+Query: qry_12c_Program_Dist_Distribution
+  SQL: INSERT INTO Cohort_Program_Distributions_Projected ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_qry12c" AS Survey, qry_12a_Program_Dist_Count.PSSM_Credential, qry_12a_Program_Dist_Count.PSSM_CRED, qry_12a_Program_Dist_Count.LCIPPC_CD, qry_12a_Program_Dist_Count.LCIPPC_CRED, qry_12a_Program_Dist_Count.Age_Group, qry_12a_Program_Dist_Count.Year, qry_12a_Program_Dist_Count.Count, qry_12b_Program_Dist_Total.Totals, IIf(([Totals]=0),0,[Count]/[Totals]) AS [%]
+FROM qry_12a_Program_Dist_Count INNER JOIN qry_12b_Program_Dist_Total ON (qry_12a_Program_Dist_Count.PSSM_CRED = qry_12b_Program_Dist_Total.PSSM_CRED) AND (qry_12a_Program_Dist_Count.Age_Group = qry_12b_Program_Dist_Total.Age_Group) AND (qry_12a_Program_Dist_Count.Year = qry_12b_Program_Dist_Total.Year);
+
+Query: qry_12d_Check_Missing
+  SQL: SELECT Cohort_Program_Distributions_Static.PSSM_Credential, Cohort_Program_Distributions_Static.PSSM_CRED, Cohort_Program_Distributions_Static.LCP4_CD, Cohort_Program_Distributions_Static.LCIP4_CRED, Cohort_Program_Distributions_Static.Age_Group, Cohort_Program_Distributions_Static.Year, Cohort_Program_Distributions_Projected.PSSM_Credential, Cohort_Program_Distributions_Projected.PSSM_CRED, Cohort_Program_Distributions_Projected.LCP4_CD, Cohort_Program_Distributions_Projected.Age_Group, Cohort_Program_Distributions_Projected.Year, Cohort_Program_Distributions_Static.Count
+FROM Cohort_Program_Distributions_Static LEFT JOIN Cohort_Program_Distributions_Projected ON (Cohort_Program_Distributions_Static.Year = Cohort_Program_Distributions_Projected.Year) AND (Cohort_Program_Distributions_Static.Age_Group = Cohort_Program_Distributions_Projected.Age_Group) AND (Cohort_Program_Distributions_Static.LCP4_CD = Cohort_Program_Distributions_Projected.LCP4_CD) AND (Cohort_Program_Distributions_Static.PSSM_CRED = Cohort_Program_Distributions_Projected.PSSM_CRED) AND (Cohort_Program_Distributions_Static.PSSM_Credential = Cohort_Program_Distributions_Projected.PSSM_Credential)
+WHERE (((Cohort_Program_Distributions_Static.Age_Group) Not In ("15 to 16","65 to 89")) AND ((Cohort_Program_Distributions_Projected.PSSM_Credential) Is Null) AND ((Cohort_Program_Distributions_Projected.PSSM_CRED) Is Null) AND ((Cohort_Program_Distributions_Projected.LCP4_CD) Is Null) AND ((Cohort_Program_Distributions_Projected.Age_Group) Is Null) AND ((Cohort_Program_Distributions_Projected.Year) Is Null));
+
+Query: qry_13a0_Delete_Near_Completers_Projected
+  SQL: DELETE Cohort_Program_Distributions_Projected.PSSM_CRED
+FROM Cohort_Program_Distributions_Projected
+WHERE (((Cohort_Program_Distributions_Projected.PSSM_CRED) Like "3 -*"));
+
+Query: qry_13a0_Delete_Near_Completers_Static
+  SQL: DELETE Cohort_Program_Distributions_Static.PSSM_CRED
+FROM Cohort_Program_Distributions_Static
+WHERE (((Cohort_Program_Distributions_Static.PSSM_CRED) Like "3 -*"));
+
+Query: qry_13a1_Near_completers
+  SQL: SELECT dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_Credential, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_CRED, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCP4_CD, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_GRAD_STATUS_LGDS_CD_Group, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_TTRAIN, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCIP4_CRED, [COSC_GRAD_STATUS_LGDS_CD_Group] & " - " & Left([LCP4_CD],2) & " - " & [COSC_TTRAIN] & " - " & [PSSM_Credential] AS LCIP2_CRED, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.AgeGroup, Sum(dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.[Near completers-STP Credentials]) AS [Count]
+FROM dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN
+GROUP BY dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_Credential, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.PSSM_CRED, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCP4_CD, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_GRAD_STATUS_LGDS_CD_Group, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.COSC_TTRAIN, dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.LCIP4_CRED, [COSC_GRAD_STATUS_LGDS_CD_Group] & " - " & Left([LCP4_CD],2) & " - " & [COSC_TTRAIN] & " - " & [PSSM_Credential], dbo_T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN.AgeGroup;
+
+Query: qry_13b_Near_Completers_Total
+  SQL: SELECT qry_13a1_Near_completers.PSSM_Credential, qry_13a1_Near_completers.PSSM_CRED, qry_13a1_Near_completers.AgeGroup, Sum(qry_13a1_Near_completers.Count) AS Totals
+FROM qry_13a1_Near_completers
+GROUP BY qry_13a1_Near_completers.PSSM_Credential, qry_13a1_Near_completers.PSSM_CRED, qry_13a1_Near_completers.AgeGroup;
+
+Query: qry_13c_Near_Completers_Program_Dist
+  SQL: SELECT qry_13a1_Near_completers.PSSM_Credential, qry_13a1_Near_completers.PSSM_CRED, qry_13a1_Near_completers.LCP4_CD, qry_13a1_Near_completers.COSC_GRAD_STATUS_LGDS_CD_Group, qry_13a1_Near_completers.COSC_TTRAIN, qry_13a1_Near_completers.LCIP4_CRED, qry_13a1_Near_completers.LCIP2_CRED, qry_13a1_Near_completers.AgeGroup, qry_13a1_Near_completers.Count, qry_13b_Near_Completers_Total.Totals, IIf([Totals]=0,0,[Count]/[Totals]) AS [%]
+FROM qry_13b_Near_Completers_Total INNER JOIN qry_13a1_Near_completers ON (qry_13b_Near_Completers_Total.AgeGroup = qry_13a1_Near_completers.AgeGroup) AND (qry_13b_Near_Completers_Total.PSSM_CRED = qry_13a1_Near_completers.PSSM_CRED);
+
+Query: qry_13c2_Near_Completers_Program_Dist_TTRAIN-not used
+  SQL: SELECT qry_13c_Near_Completers_Program_Dist.PSSM_Credential, qry_13c_Near_Completers_Program_Dist.PSSM_CRED, qry_13c_Near_Completers_Program_Dist.LCP4_CD,"3" AS GRADSTAT, "0" AS TTRAIN, "3 - " & [LCP4_CD] & " - 0 - " & [PSSM_Credential] AS LCIP4_CRED, qry_13c_Near_Completers_Program_Dist.AgeGroup, qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, qry_13c_Near_Completers_Program_Dist.[%]
+FROM qry_13c_Near_Completers_Program_Dist
+
+UNION ALL SELECT qry_13c_Near_Completers_Program_Dist.PSSM_Credential, qry_13c_Near_Completers_Program_Dist.PSSM_CRED, qry_13c_Near_Completers_Program_Dist.LCP4_CD,"3" AS GRADSTAT, "1" AS TTRAIN, "3 - " & [LCP4_CD] & " - 1 - " & [PSSM_Credential] AS LCIP4_CRED, qry_13c_Near_Completers_Program_Dist.AgeGroup, qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, qry_13c_Near_Completers_Program_Dist.[%]
+FROM qry_13c_Near_Completers_Program_Dist
+
+UNION ALL SELECT qry_13c_Near_Completers_Program_Dist.PSSM_Credential, qry_13c_Near_Completers_Program_Dist.PSSM_CRED, qry_13c_Near_Completers_Program_Dist.LCP4_CD, "3" AS GRADSTAT, "2" AS TTRAIN, "3 - " & [LCP4_CD] & " - 2 - " & [PSSM_Credential] AS LCIP4_CRED, qry_13c_Near_Completers_Program_Dist.AgeGroup, qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, qry_13c_Near_Completers_Program_Dist.[%]
+FROM qry_13c_Near_Completers_Program_Dist;
+
+Query: qry_13d_Append_Near_Completers_Program_Dist_Projected_TTRAIN
+  SQL: INSERT INTO Cohort_Program_Distributions_Projected ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_qry_13d" AS Survey, qry_13c_Near_Completers_Program_Dist.PSSM_Credential, qry_13c_Near_Completers_Program_Dist.PSSM_CRED, qry_13c_Near_Completers_Program_Dist.LCP4_CD, qry_13c_Near_Completers_Program_Dist.COSC_GRAD_STATUS_LGDS_CD_Group, qry_13c_Near_Completers_Program_Dist.COSC_TTRAIN, qry_13c_Near_Completers_Program_Dist.LCIP4_CRED, qry_13c_Near_Completers_Program_Dist.LCIP2_CRED, tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, "2019/2020" AS Projection_Year, qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, qry_13c_Near_Completers_Program_Dist.[%]
+FROM qry_13c_Near_Completers_Program_Dist INNER JOIN tbl_Age_Groups_Near_Completers ON qry_13c_Near_Completers_Program_Dist.AgeGroup = tbl_Age_Groups_Near_Completers.Age_Group_Label_Near_Completer_Projection;
+
+Query: qry_13d_Append_Near_Completers_Program_Dist_Static_TTRAIN
+  SQL: INSERT INTO Cohort_Program_Distributions_Static ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+SELECT "Program_Projections_2019-2020_qry_13d" AS Survey, qry_13c_Near_Completers_Program_Dist.PSSM_Credential, qry_13c_Near_Completers_Program_Dist.PSSM_CRED, qry_13c_Near_Completers_Program_Dist.LCP4_CD, qry_13c_Near_Completers_Program_Dist.COSC_GRAD_STATUS_LGDS_CD_Group, qry_13c_Near_Completers_Program_Dist.COSC_TTRAIN, qry_13c_Near_Completers_Program_Dist.LCIP4_CRED, qry_13c_Near_Completers_Program_Dist.LCIP2_CRED, tbl_Age_Groups_Near_Completers.Age_Group_Label_Graduate_Projection AS AgeGroup, "2019/2020" AS Projection_Year, qry_13c_Near_Completers_Program_Dist.Count, qry_13c_Near_Completers_Program_Dist.Totals, qry_13c_Near_Completers_Program_Dist.[%]
+FROM qry_13c_Near_Completers_Program_Dist INNER JOIN tbl_Age_Groups_Near_Completers ON qry_13c_Near_Completers_Program_Dist.AgeGroup = tbl_Age_Groups_Near_Completers.Age_Group_Label_Near_Completer_Projection;
+

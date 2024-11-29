@@ -37,6 +37,7 @@ library(RJDBC)
 db_config <- config::get("pdbtrn")
 jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -93,33 +94,41 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_
 # ---- Rollover data ----
 # TODO make schema instead
 Cohort_Program_Distributions_Projected <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"),  col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 Cohort_Program_Distributions_Static <-
-  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),  col_types = cols(.default = col_guess())) %>%
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"),
+                  col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
 
 # ---- Write to decimal ----
-dbWriteTable(decimal_con, name = "AgeGroupLookup", AgeGroupLookup)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups_Near_Completers", tbl_Age_Groups_Near_Completers)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "T_Cohort_Program_Distributions_Y2_to_Y12",  T_Cohort_Program_Distributions_Y2_to_Y12)
-dbWriteTable(decimal_con, name = "T_APPR_Y2_to_Y10",  T_APPR_Y2_to_Y10)
-dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_4DIGITS_CIP2016", INFOWARE_L_CIP_4DIGITS_CIP2016)
-dbWriteTable(decimal_con, name = "INFOWARE_L_CIP_6DIGITS_CIP2016", INFOWARE_L_CIP_6DIGITS_CIP2016)
-dbWriteTable(decimal_con, name = "T_PSSM_Projection_Cred_Grp", T_PSSM_Projection_Cred_Grp)
-dbWriteTable(decimal_con, name = "T_Weights_STP",  T_Weights_STP)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')), AgeGroupLookup)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')), tbl_Age_Groups_Near_Completers)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), tbl_Age_Groups)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')),  T_Cohort_Program_Distributions_Y2_to_Y12)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),  T_APPR_Y2_to_Y10)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')), INFOWARE_L_CIP_4DIGITS_CIP2016)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')), T_PSSM_Projection_Cred_Grp)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),  T_Weights_STP)
 
 # ---- Build tbl_Program_Projection_Input ---- 
 tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projection_Input)
-dbWriteTable(decimal_con, name = "tbl_Program_Projection_Input", tbl_Program_Projection_Input)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')), tbl_Program_Projection_Input)
 
 # ---- Rollover ----
-dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Static",  Cohort_Program_Distributions_Static)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')),  Cohort_Program_Distributions_Static, overwrite = TRUE)
 dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
-dbWriteTable(decimal_con, name = "Cohort_Program_Distributions_Projected",  Cohort_Program_Distributions_Projected)
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)")
+
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')),  Cohort_Program_Distributions_Projected)
 dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)")
+dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)")
 
 # check that only required survey years are in T_Cohorts_Recoded
 stopifnot(exprs = {
