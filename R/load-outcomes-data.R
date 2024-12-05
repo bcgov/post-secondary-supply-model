@@ -57,15 +57,16 @@ APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
 APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
 
 
-
 # write to decimal
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')),  value = APPSO_Data_Final)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_Graduates"')),  value = APPSO_Graduates)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates"')),  value = Q000_TRD_Graduates)
-
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
 # Q000_TRD_DATA_01 is corrupt
+# minor differences in code description/name for a few rows in INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
 #*************************************************************************************************
 library(RODBC)
 library(DBI)
@@ -77,19 +78,17 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-ssms_Q000_TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
-str(ssms_Q000_TRD_Graduates)
-str(Q000_TRD_Graduates)
-ssms_Q000_TRD_Graduates <- ssms_Q000_TRD_Graduates %>% select(-7)
-dim(ssms_Q000_TRD_Graduates)
-dim(Q000_TRD_Graduates)
-anti_join(ssms_Q000_TRD_Graduates, Q000_TRD_Graduates)
-anti_join(Q000_TRD_Graduates, ssms_Q000_TRD_Graduates)
+lan <- INFOWARE_L_CIP_4DIGITS_CIP2016
+ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IDIR\\XXXXXX"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
 
+str(ssms)
+str(lan)
+ssms <- ssms %>% select(-7)
+dim(ssms)
+dim(lan)
+anti_join(ssms, lan)
+anti_join(lan, ssms)
 
-
-APPSO_Data_Final$PEN = as.character(APPSO_Data_Final$PEN)
-APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB = as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
-i=c(1:20,22)
-anti_join(APPSO_Data_Final[,i], T_APPSO_DATA_Final[,i])
-str(APPSO_Data_Final)
+i=c(1:5,7,8:12)
+anti_join(ssms[i], lan[i])
+anti_join(lan[i], ssms[i])
