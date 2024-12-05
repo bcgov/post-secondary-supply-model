@@ -37,6 +37,8 @@ library(config)
 lan = config::get("lan")
 
 so_lan_path <- glue::glue("{lan}/data/student-outcomes/so-provision/")
+so_tables <- c("Q000_TRD_DATA_01", "Q000_TRD_Graduates", "T_APPSO_DATA_Final", "APPSO_Graduates", "BGS_Data_Update", "t_dacso_data_part_1_stepa", 
+  "infoware_c_outc_clean_short_resp", "tmp_tbl_Age_AppendNewYears", "INFOWARE_L_CIP_4DIGITS_CIP2016", "INFOWARE_L_CIP_6DIGITS_CIP2016")
 
 # read csv's into objects in memory. Run ls() after code chunk to confirm 
 list.files(so_lan_path, pattern = ".csv", full.names = TRUE) %>% 
@@ -45,13 +47,16 @@ list.files(so_lan_path, pattern = ".csv", full.names = TRUE) %>%
     imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
     invisible()
 
-if(c("APPSO_Data_Final") %in% ls()) 
+if(any(so_tables %in% ls()) 
     warning("Not all student outcome tables were read into current environment.")
 
 # recode data
-APPSO_Data_Final$PEN = as.character(APPSO_Data_Final$PEN)
-APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB = as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
+APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
+APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
 
+
+
+# write to decimal
 dbWriteTable(decimal_con, 
              name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')), 
              value = APPSO_Data_Final,
