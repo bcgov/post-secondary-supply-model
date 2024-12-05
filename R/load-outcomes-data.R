@@ -61,9 +61,11 @@ APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP
 # write to decimal
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')),  value = APPSO_Data_Final)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_Graduates"')),  value = APPSO_Graduates)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates"')),  value = Q000_TRD_Graduates)
 
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
+# Q000_TRD_DATA_01 is corrupt
 #*************************************************************************************************
 library(RODBC)
 library(DBI)
@@ -75,12 +77,14 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-ssms_APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
-ssms_APPSO_Graduates <- ssms_APPSO_Graduates %>% select(-7)
-dim(ssms_APPSO_Graduates)
-dim(APPSO_Graduates)
-anti_join(ssms_APPSO_Graduates, APPSO_Graduates)
-
+ssms_Q000_TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
+str(ssms_Q000_TRD_Graduates)
+str(Q000_TRD_Graduates)
+ssms_Q000_TRD_Graduates <- ssms_Q000_TRD_Graduates %>% select(-7)
+dim(ssms_Q000_TRD_Graduates)
+dim(Q000_TRD_Graduates)
+anti_join(ssms_Q000_TRD_Graduates, Q000_TRD_Graduates)
+anti_join(Q000_TRD_Graduates, ssms_Q000_TRD_Graduates)
 
 
 
