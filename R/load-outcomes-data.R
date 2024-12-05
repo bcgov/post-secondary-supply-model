@@ -81,6 +81,9 @@ tmp_table_Age <- ls(patt="tmp_table_Age_20") %>%
 APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
 APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
 
+Q000_TRD_DATA_01$GRADSTAT_GROUP <- as.character(Q000_TRD_DATA_01$GRADSTAT_GROUP)
+Q000_TRD_DATA_01$PEN <- as.character(Q000_TRD_DATA_01$PEN)
+
 INFOWARE_C_OutC_Clean_Short_Resp$Q08 <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$Q08)
 INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION)
 INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT)
@@ -95,6 +98,7 @@ BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 # write to decimal.  TODO: code this as a list or function.
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final_raw"')),  value = APPSO_Data_Final)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_Graduates_raw"')),  value = APPSO_Graduates)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_TRD_DATA_raw"')),  value = Q000_TRD_DATA_01)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates_raw"')),  value = Q000_TRD_Graduates)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
