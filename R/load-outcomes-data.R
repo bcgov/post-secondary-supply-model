@@ -64,6 +64,12 @@ dbWriteTable(decimal_con,
              value = APPSO_Data_Final,
              overwrite = TRUE)
 
+# write to decimal
+dbWriteTable(decimal_con, 
+             name = SQL(glue::glue('"dbo"."APPSO_Graduates"')), 
+             value = APPSO_Graduates,
+             overwrite = TRUE)
+
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
 #*************************************************************************************************
@@ -77,11 +83,14 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-T_APPSO_DATA_Final <- dbGetQuery(decimal_con, "SELECT * FROM T_APPSO_DATA_Final")
-T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% select(-23:-25)
-dim(APPSO_Data_Final)
-dim(T_APPSO_DATA_Final)
-anti_join(APPSO_Data_Final, T_APPSO_DATA_Final)
+ssms_APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
+ssms_APPSO_Graduates <- ssms_APPSO_Graduates %>% select(-7)
+dim(ssms_APPSO_Graduates)
+dim(APPSO_Graduates)
+anti_join(ssms_APPSO_Graduates, APPSO_Graduates)
+
+
+
 
 APPSO_Data_Final$PEN = as.character(APPSO_Data_Final$PEN)
 APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB = as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
