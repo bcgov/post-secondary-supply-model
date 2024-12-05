@@ -52,9 +52,15 @@ fls %>%
 if(!all(so_tables %in% ls())) 
     warning("Not all student outcome tables were read into current environment.")
 
-# recode data
+# recode data (TODO: check these are needed after loading directly to decimal)
 APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
 APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
+
+INFOWARE_C_OutC_Clean_Short_Resp$Q08 <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$Q08)
+INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION)
+INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT)
+INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED)
+INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN<-as.character(INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN)
 
 
 # write to decimal
@@ -63,6 +69,9 @@ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates"')),  value = Q000_TRD_Graduates)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."infoware_c_outc_clean_short_resp"')),  value = infoware_c_outc_clean_short_resp)
+#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo".""')),  value = )
+
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
 # Q000_TRD_DATA_01 is corrupt
@@ -78,8 +87,8 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
-lan <- INFOWARE_L_CIP_4DIGITS_CIP2016
-ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IXXX\\XXXXXX"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
+lan <- INFOWARE_C_OutC_Clean_Short_Resp
+#ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IXXX\\XXXXXXX"."infoware_c_outc_clean_short_resp"'))
 
 str(ssms)
 str(lan)
