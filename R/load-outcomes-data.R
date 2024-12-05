@@ -37,11 +37,10 @@ library(config)
 lan = config::get("lan")
 
 so_lan_path <- glue::glue("{lan}/data/student-outcomes/csv/so-provision/")
-so_tables <- c("Q000_TRD_DATA_01", "Q000_TRD_Graduates", "T_APPSO_DATA_Final", "APPSO_Graduates", "BGS_Data_Update", "t_dacso_data_part_1_stepa", 
-  "infoware_c_outc_clean_short_resp", "tmp_tbl_Age_AppendNewYears", "INFOWARE_L_CIP_4DIGITS_CIP2016", "INFOWARE_L_CIP_6DIGITS_CIP2016")
 
-# read csv's into objects in memory. Run ls() after code chunk to confirm 
-fls <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE) 
+# read csv's into objects in memory.
+fls <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE)
+tmp_table_age_fls <- list.files(so_lan_path, pattern = "qry_make_tmp_table_Age_step1_20[0-9][0-9].csv", full.names = TRUE)
 
 fls %>%  
   set_names(tools::file_path_sans_ext(basename(fls))) %>% 
@@ -49,8 +48,17 @@ fls %>%
   imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
   invisible()
 
-if(!all(so_tables %in% ls())) 
-    warning("Not all student outcome tables were read into current environment.")
+#reloads tmp_table_age_fls so a bit of a hack, but it's the cleanest way I can think of
+tmp_table_age_fls %>%  
+  set_names(tools::file_path_sans_ext(basename(tmp_table_age_fls))) %>% 
+  map(read_csv, show_col_types = FALSE, col_types="dcdcd") %>%
+  imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
+  invisible()
+
+# combine tmp_table_Age_step1_20xx
+ls(patt="tmp_table_Age_step1_20") %>% 
+  mget(envir = .GlobalEnv) %>%
+  bind_rows()
 
 # recode data (TODO: check these are needed after loading directly to decimal)
 APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
@@ -62,6 +70,11 @@ INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean
 INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED)
 INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN<-as.character(INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN)
 
+DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN)
+DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD)
+
+BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
+
 
 # write to decimal
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')),  value = APPSO_Data_Final)
@@ -70,12 +83,14 @@ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Gr
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."infoware_c_outc_clean_short_resp"')),  value = infoware_c_outc_clean_short_resp)
-#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo".""')),  value = )
+#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."BGS_Q001_BGS_Data_2019_2023"')),  value = BGS_Q001_BGS_Data_2019_2023)
 
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
 # Q000_TRD_DATA_01 is corrupt
-# minor differences in code description/name for a few rows in INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
+# minor differences in code description/name for sml n rows in INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
+# differences in prgm_credential for a sml n rows in T_DACSO_DATA_Part_1_stepA
+# handle BGS seperatly
 #*************************************************************************************************
 library(RODBC)
 library(DBI)
@@ -86,18 +101,3 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
-
-lan <- INFOWARE_C_OutC_Clean_Short_Resp
-#ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IXXX\\XXXXXXX"."infoware_c_outc_clean_short_resp"'))
-
-str(ssms)
-str(lan)
-ssms <- ssms %>% select(-7)
-dim(ssms)
-dim(lan)
-anti_join(ssms, lan)
-anti_join(lan, ssms)
-
-i=c(1:5,7,8:12)
-anti_join(ssms[i], lan[i])
-anti_join(lan[i], ssms[i])
