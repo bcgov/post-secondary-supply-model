@@ -59,16 +59,8 @@ APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP
 
 
 # write to decimal
-dbWriteTable(decimal_con, 
-             name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')), 
-             value = APPSO_Data_Final,
-             overwrite = TRUE)
-
-# write to decimal
-dbWriteTable(decimal_con, 
-             name = SQL(glue::glue('"dbo"."APPSO_Graduates"')), 
-             value = APPSO_Graduates,
-             overwrite = TRUE)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final"')),  value = APPSO_Data_Final)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_Graduates"')),  value = APPSO_Graduates)
 
 #*************************************************************************************************
 # QA scratch stuff only - I'll remove from here down when finished
