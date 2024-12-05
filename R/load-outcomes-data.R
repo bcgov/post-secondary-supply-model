@@ -79,7 +79,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Trusted_Connection = "True")
 
 lan <- INFOWARE_L_CIP_4DIGITS_CIP2016
-ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IDIR\\XXXXXX"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
+ssms <- dbGetQuery(decimal_con, SQL('SELECT * FROM "IXXX\\XXXXXX"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
 
 str(ssms)
 str(lan)
