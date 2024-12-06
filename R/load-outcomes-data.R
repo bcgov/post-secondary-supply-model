@@ -36,8 +36,7 @@
 #   (small n) minor differences in code description/name: INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
 #   (small n) differences in prgm_credential: T_DACSO_DATA_Part_1_stepA
 #   I've read that using assign() as below is fragile ... it works though, so..?
-#   TODO: handle BGS seperatly
-#   find a comparible table (in decimal) to check data against for tmp_table_Age_raw (03 load script?).  I used one from the lan in rollover.
+#   TODO: investigate both tmp_table_Age and the BGS data a little more.
 #---------------------------------------------------------------------------------------------------------------------------
 
 library(tidyverse)
@@ -114,14 +113,6 @@ DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_
 BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
 # load to ssms
-so_rename <- function(x){
-  x[x == 'APPSO_Data_Final']                    <- 'T_APPSO_Data_Final'
-  x[x == 'DACSO_Q003_DACSO_DATA_Part_1_stepA']  <- 'DACSO_DATA_Part_1_stepA'
-  x[x == 'Q000_TRD_Graduates']                  <- 'TRD_Graduates'
-  x[x == 'Q000_TRD_DATA_01']                    <- 'T_TRD_DATA'
-  x
-}
-
 so_data[!missing][9] %>% 
   mget(envir = .GlobalEnv)  %>% 
   set_names(so_rename)  %>%
