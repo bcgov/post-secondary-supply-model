@@ -33,10 +33,10 @@
 
 #---------------------------------------------------------------------------------------------------------------------------
 # notes: 
-#   minor differences in code description/name (for sml n) in INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016  - they do not want to load (utf-8)
-#   differences in prgm_credential (for sml n) in T_DACSO_DATA_Part_1_stepA
-#   find a comparible table (in decimal) to check data against for tmp_table_Age_raw (03 load script?).  I used one from the lan in rollover.
+#   (small n) minor differences in code description/name: INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
+#   (small n) differences in prgm_credential: T_DACSO_DATA_Part_1_stepA
 #   TODO: handle BGS seperatly
+#   find a comparible table (in decimal) to check data against for tmp_table_Age_raw (03 load script?).  I used one from the lan in rollover.
 #---------------------------------------------------------------------------------------------------------------------------
 
 library(tidyverse)
@@ -89,6 +89,11 @@ INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION <-as.character(INFOWARE_C_Out
 INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT)
 INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED)
 
+# replace non-standard character with '' so ssms won't err
+INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION <- iconv(INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
+INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME, "UTF-8", "UTF-8", sub ='')
+INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
+
 #  (TODO: check these are needed after loading directly to decimal)
 DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN)
 DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD)
@@ -102,10 +107,9 @@ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_TRD_
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates_raw"')),  value = Q000_TRD_Graduates)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."infoware_c_outc_clean_short_resp_raw"')),  value = INFOWARE_C_OutC_Clean_Short_Resp)
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."DACSO_DATA_Part_1_stepA_raw"')),  value = DACSO_Q003_DACSO_DATA_Part_1_stepA)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
+dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
 
 dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."tmp_table_Age_raw"')),  value = tmp_table_Age)
-
-#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
-#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
 #dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."BGS_Q001_BGS_Data_2019_2023"')),  value = BGS_Q001_BGS_Data_2019_2023)
 
