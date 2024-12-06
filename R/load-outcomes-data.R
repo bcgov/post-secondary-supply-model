@@ -35,6 +35,7 @@
 # notes: 
 #   (small n) minor differences in code description/name: INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016
 #   (small n) differences in prgm_credential: T_DACSO_DATA_Part_1_stepA
+#   I've read that using assign() as below is fragile ... it works though, so..?
 #   TODO: handle BGS seperatly
 #   find a comparible table (in decimal) to check data against for tmp_table_Age_raw (03 load script?).  I used one from the lan in rollover.
 #---------------------------------------------------------------------------------------------------------------------------
@@ -52,21 +53,23 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Database = db_config$database,
                  Trusted_Connection = "True")
 
+use_schema <- config::get("myschema")
 lan = config::get("lan")
 so_lan_path <- glue::glue("{lan}/data/student-outcomes/csv/so-provision/")
 
 # read csv's into objects in memory.
-fls <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE)
+fls_all <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE)
 tmp_table_age_fls <- list.files(so_lan_path, pattern = "qry_make_tmp_table_Age_step1_20[0-9][0-9].csv", full.names = TRUE)
-fls <- setdiff(fls, tmp_table_age_fls) 
 
-# I've read that using assign() this way is fragile ... it works though, so..?
+# read all files into current environment, processing tmp_table_Age_step1_20xx data sets separately.
+fls <- fls_all[!fls_all %in% tmp_table_age_fls] 
 fls %>%  
   set_names(tools::file_path_sans_ext(basename(fls))) %>% 
   map(read_csv, show_col_types = FALSE) %>%
   imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
   invisible()
 
+# tmp_table_Age_step1_20xx datasets
 tmp_table_age_fls %>%  
   set_names(tools::file_path_sans_ext(basename(tmp_table_age_fls))) %>% 
   map(read_csv, show_col_types = FALSE, col_types="dcdcd") %>%
@@ -78,18 +81,28 @@ tmp_table_Age <- ls(patt="tmp_table_Age_step1_20") %>%
   mget(envir = .GlobalEnv) %>%
   bind_rows()
 
+# sanity check: any datasets missing from current environment?
+so_data <- c(tools::file_path_sans_ext(basename(fls)),'tmp_table_Age')
+missing <- !so_data %in% ls()
+
+if(any(missing)) {
+  warning("The following SO datasets were not loaded into current environment:")
+  so_data[missing]
+}
+
 # recast datatypes
 APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
 APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
 Q000_TRD_DATA_01$GRADSTAT_GROUP <- as.character(Q000_TRD_DATA_01$GRADSTAT_GROUP)
 Q000_TRD_DATA_01$PEN <- as.character(Q000_TRD_DATA_01$PEN)
+
 INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN<-as.character(INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN)
 INFOWARE_C_OutC_Clean_Short_Resp$Q08 <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$Q08)
 INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION)
 INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT)
 INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED)
 
-# replace non-standard character with '' so ssms won't err
+# remove non-standard characters so ssms won't err
 INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION <- iconv(INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
 INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME, "UTF-8", "UTF-8", sub ='')
 INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
@@ -100,16 +113,16 @@ DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_
 
 BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
-# write to decimal.  TODO: code this as a list or function.
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_APPSO_Data_Final_raw"')),  value = APPSO_Data_Final)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."APPSO_Graduates_raw"')),  value = APPSO_Graduates)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."T_TRD_DATA_raw"')),  value = Q000_TRD_DATA_01)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."TRD_Graduates_raw"')),  value = Q000_TRD_Graduates)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."infoware_c_outc_clean_short_resp_raw"')),  value = INFOWARE_C_OutC_Clean_Short_Resp)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."DACSO_DATA_Part_1_stepA_raw"')),  value = DACSO_Q003_DACSO_DATA_Part_1_stepA)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_6DIGITS_CIP2016)
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')),  value = INFOWARE_L_CIP_4DIGITS_CIP2016)
+# load to ssms
+so_rename <- function(x){
+  x[x == 'APPSO_Data_Final']                    <- 'T_APPSO_Data_Final'
+  x[x == 'DACSO_Q003_DACSO_DATA_Part_1_stepA']  <- 'DACSO_DATA_Part_1_stepA'
+  x[x == 'Q000_TRD_Graduates']                  <- 'TRD_Graduates'
+  x[x == 'Q000_TRD_DATA_01']                    <- 'T_TRD_DATA'
+  x
+}
 
-dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."tmp_table_Age_raw"')),  value = tmp_table_Age)
-#dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"dbo"."BGS_Q001_BGS_Data_2019_2023"')),  value = BGS_Q001_BGS_Data_2019_2023)
-
+so_data[!missing][9] %>% 
+  mget(envir = .GlobalEnv)  %>% 
+  set_names(so_rename)  %>%
+  imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw_test"')), value = ..1))
