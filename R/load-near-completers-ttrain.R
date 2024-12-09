@@ -12,7 +12,7 @@ jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
-source(glue::glue("./sql/03-near-completers/qry_make_tmp_table_Age_step1.sql"))
+#source(glue::glue("./sql/03-near-completers/qry_make_tmp_table_Age_step1.sql"))
 
 # ---- Connection to outcomes ----
 jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
@@ -67,7 +67,7 @@ tmp_tbl_Age <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read SO data ----
-tmp_tbl_Age_AppendNewYears <- dbGetQuery(outcomes_con, qry_make_tmp_table_Age_step1) # adjust query for correct year
+tmp_tbl_Age_AppendNewYears <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."qry_make_tmp_table_Age_step1_raw"'))) # adjust query for correct year
 
 # ---- Write to decimal ----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')), value = tmp_tbl_Age_AppendNewYears, overwrite=TRUE)

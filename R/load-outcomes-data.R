@@ -76,11 +76,11 @@ tmp_table_age_fls %>%
   invisible()
 
 # combine tmp_table_Age_step1_20xx
-tmp_table_Age <- ls(patt="tmp_table_Age_step1_20") %>% 
+qry_make_tmp_table_Age_step1 <- ls(patt="tmp_table_Age_step1_20") %>% 
   mget(envir = .GlobalEnv) %>%
   bind_rows()
 
-rm(list=ls(pattern = 'qry_make_tmp_table_Age_step1_'))
+rm(list=ls(pattern = 'qry_make_tmp_table_Age_step1_20'))
 
 # sanity check: any datasets missing from current environment?
 so_data <- c(tools::file_path_sans_ext(basename(fls)),'tmp_table_Age')
