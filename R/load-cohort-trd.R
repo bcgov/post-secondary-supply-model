@@ -12,21 +12,10 @@ library(RODBC)
 library(config)
 library(glue)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),
@@ -82,4 +71,3 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_TRD_DATA"')), val
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."TRD_Graduates"')), value = Q000_TRD_Graduates, overwrite = TRUE)
 
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)

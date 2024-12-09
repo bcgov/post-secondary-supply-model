@@ -1,7 +1,7 @@
 # This script loads student outcomes data for students who students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
-# The following data-set is read into SQL server from the student outcomes survey database:
+# The following data-set is read from SQL server database:
 #   t_dacso_data_part_1_stepa: unique survey responses for each person/survey year (for years since last model run)
 #   infoware_c_outc_clean_short_resp: 
 #
@@ -26,22 +26,9 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("./sql/02b-pssm-cohorts/dacso-data.sql"))
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")

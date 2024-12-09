@@ -1,7 +1,7 @@
 # This script loads student outcomes data for students who students who have completed the 
 # final year of their apprenticeship technical training within the first year of graduation.
 # 
-# The following data is read into SQL server from the student outcomes survey database:
+# The following data is read from SQL server database:
 #   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
 #   APPSO_Graduates: a count of graduates by credential type, age and survey year
 library(tidyverse)
@@ -9,22 +9,10 @@ library(RODBC)
 library(config)
 library(glue)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                 url = db_config$url,
-                 user = db_config$user,
-                 password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -135,5 +123,5 @@ dbWriteTable(decimal_con,
 
 
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
+
 

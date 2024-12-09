@@ -6,22 +6,10 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -30,7 +18,6 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
-
 
 # ---- Lookups  ----
 # From the LAN
@@ -90,4 +77,4 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_CRED_RECODE"')),
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
+
