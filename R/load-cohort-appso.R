@@ -26,11 +26,18 @@ outcomes_con <- dbConnect(drv = jdbcDriver,
                  user = db_config$user,
                  password = db_config$password)
 
-# ---- Read outcomes data ----
-source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
 
-T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
-APPSO_Graduates_dat <- dbGetQuery(outcomes_con, APPSO_Graduates)
+# ---- Read outcomes data ----
+# source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
+T_APPSO_DATA_Final <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_DATA_01_Final_raw"')))
+APPSO_Graduates_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates_raw"')))
 
 # Convert some variables that should be numeric
 T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
@@ -113,14 +120,6 @@ APPSO_Graduates_dat  %>%
     APP_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
     APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
     TRUE ~ NA)) -> APPSO_Graduates_dat 
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
 
 
 dbWriteTable(decimal_con, 
