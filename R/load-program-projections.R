@@ -76,8 +76,8 @@ AgeGroupLookup <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/06/AgeGroupLookup.csv"),  col_types = cols(.default = col_guess()))
 
 # ---- Read from Student Outcomes ----
-INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
-INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')))
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')))
 
 
 # ---- Rollover data ----
@@ -125,8 +125,8 @@ stopifnot(exprs = {
 })
 } else {
   # ---- Read from Student Outcomes ----
-  INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
-  INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')))
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')))
   # ---- Write to decimal ----
   dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')), INFOWARE_L_CIP_4DIGITS_CIP2016, overwrite = TRUE)
   dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016, overwrite = TRUE)

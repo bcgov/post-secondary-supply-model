@@ -121,8 +121,3 @@ so_data[!missing] %>%
 
 
 
-
-INFOWARE_L_CIP_4DIGITS_CIP2016
-INFOWARE_L_CIP_6DIGITS_CIP2016
-tmp_table_Age
-dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."
