@@ -120,10 +120,9 @@ so_data[!missing] %>%
   imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw"')), value = ..1))
 
 
-DACSO_Q003_DACSO_DATA_Part_1_stepA
-INFOWARE_C_OutC_Clean_Short_Resp
+
+
 INFOWARE_L_CIP_4DIGITS_CIP2016
 INFOWARE_L_CIP_6DIGITS_CIP2016
-Q000_TRD_DATA_01
-Q000_TRD_Graduates
 tmp_table_Age
+dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."

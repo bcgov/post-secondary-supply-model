@@ -54,7 +54,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 my_schema <- config::get("myschema")
 
 # ---- retrieve data from decimal ----
-infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
+infoware_c_outc_clean_short_resp_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp_raw"')))
 
 # ---- Read raw data from LAN ----
 tbl_Age_Groups <- 
@@ -106,7 +106,7 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region
 
 # --- Read SO DACSO data and write to decimal ----
 if (regular_run == T | ptib_flag == T) {
-t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
+t_dacso_data_part_1_stepa <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."DACSO_Q003_DACSO_DATA_Part_1_stepA_raw"')))
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
 
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
