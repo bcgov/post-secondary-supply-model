@@ -119,10 +119,7 @@ so_data[!missing] %>%
   mget(envir = .GlobalEnv)  %>% 
   imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw"')), value = ..1))
 
-APPSO_Data_Final
-APPSO_Graduates
-BGS_Q001_BGS_Data_2015_2019
-BGS_Q001_BGS_Data_2019_2023
+
 DACSO_Q003_DACSO_DATA_Part_1_stepA
 INFOWARE_C_OutC_Clean_Short_Resp
 INFOWARE_L_CIP_4DIGITS_CIP2016

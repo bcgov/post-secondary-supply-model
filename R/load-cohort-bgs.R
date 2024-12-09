@@ -64,7 +64,7 @@ T_BGS_INST_Recode <-
 
 # ---- Read Outcomes Data ----
 if (regular_run == T | ptib_flag == T) {
-  BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2019_2023)
+  BGS_Data_Update <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."BGS_Q001_BGS_Data_2019_2023_raw"')))
   BGS_Data_Update <- BGS_Data_Update %>% 
     rename("FULL_TM_WRK" = FULL_TM, 
            "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
