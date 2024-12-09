@@ -80,6 +80,8 @@ tmp_table_Age <- ls(patt="tmp_table_Age_step1_20") %>%
   mget(envir = .GlobalEnv) %>%
   bind_rows()
 
+rm(list=ls(pattern = 'qry_make_tmp_table_Age_step1_'))
+
 # sanity check: any datasets missing from current environment?
 so_data <- c(tools::file_path_sans_ext(basename(fls)),'tmp_table_Age')
 missing <- !so_data %in% ls()
@@ -113,7 +115,7 @@ DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_
 BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
 # load to ssms
-so_data[!missing][9] %>% 
+so_data[!missing] %>% 
   mget(envir = .GlobalEnv)  %>% 
-  set_names(so_rename)  %>%
-  imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw_test"')), value = ..1))
+  imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw"')), value = ..1))
+
