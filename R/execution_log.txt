@@ -117,3 +117,91 @@ INFO [2024-11-07 11:02:40] Completed: ./R/load-occupation-projections.R in 12.19
 INFO [2024-11-07 11:02:40] Starting: ./R/07-occupation-projections.R
 INFO [2024-11-07 11:03:16] Completed: ./R/07-occupation-projections.R in 36.05 seconds
 INFO [2024-11-07 11:03:29] Completed: ./R/prep-for-ptib-run.R in 11.71 seconds
+INFO [2024-11-07 12:29:30] Starting: ./R/prep-for-fresh-run.R
+INFO [2024-11-07 12:29:37] Starting: ./R/load-cohort-appso.R
+INFO [2024-11-07 12:29:48] Completed: ./R/load-cohort-appso.R in 10.78 seconds
+INFO [2024-11-07 12:29:48] Starting: ./R/load-cohort-bgs.R
+INFO [2024-11-07 12:30:19] Completed: ./R/load-cohort-bgs.R in 30.93 seconds
+INFO [2024-11-07 12:30:19] Starting: ./R/load-cohort-dacso.R
+INFO [2024-11-07 12:35:01] Completed: ./R/load-cohort-dacso.R in 4.71 seconds
+INFO [2024-11-07 12:35:01] Starting: ./R/load-cohort-trd.R
+INFO [2024-11-07 12:35:08] Completed: ./R/load-cohort-trd.R in 6.54 seconds
+INFO [2024-11-07 12:35:08] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-11-07 12:35:15] Completed: ./R/02b-1-pssm-cohorts.R in 7.65 seconds
+INFO [2024-11-07 12:35:15] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-11-07 12:35:33] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 17.13 seconds
+INFO [2024-11-07 12:35:33] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-11-07 12:35:47] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.69 seconds
+INFO [2024-11-07 12:35:47] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-11-07 12:36:37] Completed: ./R/load-near-completers-ttrain.R in 49.34 seconds
+INFO [2024-11-07 12:36:37] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-11-07 12:37:14] Completed: ./R/03-near-completers-ttrain.R in 37.04 seconds
+INFO [2024-11-07 12:37:14] Starting: ./R/load-graduate-projections.R
+INFO [2024-11-07 12:37:15] Completed: ./R/load-graduate-projections.R in 1.49 seconds
+INFO [2024-11-07 12:37:15] Starting: ./R/04-graduate-projections.R
+INFO [2024-11-07 12:37:19] Completed: ./R/04-graduate-projections.R in 3.72 seconds
+INFO [2024-11-07 12:37:19] Starting: ./R/load-program-projections.R
+INFO [2024-11-07 12:38:05] Completed: ./R/load-program-projections.R in 45.77 seconds
+INFO [2024-11-07 12:38:05] Starting: ./R/06-program-projections.R
+INFO [2024-11-07 12:39:37] Completed: ./R/06-program-projections.R in 1.54 seconds
+INFO [2024-11-07 12:39:37] Starting: ./R/load-occupation-projections.R
+INFO [2024-11-07 12:39:49] Completed: ./R/load-occupation-projections.R in 11.7 seconds
+INFO [2024-11-07 12:39:49] Starting: ./R/07-occupation-projections.R
+INFO [2024-11-07 12:40:25] Completed: ./R/07-occupation-projections.R in 36.63 seconds
+INFO [2024-11-07 12:40:26] Completed: ./R/prep-for-fresh-run.R in 10.92 seconds
+INFO [2024-11-07 12:40:26] Starting: ./R/prep-for-qi-run.R
+INFO [2024-11-07 12:40:26] Starting: ./R/load-cohort-appso.R
+INFO [2024-11-07 12:40:34] Completed: ./R/load-cohort-appso.R in 7.56 seconds
+INFO [2024-11-07 12:40:34] Starting: ./R/load-cohort-bgs.R
+INFO [2024-11-07 12:40:38] Completed: ./R/load-cohort-bgs.R in 3.71 seconds
+INFO [2024-11-07 12:40:38] Starting: ./R/load-cohort-dacso.R
+INFO [2024-11-07 12:40:55] Completed: ./R/load-cohort-dacso.R in 17.9 seconds
+INFO [2024-11-07 12:40:55] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-11-07 12:41:02] Completed: ./R/02b-1-pssm-cohorts.R in 6.6 seconds
+INFO [2024-11-07 12:41:02] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-11-07 12:41:17] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 15.1 seconds
+INFO [2024-11-07 12:41:17] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-11-07 12:41:31] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 13.37 seconds
+INFO [2024-11-07 12:41:31] Starting: ./R/load-program-projections.R
+INFO [2024-11-07 12:41:35] Completed: ./R/load-program-projections.R in 4.76 seconds
+INFO [2024-11-07 12:41:35] Starting: ./R/load-occupation-projections.R
+INFO [2024-11-07 12:41:48] Completed: ./R/load-occupation-projections.R in 13.06 seconds
+INFO [2024-11-07 12:41:48] Starting: ./R/07-occupation-projections.R
+INFO [2024-11-07 12:42:23] Completed: ./R/07-occupation-projections.R in 34.11 seconds
+INFO [2024-11-07 12:42:24] Completed: ./R/prep-for-qi-run.R in 1.98 seconds
+INFO [2024-11-07 12:42:24] Starting: ./R/prep-for-ptib-run.R
+INFO [2024-11-07 12:42:29] Starting: ./R/load-cohort-appso.R
+INFO [2024-11-07 12:42:40] Completed: ./R/load-cohort-appso.R in 10.51 seconds
+INFO [2024-11-07 12:42:40] Starting: ./R/load-cohort-bgs.R
+INFO [2024-11-07 12:43:05] Completed: ./R/load-cohort-bgs.R in 25.46 seconds
+INFO [2024-11-07 12:43:05] Starting: ./R/load-cohort-dacso.R
+INFO [2024-11-07 12:47:46] Completed: ./R/load-cohort-dacso.R in 4.68 seconds
+INFO [2024-11-07 12:47:46] Starting: ./R/load-cohort-trd.R
+INFO [2024-11-07 12:47:55] Completed: ./R/load-cohort-trd.R in 9.18 seconds
+INFO [2024-11-07 12:47:55] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-11-07 12:48:03] Completed: ./R/02b-1-pssm-cohorts.R in 7.99 seconds
+INFO [2024-11-07 12:48:03] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-11-07 12:48:19] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 16.48 seconds
+INFO [2024-11-07 12:48:19] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-11-07 12:48:35] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 15.28 seconds
+INFO [2024-11-07 12:48:35] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-11-07 12:49:23] Completed: ./R/load-near-completers-ttrain.R in 48.08 seconds
+INFO [2024-11-07 12:49:23] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-11-07 12:50:01] Completed: ./R/03-near-completers-ttrain.R in 38.06 seconds
+INFO [2024-11-07 12:50:01] Starting: ./R/load-graduate-projections.R
+INFO [2024-11-07 12:50:02] Completed: ./R/load-graduate-projections.R in 1.52 seconds
+INFO [2024-11-07 12:50:02] Starting: ./R/04-graduate-projections.R
+INFO [2024-11-07 12:50:06] Completed: ./R/04-graduate-projections.R in 3.73 seconds
+INFO [2024-11-07 12:50:06] Starting: ./R/load-ptib.R
+INFO [2024-11-07 12:50:12] Completed: ./R/load-ptib.R in 6.32 seconds
+INFO [2024-11-07 12:50:12] Starting: ./R/05-ptib-analysis.R
+INFO [2024-11-07 12:50:15] Completed: ./R/05-ptib-analysis.R in 2.16 seconds
+INFO [2024-11-07 12:50:15] Starting: ./R/load-program-projections.R
+INFO [2024-11-07 12:50:58] Completed: ./R/load-program-projections.R in 43.21 seconds
+INFO [2024-11-07 12:50:58] Starting: ./R/06-program-projections.R
+INFO [2024-11-07 12:52:38] Completed: ./R/06-program-projections.R in 1.66 seconds
+INFO [2024-11-07 12:52:38] Starting: ./R/load-occupation-projections.R
+INFO [2024-11-07 12:52:50] Completed: ./R/load-occupation-projections.R in 12 seconds
+INFO [2024-11-07 12:52:50] Starting: ./R/07-occupation-projections.R
+INFO [2024-11-07 12:53:27] Completed: ./R/07-occupation-projections.R in 37.7 seconds
+INFO [2024-11-07 12:53:39] Completed: ./R/prep-for-ptib-run.R in 11.25 seconds
