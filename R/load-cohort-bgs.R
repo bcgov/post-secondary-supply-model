@@ -21,7 +21,7 @@ library(DBI)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-source("./sql/02b-pssm-cohorts/bgs-data.sql")
+# source("./sql/02b-pssm-cohorts/bgs-data.sql")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
