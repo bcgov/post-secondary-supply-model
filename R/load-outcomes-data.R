@@ -92,15 +92,15 @@ BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
 DACSO_Q003_DACSO_DATA_Part_1_stepA %>% 
   mutate(across(.cols = c(TPID_LGND_CD, COCI_PEN),  
-                .fns = as.character))) 
+                .fns = as.character))
 
-Q000_TRD_DATA_01 %>% 
+a$Q000_TRD_DATA_01 %>% 
   mutate(across(.cols = c(GRADSTAT_GROUP, PEN),  
-                .fns = as.character))) 
+                .fns = as.character)) 
 
 INFOWARE_C_OutC_Clean_Short_Resp %>% 
   mutate(across(.cols = c(TTRAIN, Q08, FINAL_DISPOSITION, RESPONDENT, CREDENTIAL_DERIVED),  
-                .fns = as.character))) 
+                .fns = as.character)) 
 
 # remove non-standard characters so ssms won't throw an err
 INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION <- iconv(INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
