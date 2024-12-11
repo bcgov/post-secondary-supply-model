@@ -69,21 +69,14 @@ fls %>%
   invisible()
 
 # tmp_table_Age_step1_20xx datasets
-tmp_table_age_fls %>%  
+qry_make_tmp_table_Age_step1 <- tmp_table_age_fls %>%  
   set_names(tools::file_path_sans_ext(basename(tmp_table_age_fls))) %>% 
   map(read_csv, show_col_types = FALSE, col_types="dcdcd") %>%
-  imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
+  bind_rows() %>%
   invisible()
 
-# combine tmp_table_Age_step1_20xx
-qry_make_tmp_table_Age_step1 <- ls(patt="tmp_table_Age_step1_20") %>% 
-  mget(envir = .GlobalEnv) %>%
-  bind_rows()
-
-rm(list=ls(pattern = 'qry_make_tmp_table_Age_step1_20'))
-
 # sanity check: any datasets missing from current environment?
-so_data <- c(tools::file_path_sans_ext(basename(fls)),'tmp_table_Age')
+so_data <- c(tools::file_path_sans_ext(basename(fls)),'qry_make_tmp_table_Age_step1')
 missing <- !so_data %in% ls()
 
 if(any(missing)) {
@@ -92,27 +85,27 @@ if(any(missing)) {
 }
 
 # recast datatypes
-APPSO_Data_Final$PEN <- as.character(APPSO_Data_Final$PEN)
-APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
-Q000_TRD_DATA_01$GRADSTAT_GROUP <- as.character(Q000_TRD_DATA_01$GRADSTAT_GROUP)
-Q000_TRD_DATA_01$PEN <- as.character(Q000_TRD_DATA_01$PEN)
+APPSO_Data_01_Final$PEN <- as.character(APPSO_Data_Final$PEN)
+APPSO_Data_01_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(APPSO_Data_Final$APP_TIME_TO_FIND_EMPLOY_MJOB)
 
-INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN<-as.character(INFOWARE_C_OutC_Clean_Short_Resp$TTRAIN)
-INFOWARE_C_OutC_Clean_Short_Resp$Q08 <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$Q08)
-INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$FINAL_DISPOSITION)
-INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$RESPONDENT)
-INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED <-as.character(INFOWARE_C_OutC_Clean_Short_Resp$CREDENTIAL_DERIVED)
+BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
-# remove non-standard characters so ssms won't err
+DACSO_Q003_DACSO_DATA_Part_1_stepA %>% 
+  mutate(across(.cols = c(TPID_LGND_CD, COCI_PEN),  
+                .fns = as.character))) 
+
+Q000_TRD_DATA_01 %>% 
+  mutate(across(.cols = c(GRADSTAT_GROUP, PEN),  
+                .fns = as.character))) 
+
+INFOWARE_C_OutC_Clean_Short_Resp %>% 
+  mutate(across(.cols = c(TTRAIN, Q08, FINAL_DISPOSITION, RESPONDENT, CREDENTIAL_DERIVED),  
+                .fns = as.character))) 
+
+# remove non-standard characters so ssms won't throw an err
 INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION <- iconv(INFOWARE_L_CIP_4DIGITS_CIP2016$LCP4_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
 INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME, "UTF-8", "UTF-8", sub ='')
 INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
-
-#  (TODO: check these are needed after loading directly to decimal)
-DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$COCI_PEN)
-DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD = as.character(DACSO_Q003_DACSO_DATA_Part_1_stepA$TPID_LGND_CD)
-
-BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
 # load to ssms
 so_data[!missing] %>% 
