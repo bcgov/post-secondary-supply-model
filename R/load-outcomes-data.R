@@ -57,31 +57,30 @@ lan = config::get("lan")
 so_lan_path <- glue::glue("{lan}/data/student-outcomes/csv/so-provision/")
 
 # read csv's into objects in memory.
-fls_all <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE)
-tmp_table_age_fls <- list.files(so_lan_path, pattern = "qry_make_tmp_table_Age_step1_20[0-9][0-9].csv", full.names = TRUE)
+so_data_all_full_pathnames <- list.files(so_lan_path, pattern = ".csv", full.names = TRUE)
+tmp_table_age_full_pathnames <- list.files(so_lan_path, pattern = "qry_make_tmp_table_Age_step1_20[0-9][0-9].csv", full.names = TRUE)
 
 # read all files into current environment, processing tmp_table_Age_step1_20xx data sets separately.
-fls <- fls_all[!fls_all %in% tmp_table_age_fls] 
-fls %>%  
-  set_names(tools::file_path_sans_ext(basename(fls))) %>% 
+so_data_full_pathnames <- so_data_all_full_pathnames[!so_data_all_full_pathnames %in% tmp_table_age_full_pathnames] 
+so_data_full_pathnames %>%  
+  set_names(tools::file_path_sans_ext(basename(so_data_full_pathnames))) %>% 
   map(read_csv, show_col_types = FALSE) %>%
   imap(~ assign(..2, ..1, envir = .GlobalEnv)) %>%
   invisible()
 
 # tmp_table_Age_step1_20xx datasets
-qry_make_tmp_table_Age_step1 <- tmp_table_age_fls %>%  
-  set_names(tools::file_path_sans_ext(basename(tmp_table_age_fls))) %>% 
+qry_make_tmp_table_Age_step1 <- tmp_table_age_full_pathnames %>%  
+  set_names(tools::file_path_sans_ext(basename(tmp_table_age_full_pathnames))) %>% 
   map(read_csv, show_col_types = FALSE, col_types="dcdcd") %>%
   bind_rows() %>%
   invisible()
 
 # sanity check: any datasets missing from current environment?
-so_data <- c(tools::file_path_sans_ext(basename(fls)),'qry_make_tmp_table_Age_step1')
-missing <- !so_data %in% ls()
+so_data_expected <- c(tools::file_path_sans_ext(basename(so_data_full_pathnames)),'qry_make_tmp_table_Age_step1')
+missing <- !so_data_expected %in% ls()
 
 if(any(missing)) {
-  warning("The following SO datasets were not loaded into current environment:")
-  so_data[missing]
+  warning("One or more SO datasets were not loaded into current environment.")
 }
 
 # recast datatypes
@@ -108,7 +107,7 @@ INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_NAME <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016
 INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION <- iconv(INFOWARE_L_CIP_6DIGITS_CIP2016$LCIP_DESCRIPTION, "UTF-8", "UTF-8", sub ='')
 
 # load to ssms
-so_data[!missing] %>% 
+so_data_expected[!missing] %>% 
   mget(envir = .GlobalEnv)  %>% 
   imap(~ dbWriteTable(decimal_con, overwrite = TRUE, name = SQL(glue::glue('"{use_schema}"."{..2}_raw"')), value = ..1))
 
