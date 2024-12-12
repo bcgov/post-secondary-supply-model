@@ -1,7 +1,7 @@
 # This script loads student outcomes data for students who students who recently graduated with a 
 # Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 #
-# The following data set is read into SQL server from the student outcomes survey database:
+# The following data set is read from SQL server database:
 #   BGS_Data_Update: unique survey responses for each person/survey year (for years since last model run)
 #
 # The following data sets are read into SQL server from the LAN:
@@ -18,22 +18,10 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source("./sql/02b-pssm-cohorts/bgs-data.sql")
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
+# source("./sql/02b-pssm-cohorts/bgs-data.sql")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -63,8 +51,9 @@ T_BGS_INST_Recode <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read Outcomes Data ----
-if (regular_run == T | ptib_run == T) {
-  BGS_Data_Update <- dbGetQuery(outcomes_con, BGS_Q001_BGS_Data_2019_2023)
+if (regular_run == T | ptib_flag == T) {
+  BGS_Data_Update <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."BGS_Q001_BGS_Data_2019_2023_raw"')))
+
   BGS_Data_Update <- BGS_Data_Update %>% 
     rename("FULL_TM_WRK" = FULL_TM, 
            "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
@@ -101,15 +90,15 @@ if (regular_run == T | ptib_run == T) {
 
 
 # ---- Write to decimal----
-
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
-if (regular_run == T | ptib_run == T) {
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final)
+
+if (regular_run == T | ptib_flag == T) {
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final, overwrite = TRUE)
+
 }
 
 # ---- Clean Up ----
-dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
 
 
