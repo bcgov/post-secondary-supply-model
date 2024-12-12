@@ -53,6 +53,7 @@ T_BGS_INST_Recode <-
 # ---- Read Outcomes Data ----
 if (regular_run == T | ptib_flag == T) {
   BGS_Data_Update <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."BGS_Q001_BGS_Data_2019_2023_raw"')))
+
   BGS_Data_Update <- BGS_Data_Update %>% 
     rename("FULL_TM_WRK" = FULL_TM, 
            "FULL_TM_SCHOOL" = D03_STUDYING_FT, 
@@ -91,8 +92,10 @@ if (regular_run == T | ptib_flag == T) {
 # ---- Write to decimal----
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
+
 if (regular_run == T | ptib_flag == T) {
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final, overwrite = TRUE)
+
 }
 
 # ---- Clean Up ----

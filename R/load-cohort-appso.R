@@ -72,7 +72,7 @@ T_APPSO_DATA_Final <-
 # Replace the weights in the appropriate area in the code (~lines 71-77):
   
 
-if (regular_run == TRUE | ptib_flag == T){
+if (regular_run == TRUE | ptib_run == T){
   T_APPSO_DATA_Final <-
     T_APPSO_DATA_Final %>% 
     mutate(WEIGHT = case_when (
@@ -82,7 +82,9 @@ if (regular_run == TRUE | ptib_flag == T){
       SUBM_CD == 'C_Outc22' ~ 4,
       SUBM_CD == 'C_Outc23' ~ 5,
       TRUE ~ 0)) 
-} else {
+} 
+
+if (qi_run == TRUE ) {
   # check that these years are correct
   # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
   T_APPSO_DATA_Final <-

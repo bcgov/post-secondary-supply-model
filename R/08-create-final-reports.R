@@ -46,7 +46,7 @@ is_draft <- TRUE
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-my_schema <- 'IDIR\\ALOWERY'
+# my_schema <- 'IDIR\\ALOWERY'
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")

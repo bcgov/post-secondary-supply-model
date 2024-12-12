@@ -35,7 +35,9 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Check for required data tables ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."population_projections"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."population_projections"'))),
+            msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+)
 
 # ---- Read data from decimal  ----
 population_projections <- dbReadTable(decimal_con, "population_projections")

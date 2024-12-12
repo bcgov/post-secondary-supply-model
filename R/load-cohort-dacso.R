@@ -92,13 +92,13 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc, overwrite = TRUE)
 
 # --- Read SO DACSO data and write to decimal ----
+
 if (regular_run == T | ptib_flag == T) {
 t_dacso_data_part_1_stepa <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."DACSO_Q003_DACSO_DATA_Part_1_stepA_raw"')))
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat, overwrite = TRUE)
 
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa, overwrite = TRUE)
 
-dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
 dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
                        SET CURRENT_REGION_PSSM_CODE =  

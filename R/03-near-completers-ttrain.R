@@ -17,6 +17,7 @@ library(RODBC)
 library(config)
 library(DBI)
 library(RJDBC)
+library(assertthat)
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -36,21 +37,21 @@ source("./sql/03-near-completers/near-completers-investigation-ttrain.R")
 source("./sql/03-near-completers/dacso-near-completers.R")
 
 # tables made in earlier part of workflow
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))) 
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))) 
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))))
 
 # rollover tables - this can be removed later
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"'))))
 
 # new data
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"'))))
 
 # lookups
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"'))))
 
 # ---- Derive Age at Grad ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")

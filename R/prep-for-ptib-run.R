@@ -7,7 +7,7 @@ library(RODBC)
 library(config)
 library(DBI)
 library(RJDBC)
-
+source("./R/utils.R")
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -18,8 +18,59 @@ decimal_con <- dbConnect(odbc::odbc(),
                  Server = db_config$server,
                  Database = db_config$database,
                  Trusted_Connection = "True")
-regular_run <-  T
-ptib_flag <-  T
+# initiate flags
+regular_run <-  F
+qi_run <- F
+ptib_run <-  T
+
+
+# ---- Required tables ----
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
+
+# List of required tables
+required_tables <- c(
+  "T_Suppression_Public_Release_NOC",
+  "tmp_tbl_Model",
+  "tmp_tbl_QI"
+)
+
+# Check for required data tables in the database
+for (table_name in required_tables) {
+  # Build SQL statement
+  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  
+  # Assert that the table exists in the database
+  assert_that(
+    dbExistsTable(decimal_con, full_table_name),
+    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+  )
+}
+
+
+# ---- Clean environment ----
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_BGS_Data_Final', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_BGS_Data_Final];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_Cohorts_Recoded', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_Cohorts_Recoded];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1_stepa', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1_stepa];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.infoware_c_outc_clean_short_resp', 'U') IS NOT NULL DROP TABLE [{my_schema}].[infoware_c_outc_clean_short_resp];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_TRD_DATA', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_TRD_DATA];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.TRD_Graduates', 'U') IS NOT NULL DROP TABLE [{my_schema}].[TRD_Graduates];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Credential_Non_Dup', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Credential_Non_Dup];"))  # why not we remove it but load it at the begginning
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioAgeAtGradCIP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioAgeAtGradCIP4];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender_year', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender_year];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.population_projections', 'U') IS NOT NULL DROP TABLE [{my_schema}].[population_projections];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.tbl_Program_Projection_Input', 'U') IS NOT NULL DROP TABLE [{my_schema}].[tbl_Program_Projection_Input];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions_Projected', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions_Projected];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_PSSM_Credential_Grouping_Appendix', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_PSSM_Credential_Grouping_Appendix];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_LCP2_LCP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_LCP2_LCP4];"))
+dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
+
 
 # ----  Copy tables required for re-run ----
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
@@ -67,51 +118,9 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-# ---- Required tables ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Suppression_Public_Release_NOC"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Model"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_QI"')))
-
-# ---- Clean environment ----
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_BGS_Data_Final', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_BGS_Data_Final];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_Cohorts_Recoded', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_Cohorts_Recoded];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1_stepa', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1_stepa];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.t_dacso_data_part_1', 'U') IS NOT NULL DROP TABLE [{my_schema}].[t_dacso_data_part_1];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.infoware_c_outc_clean_short_resp', 'U') IS NOT NULL DROP TABLE [{my_schema}].[infoware_c_outc_clean_short_resp];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_TRD_DATA', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_TRD_DATA];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.TRD_Graduates', 'U') IS NOT NULL DROP TABLE [{my_schema}].[TRD_Graduates];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Credential_Non_Dup', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Credential_Non_Dup];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioAgeAtGradCIP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioAgeAtGradCIP4];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatioByGender_year', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatioByGender_year];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.population_projections', 'U') IS NOT NULL DROP TABLE [{my_schema}].[population_projections];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.tbl_Program_Projection_Input', 'U') IS NOT NULL DROP TABLE [{my_schema}].[tbl_Program_Projection_Input];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions_Projected', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions_Projected];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_PSSM_Credential_Grouping_Appendix', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_PSSM_Credential_Grouping_Appendix];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.T_LCP2_LCP4', 'U') IS NOT NULL DROP TABLE [{my_schema}].[T_LCP2_LCP4];"))
-dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Cohort_Program_Distributions', 'U') IS NOT NULL DROP TABLE [{my_schema}].[Cohort_Program_Distributions];"))
-
 
 # ---- 5. re-run step by step ----
 
-# Define the time_execution function to track execution time and handle errors
-time_execution <- function(file_path) {
-  start_time <- Sys.time()
-  print(paste("Starting:", file_path))
-  
-  # Execute the R script
-  tryCatch({
-    source(file_path)
-    end_time <- Sys.time()
-    elapsed <- end_time - start_time
-    print(paste("Completed:", file_path, "in", round(elapsed, 2), "seconds"))
-  }, error = function(e) {
-    # Print error message if execution fails
-    print(paste("Error in file:", file_path, " - ", e$message))
-  })
-}
 
 # List of R file paths
 ptib_run_files <- c(
@@ -135,10 +144,14 @@ ptib_run_files <- c(
 )
 
 
-if (regular_run==T & ptib_flag == T) {
+print(glue::glue("ptib model run flag: {ptib_run}"))
+if (regular_run != T & qi_run != T & ptib_run ==T ) {
   
   # Loop through each file, calling time_execution for each
-  for (file_path in ptib_run_files[1:5]) {
+  for (file_path in ptib_run_files) {
+    print(glue::glue("regular model run flag: {regular_run}"))
+    print(glue::glue("qi model run flag: {qi_run}"))
+    print(glue::glue("ptib model furn flag: {ptib_run}"))
     time_execution(file_path)
   }
   
@@ -149,5 +162,5 @@ source(glue::glue("./R/08-create-final-reports.R"))
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-rm(list = ls())
+# rm(list = ls())
 gc()

@@ -44,32 +44,53 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Check for required data tables ----
-# Derived tables
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')))
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
 
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"')))
+# List of required tables for Derived Tables and Lookups
+required_tables <- c(
+  # Derived tables
+  "Labour_Supply_Distribution",
+  "Labour_Supply_Distribution_LCP2",
+  "Labour_Supply_Distribution_No_TT",
+  "Labour_Supply_Distribution_LCP2_No_TT",
+  "Occupation_Distributions", 
+  
+  "Occupation_Distributions_No_TT",
+  "Occupation_Distributions_LCP2",
+  "Occupation_Distributions_LCP2_No_TT",
+  "Cohort_Program_Distributions_Projected",
+  "Cohort_Program_Distributions_Static",
+  # "Cohort_Program_Distributions", #Might get FALSE that Cohort_Program_Distributions exists during first run-through.   Use the Static Cohort_Program_Distributions table.
+  "Graduate_Projections",
+  
+  # Lookups
+  "INFOWARE_L_CIP_4DIGITS_CIP2016",
+  "INFOWARE_L_CIP_6DIGITS_CIP2016",
+  "T_Exclude_from_Projections_LCP4_CD",
+  "T_Exclude_from_Projections_LCIP4_CRED",
+  "T_Exclude_from_Projections_PSSM_Credential",
+  "T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy",
+  "tbl_Age_Groups",
+  "tbl_Age_Groups_Rollup",
+  "T_NOC_Broad_Categories"
+)
 
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
 
-# Lookups
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCP4_CD"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCIP4_CRED"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_PSSM_Credential"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
+
+# Check for required data tables in the database
+for (table_name in required_tables) {
+  # Build SQL statement
+  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  
+  # Assert that the table exists in the database
+  assert_that(
+    dbExistsTable(decimal_con, full_table_name),
+    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+  )
+}
 #dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')))
 
 # ---- SQL Commands ----
@@ -92,10 +113,17 @@ dbGetQuery(decimal_con, Count_Occupation_Distributions2)
 dbGetQuery(decimal_con, Occupation_Unknown) 
 
 # creates mapping for LCIP4 to LCIP2 
-# dbExecute(decimal_con, Q_0_LCP2_LCP4) # The table “T_LCP2_LCP4” has already been create in previous script: load-occupation-projections.R
+if (dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"'))) == FALSE){
+dbExecute(decimal_con, Q_0_LCP2_LCP4) # The table “T_LCP2_LCP4” has already been create in previous script: load-occupation-projections.R 
+}# the code is: Q_0_LCP2_LCP4 <- 
+# "SELECT INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP2_CD, 
+# INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD INTO T_LCP2_LCP4
+# FROM INFOWARE_L_CIP_6DIGITS_CIP2016
+# GROUP BY INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP2_CD, 
+# INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD;"
 
 # essentially duplicates records (as a placeholder to insert graduate records for ptib later?)  
-if (ptib_flag == TRUE) {
+if (ptib_run == TRUE) {
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D)
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
@@ -247,15 +275,18 @@ dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 # ---- Q_6 Series ---- 
 if (regular_run == T){
 dbExecute(decimal_con, Q_6_tmp_tbl_Model)
-  } else {
+  } 
+
+if (qi_run == T) {
   dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
 }
 
-if (regular_run == T){
+if (ptib_run == T){
 dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst) 
-#dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 }
+#dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection) 
 
+if (regular_run == T | qi_run == T){
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
 dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
 
@@ -347,21 +378,7 @@ dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_PSSM_Credential")
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
 dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
 dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy")
-
+}
 # Keep 
 # dbExists(decimal_con, "")
 # dbExists(decimal_con, "")
-
-
-
-
-
-
-
-
-
-
-
-
-
-

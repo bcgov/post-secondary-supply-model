@@ -36,12 +36,33 @@ decimal_con <- dbConnect(odbc::odbc(),
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-occupation-distributions.R"))
 
 # ---- Check for required data tables ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Weights_NLS"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Occupation_Distributions_Stat_Can"')))
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
+
+# List of required tables
+required_tables <- c(
+  "t_cohorts_recoded",
+  "t_current_region_pssm_codes",
+  "t_current_region_pssm_rollup_codes",
+  "tmp_tbl_Weights_NLS",
+  "T_NOC_Broad_Categories",
+  "Occupation_Distributions_Stat_Can"
+)
+
+# Check for required data tables in the database
+for (table_name in required_tables) {
+  # Build SQL statement
+  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  
+  # Assert that the table exists in the database
+  assert_that(
+    dbExistsTable(decimal_con, full_table_name),
+    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+  )
+}
+
 
 # ---- Execute SQL ----
 dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC) 
@@ -202,17 +223,17 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
-if (regular_run == FALSE | ptib_flag == TRUE) {
+if (regular_run == FALSE | ptib_run == TRUE) {
   # do  nothing
-} else {
+} 
+if (qi_run == TRUE){
   tryCatch({
     dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
   }, error = function(e) {
     print(paste("Error:", e$message))
+    stop()
   })
-  
 }
-
 
 dbExecute(decimal_con, "DELETE 
                         FROM Occupation_Distributions
