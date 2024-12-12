@@ -6,22 +6,10 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")

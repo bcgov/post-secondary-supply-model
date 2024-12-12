@@ -1,7 +1,7 @@
 # This script loads student outcomes data for students who students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
-# The following data-set is read into SQL server from the student outcomes survey database:
+# The following data-set is read from SQL server database:
 #   t_dacso_data_part_1_stepa: unique survey responses for each person/survey year (for years since last model run)
 #   infoware_c_outc_clean_short_resp: 
 #
@@ -26,22 +26,9 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("./sql/02b-pssm-cohorts/dacso-data.sql"))
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -54,7 +41,7 @@ decimal_con <- dbConnect(odbc::odbc(),
 my_schema <- config::get("myschema")
 
 # ---- retrieve data from decimal ----
-infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
+infoware_c_outc_clean_short_resp_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp_raw"')))
 
 # ---- Read raw data from LAN ----
 tbl_Age_Groups <- 
@@ -105,11 +92,13 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc, overwrite = TRUE)
 
 # --- Read SO DACSO data and write to decimal ----
-if (regular_run == T | ptib_run == T) {
-t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
-dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat)
 
-dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa)
+if (regular_run == T | ptib_flag == T) {
+t_dacso_data_part_1_stepa <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."DACSO_Q003_DACSO_DATA_Part_1_stepA_raw"')))
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat, overwrite = TRUE)
+
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa, overwrite = TRUE)
+
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
 dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
                        SET CURRENT_REGION_PSSM_CODE =  

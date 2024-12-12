@@ -22,19 +22,8 @@ library(DBI)
 library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -76,8 +65,8 @@ AgeGroupLookup <-
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/06/AgeGroupLookup.csv"),  col_types = cols(.default = col_guess()))
 
 # ---- Read from Student Outcomes ----
-INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
-INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')))
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')))
 
 
 # ---- Rollover data ----
@@ -131,8 +120,8 @@ stopifnot(exprs = {
 
 if (qi_run == T) {
   # ---- Read from Student Outcomes ----
-  INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_4DIGITS_CIP2016")
-  INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"')))
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')))
   # ---- Write to decimal ----
   dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')), INFOWARE_L_CIP_4DIGITS_CIP2016, overwrite = TRUE)
   dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')), INFOWARE_L_CIP_6DIGITS_CIP2016, overwrite = TRUE)
@@ -141,5 +130,4 @@ if (qi_run == T) {
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
 # rm(list=ls())

@@ -1,7 +1,7 @@
 # This script loads student outcomes data for students who students who have completed the 
 # final year of their apprenticeship technical training within the first year of graduation.
 # 
-# The following data is read into SQL server from the student outcomes survey database:
+# The following data is read from SQL server database:
 #   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
 #   APPSO_Graduates: a count of graduates by credential type, age and survey year
 library(tidyverse)
@@ -9,28 +9,23 @@ library(RODBC)
 library(config)
 library(glue)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                 url = db_config$url,
-                 user = db_config$user,
-                 password = db_config$password)
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
 
 # ---- Read outcomes data ----
-source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
-
-T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
-APPSO_Graduates_dat <- dbGetQuery(outcomes_con, APPSO_Graduates)
+# source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
+T_APPSO_DATA_Final <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_DATA_01_Final_raw"')))
+APPSO_Graduates_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates_raw"')))
 
 # Convert some variables that should be numeric
 T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
@@ -116,14 +111,6 @@ APPSO_Graduates_dat  %>%
     APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
     TRUE ~ NA)) -> APPSO_Graduates_dat 
 
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
 
 dbWriteTable(decimal_con, 
              name = SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')), 
@@ -138,5 +125,5 @@ dbWriteTable(decimal_con,
 
 
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
+
 
