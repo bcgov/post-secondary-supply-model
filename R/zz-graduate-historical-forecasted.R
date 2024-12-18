@@ -50,9 +50,7 @@ dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 
 
 # historical numbers - bringing into R instead of multiple queries 
-my_schema <- 'IDIR\\XXXXXXX'
-my_schema <- 'IDIR\\LFREDRIC'
-my_schema <- 'IDIR\\ALOWERY'
+
 grads <- tibble(dbGetQuery(
   decimal_con,
   glue::glue('
