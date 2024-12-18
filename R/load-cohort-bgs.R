@@ -51,7 +51,7 @@ T_BGS_INST_Recode <-
   janitor::clean_names(case = "all_caps")
 
 # ---- Read Outcomes Data ----
-if (regular_run == T | ptib_flag == T) {
+if (regular_run == T | ptib_run == T) {
   BGS_Data_Update <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."BGS_Q001_BGS_Data_2019_2023_raw"')))
 
   BGS_Data_Update <- BGS_Data_Update %>% 
@@ -93,7 +93,7 @@ if (regular_run == T | ptib_flag == T) {
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_Weights"')), value = T_weights, overwrite = TRUE)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_INST_Recode"')), value = T_BGS_INST_Recode, overwrite = TRUE)
 
-if (regular_run == T | ptib_flag == T) {
+if (regular_run == T | ptib_run == T) {
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_BGS_Data_Final"')), value = T_BGS_Data_Final, overwrite = TRUE)
 
 }

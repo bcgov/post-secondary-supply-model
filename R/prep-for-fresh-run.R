@@ -1,9 +1,21 @@
+# Copyright 2024 Province of British Columbia
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
 # *********************************************************************************
 # After running the regular and QI model and PTIB runs, prep for re-run if needed.
 # Option 1: CAUTION: Drop EVERY single table in your SQL IDIR schema (2 ways)
 # Option 2: Drop select tables required for a fresh run from 02b of regular
 # *********************************************************************************
-rm(list = ls())
+# rm(list = ls()) # cannot have this anymore since it is a part of 'run_all_three_model_runs.r'. Otherwise, it will remove all global variables such as file_path0
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -45,8 +57,8 @@ tables_query <- paste0(
 )
 all_tables <- dbGetQuery(decimal_con, tables_query)$TABLE_NAME
 
-
-
+# remove all other non-raw student outcome data.
+remove_tables <- all_tables[stringr::str_detect(all_tables, pattern = "_raw$", negate = T) ]
 
 
 # Step 2: Begin transaction and delete tables
@@ -56,7 +68,7 @@ stopifnot(my_schema == "IDIR\\JDUAN")
 
 dbBegin(decimal_con)
 tryCatch({
-  for (table in all_tables) {
+  for (table in remove_tables) {
     drop_statement <- glue::glue('DROP TABLE "{my_schema}"."{table}"')
     dbExecute(decimal_con, drop_statement)
   }
@@ -187,5 +199,4 @@ if (regular_run == T & qi_run != T & ptib_run !=T ){
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-# rm(list = ls())
 gc()

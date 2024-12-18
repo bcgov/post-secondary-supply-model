@@ -93,7 +93,7 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region
 
 # --- Read SO DACSO data and write to decimal ----
 
-if (regular_run == T | ptib_flag == T) {
+if (regular_run == T | ptib_run == T) {
 t_dacso_data_part_1_stepa <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."DACSO_Q003_DACSO_DATA_Part_1_stepA_raw"')))
 dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat, overwrite = TRUE)
 
