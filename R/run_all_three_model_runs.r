@@ -43,14 +43,11 @@ flog.threshold(INFO, name = "file_logger")
 # List of R file paths
 # load_data_files <- c(
 #   "./R/load-outcomes-data.R"
-# 
 # )
-# 
-# 
 # 
 # for (rawdata_file_path in load_data_files) {
 #   print(paste(Sys.time(), "Starting:", rawdata_file_path))
-#   
+# 
 #   tryCatch({
 #     time_execution(rawdata_file_path)
 #   }, error = function(e) {
@@ -68,15 +65,10 @@ three_model_run_files <- c(
   "./R/prep-for-ptib-run.R"
 )
 
-
 # initiate flags
 regular_run <-  T
 qi_run <- F
 ptib_run <- F
-
-
-
-
 
 
 # Loop through each file, calling time_execution for each
@@ -95,3 +87,11 @@ for (file_path0 in three_model_run_files) {
 # elapsed0 <- end_time0 - start_time0
 print(paste(Sys.time(), glue::glue("Complete three model runs ......")))
 flog.info(paste(Sys.time(), glue::glue("Complete three model runs ......")), name = "file_logger")
+
+
+# now that all 3 models have run, complete the final step of producing the report
+source(glue::glue("./R/08-create-final-reports.R"))
+
+print(paste(Sys.time(), glue::glue("Excel report created ......")))
+flog.info(paste(Sys.time(), glue::glue("Excel report created ......")), name = "file_logger")
+

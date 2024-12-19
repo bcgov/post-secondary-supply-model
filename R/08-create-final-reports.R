@@ -445,3 +445,5 @@ create_final_excel(
   is_internal=FALSE
 )
 
+# ---- Disconnect ----
+dbDisconnect(decimal_con)

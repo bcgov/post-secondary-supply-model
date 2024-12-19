@@ -158,8 +158,6 @@ if (regular_run != T & qi_run != T & ptib_run ==T ) {
 } 
 
 
-source(glue::glue("./R/08-create-final-reports.R"))
-
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
 # rm(list = ls())
