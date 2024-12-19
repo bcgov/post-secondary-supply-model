@@ -112,8 +112,8 @@ dbExecute(decimal_con, glue::glue("IF OBJECT_ID('{my_schema}.Occupation_Distribu
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
 copy_tables = c(
   '[dbo]."T_bgs_data_final_for_outcomesmatching"',
-  '[IDIR\\ALOWERY]."Labour_Supply_Distribution_Stat_Can"',
-  '[IDIR\\ALOWERY]."Occupation_Distributions_Stat_Can"',
+  '[dbo]."Labour_Supply_Distribution_Stat_Can"',
+  '[dbo]."Occupation_Distributions_Stat_Can"',
   '[dbo]."Credential_Non_Dup"'
 )
 
