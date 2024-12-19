@@ -129,11 +129,14 @@ dbExecute(decimal_con, Q_0b_Append_Private_Institution_Labour_Supply_Distributio
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution) 
 dbExecute(decimal_con, Q_0c_Append_Private_Institution_Occupation_Distribution_2D) 
 }
+
 # use these to delete PTIB for running a model without private institutions
+if (ptib_run == FALSE) {
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2) 
 dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution) 
-dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2) 
+dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2)
+}
 
 # ---- Q_1 Series ---- 
 dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program) 

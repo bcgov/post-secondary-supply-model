@@ -40,23 +40,43 @@ df
 Scripts are labeled sequentially and run in that order with a few exceptions (WIP).  Each analysis script has a corresponding script that 
 handles loading of the data required for analysis.  Currently the model has only been tested data load scripts run prior to analysis, although future work may change this.  The run order is:
 
+Initial data pre-processing and post-secondary analysis:
+
 - 01a-enrolment-preprocessing.R 
 - 01b-credential-preprocessing.R 
 - 01c-credential-analysis.R 
 - 01d-enrolment-analysis.R 
+
+Program matching scripts to aid in the cleanup of CIP codes:
+
 - 02a-appso-programs.R 
 - 02a-bgs-program-matching.R 
 - 02a-dacso-program-matching.R 
 - 02a-update-cred-non-dup.R 
+
+Model updating:
+
+- run_all_three_model_runs.R
+
+Note that run_all_three_model_runs.R calls:
+
+- prep-for-fresh-run.R
+- prep-for-qi-run.R
+- prep-for-ptib-run.R
+- 08-create-final-reports.R
+
+Because the model is run 3 times with varying configurations of inputs, the following scripts (and their associated data loading scripts) have all been automated with flags to allow for this process.
+
 - 02b-1-pssm-cohorts.R 
 - 02b-2-pssm-cohorts-new-labour-supply.R 
 - 02b-3-pssm-cohorts-occupation-distributions.R 
 - 03-near-completers-ttrain.R 
 - 04-graduate-projections.R 
 - 05-ptib-analysis.R 
-- 06- -program-projections.R 
+- 06-program-projections.R 
 - 07-occupation-projections.R 
 
+Note that these scripts (02b-08) do NOT need to be run independently, and they are solely sourced elsewhere. 
 
 
 ### Getting Help or Reporting an Issue
