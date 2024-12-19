@@ -64,7 +64,6 @@ remove_tables <- all_tables[stringr::str_detect(all_tables, pattern = "_raw$", n
 # Step 2: Begin transaction and delete tables
 # commented out to prevent accidental deletions
 # REMINDER: ALL IDIR tables WILL be deleted; confirm my_schema used in this process
-stopifnot(my_schema == "IDIR\\JDUAN") 
 
 dbBegin(decimal_con)
 tryCatch({
