@@ -223,10 +223,11 @@ dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
 dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
-if (regular_run == TRUE | ptib_run == TRUE) {
+
+if (qi_run == TRUE | ptib_run == TRUE) {
   # do  nothing
 } 
-if (qi_run == TRUE){
+if (regular_run == TRUE){
   tryCatch({
     dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
   }, error = function(e) {
