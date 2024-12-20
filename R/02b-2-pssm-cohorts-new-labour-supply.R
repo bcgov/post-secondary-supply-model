@@ -42,12 +42,32 @@ decimal_con <- dbConnect(odbc::odbc(),
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-new-labour-supply.R"))
 source(glue::glue("./sql/02b-pssm-cohorts/02b-pssm-cohorts-dacso.R"))
 
-# ---- Check for required data tables ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"')))
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
+
+# List of required tables
+required_tables <- c(
+  "t_cohorts_recoded",
+  "t_current_region_pssm_rollup_codes",
+  "t_current_region_pssm_codes",
+  "T_NOC_Broad_Categories",
+  "Labour_Supply_Distribution_Stat_Can"
+)
+
+# Check for required data tables in the database
+for (table_name in required_tables) {
+  # Build SQL statement
+  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  
+  # Assert that the table exists in the database
+  assert_that(
+    dbExistsTable(decimal_con, full_table_name),
+    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+  )
+}
+
 
 # ---- Execute SQL ----
 # TODO: would move this out of the dacso script as it's not DACSO specific
@@ -96,8 +116,16 @@ dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
 dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
 dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
 dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
-dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) 
+
+# if (regular_run == T | ptib_run == T){
+  # dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) # which is DACSO_Q005_Z06_Add_Weight_NLS_Field <- "ALTER TABLE T_Cohorts_Recoded ADD Weight_NLS Float NULL;". In "process_steps.docx", Amelia mentions "Ignore error about Weight_NLS column existing.", so we can comment out this line
 dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_NLS Float NULL;")
+# }  
+# 
+# if (qi_run == T ) {
+#   dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_NLS Float NULL;")
+# }
+
 
 # null Weight_NLS field and update (if you’ve been messing with iterations)
 dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null) 
@@ -243,4 +271,14 @@ dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
 dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
 
 
+# Make sure in the check weights script, they are all as expected for non QI (e.g., 1,2,3,4,5). If different, then either skipped the right _QI in 02b-1, or in load-appso.
+DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights <- "
+SELECT t_cohorts_recoded.survey,
+       t_cohorts_recoded.survey_year,
+       t_cohorts_recoded.weight
+FROM   t_cohorts_recoded
+GROUP  BY t_cohorts_recoded.survey,
+          t_cohorts_recoded.survey_year,
+          t_cohorts_recoded.weight;"
+dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
 

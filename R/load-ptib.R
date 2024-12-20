@@ -1,3 +1,15 @@
+# Copyright 2024 Province of British Columbia
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
 # ******************************************************************************
 # Load PTIB enrolment data from staging area in LAN project folder, to decimal.  
 # Raw data is in excel so some cleaning req'd to handle cip code conversion issues
@@ -9,23 +21,11 @@ library(DBI)
 library(config)
 library(readxl)
 library(janitor)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-jdbc_driver_config <- config::get("jdbc")
 raw_data_file <- glue::glue("{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats 2024.05.31.xlsx")
 my_schema <- config::get("myschema")
-
-# ---- Connection to outcomes ----
-db_config <- config::get("pdbtrn")
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -70,7 +70,7 @@ data <- cleaned_data %>%
 T_Private_Institutions_Credentials_Raw <- data
 
 # ---- Read Outcomes Data ----
-INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbGetQuery(outcomes_con, "SELECT * FROM L_CIP_6DIGITS_CIP2016")
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"')))
 
 # ---- Read LAN data ----
 ## Lookups
@@ -93,5 +93,5 @@ dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
-rm(list = ls())
+# rm(list = ls())
 gc()

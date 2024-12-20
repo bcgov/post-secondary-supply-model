@@ -12,27 +12,25 @@ library(RODBC)
 library(config)
 library(glue)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
 
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
+# should specify the DBO schema for final run, individual IDIRS for testing
+schema <- config::get("myschema")
 
 # ---- Read raw data and disconnect ----
-source(glue::glue("./sql/02b-pssm-cohorts/trd-data.sql"))
+#source(glue::glue("./sql/02b-pssm-cohorts/trd-data.sql"))
 
-Q000_TRD_DATA_01 <- dbGetQuery(outcomes_con, Q000_TRD_DATA_01)
-Q000_TRD_Graduates <- dbGetQuery(outcomes_con, Q000_TRD_Graduates)
+Q000_TRD_DATA_01 <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_DATA_01_raw"')))
+Q000_TRD_Graduates <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_Graduates_raw"')))
 
 # Convert some variables that should be numeric
 Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>% 
@@ -69,19 +67,7 @@ Q000_TRD_Graduates   %>%
     TRD_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
     TRUE ~ NA)) -> Q000_TRD_Graduates 
 
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
-# should specify the DBO schema for final run, individual IDIRS for testing
-schema <- config::get("myschema")
-
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_TRD_DATA"')), value = Q000_TRD_DATA_01)
-dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."TRD_Graduates"')), value = Q000_TRD_Graduates)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."T_TRD_DATA"')), value = Q000_TRD_DATA_01, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{schema}"."TRD_Graduates"')), value = Q000_TRD_Graduates, overwrite = TRUE)
 
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
