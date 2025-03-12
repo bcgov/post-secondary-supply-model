@@ -15,7 +15,7 @@
 # This script loads student outcomes data for students who students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
-# The following data-set is read into SQL server from the student outcomes survey database:
+# The following data-set is read from SQL server database:
 #   t_dacso_data_part_1_stepa: unique survey responses for each person/survey year (for years since last model run)
 #   infoware_c_outc_clean_short_resp: 
 #
@@ -40,23 +40,9 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
-
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
-source(glue::glue("./sql/02b-pssm-cohorts/dacso-data.sql"))
-
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                          url = db_config$url,
-                          user = db_config$user,
-                          password = db_config$password)
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -65,6 +51,11 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
+# should specify the DBO schema for final run, individual IDIRS for testing
+my_schema <- config::get("myschema")
+
+# ---- retrieve data from decimal ----
+infoware_c_outc_clean_short_resp_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp_raw"')))
 
 # ---- Read raw data from LAN ----
 tbl_Age_Groups <- 
@@ -82,7 +73,6 @@ T_PSSM_Credential_Grouping <-
 t_year_survey_year <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/t_year_survey_year.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
 t_cohorts_recoded <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/rollover/02/T_Cohorts_Recoded.csv"), 
                   col_types = cols(PEN = "c", STQU_ID = "c", Survey = "c", LCIP_CD = "c", LCP4_CD = "c", NOC_CD = "c", INST_CD = "c",
@@ -97,31 +87,32 @@ t_current_region_pssm_rollup_codes <-
 t_current_region_pssm_rollup_codes_bc <- 
   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"), col_types = cols(.default = col_guess())) %>%
   janitor::clean_names(case = "all_caps")
-
-# --- Required lookup - read directly from SSMS 
-#tbl_noc_skill_level_aged_17_34 <- 
-#  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/tbl_NOC_Skill_Level_Aged_17_34.csv"), col_types = cols(.default = col_guess())) %>%
-#  janitor::clean_names(case = "all_caps")
-
+T_NOC_Broad_Categories <- 
+  readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"), col_types = cols(.default = col_guess())) %>%
+  janitor::clean_names(case = "all_caps") 
 
 # ---- Write LAN data to decimal ----
 # Note: may want to check if table exists instead of using overwrite = TRUE
-dbWriteTable(decimal_con, name = "tbl_Age_Groups", value = tbl_Age_Groups)
-dbWriteTable(decimal_con, name = "tbl_Age_Groups_Rollup", value = tbl_Age_Groups_Rollup)
-dbWriteTable(decimal_con, name = "tbl_Age", value = tbl_Age)
-dbWriteTable(decimal_con, name = "T_PSSM_Credential_Grouping", value = T_PSSM_Credential_Grouping)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')), value = tbl_Age_Groups, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')), value = tbl_Age_Groups_Rollup, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Age"')), value = tbl_Age, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')), value = T_PSSM_Credential_Grouping, overwrite = TRUE)
 
-# load via SQL Server: 
-# dbWriteTable(decimal_con, name = "tbl_noc_skill_level_aged_17_34", value = tbl_noc_skill_level_aged_17_34) 
-dbWriteTable(decimal_con, name = "t_year_survey_year", value = t_year_survey_year)
-dbWriteTable(decimal_con, name = "t_cohorts_recoded", value = t_cohorts_recoded)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_codes", value = t_current_region_pssm_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes", value = t_current_region_pssm_rollup_codes)
-dbWriteTable(decimal_con, name = "t_current_region_pssm_rollup_codes_bc", value = t_current_region_pssm_rollup_codes_bc)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_NOC_Broad_Categories"')), value = T_NOC_Broad_Categories, overwrite = TRUE) 
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_year_survey_year"')), value = t_year_survey_year, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_cohorts_recoded"')), value = t_cohorts_recoded, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')), value = t_current_region_pssm_codes, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')), value = t_current_region_pssm_rollup_codes, overwrite = TRUE)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')), value = t_current_region_pssm_rollup_codes_bc, overwrite = TRUE)
 
-# --- Read SO dacso data and write to decimal ----
-t_dacso_data_part_1_stepa <- dbGetQueryArrow(outcomes_con, DACSO_Q003_DACSO_DATA_Part_1_stepA)
-dbWriteTableArrow(decimal_con, name = "t_dacso_data_part_1_stepa", value = t_dacso_data_part_1_stepa)
+# --- Read SO DACSO data and write to decimal ----
+
+if (regular_run == T | ptib_run == T) {
+t_dacso_data_part_1_stepa <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."DACSO_Q003_DACSO_DATA_Part_1_stepA_raw"')))
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')), infoware_c_outc_clean_short_resp_dat, overwrite = TRUE)
+
+dbWriteTableArrow(decimal_con, name = SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')), value = t_dacso_data_part_1_stepa, overwrite = TRUE)
+
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ADD CURRENT_REGION_PSSM_CODE FLOAT NULL")
 dbExecute(decimal_con,"UPDATE t_dacso_data_part_1_stepa
                        SET CURRENT_REGION_PSSM_CODE =  
@@ -141,94 +132,18 @@ dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN COSC_
 dbExecute(decimal_con, "ALTER TABLE t_dacso_data_part_1_stepa ALTER COLUMN RESPONDENT INT NULL")
 rm(t_dacso_data_part_1_stepa)
 gc()
-
-# tictoc::tic()
-# infoware_c_outc_clean_short_resp_dat <- dbGetQueryArrow(outcomes_con, infoware_c_outc_clean_short_resp)
-# tictoc::toc()
-# 
-# tictoc::tic()
-# dbWriteTableArrow(decimal_con, name = "infoware_c_outc_clean_short_resp", value = infoware_c_outc_clean_short_resp_dat)
-# tictoc::toc()
-
-## year by year? 
-year_start <- 18
-year_end <- 23
-for (year in year_start:year_end){
-  print(glue::glue('Starting year {year}'))
-  sql_by_year <- glue::glue("
-  SELECT *
-  FROM c_outc_clean_short_resp
-  WHERE subm_cd = 'C_Outc{year}'
-  ")
-  tictoc::tic()
-  tmp <- dbGetQueryArrow(outcomes_con, sql_by_year)
-  print('Loaded year to R.')
-  tictoc::toc()
-  
-  tictoc::tic()
-  dbWriteTableArrow(decimal_con, name = glue::glue("infoware_by_year_{year}"), value = tmp)
-  print('Loaded year to MS SQL.')
-  tictoc::toc()
-  print('')
-  print('')
-  
-  rm(tmp)
-  gc()
 }
 
-full_sql <- "
-SELECT *
-INTO infoware_c_outc_clean_short_resp 
-FROM (
-"
-
-for (year in year_start:year_end){
-  full_sql <- paste0(full_sql, glue::glue("SELECT * FROM infoware_by_year_{year}
-"
-  ))
-  
-  if (year<year_end){
-    full_sql <- paste0(full_sql, "
-UNION ALL
-")
-  } else{
-    full_sql <- paste0(full_sql, "
-) t1")
-  }
-}
-
-cat(full_sql)
-
-# combine
-dbExecute(decimal_con, full_sql)
-
-# confirm that the count by year is the same in both databases
-dbGetQuery(
-  outcomes_con,
-  "SELECT subm_cd, count(*)
-  FROM c_outc_clean_short_resp
-  WHERE subm_cd IN ('C_Outc18', 'C_Outc19','C_Outc20','C_Outc21','C_Outc22','C_Outc23')
-  GROUP BY subm_cd
-  ORDER BY 1"
-)
-
-dbGetQuery(
-  decimal_con,
-  "SELECT subm_cd, count(*)
-  FROM infoware_c_outc_clean_short_resp
-  GROUP BY subm_cd
-  ORDER BY 1"
-)
-
-# drop tmp
-for (year in year_start:year_end){
-  dbExecute(decimal_con, glue::glue("DROP TABLE infoware_by_year_{year}"))
-}
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN BROAD_CATEGORY_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN MAJOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN SUB_MAJOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN MINOR_GROUP_CODE NVARCHAR(50) NULL;")
+dbExecute(decimal_con, "ALTER TABLE T_NOC_Broad_Categories ALTER COLUMN UNIT_GROUP_CODE NVARCHAR(50) NULL;")
 
 
 # ---- Clean Up ---
-dbDisconnect(outcomes_con)
 dbDisconnect(decimal_con)
+# rm(list = ls())
 
 
 

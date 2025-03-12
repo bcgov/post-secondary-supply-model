@@ -59,6 +59,7 @@ db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
+
 # ---- Query Defs ----
 source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-trd.R")
 source("./sql/02b-pssm-cohorts/02b-pssm-cohorts-appso.R")
@@ -73,43 +74,52 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
 
+# List of required tables with categories
+required_tables <- list(
+  TRD = c("TRD_Graduates", "T_TRD_DATA"),
+  APP = c("T_APPSO_DATA_Final", "APPSO_Graduates"),
+  BGS = c("T_BGS_Data_Final", "T_BGS_INST_Recode", "T_bgs_data_final_for_outcomesmatching", "T_Weights"),
+  DACSO = c("t_dacso_data_part_1_stepa", "infoware_c_outc_clean_short_resp"),
+  Lookups = c("t_current_region_pssm_codes", "t_current_region_pssm_rollup_codes", 
+              "t_current_region_pssm_rollup_codes_bc", "tbl_age", "tbl_age_groups", 
+              "t_pssm_credential_grouping", "t_year_survey_year")
+)
 
-# ---- Check for required data tables ----
-# TRD
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Q000_TRD_Graduates"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_TRD_DATA"')))
+# Check for required data tables in the database
+for (category in names(required_tables)) {
+  for (table_name in required_tables[[category]]) {
+    # Build SQL statement
+    full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+    
+    # Assert that the table exists in the database
+    assert_that(
+      dbExistsTable(decimal_con, full_table_name),
+      msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+    )
+  }
+}
 
-# APP
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')))
-
-# BGS
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_Data_Final"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_BGS_INST_Recode"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_bgs_data_final_for_outcomesmatching"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Weights"')))
-
-# DACSO
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_stepa"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."infoware_c_outc_clean_short_resp"')))
-
-# Lookups
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_current_region_pssm_rollup_codes_bc"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_age_groups"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_credential_grouping"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_year_survey_year"')))
 
 
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
-dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
-dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
-#dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
+if (regular_run == T | ptib_run == T){
+  dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
+  dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;")
+  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
+} 
+
+if (qi_run == T ) {
+  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
+}
+
+
+
 
 # Refresh trd survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, Q000_TRD_Q005_1b1_Delete_Cohort)
@@ -129,9 +139,13 @@ dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
 dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 # Applies weight for model year and derives New Labour Supply
-dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
-dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
-#dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
+if (regular_run == T | ptib_run == T){
+  dbExecute(decimal_con, "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;")
+  dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
+}  
+if (qi_run == T ) {
+  dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
+}
 
 # Refresh bgs survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
@@ -139,7 +153,7 @@ dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
 
 # ----DACSO Queries ----
 # adds age, updates credential, creates new LCIP4_CRED variable 
-dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
+dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB) 
 
 # Recode institution codes for CIP-NOC work
 dbExecute(decimal_con, DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed)
@@ -152,8 +166,13 @@ dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
 # dbExecute(decimal_con, DACSO_Q004b_INST_Recode)
 
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
-#dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
+if (regular_run == T | ptib_run == T){
+  dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
+}  
+
+if (qi_run == T ) {
+  dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
+}
 
 # Refresh dacso survey records in T_Cohorts_Recoded
 dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
@@ -161,24 +180,18 @@ dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
 
 # ---- Keep  ----
 dbExistsTable(decimal_con, "APPSO_Graduates")
+dbExistsTable(decimal_con, "TRD_Graduates")
 dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
-# ---- Clean Up ----
-dbExecute(decimal_con, "DROP TABLE T_TRD_DATA")
-dbExecute(decimal_con, "DROP TABLE T_APPSO_DATA_Final")
-dbExecute(decimal_con, "DROP TABLE T_BGS_Data_Final")
-dbExecute(decimal_con, "DROP TABLE t_dacso_data_part_1_stepa;")
-dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
-dbExecute(decimal_con, "DROP TABLE Q000_TRD_Graduates;") # TODO: where do we add trades in?
-dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
-dbExecute(decimal_con, "DROP TABLE tbl_Age")
-dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
+# ---- Clean Up Lookups (if desired, not a needed step) ----
+# dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
+# dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
+# dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
+# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 dbDisconnect(decimal_con)
-
+# rm(list=ls())
 

@@ -58,39 +58,65 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Check for required data tables ----
-# Derived tables
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"')))
+# Load necessary libraries
+library(DBI)
+library(glue)
+library(assertthat)
 
-# Rollovers from last run - we should be able to just build these up from a blank table schema
-# but this is how it was done in prior years so keep for now.  Same as T_Cohorts_Recoded
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')))
+# List of required tables for Derived Tables, Rollovers, and Lookups
+required_tables <- c(
+  # Derived tables
+  "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN",
+  "tbl_Program_Projection_Input",
+  "T_Cohorts_Recoded",
+  
+  # Rollovers from last run
+  "Cohort_Program_Distributions_Projected",
+  "Cohort_Program_Distributions_Static",
+  
+  # Lookups
+  "INFOWARE_L_CIP_4DIGITS_CIP2016",
+  "INFOWARE_L_CIP_6DIGITS_CIP2016",
+  "T_PSSM_Projection_Cred_Grp",
+  "T_Weights_STP",
+  "tbl_Age_Groups_Near_Completers",
+  
+  # Note table
+  "T_Cohort_Program_Distributions_Y2_to_Y12"
+)
 
-# Lookups
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Weights_STP"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')))
+# Check for required data tables in the database
+for (table_name in required_tables) {
+  # Build SQL statement
+  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  
+  # Assert that the table exists in the database
+  assert_that(
+    dbExistsTable(decimal_con, full_table_name),
+    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
+  )
+}
 
-# Note from documentation: update Y1 to model year and Y2_to_Y10 to years you want projected.  
-# We can probably just create this table here and skip saving and uploading from year to year.
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"')))
 
 # ---- survey == "PTIB" (Static and Projected) ----
-dbExecute(decimal_con, 
-            "INSERT INTO Cohort_Program_Distributions_Projected 
-            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;")
-dbExecute(decimal_con, 
-            "INSERT INTO Cohort_Program_Distributions_Static
-            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, Age_Group, [Year], [Count], Total, [Percent] 
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
+if (ptib_run == TRUE) {
+  dbExecute(
+    decimal_con,
+    "INSERT INTO Cohort_Program_Distributions_Projected
+            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
+            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
+  )
+  dbExecute(
+    decimal_con,
+    "INSERT INTO Cohort_Program_Distributions_Static
+            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
+            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
+            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
+  )
+  dbExecute(decimal_con,
+            "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
+}
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
 # Add near completers to projected and static distribution datasets

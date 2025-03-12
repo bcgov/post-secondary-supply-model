@@ -14,7 +14,7 @@
 # Near completers who later received a credential according to the STP Credential 
 # file or had an earlier credential are subtracted from the total of all near completers.
 # 
-# Age groups: 17 to 19, 20 to 24, 25 to 29, and 30 to 34, and 35 to 64
+# Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64
 # Credentials: From Diploma, Associate Degree, and Certificate Outcomes Survey cohorts. 
 # Survey years: 2018, 2019, 2020, 2021, 2022, 2023 for PSSM 2023
 # STP Credential years searched: 2002/03 - 2022/23 
@@ -29,6 +29,7 @@ library(RODBC)
 library(config)
 library(DBI)
 library(RJDBC)
+library(assertthat)
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -48,21 +49,21 @@ source("./sql/03-near-completers/near-completers-investigation-ttrain.R")
 source("./sql/03-near-completers/dacso-near-completers.R")
 
 # tables made in earlier part of workflow
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))) 
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))) 
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))))
 
 # rollover tables - this can be removed later
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"'))))
 
 # new data
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"'))))
 
 # lookups
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."tbl_Age"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."combine_creds"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"'))))
+assert_that(dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"'))))
 
 # ---- Derive Age at Grad ----
 dbExecute(decimal_con, "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL")
@@ -74,10 +75,10 @@ dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_CLEANED = ''
 dbExecute(decimal_con, qry_make_tmp_table_Age_step3)
 dbExecute(decimal_con, "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_DATE = NULL WHERE ENDDT_DATE = '1900-01-01'")
 dbExecute(decimal_con, qry_make_tmp_table_Age_step4)
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears")
+dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears") # drop the new table
 
 dbExecute(decimal_con, "ALTER TABLE T_DACSO_Data_Part_1 ADD Age_At_Grad FLOAT NULL")
-dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL")
+# dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL") # in 'load-near-completers-ttrain.R', we read the CSV for it and it has the age at grad. 
 dbExecute(decimal_con, qry99_Update_Age_At_Grad)
 dbExecute(decimal_con, qry99a_Update_Age_At_Grad)
 
@@ -87,15 +88,17 @@ dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
 
 # ---- Add PEN to Non-Dup table ----
 # Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
-sql <- "ALTER TABLE pssm2023.[IDIR\BASHCROF].credential_non_dup
-ADD PSI_PEN NVARCHAR(255) NULL;"
+sql <- glue::glue("ALTER TABLE pssm2023.[{my_schema}].credential_non_dup
+ADD PSI_PEN NVARCHAR(255) NULL;")
+dbExecute(decimal_con, sql)
 
-sql <- "UPDATE N
+sql <- glue::glue("UPDATE N
 SET N.PSI_PEN = C.PSI_PEN
-FROM pssm2023.[YOUR_SCHEMA].credential_non_dup AS N
+FROM pssm2023.[{my_schema}].credential_non_dup AS N
 INNER JOIN dbo.STP_Credential AS C
 ON N.ID = C.ID
-"
+")
+dbExecute(decimal_con, sql)
 
 # ---- DACSO Matching STP Credential ----
 dbExecute(decimal_con, qry01_Match_DACSO_to_STP_Credential_Non_DUP_on_PEN)
@@ -269,7 +272,7 @@ T_DACSO_Near_Completers_RatioAgeAtGradCIP4 <- NearCompleters_CIP4_CombinedCred %
   mutate(across(where(is.double), ~na_if(., Inf)))%>%
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioAgeAtGradCIP4", T_DACSO_Near_Completers_RatioAgeAtGradCIP4)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioAgeAtGradCIP4"')), T_DACSO_Near_Completers_RatioAgeAtGradCIP4)
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
 dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
 dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
@@ -318,15 +321,66 @@ T_DACSO_Near_Completers_RatioByGender <-
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
   select(-ratio_adgt)
 
-dbWriteTable(decimal_con, name = "T_DACSO_Near_Completers_RatioByGender", T_DACSO_Near_Completers_RatioByGender)
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender"')), T_DACSO_Near_Completers_RatioByGender)
+
+# 4. Same as above (3.) but by year - to get historical 
+
+# 4.1: paste to col E
+dbExecute(decimal_con, qry99_Near_completes_total_byGender_year)
+Near_completes_total_byGender_year <-  dbReadTable(decimal_con, "Near_completes_total_byGender_year")
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_byGender_year")
+
+# 4.2: paste to col F
+dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender_year)
+Near_completes_total_with_STP_Credential_by_Gender_year <- dbReadTable(decimal_con, "Near_completes_total_with_STP_Credential_by_Gender_year") %>% 
+  rename("nc_with_early_or_late" = "Count")  %>% 
+  select(-has_stp_credential)
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_by_Gender_year")
+
+# 4.3 get full ratio 
+dbExecute(decimal_con, qry99_Completers_agg_by_gender_age_year) 
+Completers_agg_by_gender_age_year <- dbReadTable(decimal_con, "Completers_agg_by_gender_age_year") %>%
+  rename("completers" = "Count")
+dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender_age_year")
+
+ratio.df = Near_completes_total_byGender_year %>% 
+  left_join(Near_completes_total_with_STP_Credential_by_Gender_year)  %>%
+  left_join(Completers_agg_by_gender_age_year) %>%
+  rename("gender" = "tpid_lgnd_cd")
+
+# we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
+ratio.df  <- ratio.df %>%
+  mutate(across(where(is.numeric), ~replace_na(.,0))) %>%
+  mutate(n_nc_stp = Count - nc_with_early_or_late) %>%
+  mutate(ratio = n_nc_stp/completers)
+
+ratio.df2 <- ratio.df %>%
+  filter(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer")) %>%
+  mutate(prgm_credential_awarded_name = "Associate Degree") %>%
+  summarise(ratio_adgt= sum(n_nc_stp)/sum(completers), .by = c(gender, age_group, prgm_credential_awarded_name))
+
+# my question here - is this the right year to switch to?
+# in lookup table, DACSO data should be sent back by one 
+T_DACSO_Near_Completers_RatioByGender_year <- 
+  ratio.df %>% 
+  left_join(ratio.df2) %>%
+  mutate(ratio = if_else(prgm_credential_awarded_name %in% c("Associate Degree", "University Transfer"), ratio_adgt, ratio)) %>%
+  mutate(across(where(is.double), ~na_if(., Inf))) %>%
+  mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
+  select(-ratio_adgt) %>% 
+  # subtract one here so that it's the first half of the school year
+  mutate(
+    year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7,8)))-1
+  )
+
+dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_DACSO_Near_Completers_RatioByGender_year"')), T_DACSO_Near_Completers_RatioByGender_year)
 
 # random query
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 
 # ---- TTRAIN tables ----
-# This part is not completed  - see notes
+# This part is not completed  - see documentation
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
-# The second one doesn't
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
 dbExecute(decimal_con, qry99_Near_completes_program_dist_count) 
@@ -334,10 +388,21 @@ dbExecute(decimal_con, qry99_Near_completes_program_dist_count)
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
 dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
 
+# ---- HISTORICAL TTRAIN queries ----
+# note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
+dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
+dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history)
+dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history) 
+
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
+dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+
+
 # ---- Clean Up ----
 # TODO: clean up this section
 dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
 dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
+dbExecute(decimal_con, "DROP TABLE tbl_Age")
 dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
 dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
 dbExecute(decimal_con, "DROP TABLE combine_creds")
@@ -351,7 +416,6 @@ dbExecute(decimal_con, "drop table Completers_CIP4_CombinedCred")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioAgeAtGradCIP4")
 dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")
-
 
 
 

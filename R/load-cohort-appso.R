@@ -13,7 +13,7 @@
 # This script loads student outcomes data for students who students who have completed the 
 # final year of their apprenticeship technical training within the first year of graduation.
 # 
-# The following data is read into SQL server from the student outcomes survey database:
+# The following data is read from SQL server database:
 #   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
 #   APPSO_Graduates: a count of graduates by credential type, age and survey year
 library(tidyverse)
@@ -21,27 +21,23 @@ library(RODBC)
 library(config)
 library(glue)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("pdbtrn")
-jdbc_driver_config <- config::get("jdbc")
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
 
-# ---- Connection to outcomes ----
-jdbcDriver <- JDBC(driverClass = jdbc_driver_config$class,
-                   classPath = jdbc_driver_config$path)
-
-outcomes_con <- dbConnect(drv = jdbcDriver, 
-                 url = db_config$url,
-                 user = db_config$user,
-                 password = db_config$password)
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(odbc::odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
 
 # ---- Read outcomes data ----
-source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
-
-T_APPSO_DATA_Final <- dbGetQuery(outcomes_con, APPSO_DATA_01_Final)
-APPSO_Graduates_dat <- dbGetQuery(outcomes_con, APPSO_Graduates)
+# source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
+T_APPSO_DATA_Final <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_DATA_01_Final_raw"')))
+APPSO_Graduates_dat <- dbReadTable(decimal_con, SQL(glue::glue('"{my_schema}"."APPSO_Graduates_raw"')))
 
 # Convert some variables that should be numeric
 T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>% 
@@ -77,21 +73,41 @@ T_APPSO_DATA_Final <-
     APP_AGE_AT_SURVEY %in% 45:54 ~ 7,
     APP_AGE_AT_SURVEY %in% 55:64 ~ 8,
     TRUE ~ NA)) %>%
-  # check that these years are correct
-  # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
-  mutate(WEIGHT = case_when (
-    SUBM_CD == 'C_Outc19' ~ 1,
-    SUBM_CD == 'C_Outc20' ~ 2,
-    SUBM_CD == 'C_Outc21' ~ 3,
-    SUBM_CD == 'C_Outc22' ~ 4,
-    SUBM_CD == 'C_Outc23' ~ 5,
-    TRUE ~ 0)) %>%
   mutate(NEW_LABOUR_SUPPLY = case_when(
     APP_LABR_EMPLOYED == 1 ~ 1,
     APP_LABR_IN_LABOUR_MARKET == 1 & APP_LABR_EMPLOYED == 0 ~ 1,
     APP_LABR_EMPLOYED == 0 ~ 0,
     RESPONDENT == '1' ~ 0,
     TRUE ~ 0))
+
+# When running, make sure to update weights for the regular run. 
+# Replace the weights in the appropriate area in the code (~lines 71-77):
+  
+
+if (regular_run == TRUE | ptib_run == T){
+  T_APPSO_DATA_Final <-
+    T_APPSO_DATA_Final %>% 
+    mutate(WEIGHT = case_when (
+      SUBM_CD == 'C_Outc19' ~ 1,
+      SUBM_CD == 'C_Outc20' ~ 2,
+      SUBM_CD == 'C_Outc21' ~ 3,
+      SUBM_CD == 'C_Outc22' ~ 4,
+      SUBM_CD == 'C_Outc23' ~ 5,
+      TRUE ~ 0)) 
+} 
+
+if (qi_run == TRUE ) {
+  # check that these years are correct
+  # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
+  T_APPSO_DATA_Final <-
+    T_APPSO_DATA_Final %>% mutate(WEIGHT = case_when (
+    SUBM_CD == 'C_Outc19' ~ 2,
+    SUBM_CD == 'C_Outc20' ~ 3,
+    SUBM_CD == 'C_Outc21' ~ 4,
+    SUBM_CD == 'C_Outc22' ~ 5,
+    SUBM_CD == 'C_Outc23' ~ 0,
+    TRUE ~ 0)) 
+}
 
 # prepare graduate dataset
 APPSO_Graduates_dat  %>%
@@ -107,17 +123,19 @@ APPSO_Graduates_dat  %>%
     APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
     TRUE ~ NA)) -> APPSO_Graduates_dat 
 
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
 
-dbWriteTable(decimal_con, name = "T_APPSO_DATA_Final", value = T_APPSO_DATA_Final, overwrite = TRUE)
-dbWriteTable(decimal_con, name = "APPSO_Graduates", value = APPSO_Graduates_dat, overwrite = TRUE)
+dbWriteTable(decimal_con, 
+             name = SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')), 
+             value = T_APPSO_DATA_Final,
+             overwrite = TRUE)
+
+
+dbWriteTable(decimal_con, 
+             name = SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')),
+             value = APPSO_Graduates_dat, 
+             overwrite = TRUE)
+
 
 dbDisconnect(decimal_con)
-dbDisconnect(outcomes_con)
+
 
