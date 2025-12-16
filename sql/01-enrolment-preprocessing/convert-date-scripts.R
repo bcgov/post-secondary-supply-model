@@ -4,7 +4,7 @@ SELECT ID,
        PSI_BIRTHDATE, 
        LAST_SEEN_BIRTHDATE, 
        PSI_MIN_START_DATE, 
-       SI_PROGRAM_EFFECTIVE_DATE
+       PSI_PROGRAM_EFFECTIVE_DATE
   INTO tmp_ConvertDateFormat
   FROM STP_Enrolment;"
 
@@ -112,4 +112,3 @@ UPDATE STP_Enrolment
 SET STP_Enrolment.PSI_PROGRAM_EFFECTIVE_DATE = tmp_ConvertDateFormat.PSI_PROGRAM_EFFECTIVE_DATE_CONVERT
 FROM tmp_ConvertDateFormat, STP_Enrolment
 WHERE STP_Enrolment.ID = tmp_ConvertDateFormat.ID;"
-
