@@ -151,7 +151,7 @@ rec_status_2 <- enrol |>
 # ----- Find records with Record_Status = 6 and update look up table -----
 # qry03c to qry03f series
 
-rec_status_6 <- enrol %>%
+rec_status_6 <- enrol |>
   filter(
     PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only',
     PSI_STUDY_LEVEL != 'Developmental',
@@ -399,60 +399,57 @@ dbExecute(con, qry14c_Update_FirstEnrolmentNA)
 
 
 # ---- Clean Birthdates ----
-dbExecute(con, qry01_BirthdateCleaning)
-dbExecute(con, qry02_BirthdateCleaning)
-dbExecute(con, qry03_BirthdateCleaning)
-dbExecute(con, qry04_BirthdateCleaning)
-dbExecute(
-  con,
-  "ALTER table tmp_MaxPSIBirthdate ADD NumBirthdateRecords INT NULL"
-)
-dbExecute(
-  con,
-  "ALTER table tmp_MinPSIBirthdate ADD NumBirthdateRecords INT NULL"
-)
-dbExecute(con, qry05_BirthdateCleaning)
-dbExecute(con, qry06_BirthdateCleaning)
-dbExecute(
-  con,
-  "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD MinPSIBirthdate NVARCHAR(50) NULL,
-                    NumMinBirthdateRecords INT NULL,
-                    MaxPSIBirthdate NVARCHAR(50) NULL,
-                    NumMaxBirthdateRecords INT NULL"
-)
-dbExecute(con, qry07a_BirthdateCleaning)
-dbExecute(con, qry07b_BirthdateCleaning)
-dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
-dbExecute(con, "DROP TABLE tmp_MaxPSIBirthdate")
+# qry01 to qry08
 
-dbExecute(
-  con,
-  "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD LastSeenBirthdate NVARCHAR(50) NULL;"
-)
-dbExecute(con, qry08_BirthdateCleaning)
-dbExecute(
-  con,
-  "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD UseMaxOrMin_FINAL NVARCHAR(50) NULL;"
-)
-dbExecute(con, qry09_BirthdateCleaning)
-dbExecute(
-  con,
-  "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD psi_birthdate_cleaned NVARCHAR(50) NULL;"
-)
-dbExecute(con, qry10_BirthdateCleaning)
-dbExecute(con, qry11_BirthdateCleaning)
+birthdate_cleaning_summary <- enrol |>
+  select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
+  filter(
+    !PSI_BIRTHDATE %in% c('', ' ', '(Unspecified)'),
+    !ENCRYPTED_TRUE_PEN %in% c('', ' ', '(Unspecified)')
+  ) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  filter(n_distinct(PSI_BIRTHDATE) > 1) |>
+  group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
+  summarize(
+    NBirthdateRecords = n(),
+    LastSeenBirthdate = first(LAST_SEEN_BIRTHDATE), #should only be one "last seen" per student
+    .groups = "drop_last"
+  ) |>
+  summarize(
+    MinPSIBirthdate = min(PSI_BIRTHDATE),
+    MaxPSIBirthdate = max(PSI_BIRTHDATE),
+    NumMinBirthdateRecords = NBirthdateRecords[
+      PSI_BIRTHDATE == min(PSI_BIRTHDATE)
+    ][1],
+    NumMaxBirthdateRecords = NBirthdateRecords[
+      PSI_BIRTHDATE == max(PSI_BIRTHDATE)
+    ][1],
+    LastSeenBirthdate = first(LastSeenBirthdate)
+  ) |>
+  ungroup()
 
-dbExecute(
-  con,
-  "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL"
-)
+birthdate_update <- birthdate_cleaning_summary |>
+  mutate(
+    PSI_Birthdate_cleaned = case_when(
+      MaxPSIBirthdate == LastSeenBirthdate ~ MaxPSIBirthdate,
+      NumMaxBirthdateRecords > NumMinBirthdateRecords ~ MaxPSIBirthdate,
+      NumMaxBirthdateRecords < NumMinBirthdateRecords ~ MinPSIBirthdate,
+      TRUE ~ MinPSIBirthdate
+    )
+  ) |>
+  select(ENCRYPTED_TRUE_PEN, PSI_Birthdate_cleaned)
+
 
 #Update STP Enrolment with birthdates for those EPENS which have > 1 birthdate records
-dbExecute(con, qry12_BirthdateCleaning)
+enrol <- enrol |>
+  left_join(
+    birthdate_update,
+    by = "ENCRYPTED_TRUE_PEN"
+  ) |>
+  mutate(
+    psi_birthdate_cleaned = coalesce(PSI_Birthdate_cleaned, PSI_BIRTHDATE)
+  ) |>
+  select(-PSI_Birthdate_cleaned)
 
 # some records have a null PSI_BIRTHDATE, search for non-null PSI_BIRTHDATE for these EPENS
 dbExecute(con, qry13_BirthdateCleaning)
@@ -473,15 +470,5 @@ dbExecute(con, qry19_BirthdateCleaning)
 dbExecute(con, qry20_BirthdateCleaning)
 dbGetQuery(con, qry21_BirthdateCleaning)
 
-# ---- Clean Up and check tables to keep ----
-dbExecute(con, "DROP TABLE tmp_BirthDate")
-dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
-dbExecute(con, "DROP TABLE tmp_NullBirthdate")
-dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
-dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
-
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
 dbDisconnect(con)
