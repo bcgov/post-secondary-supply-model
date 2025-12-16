@@ -311,11 +311,6 @@ enrol |>
 
 # ---- Min Enrolment ----
 # Find record with minimum enrollment sequence for each student per school year
-# by ENCRYPTED_TRUE_PEN
-
-enrol <- enrol |>
-  mutate(is_first_start_date = FALSE, is_min_enrol_seq = FALSE)
-
 q9 <- enrol |>
   select(
     ENCRYPTED_TRUE_PEN,
@@ -328,10 +323,11 @@ q9 <- enrol |>
   filter(RecordStatus == 0) |>
   filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR) |>
-  arrange(PSI_ENROLMENT_SEQUENCE, .by_group = TRUE) |>
+  arrange(PSI_ENROLMENT_SEQUENCE, ID) |>
   mutate(is_min_enrol_seq = row_number() == 1) |>
   ungroup()
-q9 |> count(is_min_enrol_seq)
+
+q9 |> filter(is_min_enrol_seq == 1) # same as qry09c, with a few extra cols
 
 q10 <- enrol |>
   select(
@@ -347,10 +343,11 @@ q10 <- enrol |>
   filter(RecordStatus == 0) |>
   filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE, PSI_SCHOOL_YEAR) |>
-  arrange(PSI_ENROLMENT_SEQUENCE, .by_group = TRUE) |>
+  arrange(PSI_ENROLMENT_SEQUENCE, ID) |>
   mutate(is_min_enrol_seq_combo = row_number() == 1) |>
   ungroup()
-q10 |> count(is_min_enrol_seq_combo)
+
+q10 |> filter(is_min_enrol_seq_combo == 1) # same as qry10c, with a few extra cols
 
 q12 <- enrol |>
   select(
@@ -364,9 +361,11 @@ q12 <- enrol |>
   filter(RecordStatus == 0) |>
   filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
-  arrange(PSI_MIN_START_DATE, .by_group = TRUE) |>
-  mutate(is_first_enrol = row_number() == 1)
+  arrange(PSI_MIN_START_DATE, PSI_ENROLMENT_SEQUENCE, ID) |>
+  mutate(is_first_enrol = row_number() == 1) |>
+  ungroup()
 
+q12 |> filter(is_first_enrol == 1) # same as qry12c, with a few extra cols.
 
 q13 <- enrol |>
   select(
@@ -382,43 +381,16 @@ q13 <- enrol |>
   filter(RecordStatus == 0) |>
   filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
-  arrange(PSI_MIN_START_DATE, .by_group = TRUE) |>
-  mutate(is_first_enrol = row_number() == 1)
+  arrange(PSI_MIN_START_DATE, PSI_ENROLMENT_SEQUENCE, ID) |>
+  mutate(is_first_enrol_combo = row_number() == 1) |>
+  ungroup()
 
-
-enrol |> count(is_first_enrol)
-enrol |> count(is_min_enrol_seq_combo)
-
-
-enrol_valid <- enrol |>
-  select(ID, RecordStatus, is_first_enrol, is_min_enrol_seq)
-
-#dbExecute(con, qry09a_MinEnrolmentPEN)
-#dbExecute(con, qry09b_MinEnrolmentPEN)
-#dbExecute(con, qry09c_MinEnrolmentPEN)
-
-# by PSI_CODE/PSI_STUDENT_NUMBER combo for students records with null ENCRYPTED_TRUE_PEN's
-#dbExecute(con, qry10a_MinEnrolmentSTUID)
-#dbExecute(con, qry10b_MinEnrolmentSTUID)
-#dbExecute(con, qry10c_MinEnrolmentSTUID)
+q13 |> filter(is_first_enrol_combo == TRUE) # same as qry13c, with a few extra cols.
 
 # Flag each record in STP_Enrolment_Record_Type as min enrollment (TRUE = 1, FALSE  = 0)
-#dbExecute(con, qry11a_Update_MinEnrolmentPEN)
-#dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
-#dbExecute(con, qry11c_Update_MinEnrolment_NA)
-
-# ---- First Enrollment Date ----
-# Find earliest enrollment record for each student per school year
-# by ENCRYPTED_TRUE_PEN
-#dbExecute(con, qry12a_FirstEnrolmentPEN)
-#dbExecute(con, qry12b_FirstEnrolmentPEN)
-#dbExecute(con, qry12c_FirstEnrolmentPEN)
-
-# by PSI_CODE/PSI_STUDENT_NUMBER combo for students records with null ENCRYPTED_TRUE_PEN's
-dbExecute(con, qry13a_FirstEnrolmentSTUID)
-dbExecute(con, qry13b_FirstEnrolmentSTUID)
-dbExecute(con, qry13c_FirstEnrolmentSTUID)
-
+dbExecute(con, qry11a_Update_MinEnrolmentPEN)
+dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
+dbExecute(con, qry11c_Update_MinEnrolment_NA)
 
 # Flag each record in STP_Enrolment_Record_Type as first enrollment (TRUE = 1, FALSE  = 0)
 dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
