@@ -19,13 +19,8 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-# ---- Configure LAN Paths and DB Connection -----
-#lan <- config::get("lan")
-#source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
-#source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
-#source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
+## ---------------------------------- extract data from SQL Server ------------------------------
 
-## ---- extract data from SQL Server ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 db_schema <- config::get("dbschema")
@@ -49,10 +44,11 @@ enrol_raw <- dbGetQuery(
   glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_raw];")
 )
 
-enrol <- enrol_raw # save a copy while testing (the extract takes a long time) 8:42 AM
+enrol <- enrol_raw # save a copy while testing
+## -----------------------------------------------------------------------------------------------
 
-# ---- Initial Data Checks ----
-# SQL -> R translation: qry00a to qry00d
+## --------------------------------------Initial Data Checks--------------------------------------
+# qry00a to qry00d
 
 enrol |>
   filter(
@@ -65,13 +61,12 @@ enrol |>
 enrol |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
 enrol <- enrol |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+# -------------------------------------------------------------------------------------------------
 
-# ---- Reformat yy-mm-dd to yyyy-mm-dd ----
-# this section translates the SQL date conversion scripts to R
-# source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
+## source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
 
 convert_date <- function(vec) {
-  # handle edge cases as/if needed
   # Years 26-99 go to 19xx
   # Years 00-25 go to 20xx
   yy <- as.numeric(substr(vec, 1, 2))
@@ -100,11 +95,11 @@ enrol <- enrol |>
       .names = "{.col}"
     )
   )
+## ------------------------------------------------------------------------------------------------
 
-
-# ---- Create Record Type Table ----
-# this section handles the SQL -> R translation of the Record Type creation table
-# queries from qry01 to qry08 series
+## --------------------------------------- Create Record Type Table -------------------------------
+# surce("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
+# qry01 to qry08 series
 
 # Record Status codes:
 # 0 = Good
@@ -117,38 +112,29 @@ enrol <- enrol |>
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification
 
-# ---- Define lookup table for ID/Record Status and populate with ID column and EPEN
-#dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
-
-# ----- Find records with Record_Status = 1 and update look up table -----
-# Keep records for NA or invalid PSI/CODE combos fields or NA/invalid PENs.
-# Basically, no way to indentify the student.
+## Find records with Record_Status = 1
 # qry02 series
 
 # Define the set of 'bad' string values
 invalid_pen <- c('', ' ', '(Unspecified)')
+cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
 
-rec_status_1 <- enrol |>
-  anti_join(
-    enrol |>
-      filter(
-        (!(PSI_STUDENT_NUMBER %in% invalid_pen) & # AND
-          !(PSI_CODE %in% invalid_pen)) | # OR
-          !(ENCRYPTED_TRUE_PEN %in% invalid_pen)
-      ) |>
-      select(ID),
-    by = "ID"
+rec_status_1 <-
+  enrol |>
+  filter(
+    ((PSI_STUDENT_NUMBER %in% invalid_pen) | (PSI_CODE %in% invalid_pen)) &
+      (ENCRYPTED_TRUE_PEN %in% invalid_pen)
   ) |>
   pull(ID)
 
-# ----- Find records with Record_Status = 2 and update look up table -----
+## Find records with Record_Status = 2
 # qry03a and qry03b
 rec_status_2 <- enrol |>
   filter(PSI_STUDY_LEVEL %in% c('DEVELOPMENTAL', 'Developmental')) |>
   pull(ID)
 
 
-# ----- Find records with Record_Status = 6 and update look up table -----
+## Find records with Record_Status = 6
 # qry03c to qry03f series
 
 rec_status_6 <- enrol |>
@@ -164,7 +150,7 @@ rec_status_6 <- enrol |>
   pull(ID)
 
 # qry03d series
-cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
+
 continuing_ed <- enrol |>
   # Temporarily add the two-digit CIP code for filtering
   mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2)) |>
@@ -220,11 +206,11 @@ exclude_yes <- keep_skills_based |>
 rec_status_0 <- keep_skills_based |> pull(ID) |> setdiff(exclude_yes)
 rec_status_6 <- c(rec_status_6, exclude_yes)
 
-# ----------------------------------------------------------------
+## ---------------------------------------------------------------
 # !!! TODO manual investigation done here in the past and requires a review
 # leaving for now as has minimal impact on final distributions
 # Not Translated to R.
-# ----------------------------------------------------------------
+## ---------------------------------------------------------------
 #dbExecute(con, qry03g_create_table_SkillsBasedCourses)
 #dbExecute(
 #  con,
@@ -238,9 +224,9 @@ rec_status_6 <- c(rec_status_6, exclude_yes)
 #dbExecute(con, qry03i_Find_Suspect_Skills_Based)
 #dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) #see documentation, this is related to some manula work that wasn't done in 2023
 #dbExecute(con, qry03j_Update_Suspect_Skills_Based)
-# ----------------------------------------------------------------
+## ---------------------------------------------------------------
 
-# ---- Find records with Record_Status = 7 and update look up table ----
+## Find records with Record_Status = 7
 # qry 03k and qry03l series
 
 rec_status_7 <- enrol |>
@@ -253,7 +239,7 @@ rec_status_7 <- enrol |>
     CIP2 %in% cips
   )
 
-# ---- Find records with Record_Status = 3 and update look up table ----
+## Find records with Record_Status = 3
 # qry 04 series
 
 rec_status_3 <- enrol |>
@@ -264,7 +250,7 @@ rec_status_3 <- enrol |>
   pull(ID)
 
 
-# ---- Find records with Record_Status = 5 and update look up table ----
+## Find records with Record_Status = 5
 # qry 06 series
 rec_status_5 <- enrol |>
   filter(ATTENDING_PSI_OUTSIDE_BC == 'Y') |>
@@ -273,11 +259,15 @@ rec_status_5 <- enrol |>
   ) |>
   pull(ID)
 
-# ---- Set Remaining Records to Record_Status = 0 ----
+## Set Remaining Records to Record_Status = 0 ----
 # qry07 series
 # TODO
 
-# ----- Create table of Record Status = 0 only (Valid Enrolment) ----
+## ------------------------------------------------------------------------------------------------
+
+## --------------------------------------- Create Valid Enrolment Table ---------------------------
+
+## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
 # here, I'm pulling the one from decimal as a workaround for development.
 # Because I'm not finished with the record status 6 yet
 
@@ -297,19 +287,10 @@ enrol <- enrol |>
       select(ID, RecordStatus),
     by = "ID"
   )
+## ------------------------------------------------------------------------------------------------
 
-# check count of records in STP_Enrolment_Valid associated with > 1 EPEN.
-cat("Records associated with > 1 EPEN:")
-
-enrol |>
-  filter(RecordStatus == 0) |>
-  distinct(PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN) |>
-  group_by(PSI_CODE, PSI_STUDENT_NUMBER) |>
-  summarise(n = n()) |>
-  filter(n > 1)
-
-
-# ---- Min Enrolment ----
+## ------------------------------------- Min Enrolment --------------------------------------------
+## qry09 to qry14
 # Find record with minimum enrollment sequence for each student per school year
 q9 <- enrol |>
   select(
@@ -387,20 +368,11 @@ q13 <- enrol |>
 
 q13 |> filter(is_first_enrol_combo == TRUE) # same as qry13c, with a few extra cols.
 
-# Flag each record in STP_Enrolment_Record_Type as min enrollment (TRUE = 1, FALSE  = 0)
-dbExecute(con, qry11a_Update_MinEnrolmentPEN)
-dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
-dbExecute(con, qry11c_Update_MinEnrolment_NA)
+## ------------------------------------------------------------------------------------------------
 
-# Flag each record in STP_Enrolment_Record_Type as first enrollment (TRUE = 1, FALSE  = 0)
-dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
-dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
-dbExecute(con, qry14c_Update_FirstEnrolmentNA)
-
-
-# ---- Clean Birthdates ----
+## ------------------------------------- Clean Birthdates -----------------------------------------
+# source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 # qry01 to qry08
-
 birthdate_cleaning_summary <- enrol |>
   select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
   filter(
@@ -428,6 +400,7 @@ birthdate_cleaning_summary <- enrol |>
   ) |>
   ungroup()
 
+#qry09 to qry11
 birthdate_update <- birthdate_cleaning_summary |>
   mutate(
     PSI_Birthdate_cleaned = case_when(
@@ -439,8 +412,7 @@ birthdate_update <- birthdate_cleaning_summary |>
   ) |>
   select(ENCRYPTED_TRUE_PEN, PSI_Birthdate_cleaned)
 
-
-#Update STP Enrolment with birthdates for those EPENS which have > 1 birthdate records
+#qry012
 enrol <- enrol |>
   left_join(
     birthdate_update,
