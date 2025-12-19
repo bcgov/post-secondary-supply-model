@@ -10,11 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# STP Enrolment Preprocessing: Workflow #1
-# Description:
-# Relies on: STP_Enrolment data table
-# Creates tables: STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment
-
 library(tidyverse)
 library(odbc)
 library(DBI)
@@ -98,7 +93,7 @@ enrol <- enrol |>
 ## ------------------------------------------------------------------------------------------------
 
 ## --------------------------------------- Create Record Type Table -------------------------------
-# surce("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
+# source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
 # qry01 to qry08 series
 
 # Record Status codes:
@@ -112,105 +107,87 @@ enrol <- enrol |>
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification
 
-## Find records with Record_Status = 1
-# qry02 series
-
-# Define the set of 'bad' string values
+# hard coded values
 invalid_pen <- c('', ' ', '(Unspecified)')
 cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
+ce_pattern = "Continuing Education|Continuing Studies|Audit|^CE " # original SQl used patterns %Continuing Education and %Continuing Studies
 
-rec_status_1 <-
-  enrol |>
-  filter(
-    ((PSI_STUDENT_NUMBER %in% invalid_pen) | (PSI_CODE %in% invalid_pen)) &
-      (ENCRYPTED_TRUE_PEN %in% invalid_pen)
+rec_status <- enrol |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    ATTENDING_PSI_OUTSIDE_BC,
+    PSI_CIP_CODE,
+    PSI_CODE,
+    PSI_CONTINUING_EDUCATION_COURSE_ONLY,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_ENTRY_STATUS,
+    PSI_MIN_START_DATE,
+    PSI_PROGRAM_CODE,
+    PSI_SCHOOL_YEAR,
+    PSI_STUDENT_NUMBER,
+    PSI_STUDY_LEVEL
   ) |>
-  pull(ID)
-
-## Find records with Record_Status = 2
-# qry03a and qry03b
-rec_status_2 <- enrol |>
-  filter(PSI_STUDY_LEVEL %in% c('DEVELOPMENTAL', 'Developmental')) |>
-  pull(ID)
+  mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
 
-## Find records with Record_Status = 6
-# qry03c to qry03f series
-
-rec_status_6 <- enrol |>
-  filter(
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only',
-    PSI_STUDY_LEVEL != 'Developmental',
-    PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other')
-  ) |>
-  filter(
-    !((PSI_CODE %in% c('UFV', 'UCFV')) & (PSI_PROGRAM_CODE == 'TEACH ED'))
-  ) |>
-  filter(!ID %in% c(rec_status_1, rec_status_2)) |>
-  pull(ID)
-
-# qry03d series
-
-continuing_ed <- enrol |>
-  # Temporarily add the two-digit CIP code for filtering
-  mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2)) |>
-  filter(
-    PSI_STUDY_LEVEL != 'Developmental',
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY != 'Skills Crs Only',
-    PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other'),
-    CIP2 %in% cips
-  ) |>
-  filter(!ID %in% c(rec_status_1, rec_status_2, rec_status_6)) |>
-  pull(ID)
-
-rec_status_6 <- c(rec_status_6, continuing_ed)
-
-continuing_ed_more <- enrol |>
-  filter(
-    grepl(
-      "Continuing Education|Continuing Studies|Audit|^CE ",
-      PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-      ignore.case = TRUE
-    )
-  ) |>
-  filter(!ID %in% c(rec_status_2, rec_status_1, rec_status_6)) |>
-  pull(ID)
-
-rec_status_6 <- c(rec_status_6, continuing_ed_more)
-
-# qry03e and qry03f
-keep_skills_based <- enrol |>
+rec_status <- rec_status |>
   mutate(
-    CIP2 = substr(PSI_CIP_CODE, 1, 2)
-  ) |>
-  filter(
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only',
-    PSI_STUDY_LEVEL != 'Developmental',
-    !PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other', 'Short Certificate'),
-    !grepl(
-      "Continuing Education|Continuing Studies|Audit|^CE ",
-      PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-      ignore.case = TRUE
+    # Start the master classification
+    rec_type = case_when(
+      # 1. STATUS 1: ID Invalidity (inverted logic)
+      ((PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
+        ENCRYPTED_TRUE_PEN %in% invalid_pen) ~ 1,
+
+      # 2. STATUS 2: Developmental
+      toupper(PSI_STUDY_LEVEL) == 'DEVELOPMENTAL' ~ 2,
+
+      # 3. STATUS 6: Skills Based Courses (qry03c)
+      (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
+        PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') &
+        !((PSI_CODE %in% c('UFV', 'UCFV')) &
+          (PSI_PROGRAM_CODE == 'TEACH ED'))) ~ 6,
+
+      # 4. STATUS 6: Skills Based Courses - Continuing Ed
+      str_detect(
+        PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+        regex(ce_pattern, ignore_case = TRUE)
+      ) ~ 6,
+
+      # 5. STATUS 6: Skills Based Courses - More Continuing Ed (CIP based - qry03d)
+      (PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') & CIP2 %in% cips) ~ 6,
+
+      # 6. STATUS 6: Specific Skills-Base
+      # note, this actually misses a number of courses previously marked as Developmental.
+      # I dont think this matters since we end up only using Record Type = 0, anyways.
+      (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
+        !PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other', 'Short Certificate') &
+        ((PSI_CODE == 'SEL' &
+          PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+            'Community, Corporate & International Development') |
+          (PSI_CODE == 'NIC' & CIP2 %in% cips))) ~ 6,
+
+      # 7. STATUS 7: Developmental CIP
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Not Skills Crs Only' &
+        CIP2 %in% cips ~ 7, # qry 03k and qry03l series
+
+      # 8. STATUS 3: No PSI Transition
+      PSI_ENTRY_STATUS == 'No Transition' ~ 3, # qry 04 series
+
+      # 9. STATUS 5: PSI_Outside_BC
+      ATTENDING_PSI_OUTSIDE_BC == 'Y' ~ 5, # qry 06 series
+
+      # 7. DEFAULT: Fallback for all other records
+      TRUE ~ 0
     )
   )
 
-exclude_yes <- keep_skills_based |>
-  filter(
-    (PSI_CODE == 'SEL' &
-      PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-        'Community, Corporate & International Development') |
-      (PSI_CODE == 'NIC' & CIP2 %in% cips)
-  ) |>
-  pull(ID)
-
-rec_status_0 <- keep_skills_based |> pull(ID) |> setdiff(exclude_yes)
-rec_status_6 <- c(rec_status_6, exclude_yes)
-
-## ---------------------------------------------------------------
 # !!! TODO manual investigation done here in the past and requires a review
 # leaving for now as has minimal impact on final distributions
 # Not Translated to R.
-## ---------------------------------------------------------------
+#
 #dbExecute(con, qry03g_create_table_SkillsBasedCourses)
 #dbExecute(
 #  con,
@@ -226,39 +203,6 @@ rec_status_6 <- c(rec_status_6, exclude_yes)
 #dbExecute(con, qry03j_Update_Suspect_Skills_Based)
 ## ---------------------------------------------------------------
 
-## Find records with Record_Status = 7
-# qry 03k and qry03l series
-
-rec_status_7 <- enrol |>
-  mutate(
-    CIP2 = substr(PSI_CIP_CODE, 1, 2)
-  ) |>
-  filter(
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Not Skills Crs Only',
-    !ID %in% c(rec_status_0, rec_status_1, rec_status_2, rec_status_6),
-    CIP2 %in% cips
-  )
-
-## Find records with Record_Status = 3
-# qry 04 series
-
-rec_status_3 <- enrol |>
-  filter(
-    PSI_ENTRY_STATUS == 'No Transition',
-    !ID %in% c(rec_status_0, rec_status_1, rec_status_2, rec_status_6)
-  ) |>
-  pull(ID)
-
-
-## Find records with Record_Status = 5
-# qry 06 series
-rec_status_5 <- enrol |>
-  filter(ATTENDING_PSI_OUTSIDE_BC == 'Y') |>
-  filter(
-    !ID %in% c(rec_status_1, rec_status_2, rec_status_3, rec_status_6)
-  ) |>
-  pull(ID)
-
 ## Set Remaining Records to Record_Status = 0 ----
 # qry07 series
 # TODO
@@ -266,112 +210,101 @@ rec_status_5 <- enrol |>
 ## ------------------------------------------------------------------------------------------------
 
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
-
 ## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
+
+valid_enrol <- rec_status |>
+  select(
+    ID,
+    rec_type,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_MIN_START_DATE,
+    PSI_SCHOOL_YEAR,
+    PSI_ENROLMENT_SEQUENCE
+  ) |>
+  filter(rec_type == 0)
+
+
 # here, I'm pulling the one from decimal as a workaround for development.
 # Because I'm not finished with the record status 6 yet
 
-rec_status <- dbGetQuery(
-  con,
-  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
+sql <- glue::glue(
+  "
+SELECT R.ID
+  , R.RecordStatus as rec_type
+  , E. ENCRYPTED_TRUE_PEN
+  , E. PSI_STUDENT_NUMBER
+  , E. PSI_CODE
+  , E. PSI_MIN_START_DATE
+  , E. PSI_SCHOOL_YEAR
+  , E. PSI_ENROLMENT_SEQUENCE
+FROM [{my_schema}].[STP_Enrolment_Record_Type] R
+INNER JOIN [{my_schema}].[STP_Enrolment] E
+ON E.ID = R.ID
+WHERE RecordStatus = 0;"
 )
 
-enrol <- dbGetQuery(
-  con,
-  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
-)
+valid_enrol <- dbGetQuery(con, sql)
 
-enrol <- enrol |>
-  left_join(
-    rec_status |>
-      select(ID, RecordStatus),
-    by = "ID"
-  )
+
+sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
+rec_status <- dbGetQuery(con, sql)
+dbDisconnect(con)
+
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Min Enrolment --------------------------------------------
+# In a handful of cases, the SQL version improperly orders records with PSI_ENROLMENT_SEQUENCE == 10 and 11.
+# R's arrange() handles them properly,
 ## qry09 to qry14
-# Find record with minimum enrollment sequence for each student per school year
-q9 <- enrol |>
-  select(
-    ENCRYPTED_TRUE_PEN,
-    PSI_MIN_START_DATE,
-    PSI_SCHOOL_YEAR,
-    PSI_ENROLMENT_SEQUENCE,
-    RecordStatus,
-    ID
-  ) |>
-  filter(RecordStatus == 0) |>
+
+# Logic for valid PEN's
+valid_pen_data <- valid_enrol |>
   filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  arrange(
+    PSI_MIN_START_DATE,
+    as.numeric(PSI_ENROLMENT_SEQUENCE),
+    as.numeric(ID)
+  ) |>
+  mutate(is_first_enrol = row_number() == 1) |>
+  # Standard grouping for the specific year-level flag
   group_by(ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR) |>
-  arrange(PSI_ENROLMENT_SEQUENCE, ID) |>
   mutate(is_min_enrol_seq = row_number() == 1) |>
   ungroup()
 
-q9 |> filter(is_min_enrol_seq == 1) # same as qry09c, with a few extra cols
-
-q10 <- enrol |>
-  select(
-    ENCRYPTED_TRUE_PEN,
-    PSI_STUDENT_NUMBER,
-    PSI_CODE,
-    PSI_MIN_START_DATE,
-    PSI_SCHOOL_YEAR,
-    PSI_ENROLMENT_SEQUENCE,
-    RecordStatus,
-    ID,
-  ) |>
-  filter(RecordStatus == 0) |>
+# Logic for Invalid PEN's (Student Number + PSI Code Combo)
+invalid_pen_data <- valid_enrol |>
   filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
+  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
+  arrange(
+    PSI_MIN_START_DATE,
+    as.numeric(PSI_ENROLMENT_SEQUENCE),
+    as.numeric(ID)
+  ) |>
+  mutate(is_first_enrol_combo = row_number() == 1) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE, PSI_SCHOOL_YEAR) |>
-  arrange(PSI_ENROLMENT_SEQUENCE, ID) |>
   mutate(is_min_enrol_seq_combo = row_number() == 1) |>
   ungroup()
 
-q10 |> filter(is_min_enrol_seq_combo == 1) # same as qry10c, with a few extra cols
-
-q12 <- enrol |>
-  select(
-    ENCRYPTED_TRUE_PEN,
-    PSI_MIN_START_DATE,
-    PSI_SCHOOL_YEAR,
-    PSI_ENROLMENT_SEQUENCE,
-    RecordStatus,
-    ID
+# Combine
+valid_enrol_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
+  mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
+  mutate(
+    is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
+    is_first_enrol = if_else((is_first_enrol | is_first_enrol_combo), 1, 0)
   ) |>
-  filter(RecordStatus == 0) |>
-  filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
-  group_by(ENCRYPTED_TRUE_PEN) |>
-  arrange(PSI_MIN_START_DATE, PSI_ENROLMENT_SEQUENCE, ID) |>
-  mutate(is_first_enrol = row_number() == 1) |>
-  ungroup()
+  select(ID, rec_type, is_min_enrol, is_first_enrol)
 
-q12 |> filter(is_first_enrol == 1) # same as qry12c, with a few extra cols.
-
-q13 <- enrol |>
-  select(
-    ENCRYPTED_TRUE_PEN,
-    PSI_STUDENT_NUMBER,
-    PSI_CODE,
-    PSI_MIN_START_DATE,
-    PSI_SCHOOL_YEAR,
-    PSI_ENROLMENT_SEQUENCE,
-    RecordStatus,
-    ID
-  ) |>
-  filter(RecordStatus == 0) |>
-  filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
-  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
-  arrange(PSI_MIN_START_DATE, PSI_ENROLMENT_SEQUENCE, ID) |>
-  mutate(is_first_enrol_combo = row_number() == 1) |>
-  ungroup()
-
-q13 |> filter(is_first_enrol_combo == TRUE) # same as qry13c, with a few extra cols.
+valid_enrol_final |> count(rec_type, is_min_enrol, is_first_enrol)
+rec_status |> count(rec_type, is_min_enrol, is_first_enrol)
 
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
 # source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
+
 # qry01 to qry08
 birthdate_cleaning_summary <- enrol |>
   select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
@@ -380,7 +313,7 @@ birthdate_cleaning_summary <- enrol |>
     !ENCRYPTED_TRUE_PEN %in% c('', ' ', '(Unspecified)')
   ) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
-  filter(n_distinct(PSI_BIRTHDATE) > 1) |>
+  #filter(n_distinct(PSI_BIRTHDATE) > 1) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
   summarize(
     NBirthdateRecords = n(),
@@ -388,6 +321,7 @@ birthdate_cleaning_summary <- enrol |>
     .groups = "drop_last"
   ) |>
   summarize(
+    DistinctBirthdates = n(), # Useful for auditing
     MinPSIBirthdate = min(PSI_BIRTHDATE),
     MaxPSIBirthdate = max(PSI_BIRTHDATE),
     NumMinBirthdateRecords = NBirthdateRecords[
@@ -403,44 +337,27 @@ birthdate_cleaning_summary <- enrol |>
 #qry09 to qry11
 birthdate_update <- birthdate_cleaning_summary |>
   mutate(
-    PSI_Birthdate_cleaned = case_when(
+    psi_birthdate_cleaned = case_when(
+      # If they only have one date, use it
+      MinPSIBirthdate == MaxPSIBirthdate ~ MinPSIBirthdate,
+
+      # Tie-breaker 1: Match the 'Last Seen' date
       MaxPSIBirthdate == LastSeenBirthdate ~ MaxPSIBirthdate,
+      #MinPSIBirthdate == LastSeenBirthdate ~ MinPSIBirthdate, # old logic didn't include this
+
+      # Tie-breaker 2: Use the date that appears most frequently
       NumMaxBirthdateRecords > NumMinBirthdateRecords ~ MaxPSIBirthdate,
       NumMaxBirthdateRecords < NumMinBirthdateRecords ~ MinPSIBirthdate,
+
+      # Default fallback
       TRUE ~ MinPSIBirthdate
     )
   ) |>
-  select(ENCRYPTED_TRUE_PEN, PSI_Birthdate_cleaned)
+  select(ENCRYPTED_TRUE_PEN, psi_birthdate_cleaned)
 
-#qry012
 enrol <- enrol |>
   left_join(
     birthdate_update,
     by = "ENCRYPTED_TRUE_PEN"
   ) |>
-  mutate(
-    psi_birthdate_cleaned = coalesce(PSI_Birthdate_cleaned, PSI_BIRTHDATE)
-  ) |>
-  select(-PSI_Birthdate_cleaned)
-
-# some records have a null PSI_BIRTHDATE, search for non-null PSI_BIRTHDATE for these EPENS
-dbExecute(con, qry13_BirthdateCleaning)
-dbExecute(con, qry14_BirthdateCleaning)
-dbExecute(con, qry15_BirthdateCleaning)
-dbExecute(
-  con,
-  "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL"
-)
-dbExecute(con, qry16_BirthdateCleaning)
-dbExecute(con, qry17_BirthdateCleaning)
-
-# Update STP_Enrolment with birthdates found in non-null records
-dbExecute(con, qry18_BirthdateCleaning)
-dbExecute(con, qry19_BirthdateCleaning)
-
-# sanity check on psi_birthdate_cleaned - finish this and save report
-dbExecute(con, qry20_BirthdateCleaning)
-dbGetQuery(con, qry21_BirthdateCleaning)
-
-
-dbDisconnect(con)
+  mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE)) # or PSI_BIRTHDATE = coalesce....
