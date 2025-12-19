@@ -34,18 +34,18 @@ if (!dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_raw"')))) {
   )
 }
 
-enrol_raw <- dbGetQuery(
+stp_enrolment_raw <- dbGetQuery(
   con,
   glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_raw];")
 )
 
-enrol <- enrol_raw # save a copy while testing
+stp_enrolment <- stp_enrolment_raw # save a copy while testing
 ## -----------------------------------------------------------------------------------------------
 
 ## --------------------------------------Initial Data Checks--------------------------------------
 # qry00a to qry00d
 
-enrol |>
+stp_enrolment |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
       c('', ' ', '(Unspecified)') |
@@ -53,9 +53,9 @@ enrol |>
   ) |>
   nrow()
 
-enrol |> distinct(ENCRYPTED_TRUE_PEN) |> count()
+stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
-enrol <- enrol |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
 # -------------------------------------------------------------------------------------------------
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
@@ -82,7 +82,7 @@ date_cols <- c(
   "LAST_SEEN_BIRTHDATE"
 )
 
-enrol <- enrol |>
+stp_enrolment <- stp_enrolment |>
   mutate(
     across(
       .cols = date_cols,
@@ -112,7 +112,7 @@ invalid_pen <- c('', ' ', '(Unspecified)')
 cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
 ce_pattern = "Continuing Education|Continuing Studies|Audit|^CE " # original SQl used patterns %Continuing Education and %Continuing Studies
 
-enrol_rec_status <- enrol |>
+stp_enrolment_record_type <- stp_enrolment |>
   select(
     ID,
     ENCRYPTED_TRUE_PEN,
@@ -133,7 +133,7 @@ enrol_rec_status <- enrol |>
   mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
 
-enrol_rec_status <- enrol_rec_status |>
+stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(
     # Start the master classification
     rec_type = case_when(
@@ -212,7 +212,7 @@ enrol_rec_status <- enrol_rec_status |>
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
 ## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
 
-valid_enrol <- enrol_rec_status |>
+stp_enrolment_valid <- stp_enrolment_record_type |>
   select(
     ID,
     rec_type,
@@ -245,11 +245,11 @@ ON E.ID = R.ID
 WHERE RecordStatus = 0;"
 )
 
-valid_enrol <- dbGetQuery(con, sql)
+stp_enrolment_valid <- dbGetQuery(con, sql)
 
 
 sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
-enrol_rec_status <- dbGetQuery(con, sql)
+stp_enrolment_record_type <- dbGetQuery(con, sql)
 dbDisconnect(con)
 
 ## ------------------------------------------------------------------------------------------------
@@ -260,7 +260,7 @@ dbDisconnect(con)
 ## qry09 to qry14
 
 # Logic for valid PEN's
-valid_pen_data <- valid_enrol |>
+valid_pen_data <- stp_enrolment_valid |>
   filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
   arrange(
@@ -275,7 +275,7 @@ valid_pen_data <- valid_enrol |>
   ungroup()
 
 # Logic for Invalid PEN's (Student Number + PSI Code Combo)
-invalid_pen_data <- valid_enrol |>
+invalid_pen_data <- stp_enrolment_valid |>
   filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
   arrange(
@@ -289,7 +289,7 @@ invalid_pen_data <- valid_enrol |>
   ungroup()
 
 # Combine
-valid_enrol_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
+stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
   mutate(
     is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
@@ -297,8 +297,8 @@ valid_enrol_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   ) |>
   select(ID, rec_type, is_min_enrol, is_first_enrol)
 
-valid_enrol_final |> count(rec_type, is_min_enrol, is_first_enrol)
-enrol_rec_status |> count(rec_type, is_min_enrol, is_first_enrol)
+stp_enrolment_valid_final |> count(rec_type, is_min_enrol, is_first_enrol)
+stp_enrolment_record_type |> count(rec_type, is_min_enrol, is_first_enrol)
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -306,7 +306,7 @@ enrol_rec_status |> count(rec_type, is_min_enrol, is_first_enrol)
 # source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 
 # qry01 to qry08
-birthdate_cleaning_summary <- enrol |>
+birthdate_cleaning_summary <- stp_enrolment |>
   select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
   filter(
     !PSI_BIRTHDATE %in% c('', ' ', '(Unspecified)'),
@@ -355,9 +355,19 @@ birthdate_update <- birthdate_cleaning_summary |>
   ) |>
   select(ENCRYPTED_TRUE_PEN, psi_birthdate_cleaned)
 
-enrol <- enrol |>
+stp_enrolment <- stp_enrolment |>
   left_join(
     birthdate_update,
     by = "ENCRYPTED_TRUE_PEN"
   ) |>
   mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE)) # or PSI_BIRTHDATE = coalesce....
+
+tables_to_keep = c(
+  'stp_enrolment',
+  'stp_credential',
+  'stp_enrolment_record_type',
+  'stp_credential_record_type',
+  'stp_enrolment_valid'
+)
+
+rm(list = setdiff(ls(), tables_to_keep))

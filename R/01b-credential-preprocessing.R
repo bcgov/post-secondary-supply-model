@@ -44,7 +44,7 @@ credential <- dbGetQuery(
   con,
   glue::glue("SELECT * FROM [{my_schema}].[STP_Credential];")
 )
-names(credential)
+
 credential.orig <- credential # save a copy while testing
 
 credential |>
@@ -61,7 +61,6 @@ credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 credential <- credential |>
   mutate(ID = row_number()) |>
   relocate(ID)
-
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 convert_date <- function(vec) {
@@ -108,7 +107,7 @@ credential <- credential |>
 invalid_vals <- c('', ' ', '(Unspecified)')
 dev_cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89') # this may be the same list as defined in enrolement processing
 
-enrol_skills_lookup <- enrol_rec_status |>
+enrol_skills_lookup <- stp_enrolment_record_type |>
   filter(RecordStatus == 6) |>
   mutate(CIP2 = substr(PSI_CIP_CODE, 1, 2)) |>
   distinct(
@@ -161,28 +160,21 @@ credential <- credential |>
       PSI_CREDENTIAL_CATEGORY == 'Recommendation For Certification' ~ 8,
 
       # Default: leave other records as NA (or 0) for now
-      TRUE ~ NA_real_
+      TRUE ~ 0
     )
   ) |>
   select(-is_skills_match)
 
 credential |> count(RecordStatus)
-credential_rec_status_sql <- glue::glue(
-  "SELECT RecordStatus, COUNT(*) FROM [{my_schema}].[STP_Credential_Record_Type] GROUP BY RecordStatus"
-)
-dbGetQuery(con, credential_rec_status_sql)
 
-dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
-dbGetQuery(con, RecordTypeSummary)
-
-# ---- Clean Up and check tables to keep ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
+tables_to_keep = c(
+  'stp_enrolment',
+  'stp_credential',
+  'stp_enrolment_record_type',
+  'stp_credential_record_type',
+  'stp_enrolment_valid'
 )
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
+
+rm(list = setdiff(ls(), tables_to_keep))
 
 dbDisconnect(con)
