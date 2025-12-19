@@ -157,6 +157,8 @@ credential <- credential |>
           (PSI_CODE == 'NIC' &
             PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
               'Underground Mining Essentials')) ~ 7,
+      # --- Status 8: Recommendation for Certification
+      PSI_CREDENTIAL_CATEGORY == 'Recommendation For Certification' ~ 8,
 
       # Default: leave other records as NA (or 0) for now
       TRUE ~ NA_real_
@@ -169,15 +171,6 @@ credential_rec_status_sql <- glue::glue(
   "SELECT RecordStatus, COUNT(*) FROM [{my_schema}].[STP_Credential_Record_Type] GROUP BY RecordStatus"
 )
 dbGetQuery(con, credential_rec_status_sql)
-
-
-# ---- Find records with Record_Status = 8 and update look up table ----
-dbExecute(con, qry03i_Drop_RecommendationForCert)
-dbExecute(con, qry03j_Update_RecommendationForCert)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_RecommendForCert];")
-)
 
 dbExecute(con, qry04_Update_RecordStatus_Not_Dropped)
 dbGetQuery(con, RecordTypeSummary)
