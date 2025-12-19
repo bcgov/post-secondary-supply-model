@@ -105,7 +105,8 @@ credential <- credential |>
 # 8 = Recommendation for Certification
 
 # ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
-invalid_vals <- c('', ' ', '(Unspecified)', NA)
+invalid_vals <- c('', ' ', '(Unspecified)')
+dev_cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89') # this may be the same list as defined in enrolement processing
 
 enrol_skills_lookup <- enrol_rec_status |>
   filter(RecordStatus == 6) |>
@@ -143,6 +144,20 @@ credential <- credential |>
       # --- Record Type 6---
       is_skills_match == TRUE ~ 6,
 
+      # --- Status 7: Developmental CIPs (With "Keep" Exceptions) ---
+      # there may be more exceptions to add - in previous years some manual checks were done.
+      (CIP2 %in% dev_cips) &
+        !((PSI_CODE == 'UVIC' &
+          PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+            'PROF SPEC CERTIFICATE IN MIDDLE YEARS LANG AND LITERACY') |
+          (PSI_CODE == 'NIC' &
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == 'Aquaculture Technician 1') |
+          (PSI_CODE == 'NIC' &
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == 'Coastal Forest Resource') |
+          (PSI_CODE == 'NIC' &
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+              'Underground Mining Essentials')) ~ 7,
+
       # Default: leave other records as NA (or 0) for now
       TRUE ~ NA_real_
     )
@@ -155,36 +170,6 @@ credential_rec_status_sql <- glue::glue(
 )
 dbGetQuery(con, credential_rec_status_sql)
 
-
-# ---- Find records with Record_Status = 7 and update look up table ----
-dbExecute(con, qry03g_Drop_Developmental_Credential_CIPS)
-dbExecute(
-  con,
-  "ALTER TABLE Drop_Developmental_PSI_CREDENTIAL_CIPS ADD Keep NVARCHAR(2)"
-)
-
-###  ---- ** Manual **  ----
-# Check against the outcomes programs table to see if some are non-developmental CIP. If so, set keep = 'Y'.
-data <- dbReadTable(
-  con,
-  "Drop_Developmental_PSI_CREDENTIAL_CIPS",
-  col_types = cols(.default = col_character())
-)
-data.entry(data)
-dbWriteTable(
-  con,
-  name = "Drop_Developmental_PSI_CREDENTIAL_CIPS",
-  as.data.frame(data),
-  overwrite = TRUE
-)
-
-dbExecute(con, qry03h_Update_Developmental_CIPs)
-dbExecute(
-  con,
-  glue::glue(
-    "DROP TABLE [{my_schema}].[Drop_Developmental_PSI_CREDENTIAL_CIPS];"
-  )
-)
 
 # ---- Find records with Record_Status = 8 and update look up table ----
 dbExecute(con, qry03i_Drop_RecommendationForCert)
