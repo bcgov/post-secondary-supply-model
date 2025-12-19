@@ -43,7 +43,8 @@ stp_enrolment <- stp_enrolment_raw # save a copy while testing
 ## -----------------------------------------------------------------------------------------------
 
 ## --------------------------------------Initial Data Checks--------------------------------------
-# qry00a to qry00d
+## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+##   qry00a to qry00d
 
 stp_enrolment |>
   filter(
@@ -59,7 +60,8 @@ stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be require
 # -------------------------------------------------------------------------------------------------
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
-## source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+## all queries in the file
 
 convert_date <- function(vec) {
   # Years 26-99 go to 19xx
@@ -93,8 +95,8 @@ stp_enrolment <- stp_enrolment |>
 ## ------------------------------------------------------------------------------------------------
 
 ## --------------------------------------- Create Record Type Table -------------------------------
-# source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
-# qry01 to qry08 series
+## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
+##   qry01 to qry07 series
 
 # Record Status codes:
 # 0 = Good
@@ -135,33 +137,30 @@ stp_enrolment_record_type <- stp_enrolment |>
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(
-    # Start the master classification
     rec_type = case_when(
-      # 1. STATUS 1: ID Invalidity (inverted logic)
+      # Record Status 1: qry02a to qry02c
       ((PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
         ENCRYPTED_TRUE_PEN %in% invalid_pen) ~ 1,
 
-      # 2. STATUS 2: Developmental
+      # Record Status 2: qry03a and qry03b
       toupper(PSI_STUDY_LEVEL) == 'DEVELOPMENTAL' ~ 2,
 
-      # 3. STATUS 6: Skills Based Courses (qry03c)
+      # Record Status 6: qry03c to qry03j
       (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
         PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') &
         !((PSI_CODE %in% c('UFV', 'UCFV')) &
           (PSI_PROGRAM_CODE == 'TEACH ED'))) ~ 6,
 
-      # 4. STATUS 6: Skills Based Courses - Continuing Ed
+      # More Record Status 6:
       str_detect(
         PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
         regex(ce_pattern, ignore_case = TRUE)
       ) ~ 6,
 
-      # 5. STATUS 6: Skills Based Courses - More Continuing Ed (CIP based - qry03d)
+      # More Record Status 6:
       (PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') & CIP2 %in% cips) ~ 6,
 
-      # 6. STATUS 6: Specific Skills-Base
-      # note, this actually misses a number of courses previously marked as Developmental.
-      # I dont think this matters since we end up only using Record Type = 0, anyways.
+      # More Record Status 6:
       (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
         !PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other', 'Short Certificate') &
         ((PSI_CODE == 'SEL' &
@@ -169,43 +168,33 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
             'Community, Corporate & International Development') |
           (PSI_CODE == 'NIC' & CIP2 %in% cips))) ~ 6,
 
-      # 7. STATUS 7: Developmental CIP
+      # Record Status 7: qry03k
       PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Not Skills Crs Only' &
         CIP2 %in% cips ~ 7, # qry 03k and qry03l series
 
-      # 8. STATUS 3: No PSI Transition
-      PSI_ENTRY_STATUS == 'No Transition' ~ 3, # qry 04 series
+      # Record Status 3: qry04a to qry04b
+      PSI_ENTRY_STATUS == 'No Transition' ~ 3,
 
-      # 9. STATUS 5: PSI_Outside_BC
-      ATTENDING_PSI_OUTSIDE_BC == 'Y' ~ 5, # qry 06 series
+      # Record Status 5: qry06a to
+      ATTENDING_PSI_OUTSIDE_BC == 'Y' ~ 5,
 
-      # 7. DEFAULT: Fallback for all other records
+      # DEFAULT: Fallback for all other records
       TRUE ~ 0
     )
   )
 
-# !!! TODO manual investigation done here in the past and requires a review
-# leaving for now as has minimal impact on final distributions
-# Not Translated to R.
-#
-#dbExecute(con, qry03g_create_table_SkillsBasedCourses)
-#dbExecute(
-#  con,
-#  "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;"
-#)
-#dbExecute(con, qry03g_b_Keep_More_Skills_Based)
-#dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based)
-#dbExecute(con, qry03g_c2_Update_More_Selkirk)
-#dbExecute(con, qry03g_d_EnrolCoursesSeen)
-#dbExecute(con, qry03h_create_table_Suspect_Skills_Based)
-#dbExecute(con, qry03i_Find_Suspect_Skills_Based)
-#dbExecute(con, qry03i2_Drop_Suspect_Skills_Based) #see documentation, this is related to some manula work that wasn't done in 2023
-#dbExecute(con, qry03j_Update_Suspect_Skills_Based)
-## ---------------------------------------------------------------
+# Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
+# find more skills based courses and/or keep some that were excluded.  The manual
+# investigation resulted in a table with a column "keep".  This was used to further
+# refine the record status (affcting only record status 0 and 6).
+# The affected queries are: qry03g, 03g_b, 03g_c, 03g_c2, 03_d, 03h, 03i, 03i2, 03j
+# for now, pull the final enrolement record type table from decimal to keep
+# coding.
 
-## Set Remaining Records to Record_Status = 0 ----
-# qry07 series
-# TODO
+sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
+stp_enrolment_record_type <- dbGetQuery(con, sql)
+
+## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -224,7 +213,6 @@ stp_enrolment_valid <- stp_enrolment_record_type |>
     PSI_ENROLMENT_SEQUENCE
   ) |>
   filter(rec_type == 0)
-
 
 # here, I'm pulling the one from decimal as a workaround for development.
 # Because I'm not finished with the record status 6 yet
@@ -247,17 +235,13 @@ WHERE RecordStatus = 0;"
 
 stp_enrolment_valid <- dbGetQuery(con, sql)
 
-
-sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
-stp_enrolment_record_type <- dbGetQuery(con, sql)
-dbDisconnect(con)
-
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Min Enrolment --------------------------------------------
-# In a handful of cases, the SQL version improperly orders records with PSI_ENROLMENT_SEQUENCE == 10 and 11.
-# R's arrange() handles them properly,
+## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
 ## qry09 to qry14
+# Notes: n a handful of cases, the SQL version improperly orders records with PSI_ENROLMENT_SEQUENCE == 10 and 11.
+# R's arrange() handles them properly,
 
 # Logic for valid PEN's
 valid_pen_data <- stp_enrolment_valid |>
@@ -269,7 +253,6 @@ valid_pen_data <- stp_enrolment_valid |>
     as.numeric(ID)
   ) |>
   mutate(is_first_enrol = row_number() == 1) |>
-  # Standard grouping for the specific year-level flag
   group_by(ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR) |>
   mutate(is_min_enrol_seq = row_number() == 1) |>
   ungroup()
@@ -288,7 +271,7 @@ invalid_pen_data <- stp_enrolment_valid |>
   mutate(is_min_enrol_seq_combo = row_number() == 1) |>
   ungroup()
 
-# Combine
+# Combine - this should be the same as the old stp_enrolment_record_type
 stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
   mutate(
@@ -298,12 +281,11 @@ stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   select(ID, rec_type, is_min_enrol, is_first_enrol)
 
 stp_enrolment_valid_final |> count(rec_type, is_min_enrol, is_first_enrol)
-stp_enrolment_record_type |> count(rec_type, is_min_enrol, is_first_enrol)
-
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
-# source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
+## reference: source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
+## qry01 to qry11
 
 # qry01 to qry08
 birthdate_cleaning_summary <- stp_enrolment |>
@@ -313,7 +295,6 @@ birthdate_cleaning_summary <- stp_enrolment |>
     !ENCRYPTED_TRUE_PEN %in% c('', ' ', '(Unspecified)')
   ) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
-  #filter(n_distinct(PSI_BIRTHDATE) > 1) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
   summarize(
     NBirthdateRecords = n(),
