@@ -107,8 +107,31 @@ credential <- credential |>
 # ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
 invalid_vals <- c('', ' ', '(Unspecified)', NA)
 
+enrol_skills_lookup <- enrol_rec_status |>
+  filter(RecordStatus == 6) |>
+  mutate(CIP2 = substr(PSI_CIP_CODE, 1, 2)) |>
+  distinct(
+    PSI_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    CIP2,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_STUDY_LEVEL
+  ) |>
+  mutate(is_skills_match = TRUE)
+
 # ---- Find records with Record_Status = 1  ----
 credential <- credential |>
+  mutate(CIP2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) |>
+  left_join(
+    enrol_skills_lookup,
+    by = c(
+      "PSI_CODE" = "PSI_CODE",
+      "PSI_CREDENTIAL_PROGRAM_DESCRIPTION" = "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+      "CIP2" = "CIP2",
+      "PSI_CREDENTIAL_CATEGORY" = "PSI_CREDENTIAL_CATEGORY",
+      "PSI_CREDENTIAL_LEVEL" = "PSI_STUDY_LEVEL"
+    )
+  ) |>
   mutate(
     RecordStatus = case_when(
       # --- Record Type 1 ---
@@ -117,10 +140,14 @@ credential <- credential |>
       # --- Record Type 2 ---
       PSI_CREDENTIAL_LEVEL == 'Developmental' ~ 2,
 
+      # --- Record Type 6---
+      is_skills_match == TRUE ~ 6,
+
       # Default: leave other records as NA (or 0) for now
       TRUE ~ NA_real_
     )
-  )
+  ) |>
+  select(-is_skills_match)
 
 credential |> count(RecordStatus)
 credential_rec_status_sql <- glue::glue(
@@ -128,24 +155,6 @@ credential_rec_status_sql <- glue::glue(
 )
 dbGetQuery(con, credential_rec_status_sql)
 
-
-# ---- Find records with Record_Status = 6  ----
-dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
-dbExecute(con, qry03d_create_table_Suspect_Skills_Based)
-dbExecute(con, qry03e_Find_Suspect_Skills_Based)
-dbExecute(con, qry03f_Update_Suspect_Skills_Based)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_Cred_Suspect_Skills_Based];")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[Cred_Suspect_Skills_Based];")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_EnrolmentSkillsBasedCourses];")
-)
 
 # ---- Find records with Record_Status = 7 and update look up table ----
 dbExecute(con, qry03g_Drop_Developmental_Credential_CIPS)

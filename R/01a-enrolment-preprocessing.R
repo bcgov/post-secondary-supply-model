@@ -249,7 +249,7 @@ valid_enrol <- dbGetQuery(con, sql)
 
 
 sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
-rec_status <- dbGetQuery(con, sql)
+enrol_rec_status <- dbGetQuery(con, sql)
 dbDisconnect(con)
 
 ## ------------------------------------------------------------------------------------------------
