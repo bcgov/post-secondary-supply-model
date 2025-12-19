@@ -112,7 +112,7 @@ invalid_pen <- c('', ' ', '(Unspecified)')
 cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
 ce_pattern = "Continuing Education|Continuing Studies|Audit|^CE " # original SQl used patterns %Continuing Education and %Continuing Studies
 
-rec_status <- enrol |>
+enrol_rec_status <- enrol |>
   select(
     ID,
     ENCRYPTED_TRUE_PEN,
@@ -133,7 +133,7 @@ rec_status <- enrol |>
   mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
 
-rec_status <- rec_status |>
+enrol_rec_status <- enrol_rec_status |>
   mutate(
     # Start the master classification
     rec_type = case_when(
@@ -212,7 +212,7 @@ rec_status <- rec_status |>
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
 ## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
 
-valid_enrol <- rec_status |>
+valid_enrol <- enrol_rec_status |>
   select(
     ID,
     rec_type,
@@ -298,7 +298,7 @@ valid_enrol_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   select(ID, rec_type, is_min_enrol, is_first_enrol)
 
 valid_enrol_final |> count(rec_type, is_min_enrol, is_first_enrol)
-rec_status |> count(rec_type, is_min_enrol, is_first_enrol)
+enrol_rec_status |> count(rec_type, is_min_enrol, is_first_enrol)
 
 ## ------------------------------------------------------------------------------------------------
 

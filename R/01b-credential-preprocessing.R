@@ -123,10 +123,10 @@ credential <- credential |>
   )
 
 credential |> count(RecordStatus)
-rec_status_sql <- glue::glue(
+credential_rec_status_sql <- glue::glue(
   "SELECT RecordStatus, COUNT(*) FROM [{my_schema}].[STP_Credential_Record_Type] GROUP BY RecordStatus"
 )
-dbGetQuery(con, rec_status_sql)
+dbGetQuery(con, credential_rec_status_sql)
 
 
 # ---- Find records with Record_Status = 6  ----
