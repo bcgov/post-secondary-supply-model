@@ -22,7 +22,6 @@ library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
 source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")
-source("./sql/01-credential-preprocessing/convert_date_scripts.R")
 
 # set connection string to decimal
 db_config <- config::get("decimal")
@@ -65,11 +64,6 @@ credential <- credential |>
 
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
-# check date variable format here
-dbGetQuery(
-  con,
-  "SELECT TOP 100 CREDENTIAL_AWARD_DATE, PSI_PROGRAM_EFFECTIVE_DATE FROM STP_Credential;"
-)
 convert_date <- function(vec) {
   # Years 26-99 go to 19xx
   # Years 00-25 go to 20xx
@@ -111,31 +105,29 @@ credential <- credential |>
 # 8 = Recommendation for Certification
 
 # ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
-dbExecute(con, qry01_ExtractAllID_into_STP_Credential_Record_Type)
-
+invalid_vals <- c('', ' ', '(Unspecified)', NA)
 
 # ---- Find records with Record_Status = 1  ----
-dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
-dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
-dbExecute(con, qry02c_Update_Drop_No_PEN_or_No_STUID)
-dbExecute(
-  con,
-  glue::glue(
-    "DROP TABLE [{my_schema}].[tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID];"
-  )
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_No_PEN_or_No_STUID];")
-)
+credential <- credential |>
+  mutate(
+    RecordStatus = case_when(
+      # --- Record Type 1 ---
+      (ENCRYPTED_TRUE_PEN %in% invalid_vals) &
+        (PSI_STUDENT_NUMBER %in% invalid_vals | PSI_CODE %in% invalid_vals) ~ 1,
+      # --- Record Type 2 ---
+      PSI_CREDENTIAL_LEVEL == 'Developmental' ~ 2,
 
-# ---- Find records with Record_Status = 2  ----
-dbExecute(con, qry03a_Drop_Record_Developmental)
-dbExecute(con, qry03b_Update_Drop_Record_Developmental)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].[Drop_Cred_Developmental];")
+      # Default: leave other records as NA (or 0) for now
+      TRUE ~ NA_real_
+    )
+  )
+
+credential |> count(RecordStatus)
+rec_status_sql <- glue::glue(
+  "SELECT RecordStatus, COUNT(*) FROM [{my_schema}].[STP_Credential_Record_Type] GROUP BY RecordStatus"
 )
+dbGetQuery(con, rec_status_sql)
+
 
 # ---- Find records with Record_Status = 6  ----
 dbExecute(con, qry03c_create_table_EnrolmentSkillsBasedCourse)
