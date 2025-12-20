@@ -181,7 +181,8 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
       # DEFAULT: Fallback for all other records
       TRUE ~ 0
     )
-  )
+  ) |>
+  select(ID, rec_type)
 
 # Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
 # find more skills based courses and/or keep some that were excluded.  The manual
@@ -201,10 +202,9 @@ stp_enrolment_record_type <- dbGetQuery(con, sql)
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
 ## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
 
-stp_enrolment_valid <- stp_enrolment_record_type |>
+stp_enrolment_valid <- stp_enrolment |>
   select(
     ID,
-    rec_type,
     ENCRYPTED_TRUE_PEN,
     PSI_STUDENT_NUMBER,
     PSI_CODE,
@@ -212,28 +212,27 @@ stp_enrolment_valid <- stp_enrolment_record_type |>
     PSI_SCHOOL_YEAR,
     PSI_ENROLMENT_SEQUENCE
   ) |>
+  inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
   filter(rec_type == 0)
 
-# here, I'm pulling the one from decimal as a workaround for development.
-# Because I'm not finished with the record status 6 yet
 
-sql <- glue::glue(
-  "
-SELECT R.ID
-  , R.RecordStatus as rec_type
-  , E. ENCRYPTED_TRUE_PEN
-  , E. PSI_STUDENT_NUMBER
-  , E. PSI_CODE
-  , E. PSI_MIN_START_DATE
-  , E. PSI_SCHOOL_YEAR
-  , E. PSI_ENROLMENT_SEQUENCE
-FROM [{my_schema}].[STP_Enrolment_Record_Type] R
-INNER JOIN [{my_schema}].[STP_Enrolment] E
-ON E.ID = R.ID
-WHERE RecordStatus = 0;"
-)
-
-stp_enrolment_valid <- dbGetQuery(con, sql)
+#sql <- glue::glue(
+#  "
+#SELECT R.ID
+#  , R.RecordStatus as rec_type
+#  , E. ENCRYPTED_TRUE_PEN
+#  , E. PSI_STUDENT_NUMBER
+#  , E. PSI_CODE
+#  , E. PSI_MIN_START_DATE
+#  , E. PSI_SCHOOL_YEAR
+#  , E. PSI_ENROLMENT_SEQUENCE
+#FROM [{my_schema}].[STP_Enrolment_Record_Type] R
+#INNER JOIN [{my_schema}].[STP_Enrolment] E
+#ON E.ID = R.ID
+#WHERE RecordStatus = 0;"
+#)
+#
+#stp_enrolment_valid <- dbGetQuery(con, sql)
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -280,7 +279,11 @@ stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   ) |>
   select(ID, rec_type, is_min_enrol, is_first_enrol)
 
-stp_enrolment_valid_final |> count(rec_type, is_min_enrol, is_first_enrol)
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  left_join(stp_enrolment_valid_final) |>
+  mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
+
+stp_enrolment_record_type |> count(rec_type, is_min_enrol, is_first_enrol)
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
