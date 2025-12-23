@@ -2,6 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-
 config.yml
 scratch/*
+post-secondary-supply-model.Rproj
+GEMINI.md
+R/refactor_example_01a.R
+REFACTOR_PLAN.md
