@@ -1,0 +1,608 @@
+INFO [2024-12-19 11:54:48] Starting: ./R/prep-for-fresh-run.R
+INFO [2024-12-19 11:54:56] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-19 11:55:02] Completed: ./R/load-cohort-appso.R in 6 seconds
+INFO [2024-12-19 11:55:02] Starting: ./R/load-cohort-bgs.R
+ERROR [2024-12-19 11:55:02] Error in file: ./R/load-cohort-bgs.R - 'P:/PSSM/25-1319 Post-Secondary Supply Model 2022-2023/development/csv/gh-source/lookups/02/t_weights.csv' does not exist.
+ERROR [2024-12-19 11:55:02] stop(fallback)
+ERROR [2024-12-19 11:55:02] signal_abort(cnd, .file)
+ERROR [2024-12-19 11:55:02] c("rlang::abort(message, ..., call = call, use_cli_format = TRUE, ", "    .frame = .frame)")
+ERROR [2024-12-19 11:55:02] c("cli::cli_abort(c(`!` = \"ODBC failed with error {res$cnd_context_code} from \\\\\\n             {.field {paste0(res$cnd_context_driver, collapse = '')}}.\", ", "    set_names(res$cnd_body, nm = c(\"x\", rep(\"*\", length(res$cnd_body) - ", "        1))), i = \"From {.file {res$cnd_context_nanodbc}}.\"), ", "    call = call)")
+ERROR [2024-12-19 11:55:02] c("(function (msg, call = trace_back()$call[[1]]) ", "{", "    tryCatch(res <- parse_database_error(msg), error = function(e) cli::cli_abort(msg, ", "        call = call))", "    cli::cli_abort(c(`!` = \"ODBC failed with error {res$cnd_context_code} from \\\\\\n             {.field {paste0(res$cnd_context_driver, collapse = '')}}.\", ", "        set_names(res$cnd_body, nm = c(\"x\", rep(\"*\", length(res$cnd_body) - ", "            1))), i = \"From {.file {res$cnd_context_nanodbc}}.\"), ", "        call = call)", 
+"})(\"nanodbc/nanodbc.cpp:1722: 42000\\n[Microsoft][ODBC SQL Server Driver][SQL Server]Database 'dbo' does not exist. \\n<SQL> 'SELECT * \\nINTO [dbo].[IDIR\\\\ALOWERY].\\\"Labour_Supply_Distribution_Stat_Can\\\"\\nFROM [IDIR\\\\ALOWERY].\\\"Labour_Supply_Distribution_Stat_Can\\\";'\")")
+ERROR [2024-12-19 11:55:02] new_result(p = connection@ptr, sql = statement, immediate = immediate)
+ERROR [2024-12-19 11:55:02] c("OdbcResult(connection = conn, statement = statement, params = params, ", "    immediate = immediate)")
+ERROR [2024-12-19 11:55:02] .local(conn, statement, ...)
+ERROR [2024-12-19 11:55:02] dbSendStatement(conn, statement, params = params, ..., immediate = immediate)
+ERROR [2024-12-19 11:55:02] dbSendStatement(conn, statement, params = params, ..., immediate = immediate)
+ERROR [2024-12-19 11:55:02] .local(conn, statement, ...)
+ERROR [2024-12-19 11:55:02] dbExecute(decimal_con, copy_statement)
+ERROR [2024-12-19 11:55:02] dbExecute(decimal_con, copy_statement)
+ERROR [2024-12-19 11:55:02] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2024-12-19 11:55:02] stop(fallback)
+ERROR [2024-12-19 11:55:02] signal_abort(cnd, .file)
+ERROR [2024-12-19 11:55:02] c("rlang::abort(message, ..., call = call, use_cli_format = TRUE, ", "    .frame = .frame)")
+ERROR [2024-12-19 11:55:02] c("cli::cli_abort(c(`!` = \"ODBC failed with error {res$cnd_context_code} from \\\\\\n             {.field {paste0(res$cnd_context_driver, collapse = '')}}.\", ", "    set_names(res$cnd_body, nm = c(\"x\", rep(\"*\", length(res$cnd_body) - ", "        1))), i = \"From {.file {res$cnd_context_nanodbc}}.\"), ", "    call = call)")
+ERROR [2024-12-19 11:55:02] c("(function (msg, call = trace_back()$call[[1]]) ", "{", "    tryCatch(res <- parse_database_error(msg), error = function(e) cli::cli_abort(msg, ", "        call = call))", "    cli::cli_abort(c(`!` = \"ODBC failed with error {res$cnd_context_code} from \\\\\\n             {.field {paste0(res$cnd_context_driver, collapse = '')}}.\", ", "        set_names(res$cnd_body, nm = c(\"x\", rep(\"*\", length(res$cnd_body) - ", "            1))), i = \"From {.file {res$cnd_context_nanodbc}}.\"), ", "        call = call)", 
+"})(\"nanodbc/nanodbc.cpp:1722: 42000\\n[Microsoft][ODBC SQL Server Driver][SQL Server]Database 'dbo' does not exist. \\n<SQL> 'SELECT * \\nINTO [dbo].[IDIR\\\\ALOWERY].\\\"Labour_Supply_Distribution_Stat_Can\\\"\\nFROM [IDIR\\\\ALOWERY].\\\"Labour_Supply_Distribution_Stat_Can\\\";'\")")
+ERROR [2024-12-19 11:55:02] new_result(p = connection@ptr, sql = statement, immediate = immediate)
+ERROR [2024-12-19 11:55:02] c("OdbcResult(connection = conn, statement = statement, params = params, ", "    immediate = immediate)")
+ERROR [2024-12-19 11:55:02] .local(conn, statement, ...)
+ERROR [2024-12-19 11:55:02] dbSendStatement(conn, statement, params = params, ..., immediate = immediate)
+ERROR [2024-12-19 11:55:02] dbSendStatement(conn, statement, params = params, ..., immediate = immediate)
+ERROR [2024-12-19 11:55:02] .local(conn, statement, ...)
+ERROR [2024-12-19 11:55:02] dbExecute(decimal_con, copy_statement)
+ERROR [2024-12-19 11:55:02] dbExecute(decimal_con, copy_statement)
+ERROR [2024-12-19 11:55:02] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2024-12-19 12:11:33] Starting: ./R/prep-for-fresh-run.R
+INFO [2024-12-19 12:11:37] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-19 12:11:42] Completed: ./R/load-cohort-appso.R in 4.76 seconds
+INFO [2024-12-19 12:11:42] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-19 12:12:08] Completed: ./R/load-cohort-bgs.R in 26.2 seconds
+INFO [2024-12-19 12:12:08] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-19 12:13:03] Completed: ./R/load-cohort-dacso.R in 54.47 seconds
+INFO [2024-12-19 12:13:03] Starting: ./R/load-cohort-trd.R
+INFO [2024-12-19 12:13:11] Completed: ./R/load-cohort-trd.R in 8.35 seconds
+INFO [2024-12-19 12:13:11] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-19 12:13:19] Completed: ./R/02b-1-pssm-cohorts.R in 8.13 seconds
+INFO [2024-12-19 12:13:19] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-19 12:13:36] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 17.25 seconds
+INFO [2024-12-19 12:13:36] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-19 12:13:51] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.49 seconds
+INFO [2024-12-19 12:13:51] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-12-19 12:15:02] Completed: ./R/load-near-completers-ttrain.R in 1.19 seconds
+INFO [2024-12-19 12:15:02] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-12-19 12:15:57] Completed: ./R/03-near-completers-ttrain.R in 54.43 seconds
+INFO [2024-12-19 12:15:57] Starting: ./R/load-graduate-projections.R
+INFO [2024-12-19 12:15:58] Completed: ./R/load-graduate-projections.R in 1.73 seconds
+INFO [2024-12-19 12:15:58] Starting: ./R/04-graduate-projections.R
+INFO [2024-12-19 12:16:05] Completed: ./R/04-graduate-projections.R in 6.5 seconds
+INFO [2024-12-19 12:16:05] Starting: ./R/load-program-projections.R
+INFO [2024-12-19 12:16:44] Completed: ./R/load-program-projections.R in 38.89 seconds
+INFO [2024-12-19 12:16:44] Starting: ./R/06-program-projections.R
+INFO [2024-12-19 12:18:20] Completed: ./R/06-program-projections.R in 1.6 seconds
+INFO [2024-12-19 12:18:20] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-19 12:18:30] Completed: ./R/load-occupation-projections.R in 10.71 seconds
+INFO [2024-12-19 12:18:30] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-19 12:19:07] Completed: ./R/07-occupation-projections.R in 37.04 seconds
+INFO [2024-12-19 12:19:08] Completed: ./R/prep-for-fresh-run.R in 7.58 seconds
+INFO [2024-12-19 12:19:08] Starting: ./R/prep-for-qi-run.R
+INFO [2024-12-19 12:19:08] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-19 12:19:14] Completed: ./R/load-cohort-appso.R in 5.49 seconds
+INFO [2024-12-19 12:19:14] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-19 12:19:17] Completed: ./R/load-cohort-bgs.R in 3.27 seconds
+INFO [2024-12-19 12:19:17] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-19 12:19:32] Completed: ./R/load-cohort-dacso.R in 15.17 seconds
+INFO [2024-12-19 12:19:32] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-19 12:19:39] Completed: ./R/02b-1-pssm-cohorts.R in 6.73 seconds
+INFO [2024-12-19 12:19:39] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-19 12:19:54] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 14.78 seconds
+INFO [2024-12-19 12:19:54] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-19 12:20:07] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 13.25 seconds
+INFO [2024-12-19 12:20:07] Starting: ./R/load-program-projections.R
+INFO [2024-12-19 12:20:09] Completed: ./R/load-program-projections.R in 1.68 seconds
+INFO [2024-12-19 12:20:09] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-19 12:20:19] Completed: ./R/load-occupation-projections.R in 9.99 seconds
+INFO [2024-12-19 12:20:19] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-19 12:20:51] Completed: ./R/07-occupation-projections.R in 32.72 seconds
+INFO [2024-12-19 12:20:52] Completed: ./R/prep-for-qi-run.R in 1.73 seconds
+INFO [2024-12-19 12:20:52] Starting: ./R/prep-for-ptib-run.R
+INFO [2024-12-19 12:20:55] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-19 12:21:00] Completed: ./R/load-cohort-appso.R in 5.86 seconds
+INFO [2024-12-19 12:21:00] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-19 12:21:26] Completed: ./R/load-cohort-bgs.R in 26.04 seconds
+INFO [2024-12-19 12:21:26] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-19 12:22:22] Completed: ./R/load-cohort-dacso.R in 55.98 seconds
+INFO [2024-12-19 12:22:22] Starting: ./R/load-cohort-trd.R
+INFO [2024-12-19 12:22:31] Completed: ./R/load-cohort-trd.R in 8.17 seconds
+INFO [2024-12-19 12:22:31] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-19 12:22:38] Completed: ./R/02b-1-pssm-cohorts.R in 7.55 seconds
+INFO [2024-12-19 12:22:38] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-19 12:22:54] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 15.42 seconds
+INFO [2024-12-19 12:22:54] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-19 12:23:08] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.18 seconds
+INFO [2024-12-19 12:23:08] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-12-19 12:24:17] Completed: ./R/load-near-completers-ttrain.R in 1.15 seconds
+INFO [2024-12-19 12:24:17] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-12-19 12:25:09] Completed: ./R/03-near-completers-ttrain.R in 52.36 seconds
+INFO [2024-12-19 12:25:09] Starting: ./R/load-graduate-projections.R
+INFO [2024-12-19 12:25:10] Completed: ./R/load-graduate-projections.R in 1.19 seconds
+INFO [2024-12-19 12:25:10] Starting: ./R/04-graduate-projections.R
+INFO [2024-12-19 12:25:14] Completed: ./R/04-graduate-projections.R in 3.71 seconds
+INFO [2024-12-19 12:25:14] Starting: ./R/load-ptib.R
+INFO [2024-12-19 12:25:20] Completed: ./R/load-ptib.R in 6.41 seconds
+INFO [2024-12-19 12:25:20] Starting: ./R/05-ptib-analysis.R
+INFO [2024-12-19 12:25:23] Completed: ./R/05-ptib-analysis.R in 2.27 seconds
+INFO [2024-12-19 12:25:23] Starting: ./R/load-program-projections.R
+INFO [2024-12-19 12:26:01] Completed: ./R/load-program-projections.R in 38.39 seconds
+INFO [2024-12-19 12:26:01] Starting: ./R/06-program-projections.R
+INFO [2024-12-19 12:27:31] Completed: ./R/06-program-projections.R in 1.5 seconds
+INFO [2024-12-19 12:27:31] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-19 12:27:42] Completed: ./R/load-occupation-projections.R in 10.59 seconds
+INFO [2024-12-19 12:27:42] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-19 12:28:21] Completed: ./R/07-occupation-projections.R in 39.4 seconds
+INFO [2024-12-19 12:28:21] Completed: ./R/prep-for-ptib-run.R in 7.5 seconds
+INFO [2024-12-19 12:28:21] 2024-12-19 12:28:21.96655 Complete three model runs ......
+INFO [2024-12-19 12:28:33] 2024-12-19 12:28:33.598033 Excel report created ......
+INFO [2024-12-20 11:15:09] Starting: ./R/prep-for-fresh-run.R
+ERROR [2024-12-20 11:15:21] Error in file: ./R/prep-for-fresh-run.R - ODBC failed with error 01000 from \
+             [32m[Microsoft][ODBC SQL Server Driver][DBNETLIB][39m.
+ERROR [2024-12-20 11:15:21] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2024-12-20 11:16:42] Starting: ./R/prep-for-fresh-run.R
+INFO [2024-12-20 11:16:49] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-20 11:16:54] Completed: ./R/load-cohort-appso.R in 5.18 seconds
+INFO [2024-12-20 11:16:54] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-20 11:17:20] Completed: ./R/load-cohort-bgs.R in 25.75 seconds
+INFO [2024-12-20 11:17:20] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-20 11:18:12] Completed: ./R/load-cohort-dacso.R in 52.68 seconds
+INFO [2024-12-20 11:18:12] Starting: ./R/load-cohort-trd.R
+INFO [2024-12-20 11:18:21] Completed: ./R/load-cohort-trd.R in 8.86 seconds
+INFO [2024-12-20 11:18:21] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-20 11:18:29] Completed: ./R/02b-1-pssm-cohorts.R in 7.43 seconds
+INFO [2024-12-20 11:18:29] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-20 11:18:44] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 15.67 seconds
+INFO [2024-12-20 11:18:44] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-20 11:18:59] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.59 seconds
+INFO [2024-12-20 11:18:59] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-12-20 11:20:07] Completed: ./R/load-near-completers-ttrain.R in 1.14 seconds
+INFO [2024-12-20 11:20:07] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-12-20 11:21:03] Completed: ./R/03-near-completers-ttrain.R in 55.92 seconds
+INFO [2024-12-20 11:21:03] Starting: ./R/load-graduate-projections.R
+INFO [2024-12-20 11:21:04] Completed: ./R/load-graduate-projections.R in 1.24 seconds
+INFO [2024-12-20 11:21:04] Starting: ./R/04-graduate-projections.R
+INFO [2024-12-20 11:21:10] Completed: ./R/04-graduate-projections.R in 5.81 seconds
+INFO [2024-12-20 11:21:10] Starting: ./R/load-program-projections.R
+INFO [2024-12-20 11:21:48] Completed: ./R/load-program-projections.R in 38.4 seconds
+INFO [2024-12-20 11:21:48] Starting: ./R/06-program-projections.R
+INFO [2024-12-20 11:23:18] Completed: ./R/06-program-projections.R in 1.49 seconds
+INFO [2024-12-20 11:23:18] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-20 11:23:29] Completed: ./R/load-occupation-projections.R in 11.13 seconds
+INFO [2024-12-20 11:23:29] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-20 11:24:05] Completed: ./R/07-occupation-projections.R in 36.3 seconds
+INFO [2024-12-20 11:24:06] Completed: ./R/prep-for-fresh-run.R in 7.4 seconds
+INFO [2024-12-20 11:24:06] Starting: ./R/prep-for-qi-run.R
+INFO [2024-12-20 11:24:06] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-20 11:24:17] Completed: ./R/load-cohort-appso.R in 10.41 seconds
+INFO [2024-12-20 11:24:17] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-20 11:24:20] Completed: ./R/load-cohort-bgs.R in 3.23 seconds
+INFO [2024-12-20 11:24:20] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-20 11:24:35] Completed: ./R/load-cohort-dacso.R in 15.27 seconds
+INFO [2024-12-20 11:24:35] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-20 11:24:42] Completed: ./R/02b-1-pssm-cohorts.R in 7.11 seconds
+INFO [2024-12-20 11:24:42] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-20 11:24:58] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 15.33 seconds
+INFO [2024-12-20 11:24:58] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-20 11:25:11] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 13.18 seconds
+INFO [2024-12-20 11:25:11] Starting: ./R/load-program-projections.R
+INFO [2024-12-20 11:25:14] Completed: ./R/load-program-projections.R in 3.05 seconds
+INFO [2024-12-20 11:25:14] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-20 11:25:24] Completed: ./R/load-occupation-projections.R in 9.81 seconds
+INFO [2024-12-20 11:25:24] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-20 11:25:56] Completed: ./R/07-occupation-projections.R in 32.53 seconds
+INFO [2024-12-20 11:25:57] Completed: ./R/prep-for-qi-run.R in 1.85 seconds
+INFO [2024-12-20 11:25:57] Starting: ./R/prep-for-ptib-run.R
+INFO [2024-12-20 11:26:01] Starting: ./R/load-cohort-appso.R
+INFO [2024-12-20 11:26:07] Completed: ./R/load-cohort-appso.R in 5.45 seconds
+INFO [2024-12-20 11:26:07] Starting: ./R/load-cohort-bgs.R
+INFO [2024-12-20 11:26:33] Completed: ./R/load-cohort-bgs.R in 25.91 seconds
+INFO [2024-12-20 11:26:33] Starting: ./R/load-cohort-dacso.R
+INFO [2024-12-20 11:27:28] Completed: ./R/load-cohort-dacso.R in 54.92 seconds
+INFO [2024-12-20 11:27:28] Starting: ./R/load-cohort-trd.R
+INFO [2024-12-20 11:27:38] Completed: ./R/load-cohort-trd.R in 10.14 seconds
+INFO [2024-12-20 11:27:38] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2024-12-20 11:27:45] Completed: ./R/02b-1-pssm-cohorts.R in 7.62 seconds
+INFO [2024-12-20 11:27:45] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2024-12-20 11:28:04] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 18.6 seconds
+INFO [2024-12-20 11:28:04] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2024-12-20 11:28:18] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.33 seconds
+INFO [2024-12-20 11:28:18] Starting: ./R/load-near-completers-ttrain.R
+INFO [2024-12-20 11:29:29] Completed: ./R/load-near-completers-ttrain.R in 1.18 seconds
+INFO [2024-12-20 11:29:29] Starting: ./R/03-near-completers-ttrain.R
+INFO [2024-12-20 11:30:26] Completed: ./R/03-near-completers-ttrain.R in 56.98 seconds
+INFO [2024-12-20 11:30:26] Starting: ./R/load-graduate-projections.R
+INFO [2024-12-20 11:30:27] Completed: ./R/load-graduate-projections.R in 1.12 seconds
+INFO [2024-12-20 11:30:27] Starting: ./R/04-graduate-projections.R
+INFO [2024-12-20 11:30:32] Completed: ./R/04-graduate-projections.R in 4.35 seconds
+INFO [2024-12-20 11:30:32] Starting: ./R/load-ptib.R
+INFO [2024-12-20 11:30:40] Completed: ./R/load-ptib.R in 7.89 seconds
+INFO [2024-12-20 11:30:40] Starting: ./R/05-ptib-analysis.R
+INFO [2024-12-20 11:30:42] Completed: ./R/05-ptib-analysis.R in 2.2 seconds
+INFO [2024-12-20 11:30:42] Starting: ./R/load-program-projections.R
+INFO [2024-12-20 11:31:22] Completed: ./R/load-program-projections.R in 39.95 seconds
+INFO [2024-12-20 11:31:22] Starting: ./R/06-program-projections.R
+INFO [2024-12-20 11:32:54] Completed: ./R/06-program-projections.R in 1.54 seconds
+INFO [2024-12-20 11:32:54] Starting: ./R/load-occupation-projections.R
+INFO [2024-12-20 11:33:05] Completed: ./R/load-occupation-projections.R in 10.8 seconds
+INFO [2024-12-20 11:33:05] Starting: ./R/07-occupation-projections.R
+INFO [2024-12-20 11:33:43] Completed: ./R/07-occupation-projections.R in 38.41 seconds
+INFO [2024-12-20 11:33:44] Completed: ./R/prep-for-ptib-run.R in 7.78 seconds
+INFO [2024-12-20 11:33:44] 2024-12-20 11:33:44.077508 Complete three model runs ......
+INFO [2024-12-20 11:33:56] 2024-12-20 11:33:56.181606 Excel report created ......
+INFO [2025-03-11 17:28:24] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 17:28:30] Starting: ./R/load-cohort-appso.R
+ERROR [2025-03-11 17:28:30] Error in file: ./R/load-cohort-appso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 17:28:30] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 17:28:30] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 17:31:48] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 17:31:53] Starting: ./R/load-cohort-appso.R
+ERROR [2025-03-11 17:31:54] Error in file: ./R/load-cohort-appso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 17:31:54] stop()
+ERROR [2025-03-11 17:31:54] value[[3L]](cond)
+ERROR [2025-03-11 17:31:54] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 17:31:54] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 17:31:54] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 17:31:54] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 17:31:54] stop()
+ERROR [2025-03-11 17:31:54] value[[3L]](cond)
+ERROR [2025-03-11 17:31:54] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 17:31:54] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 17:31:54] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 17:31:54] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 17:46:42] Starting: ./R/prep-for-fresh-run.R
+ERROR [2025-03-11 17:46:42] Error in file: ./R/prep-for-fresh-run.R - '\L' is an unrecognized escape in character string (./R/prep-for-fresh-run.R:216:21)
+ERROR [2025-03-11 17:46:42] stop()
+ERROR [2025-03-11 17:46:42] value[[3L]](cond)
+ERROR [2025-03-11 17:46:42] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 17:46:42] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 17:46:42] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 17:46:42] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 17:46:52] Starting: ./R/prep-for-fresh-run.R
+ERROR [2025-03-11 17:46:52] Error in file: ./R/prep-for-fresh-run.R - '\L' is an unrecognized escape in character string (./R/prep-for-fresh-run.R:216:21)
+ERROR [2025-03-11 17:46:52] stop()
+ERROR [2025-03-11 17:46:52] value[[3L]](cond)
+ERROR [2025-03-11 17:46:52] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 17:46:52] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 17:46:52] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 17:46:52] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 17:47:40] Starting: ./R/prep-for-fresh-run.R
+ERROR [2025-03-11 17:47:40] Error in file: ./R/prep-for-fresh-run.R - '\L' is an unrecognized escape in character string (./R/prep-for-fresh-run.R:216:21)
+ERROR [2025-03-11 17:47:40] stop()
+ERROR [2025-03-11 17:47:40] value[[3L]](cond)
+ERROR [2025-03-11 17:47:40] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 17:47:40] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 17:47:40] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 17:47:40] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 17:48:45] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 17:48:49] Starting: ./R/load-cohort-appso.R
+ERROR [2025-03-11 17:48:50] Error in file: ./R/load-cohort-appso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 17:48:50] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 17:48:50] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:01:34] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:01:36] Starting: ./R/load-cohort-appso.R
+ERROR [2025-03-11 18:01:36] Error in file: ./R/load-cohort-appso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:01:36] c("stop(structure(list(message = \"external pointer is not valid\", ", "    call = NULL, cppstack = NULL), class = c(\"Rcpp::exception\", ", "\"C++Error\", \"error\", \"condition\")))")
+ERROR [2025-03-11 18:01:36] connection_rollback(conn@ptr)
+ERROR [2025-03-11 18:01:36] dbRollback(decimal_con)
+ERROR [2025-03-11 18:01:36] dbRollback(decimal_con)
+ERROR [2025-03-11 18:01:36] value[[3L]](cond)
+ERROR [2025-03-11 18:01:36] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:01:36] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:01:36] c("tryCatch({", "    for (table in copy_tables) {", "        extracted_string <- str_extract(table, \"\\\\[([^\\\\[]*)\\\\]$\")", "        table_short <- str_remove_all(extracted_string, \"[\\\\[\\\\]]\")", "        copy_statement <- glue::glue(\"SELECT * \\n               INTO [{my_schema}].{table_short}\\n               FROM {table};\")", "        dbExecute(decimal_con, copy_statement)", "    }", "    dbCommit(decimal_con)", "    print(\"All tables copied successfully.\")", "}, error = function(e) {", 
+"    dbRollback(decimal_con)", "    print(paste(\"Error:\", e$message))", "}, finally = {", "    dbDisconnect(decimal_con)", "})")
+ERROR [2025-03-11 18:01:36] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:01:36] c("stop(structure(list(message = \"external pointer is not valid\", ", "    call = NULL, cppstack = NULL), class = c(\"Rcpp::exception\", ", "\"C++Error\", \"error\", \"condition\")))")
+ERROR [2025-03-11 18:01:36] connection_rollback(conn@ptr)
+ERROR [2025-03-11 18:01:36] dbRollback(decimal_con)
+ERROR [2025-03-11 18:01:36] dbRollback(decimal_con)
+ERROR [2025-03-11 18:01:36] value[[3L]](cond)
+ERROR [2025-03-11 18:01:36] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:01:36] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:01:36] c("tryCatch({", "    for (table in copy_tables) {", "        extracted_string <- str_extract(table, \"\\\\[([^\\\\[]*)\\\\]$\")", "        table_short <- str_remove_all(extracted_string, \"[\\\\[\\\\]]\")", "        copy_statement <- glue::glue(\"SELECT * \\n               INTO [{my_schema}].{table_short}\\n               FROM {table};\")", "        dbExecute(decimal_con, copy_statement)", "    }", "    dbCommit(decimal_con)", "    print(\"All tables copied successfully.\")", "}, error = function(e) {", 
+"    dbRollback(decimal_con)", "    print(paste(\"Error:\", e$message))", "}, finally = {", "    dbDisconnect(decimal_con)", "})")
+ERROR [2025-03-11 18:01:37] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:04:45] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:04:50] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:04:56] Completed: ./R/load-cohort-appso.R in 5.39 seconds
+INFO [2025-03-11 18:04:56] Starting: ./R/load-cohort-bgs.R
+ERROR [2025-03-11 18:04:56] Error in file: ./R/load-cohort-bgs.R - 'P:/PSSM/25-1319 Post-Secondary Supply Model 2022-2023/development/csv/gh-source/lookups/02/t_weights.csv' does not exist.
+ERROR [2025-03-11 18:04:56] stop()
+ERROR [2025-03-11 18:04:56] value[[3L]](cond)
+ERROR [2025-03-11 18:04:56] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:04:56] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:04:56] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:04:56] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:04:56] stop()
+ERROR [2025-03-11 18:04:56] value[[3L]](cond)
+ERROR [2025-03-11 18:04:56] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:04:56] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:04:56] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:04:56] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:06:46] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:06:52] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:06:57] Completed: ./R/load-cohort-appso.R in 5.14 seconds
+INFO [2025-03-11 18:06:57] Starting: ./R/load-cohort-bgs.R
+ERROR [2025-03-11 18:07:00] Error in file: ./R/load-cohort-bgs.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:07:00] stop()
+ERROR [2025-03-11 18:07:00] value[[3L]](cond)
+ERROR [2025-03-11 18:07:00] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:07:00] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:07:00] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:07:00] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:07:00] stop()
+ERROR [2025-03-11 18:07:00] value[[3L]](cond)
+ERROR [2025-03-11 18:07:00] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:07:00] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:07:00] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:07:00] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:09:03] Starting: ./R/prep-for-fresh-run.R
+ERROR [2025-03-11 18:09:04] Error in file: ./R/prep-for-fresh-run.R - argument 8 is empty
+ERROR [2025-03-11 18:09:04] stop()
+ERROR [2025-03-11 18:09:04] value[[3L]](cond)
+ERROR [2025-03-11 18:09:04] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:09:04] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:09:04] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:09:04] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:09:36] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:09:39] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:09:45] Completed: ./R/load-cohort-appso.R in 5.37 seconds
+INFO [2025-03-11 18:09:45] Starting: ./R/load-cohort-bgs.R
+ERROR [2025-03-11 18:09:47] Error in file: ./R/load-cohort-bgs.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:09:47] stop()
+ERROR [2025-03-11 18:09:47] value[[3L]](cond)
+ERROR [2025-03-11 18:09:47] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:09:47] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:09:47] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:09:47] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:09:47] stop()
+ERROR [2025-03-11 18:09:47] value[[3L]](cond)
+ERROR [2025-03-11 18:09:47] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:09:47] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:09:47] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:09:47] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:18:25] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:18:29] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:18:32] Completed: ./R/load-cohort-appso.R in 3.21 seconds
+INFO [2025-03-11 18:18:32] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:18:52] Completed: ./R/load-cohort-bgs.R in 19.78 seconds
+INFO [2025-03-11 18:18:52] Starting: ./R/load-cohort-dacso.R
+ERROR [2025-03-11 18:18:52] Error in file: ./R/load-cohort-dacso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:18:52] c("stop(structure(list(message = \"external pointer is not valid\", ", "    call = NULL, cppstack = NULL), class = c(\"Rcpp::exception\", ", "\"C++Error\", \"error\", \"condition\")))")
+ERROR [2025-03-11 18:18:52] connection_info(dbObj@ptr)
+ERROR [2025-03-11 18:18:52] dbGetInfo(object)
+ERROR [2025-03-11 18:18:52] dbGetInfo(object)
+ERROR [2025-03-11 18:18:52] c("(new(\"standardGeneric\", .Data = function (object) ", "standardGeneric(\"show\"), generic = structure(\"show\", package = \"methods\"), ", "    package = \"methods\", group = list(), valueClass = character(0), ", "    signature = structure(\"object\", simpleOnly = TRUE), default = new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", 
+"            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")), skeleton = (new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", "            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")))(object)))(new(\"Microsoft SQL Server\", ", 
+"    ptr = <pointer: (nil)>, quote = \"\\\"\", info = list(dbname = \"PSSM2023\", ", "        dbms.name = \"Microsoft SQL Server\", db.version = \"15.00.4415\", ", "        username = \"IDIR\\\\JDUAN\", host = \"\", port = \"\", sourcename = \"\", ", "        servername = \"Decimal\", drivername = \"SQLSRV32.DLL\", ", "        odbc.version = \"03.80.0000\", driver.version = \"10.00.19041\", ", "        odbcdriver.version = \"03.52\", supports.transactions = TRUE, ")
+ERROR [2025-03-11 18:18:52] c("(new(\"standardGeneric\", .Data = function (object) ", "standardGeneric(\"show\"), generic = structure(\"show\", package = \"methods\"), ", "    package = \"methods\", group = list(), valueClass = character(0), ", "    signature = structure(\"object\", simpleOnly = TRUE), default = new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", 
+"            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")), skeleton = (new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", "            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")))(object)))(new(\"Microsoft SQL Server\", ", 
+"    ptr = <pointer: (nil)>, quote = \"\\\"\", info = list(dbname = \"PSSM2023\", ", "        dbms.name = \"Microsoft SQL Server\", db.version = \"15.00.4415\", ", "        username = \"IDIR\\\\JDUAN\", host = \"\", port = \"\", sourcename = \"\", ", "        servername = \"Decimal\", drivername = \"SQLSRV32.DLL\", ", "        odbc.version = \"03.80.0000\", driver.version = \"10.00.19041\", ", "        odbcdriver.version = \"03.52\", supports.transactions = TRUE, ")
+ERROR [2025-03-11 18:18:52] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:18:52] c("stop(structure(list(message = \"external pointer is not valid\", ", "    call = NULL, cppstack = NULL), class = c(\"Rcpp::exception\", ", "\"C++Error\", \"error\", \"condition\")))")
+ERROR [2025-03-11 18:18:52] connection_info(dbObj@ptr)
+ERROR [2025-03-11 18:18:52] dbGetInfo(object)
+ERROR [2025-03-11 18:18:52] dbGetInfo(object)
+ERROR [2025-03-11 18:18:52] c("(new(\"standardGeneric\", .Data = function (object) ", "standardGeneric(\"show\"), generic = structure(\"show\", package = \"methods\"), ", "    package = \"methods\", group = list(), valueClass = character(0), ", "    signature = structure(\"object\", simpleOnly = TRUE), default = new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", 
+"            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")), skeleton = (new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", "            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")))(object)))(new(\"Microsoft SQL Server\", ", 
+"    ptr = <pointer: (nil)>, quote = \"\\\"\", info = list(dbname = \"PSSM2023\", ", "        dbms.name = \"Microsoft SQL Server\", db.version = \"15.00.4415\", ", "        username = \"IDIR\\\\JDUAN\", host = \"\", port = \"\", sourcename = \"\", ", "        servername = \"Decimal\", drivername = \"SQLSRV32.DLL\", ", "        odbc.version = \"03.80.0000\", driver.version = \"10.00.19041\", ", "        odbcdriver.version = \"03.52\", supports.transactions = TRUE, ")
+ERROR [2025-03-11 18:18:52] c("(new(\"standardGeneric\", .Data = function (object) ", "standardGeneric(\"show\"), generic = structure(\"show\", package = \"methods\"), ", "    package = \"methods\", group = list(), valueClass = character(0), ", "    signature = structure(\"object\", simpleOnly = TRUE), default = new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", 
+"            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")), skeleton = (new(\"derivedDefaultMethod\", ", "        .Data = function (object) ", "        showDefault(object), target = new(\"signature\", .Data = \"ANY\", ", "            names = \"object\", package = \"methods\"), defined = new(\"signature\", ", "            .Data = \"ANY\", names = \"object\", package = \"methods\"), ", "        generic = structure(\"show\", package = \"methods\")))(object)))(new(\"Microsoft SQL Server\", ", 
+"    ptr = <pointer: (nil)>, quote = \"\\\"\", info = list(dbname = \"PSSM2023\", ", "        dbms.name = \"Microsoft SQL Server\", db.version = \"15.00.4415\", ", "        username = \"IDIR\\\\JDUAN\", host = \"\", port = \"\", sourcename = \"\", ", "        servername = \"Decimal\", drivername = \"SQLSRV32.DLL\", ", "        odbc.version = \"03.80.0000\", driver.version = \"10.00.19041\", ", "        odbcdriver.version = \"03.52\", supports.transactions = TRUE, ")
+ERROR [2025-03-11 18:18:52] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:19:56] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:20:00] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:20:05] Completed: ./R/load-cohort-appso.R in 5.28 seconds
+INFO [2025-03-11 18:20:05] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:20:24] Completed: ./R/load-cohort-bgs.R in 19.37 seconds
+INFO [2025-03-11 18:20:24] Starting: ./R/load-cohort-dacso.R
+ERROR [2025-03-11 18:20:38] Error in file: ./R/load-cohort-dacso.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:20:38] stop()
+ERROR [2025-03-11 18:20:38] value[[3L]](cond)
+ERROR [2025-03-11 18:20:38] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:20:38] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:20:38] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:20:38] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:20:38] stop()
+ERROR [2025-03-11 18:20:38] value[[3L]](cond)
+ERROR [2025-03-11 18:20:38] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:20:38] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:20:38] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:20:38] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:22:10] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:22:15] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:22:20] Completed: ./R/load-cohort-appso.R in 4.91 seconds
+INFO [2025-03-11 18:22:20] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:22:39] Completed: ./R/load-cohort-bgs.R in 19.51 seconds
+INFO [2025-03-11 18:22:39] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:23:19] Completed: ./R/load-cohort-dacso.R in 39.81 seconds
+INFO [2025-03-11 18:23:19] Starting: ./R/load-cohort-trd.R
+ERROR [2025-03-11 18:23:20] Error in file: ./R/load-cohort-trd.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:23:20] stop()
+ERROR [2025-03-11 18:23:20] value[[3L]](cond)
+ERROR [2025-03-11 18:23:20] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:23:20] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:23:20] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:23:20] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:23:20] stop()
+ERROR [2025-03-11 18:23:20] value[[3L]](cond)
+ERROR [2025-03-11 18:23:20] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:23:20] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:23:20] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:23:20] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:24:04] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:24:09] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:24:14] Completed: ./R/load-cohort-appso.R in 5.42 seconds
+INFO [2025-03-11 18:24:14] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:24:33] Completed: ./R/load-cohort-bgs.R in 18.12 seconds
+INFO [2025-03-11 18:24:33] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:25:15] Completed: ./R/load-cohort-dacso.R in 42.17 seconds
+INFO [2025-03-11 18:25:15] Starting: ./R/load-cohort-trd.R
+ERROR [2025-03-11 18:25:17] Error in file: ./R/load-cohort-trd.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:25:17] stop()
+ERROR [2025-03-11 18:25:17] value[[3L]](cond)
+ERROR [2025-03-11 18:25:17] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:25:17] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:25:17] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:25:17] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:25:17] stop()
+ERROR [2025-03-11 18:25:17] value[[3L]](cond)
+ERROR [2025-03-11 18:25:17] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:25:17] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:25:17] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:25:17] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:26:19] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:26:23] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:26:30] Completed: ./R/load-cohort-appso.R in 6.1 seconds
+INFO [2025-03-11 18:26:30] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:26:49] Completed: ./R/load-cohort-bgs.R in 19.18 seconds
+INFO [2025-03-11 18:26:49] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:27:24] Completed: ./R/load-cohort-dacso.R in 35.25 seconds
+INFO [2025-03-11 18:27:24] Starting: ./R/load-cohort-trd.R
+INFO [2025-03-11 18:27:32] Completed: ./R/load-cohort-trd.R in 7.88 seconds
+INFO [2025-03-11 18:27:32] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2025-03-11 18:27:39] Completed: ./R/02b-1-pssm-cohorts.R in 7.33 seconds
+INFO [2025-03-11 18:27:39] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2025-03-11 18:27:56] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 16.83 seconds
+INFO [2025-03-11 18:27:56] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2025-03-11 18:28:10] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.33 seconds
+INFO [2025-03-11 18:28:10] Starting: ./R/load-near-completers-ttrain.R
+ERROR [2025-03-11 18:28:16] Error in file: ./R/load-near-completers-ttrain.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:28:16] stop()
+ERROR [2025-03-11 18:28:16] value[[3L]](cond)
+ERROR [2025-03-11 18:28:16] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:28:16] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:28:16] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:28:16] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:28:16] stop()
+ERROR [2025-03-11 18:28:16] value[[3L]](cond)
+ERROR [2025-03-11 18:28:16] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:28:16] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:28:16] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:28:16] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:29:37] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:29:43] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:29:48] Completed: ./R/load-cohort-appso.R in 5.33 seconds
+INFO [2025-03-11 18:29:48] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:30:07] Completed: ./R/load-cohort-bgs.R in 18.8 seconds
+INFO [2025-03-11 18:30:07] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:30:46] Completed: ./R/load-cohort-dacso.R in 38.95 seconds
+INFO [2025-03-11 18:30:46] Starting: ./R/load-cohort-trd.R
+INFO [2025-03-11 18:30:52] Completed: ./R/load-cohort-trd.R in 5.74 seconds
+INFO [2025-03-11 18:30:52] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2025-03-11 18:30:59] Completed: ./R/02b-1-pssm-cohorts.R in 7.37 seconds
+INFO [2025-03-11 18:30:59] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2025-03-11 18:31:14] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 15.31 seconds
+INFO [2025-03-11 18:31:14] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2025-03-11 18:31:29] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.1 seconds
+INFO [2025-03-11 18:31:29] Starting: ./R/load-near-completers-ttrain.R
+INFO [2025-03-11 18:32:31] Completed: ./R/load-near-completers-ttrain.R in 1.04 seconds
+INFO [2025-03-11 18:32:31] Starting: ./R/03-near-completers-ttrain.R
+INFO [2025-03-11 18:33:28] Completed: ./R/03-near-completers-ttrain.R in 57.1 seconds
+INFO [2025-03-11 18:33:28] Starting: ./R/load-graduate-projections.R
+INFO [2025-03-11 18:33:29] Completed: ./R/load-graduate-projections.R in 1.13 seconds
+INFO [2025-03-11 18:33:29] Starting: ./R/04-graduate-projections.R
+INFO [2025-03-11 18:33:33] Completed: ./R/04-graduate-projections.R in 4.61 seconds
+INFO [2025-03-11 18:33:33] Starting: ./R/load-program-projections.R
+ERROR [2025-03-11 18:33:38] Error in file: ./R/load-program-projections.R - ODBC failed with error 42S02 from \
+             [32m[Microsoft][ODBC SQL Server Driver][SQL Server][39m.
+ERROR [2025-03-11 18:33:38] stop()
+ERROR [2025-03-11 18:33:38] value[[3L]](cond)
+ERROR [2025-03-11 18:33:38] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:33:38] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:33:38] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:33:38] Error in file: ./R/prep-for-fresh-run.R - 
+ERROR [2025-03-11 18:33:38] stop()
+ERROR [2025-03-11 18:33:38] value[[3L]](cond)
+ERROR [2025-03-11 18:33:38] tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ERROR [2025-03-11 18:33:38] tryCatchList(expr, classes, parentenv, handlers)
+ERROR [2025-03-11 18:33:38] c("tryCatch({", "    time_execution(file_path0)", "}, error = function(e) {", "    flog.error(paste(\"Error processing file:\", file_path0, \"-\", ", "        e$message), name = \"file_logger\")", "    stop()", "})")
+ERROR [2025-03-11 18:33:38] Error processing file: ./R/prep-for-fresh-run.R - 
+INFO [2025-03-11 18:38:24] Starting: ./R/prep-for-fresh-run.R
+INFO [2025-03-11 18:38:30] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:38:35] Completed: ./R/load-cohort-appso.R in 5.42 seconds
+INFO [2025-03-11 18:38:35] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:38:53] Completed: ./R/load-cohort-bgs.R in 17.74 seconds
+INFO [2025-03-11 18:38:53] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:39:34] Completed: ./R/load-cohort-dacso.R in 41.42 seconds
+INFO [2025-03-11 18:39:34] Starting: ./R/load-cohort-trd.R
+INFO [2025-03-11 18:39:42] Completed: ./R/load-cohort-trd.R in 7.37 seconds
+INFO [2025-03-11 18:39:42] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2025-03-11 18:39:49] Completed: ./R/02b-1-pssm-cohorts.R in 7.71 seconds
+INFO [2025-03-11 18:39:49] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2025-03-11 18:40:04] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 14.74 seconds
+INFO [2025-03-11 18:40:04] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2025-03-11 18:40:18] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 14.28 seconds
+INFO [2025-03-11 18:40:18] Starting: ./R/load-near-completers-ttrain.R
+INFO [2025-03-11 18:41:20] Completed: ./R/load-near-completers-ttrain.R in 1.02 seconds
+INFO [2025-03-11 18:41:20] Starting: ./R/03-near-completers-ttrain.R
+INFO [2025-03-11 18:42:17] Completed: ./R/03-near-completers-ttrain.R in 57.41 seconds
+INFO [2025-03-11 18:42:17] Starting: ./R/load-graduate-projections.R
+INFO [2025-03-11 18:42:18] Completed: ./R/load-graduate-projections.R in 1.3 seconds
+INFO [2025-03-11 18:42:18] Starting: ./R/04-graduate-projections.R
+INFO [2025-03-11 18:42:22] Completed: ./R/04-graduate-projections.R in 3.35 seconds
+INFO [2025-03-11 18:42:22] Starting: ./R/load-program-projections.R
+INFO [2025-03-11 18:42:56] Completed: ./R/load-program-projections.R in 34.63 seconds
+INFO [2025-03-11 18:42:56] Starting: ./R/06-program-projections.R
+INFO [2025-03-11 18:44:26] Completed: ./R/06-program-projections.R in 1.49 seconds
+INFO [2025-03-11 18:44:26] Starting: ./R/load-occupation-projections.R
+INFO [2025-03-11 18:44:35] Completed: ./R/load-occupation-projections.R in 9.64 seconds
+INFO [2025-03-11 18:44:35] Starting: ./R/07-occupation-projections.R
+INFO [2025-03-11 18:45:10] Completed: ./R/07-occupation-projections.R in 34.5 seconds
+INFO [2025-03-11 18:45:10] Completed: ./R/prep-for-fresh-run.R in 6.77 seconds
+INFO [2025-03-11 18:45:10] Starting: ./R/prep-for-qi-run.R
+INFO [2025-03-11 18:45:11] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:45:17] Completed: ./R/load-cohort-appso.R in 5.68 seconds
+INFO [2025-03-11 18:45:17] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:45:19] Completed: ./R/load-cohort-bgs.R in 2.79 seconds
+INFO [2025-03-11 18:45:19] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:45:34] Completed: ./R/load-cohort-dacso.R in 14.11 seconds
+INFO [2025-03-11 18:45:34] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2025-03-11 18:45:41] Completed: ./R/02b-1-pssm-cohorts.R in 6.91 seconds
+INFO [2025-03-11 18:45:41] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2025-03-11 18:45:55] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 14.56 seconds
+INFO [2025-03-11 18:45:55] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2025-03-11 18:46:08] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 12.56 seconds
+INFO [2025-03-11 18:46:08] Starting: ./R/load-program-projections.R
+INFO [2025-03-11 18:46:09] Completed: ./R/load-program-projections.R in 1.75 seconds
+INFO [2025-03-11 18:46:09] Starting: ./R/load-occupation-projections.R
+INFO [2025-03-11 18:46:18] Completed: ./R/load-occupation-projections.R in 8.81 seconds
+INFO [2025-03-11 18:46:18] Starting: ./R/07-occupation-projections.R
+INFO [2025-03-11 18:46:51] Completed: ./R/07-occupation-projections.R in 32.38 seconds
+INFO [2025-03-11 18:46:51] Completed: ./R/prep-for-qi-run.R in 1.68 seconds
+INFO [2025-03-11 18:46:51] Starting: ./R/prep-for-ptib-run.R
+INFO [2025-03-11 18:46:56] Starting: ./R/load-cohort-appso.R
+INFO [2025-03-11 18:47:01] Completed: ./R/load-cohort-appso.R in 5.4 seconds
+INFO [2025-03-11 18:47:01] Starting: ./R/load-cohort-bgs.R
+INFO [2025-03-11 18:47:19] Completed: ./R/load-cohort-bgs.R in 17.36 seconds
+INFO [2025-03-11 18:47:19] Starting: ./R/load-cohort-dacso.R
+INFO [2025-03-11 18:47:59] Completed: ./R/load-cohort-dacso.R in 40.7 seconds
+INFO [2025-03-11 18:47:59] Starting: ./R/load-cohort-trd.R
+INFO [2025-03-11 18:48:07] Completed: ./R/load-cohort-trd.R in 8.12 seconds
+INFO [2025-03-11 18:48:07] Starting: ./R/02b-1-pssm-cohorts.R
+INFO [2025-03-11 18:48:15] Completed: ./R/02b-1-pssm-cohorts.R in 7.88 seconds
+INFO [2025-03-11 18:48:15] Starting: ./R/02b-2-pssm-cohorts-new-labour-supply.R
+INFO [2025-03-11 18:48:32] Completed: ./R/02b-2-pssm-cohorts-new-labour-supply.R in 16.24 seconds
+INFO [2025-03-11 18:48:32] Starting: ./R/02b-3-pssm-cohorts-occupation-distributions.R
+INFO [2025-03-11 18:48:47] Completed: ./R/02b-3-pssm-cohorts-occupation-distributions.R in 15.01 seconds
+INFO [2025-03-11 18:48:47] Starting: ./R/load-near-completers-ttrain.R
+INFO [2025-03-11 18:49:51] Completed: ./R/load-near-completers-ttrain.R in 1.07 seconds
+INFO [2025-03-11 18:49:51] Starting: ./R/03-near-completers-ttrain.R
+INFO [2025-03-11 18:50:46] Completed: ./R/03-near-completers-ttrain.R in 54.96 seconds
+INFO [2025-03-11 18:50:46] Starting: ./R/load-graduate-projections.R
+INFO [2025-03-11 18:50:47] Completed: ./R/load-graduate-projections.R in 1.24 seconds
+INFO [2025-03-11 18:50:47] Starting: ./R/04-graduate-projections.R
+INFO [2025-03-11 18:50:50] Completed: ./R/04-graduate-projections.R in 3.58 seconds
+INFO [2025-03-11 18:50:50] Starting: ./R/load-ptib.R
+INFO [2025-03-11 18:50:57] Completed: ./R/load-ptib.R in 6.26 seconds
+INFO [2025-03-11 18:50:57] Starting: ./R/05-ptib-analysis.R
+INFO [2025-03-11 18:50:59] Completed: ./R/05-ptib-analysis.R in 2.32 seconds
+INFO [2025-03-11 18:50:59] Starting: ./R/load-program-projections.R
+INFO [2025-03-11 18:51:34] Completed: ./R/load-program-projections.R in 35.21 seconds
+INFO [2025-03-11 18:51:34] Starting: ./R/06-program-projections.R
+INFO [2025-03-11 18:53:02] Completed: ./R/06-program-projections.R in 1.47 seconds
+INFO [2025-03-11 18:53:02] Starting: ./R/load-occupation-projections.R
+INFO [2025-03-11 18:53:12] Completed: ./R/load-occupation-projections.R in 9.42 seconds
+INFO [2025-03-11 18:53:12] Starting: ./R/07-occupation-projections.R
+INFO [2025-03-11 18:53:50] Completed: ./R/07-occupation-projections.R in 38.83 seconds
+INFO [2025-03-11 18:53:51] Completed: ./R/prep-for-ptib-run.R in 7 seconds
+INFO [2025-03-11 18:53:51] 2025-03-11 18:53:51.169855 Complete three model runs ......
+INFO [2025-03-11 18:53:59] 2025-03-11 18:53:59.889909 Excel report created ......
