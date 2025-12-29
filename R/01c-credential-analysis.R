@@ -52,12 +52,18 @@ stp_enrolment_record_type <- dbReadTable(
 )
 stp_credential_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
+  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')) # EPEN shouldn't be in this table - why is it here??
 )
 stp_enrolment_valid <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
 )
+
+stp_credential.orig <- stp_credential # save a copy while testing
+stp_enrolment_valid.orig <- stp_enrolment_valid # save a copy while testing
+stp_enrolment.orig <- stp_enrolment # save a copy while testing
+stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
+stp_credential_record_type.orig <- stp_credential_record_type # save a copy while testing
 
 # Define lookup tables
 outcome_credential <- data.frame(
@@ -123,7 +129,6 @@ outcome_credential <- data.frame(
   ),
   stringsAsFactors = FALSE
 )
-
 
 credential_rank <- data.frame(
   Credential = c(
@@ -209,9 +214,14 @@ age_group_lookup <- data.frame(
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 # qry00
-credential <- credential |>
+credential <- stp_credential |>
+  inner_join(
+    stp_credential_record_type |> select(ID, RecordStatus),
+    by = "ID"
+  ) |>
   filter(
     RecordStatus == 0,
+    !is.na(CREDENTIAL_AWARD_DATE),
     !CREDENTIAL_AWARD_DATE %in% c("", " ", "(Unspecified)")
   ) |>
   select(
@@ -221,43 +231,41 @@ credential <- credential |>
     PSI_STUDENT_NUMBER,
     PSI_CODE,
     CREDENTIAL_AWARD_DATE,
-    RecordStatus,
     PSI_PROGRAM_CODE,
     PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
     PSI_CREDENTIAL_CIP,
     PSI_CREDENTIAL_LEVEL,
-    PSI_CREDENTIAL_CATEGORY
+    PSI_CREDENTIAL_CATEGORY,
+    RecordStatus
   )
 
 # -------------------------------------------------------------------------------------------------
-# ----------------------------- Make Credential Sup Vars Enrolment --------------------------------
+# ----------------------------- Make Credential Sup Vars Enrolment Table --------------------------------
 ## reference: source("./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R")
-
-# Create a list of EPENs/max school year/enrolment ID's from the Enrolment_valid table
 # qry01 to qry05
-latest_enrolment <- stp_enrolment_valid %>%
+latest_enrolment_epen <- stp_enrolment_valid |>
   filter(
     !is.na(ENCRYPTED_TRUE_PEN),
     !ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
-  ) %>%
-  group_by(ENCRYPTED_TRUE_PEN) %>%
-  filter(PSI_SCHOOL_YEAR == max(PSI_SCHOOL_YEAR, na.rm = TRUE)) %>%
-  ungroup() %>%
+  ) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  filter(PSI_SCHOOL_YEAR == max(PSI_SCHOOL_YEAR, na.rm = TRUE)) |>
+  ungroup() |>
   distinct(
     ID,
     ENCRYPTED_TRUE_PEN,
     PSI_STUDENT_NUMBER,
     PSI_CODE,
     PSI_SCHOOL_YEAR,
-    .keep_all = TRUE
+    PSI_STUDENT_POSTAL_CODE_CURRENT,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_MIN_START_DATE
   )
 
-# qry06
-CredentialSupVarsFromEnrolment <- latest_enrolment |>
-  # 1. Join with the Credential view/table
+credential_supvars_enrolment_epen <- latest_enrolment_epen |>
   inner_join(
     credential,
-    by = "ENCRYPTED_TRUE_PEN",
+    by = c("ENCRYPTED_TRUE_PEN"),
     relationship = "many-to-many"
   ) |>
   select(
@@ -273,47 +281,59 @@ CredentialSupVarsFromEnrolment <- latest_enrolment |>
   ) |>
   distinct()
 
-## ==== GOT TO HERE
 
-dbExecute(
-  con,
-  "SELECT PSI_CODE, PSI_STUDENT_NUMBER 
-                INTO RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE 
-                from Credential
-                WHERE ENCRYPTED_TRUE_PEN NOT IN (
-	              SELECT ENCRYPTED_TRUE_PEN
-	              FROM CredentialSupVarsFromEnrolment);"
-)
-dbExecute(
-  con,
-  "SELECT ID, PSI_CODE, PSI_STUDENT_NUMBER 
-                INTO RW_TEST_CRED_NULLEPENS_TO_MATCH 
-                FROM Credential 
-                WHERE ENCRYPTED_TRUE_PEN = '';"
-)
+# Match via PSI_CODE/Student Number to recover records missed by PEN join.
+# Misses may also occur due to temporal mismatches or students lacking "Valid" enrolment status.
 
-#dbExecute(con, qry07_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry08_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry09_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry10_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry11_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry12_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry12b_CredentialSupVars_From_Enrolment)
-dbExecute(con, qry13_CredentialSupVars_From_Enrolment)
+#qry06 to qry12
+latest_enrolment_no_epen <- stp_enrolment_valid |>
+  filter(
+    is.na(ENCRYPTED_TRUE_PEN) |
+      ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
+  ) |>
+  group_by(PSI_CODE, PSI_STUDENT_NUMBER) |>
+  filter(PSI_SCHOOL_YEAR == max(PSI_SCHOOL_YEAR, na.rm = TRUE)) |>
+  ungroup() |>
+  distinct(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_SCHOOL_YEAR,
+    PSI_STUDENT_POSTAL_CODE_CURRENT,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_MIN_START_DATE
+  )
 
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step1")
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step2")
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3")
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4")
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step5")
-dbExecute(con, "DROP TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6")
-dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_MATCHED")
-dbExecute(con, "DROP TABLE RW_TEST_CRED_NULLEPENS_TO_MATCH")
-dbExecute(con, "DROP TABLE RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE")
+credential_supvars_enrolment_no_epen <- latest_enrolment_no_epen |>
+  inner_join(
+    credential,
+    by = c("PSI_CODE", "PSI_STUDENT_NUMBER"),
+    relationship = "many-to-many"
+  ) |>
+  select(
+    EnrolmentID = ID.x,
+    ENCRYPTED_TRUE_PEN = ENCRYPTED_TRUE_PEN.x,
+    PSI_MIN_START_DATE,
+    CredentialRecordStatus = RecordStatus,
+    PSI_STUDENT_POSTAL_CODE_CURRENT,
+    PSI_SCHOOL_YEAR = PSI_SCHOOL_YEAR.x,
+    PSI_CODE = PSI_CODE,
+    PSI_STUDENT_NUMBER = PSI_STUDENT_NUMBER,
+    PSI_ENROLMENT_SEQUENCE
+  ) |>
+  distinct()
+
+credential_supvars_enrolment <- rbind(
+  credential_supvars_enrolment_epen,
+  credential_supvars_enrolment_no_epen
+) |>
+  distinct()
 
 # -------------------------------------------------------------------------------------------------
 
-# ---- 01 Make Credential Sup Vars ----
+# -------------------------------------------------------------------------------------------------
+# ---- Make Credential Sup Vars Table ----
 dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
 dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
 dbExecute(
