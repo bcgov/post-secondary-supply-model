@@ -25,6 +25,7 @@ source("./sql/01-credential-analysis/credential-non-dup-psi_visa_status.R")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+db_schema <- config::get("dbschema")
 
 con <- dbConnect(
   odbc(),
@@ -44,14 +45,156 @@ dbExistsTable(
 )
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
 
-# Lookup
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."OutcomeCredential"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."CredentialRank"')))
+# Define lookup tables
+outcome_credential <- data.frame(
+  Credential = c(
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA",
+    "ADVANCED CERTIFICATE",
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA",
+    "ADVANCED CERTIFICATE"
+  ),
+  Category = c(
+    "DACSO",
+    "APPSO",
+    "DACSO",
+    "BGS",
+    "DACSO",
+    "DACSO",
+    "GRAD",
+    "BGS",
+    "GRAD",
+    "GRAD",
+    "GRAD",
+    "DACSO",
+    "DACSO",
+    "DACSO",
+    "DACSO",
+    "APPSO",
+    "DACSO",
+    "BGS",
+    "DACSO",
+    "DACSO",
+    "GRAD",
+    "BGS",
+    "GRAD",
+    "GRAD",
+    "GRAD",
+    "DACSO",
+    "DACSO",
+    "DACSO"
+  ),
+  stringsAsFactors = FALSE
+)
+
+
+credential_rank <- data.frame(
+  Credential = c(
+    "ADVANCED CERTIFICATE",
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA",
+    "ADVANCED CERTIFICATE",
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA"
+  ),
+  Rank = c(
+    10,
+    9,
+    14,
+    11,
+    8,
+    13,
+    12,
+    1,
+    7,
+    4,
+    3,
+    2,
+    6,
+    5,
+    10,
+    9,
+    14,
+    11,
+    8,
+    13,
+    12,
+    1,
+    7,
+    4,
+    3,
+    2,
+    6,
+    5
+  ),
+  stringsAsFactors = FALSE
+)
+
+age_group_table <- data.frame(
+  AgeIndex = 1:9,
+  AgeGroup = c(
+    "15 to 16",
+    "17 to 19",
+    "20 to 24",
+    "25 to 29",
+    "30 to 34",
+    "35 to 44",
+    "45 to 54",
+    "55 to 64",
+    "65 to 89"
+  ),
+  LowerBound = c(15, 17, 20, 25, 30, 35, 45, 55, 65),
+  UpperBound = c(16, 19, 24, 29, 34, 44, 54, 64, 89),
+  stringsAsFactors = FALSE
+)
 
 # ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
 # qry00
-
 credential <- credential |>
   filter(
     RecordStatus == 0,
