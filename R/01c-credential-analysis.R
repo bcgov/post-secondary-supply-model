@@ -35,15 +35,29 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# ---- Check Required Tables ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(
+# ---- Get Required Tables (for testing only) ----
+# remove after development and replace with a check that the table exists
+# in the current R environment
+stp_enrolment <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+)
+stp_credential <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+)
+stp_enrolment_record_type <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
+)
+stp_credential_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
 )
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
+stp_enrolment_valid <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
+)
 
 # Define lookup tables
 outcome_credential <- data.frame(
@@ -175,7 +189,7 @@ credential_rank <- data.frame(
   stringsAsFactors = FALSE
 )
 
-age_group_table <- data.frame(
+age_group_lookup <- data.frame(
   AgeIndex = 1:9,
   AgeGroup = c(
     "15 to 16",
@@ -218,7 +232,6 @@ credential <- credential |>
 # -------------------------------------------------------------------------------------------------
 # ----------------------------- Make Credential Sup Vars Enrolment --------------------------------
 ## reference: source("./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R")
-# qry01 to qry13
 
 # Create a list of EPENs/max school year/enrolment ID's from the Enrolment_valid table
 # qry01 to qry05
