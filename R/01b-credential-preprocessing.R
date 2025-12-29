@@ -36,18 +36,24 @@ con <- dbConnect(
 )
 
 # ---- Check Required Tables etc. ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-
-credential <- dbGetQuery(
+stp_enrolment <- dbReadTable(
   con,
-  glue::glue("SELECT * FROM [{my_schema}].[STP_Credential];")
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+)
+stp_credential <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+)
+stp_enrolment_record_type <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
 )
 
-credential.orig <- credential # save a copy while testing
+stp_credential.orig <- stp_credential # save a copy while testing
+stp_enrolment.orig <- stp_enrolment # save a copy while testing
+stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
 
-credential |>
+stp_credential |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
       c('', ' ', '(Unspecified)') |
@@ -55,12 +61,19 @@ credential |>
   ) |>
   nrow()
 
-credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
+stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
 # Add primary key: this may not be necessary but leaving for now
-credential <- credential |>
+stp_credential <- stp_credential |>
   mutate(ID = row_number()) |>
-  relocate(ID)
+  relocate(ID, .before = CREDENTIAL_AWARD_DATE)
+
+date_cols <- c(
+  "CREDENTIAL_AWARD_DATE",
+  "PSI_PROGRAM_EFFECTIVE_DATE"
+)
+
+stp_credential |> select(all_of(date_cols)) |> glimpse()
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 convert_date <- function(vec) {
@@ -77,18 +90,9 @@ convert_date <- function(vec) {
   lubridate::ymd(paste0(century_prefix, vec))
 }
 
-date_cols <- c(
-  "CREDENTIAL_AWARD_DATE",
-  "PSI_PROGRAM_EFFECTIVE_DATE"
-)
-
-credential <- credential |>
+stp_credential <- stp_credential |>
   mutate(
-    across(
-      .cols = date_cols,
-      .fns = convert_date,
-      .names = "{.col}"
-    )
+    across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
   )
 
 # ---- Process by Record Type ----
@@ -107,7 +111,9 @@ credential <- credential |>
 invalid_vals <- c('', ' ', '(Unspecified)')
 dev_cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89') # this may be the same list as defined in enrolement processing
 
-enrol_skills_lookup <- stp_enrolment_record_type |>
+enrol_skills_lookup <- stp_enrolment |>
+  # Join with enrolment record type to find the Status 6 records
+  inner_join(stp_enrolment_record_type, by = "ID") |>
   filter(RecordStatus == 6) |>
   mutate(CIP2 = substr(PSI_CIP_CODE, 1, 2)) |>
   distinct(
@@ -119,15 +125,14 @@ enrol_skills_lookup <- stp_enrolment_record_type |>
   ) |>
   mutate(is_skills_match = TRUE)
 
-# ---- Find records with Record_Status = 1  ----
-credential <- credential |>
+stp_credential_record_type <- stp_credential |>
   mutate(CIP2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) |>
   left_join(
     enrol_skills_lookup,
     by = c(
+      "CIP2" = "CIP2",
       "PSI_CODE" = "PSI_CODE",
       "PSI_CREDENTIAL_PROGRAM_DESCRIPTION" = "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
-      "CIP2" = "CIP2",
       "PSI_CREDENTIAL_CATEGORY" = "PSI_CREDENTIAL_CATEGORY",
       "PSI_CREDENTIAL_LEVEL" = "PSI_STUDY_LEVEL"
     )
@@ -163,16 +168,15 @@ credential <- credential |>
       TRUE ~ 0
     )
   ) |>
-  select(-is_skills_match)
+  select(ID, ENCRYPTED_TRUE_PEN, RecordStatus)
 
-credential |> count(RecordStatus)
+stp_credential_record_type |> count(RecordStatus)
 
 tables_to_keep = c(
   'stp_enrolment',
   'stp_credential',
   'stp_enrolment_record_type',
   'stp_credential_record_type',
-  'stp_enrolment_valid'
 )
 
 rm(list = setdiff(ls(), tables_to_keep))
