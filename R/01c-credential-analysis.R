@@ -334,15 +334,61 @@ credential_supvars_enrolment <- rbind(
 
 # -------------------------------------------------------------------------------------------------
 # ---- Make Credential Sup Vars Table ----
-dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
-dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
-dbExecute(
-  con,
-  "ALTER TABLE [CredentialSupVars] ADD CONSTRAINT PK_CredSupVars_ID PRIMARY KEY (ID);"
-)
-dbExecute(con, qry01b_CredentialSupVarsFromEnrol_1) # add some columns to CredSupVarsEnrol
-dbExecute(con, qry01b_CredentialSupVarsFromEnrol_2) # bring in data from STP_Enrolment
-dbExecute(con, qry01b_CredentialSupVarsFromEnrol_3) # Empty strings ' ' in psi_birthdate_cleaned were cast to 1900-01-01 in date format.
+
+#dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
+
+credential_supvars <- credential |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_SCHOOL_YEAR,
+    CREDENTIAL_AWARD_DATE,
+    CredentialRecordStatus = RecordStatus, # Renaming 'RecordStatus' as in SQL
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_CATEGORY
+  ) |>
+  mutate(CREDENTIAL_AWARD_DATE_D = as.Date(CREDENTIAL_AWARD_DATE)) # create date format of award date
+
+#dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
+#dbExecute(
+#  con,
+#  "ALTER TABLE [CredentialSupVars] ADD CONSTRAINT PK_CredSupVars_ID PRIMARY KEY (ID);"
+#)
+#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_1) # add some columns to CredSupVarsEnrol
+#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_2) # bring in data from STP_Enrolment
+#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_3) # Empty strings ' ' in psi_birthdate_cleaned were cast to 1900-01-01.
+
+# Test R chunk below by comparing against the psi_birthdate cleaned cols in the SQL version of credential_supvars_enrolment.
+
+credential_supvars_enrolment <- credential_supvars_enrolment |>
+  left_join(
+    stp_enrolment |>
+      select(
+        ID,
+        psi_birthdate_cleaned,
+        PSI_VISA_STATUS,
+        PSI_BIRTHDATE,
+        PSI_PROGRAM_CODE,
+        PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+        PSI_CIP_CODE,
+        PSI_CONTINUING_EDUCATION_COURSE_ONLY,
+        PSI_GENDER
+      ),
+    by = c("EnrolmentID" = "ID")
+  ) |>
+  mutate(
+    psi_birthdate_cleaned = if_else(
+      psi_birthdate_cleaned == "1900-01-01",
+      NA,
+      psi_birthdate_cleaned
+    )
+  )
+
 
 # ---- 02 Developmental Records ----
 # flag STP_Credential_Record_Type records with PSI_CREDENTIAL_CATEGORY = 'DEVELOPMENTAL CREDENTIAL' 'OTHER' 'NONE' 'SHORT CERTIFICATE'
@@ -354,26 +400,74 @@ dbExecute(
 dbExecute(con, qry02b_DeleteCredCategory)
 dbExecute(con, "DROP TABLE Drop_Credential_Category")
 
+stp_credential_record_type <-
+  stp_credential_record_type |>
+  left_join(
+    credential |>
+      filter(
+        PSI_CREDENTIAL_CATEGORY %in%
+          c(
+            'Developmental Credential',
+            'Other',
+            'None',
+            'Short Certificate'
+          )
+      ) |>
+      mutate(DropCredCategory = "Yes") |>
+      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY),
+    by = "ID"
+  ) |>
+  mutate(
+    DropCredCategory = if_else(is.na(DropCredCategory), "No", DropCredCategory)
+  )
+
 # ---- 03 Miscellaneous ----
 ## ---- ** Manual **  ----
 # change date in qry03c_DeletePartialYear
 # that query flags STP_Credential_Record_Type records whose CREDENTIAL_AWARD_DATE >= '<model-year>-09-01'
-dbExecute(con, qry03a1_ConvertAwardDate) # data type conversion
-dbExecute(con, qry03b_DropPartialYear)
-dbExecute(
-  con,
-  "ALTER TABLE  STP_Credential_Record_Type ADD DropPartialYear NVARCHAR(50) NULL"
-)
-dbExecute(con, qry03c_DeletePartialYear)
-dbExecute(con, "DROP TABLE Drop_Partial_Year")
+#dbExecute(con, qry03a1_ConvertAwardDate) # data type conversion
+#dbExecute(con, qry03b_DropPartialYear)
+#dbExecute(
+#  con,
+#  "ALTER TABLE  STP_Credential_Record_Type ADD DropPartialYear NVARCHAR(50) NULL"
+#)
+#dbExecute(con, qry03c_DeletePartialYear)
+#dbExecute(con, "DROP TABLE Drop_Partial_Year")
 
-dbExecute(con, qry03d_CredentialSupVarsBirthdate) # create a table with unique EPEN/birthdates from CredentialSupVarsFromEnrolment
-dbExecute(
-  con,
-  "UPDATE  CredentialSupVars_BirthdateClean 
-                SET psi_birthdate_cleaned_D = cast(psi_birthdate_cleaned as date)
-                WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned NOT IN ('', ' ')"
-)
+stp_credential_record_type2 <-
+  credential_supvars |>
+  filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
+  select(ID) |>
+  mutate(DropPartialYear = "Yes") |>
+  right_join(stp_credential_record_type, by = "ID") |>
+  mutate(
+    DropPartialYear = if_else(is.na(DropPartialYear), "No", DropPartialYear)
+  )
+
+# note: can this move below gender cleaning immediately before birthdate cleaning?
+#dbExecute(con, qry03d_CredentialSupVarsBirthdate) # create a table with unique EPEN/birthdates from CredentialSupVarsFromEnrolment
+#dbExecute(
+#  con,
+#  "UPDATE  CredentialSupVars_BirthdateClean
+#                SET psi_birthdate_cleaned_D = cast(psi_birthdate_cleaned as date)
+#                WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned NOT IN ('', ' ')"
+#)
+
+credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
+  select(
+    ENCRYPTED_TRUE_PEN,
+    psi_birthdate_cleaned,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE
+  ) |>
+  distinct() |>
+  mutate(
+    psi_birthdate_cleaned_D = if_else(
+      !is.na(psi_birthdate_cleaned) & !(psi_birthdate_cleaned %in% c("", " ")),
+      as.Date(psi_birthdate_cleaned),
+      as.Date(NA)
+    )
+  )
 
 # ---- 03 Gender Cleaning ----
 dbExecute(con, qry03e_CredentialSupVarsGender) # create a table with unique EPEN/gender from CredentialSupVarsFromEnrolment
