@@ -284,7 +284,6 @@ credential_supvars_enrolment_epen <- latest_enrolment_epen |>
 
 # Match via PSI_CODE/Student Number to recover records missed by PEN join.
 # Misses may also occur due to temporal mismatches or students lacking "Valid" enrolment status.
-
 #qry06 to qry12
 latest_enrolment_no_epen <- stp_enrolment_valid |>
   filter(
@@ -334,9 +333,7 @@ credential_supvars_enrolment <- rbind(
 
 # -------------------------------------------------------------------------------------------------
 # ---- Make Credential Sup Vars Table ----
-
-#dbExecute(con, qry01a_CredentialSupVars) # select key columns from Credential View into a new table called CredentialSupVars
-
+# this gets added to later
 credential_supvars <- credential |>
   select(
     ID,
@@ -380,6 +377,7 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 
 
 # ---- 02 Developmental Records ----
+# add a drop credential flag, presumably for later use
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
@@ -402,9 +400,6 @@ stp_credential_record_type <-
   )
 
 # ---- 03 Miscellaneous ----
-## ---- ** Manual **  ----
-# change date in qry03c_DeletePartialYear
-
 stp_credential_record_type <-
   credential_supvars |>
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
@@ -441,15 +436,25 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   )
 
 # ---- 03 Gender Cleaning ----
+# Performs a targeted data recovery for missing gender information.
+# Essentially, identify students with missing gender values and
+# attempt to "backfill" them using their most recent valid record from a lookup table.
+# There are two passes:
+#     1. looks for most recent gender record from credential_supvars_enrolment
+#     2. looks for most recent gender record from stp_enrolment
+# within each pass, the data is placed into buckets based on whether ENCRYPTED_TRUE_PEN is available or not
+# note: the "not" bucket hasn't been implemented yet for pass 1, in order to keep in alignment with the SQL environment
+
 na_vals <- c('U', 'Unknown', '(Unspecified)', '', ' ', NA_character_)
-
-#credential_supvars_enrolment.bk <- credential_supvars_enrolment
-#credential_supvars.bk <- credential_supvars
-credential_supvars <- credential_supvars.bk
-
 credential_supvars <- credential_supvars |>
   mutate(PSI_GENDER_CLEANED = NA_character_)
 
+#useful for development
+#credential_supvars_enrolment.bk <- credential_supvars_enrolment
+#credential_supvars.bk <- credential_supvars
+#credential_supvars <- credential_supvars.bk
+
+# First pass: find genders from credential_supvars_enrolment
 missing_gender <- credential_supvars |>
   filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
   distinct(
@@ -470,6 +475,7 @@ src_gender_lookup <- credential_supvars_enrolment |>
     PSI_SCHOOL_YEAR
   )
 
+# implementing only the EPEN bucket for now
 epen_missing_gender <- missing_gender |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
   inner_join(
@@ -484,6 +490,7 @@ epen_missing_gender <- missing_gender |>
   select(ENCRYPTED_TRUE_PEN, PSI_GENDER_CLEANED = PSI_GENDER) |>
   distinct()
 
+# add recovered genders to credential_supvars
 credential_supvars <- credential_supvars |>
   left_join(
     epen_missing_gender |>
@@ -498,6 +505,7 @@ credential_supvars <- credential_supvars |>
   ) |>
   select(-PSI_GENDER_CLEANED_y)
 
+# Second pass: find genders from stp_enrolment for those still missing
 still_missing_gender <- credential_supvars |>
   filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
   distinct(
@@ -518,6 +526,8 @@ src_gender_lookup <- stp_enrolment |>
     PSI_SCHOOL_YEAR
   )
 
+# implementing both buckets this time
+# 1. EPEN bucket
 epen_still_missing_gender <- still_missing_gender |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
   inner_join(
@@ -532,6 +542,7 @@ epen_still_missing_gender <- still_missing_gender |>
   select(ENCRYPTED_TRUE_PEN, GENDER_FROM_STP_ENROLMENT = PSI_GENDER) |>
   distinct()
 
+# 2. No EPEN bucket
 no_epen_still_missing_gender <- still_missing_gender |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
   inner_join(
@@ -550,6 +561,7 @@ no_epen_still_missing_gender <- still_missing_gender |>
   ) |>
   distinct()
 
+# add recovered genders to credential_supvars
 credential_supvars <- credential_supvars |>
   left_join(
     epen_still_missing_gender,
