@@ -498,7 +498,6 @@ credential_supvars <- credential_supvars |>
   ) |>
   select(-PSI_GENDER_CLEANED_y)
 
-
 still_missing_gender <- credential_supvars |>
   filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
   distinct(
