@@ -444,6 +444,8 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
 #     2. looks for most recent gender record from stp_enrolment
 # within each pass, the data is placed into buckets based on whether ENCRYPTED_TRUE_PEN is available or not
 # note: the "not" bucket hasn't been implemented yet for pass 1, in order to keep in alignment with the SQL environment
+# also, this strategy assumes that the most recent record is the most accurate, which may not always be the case.
+# we could use a more sophisticated approach if needed, such as considering multiple recent records or averaging values.
 
 na_vals <- c('U', 'Unknown', '(Unspecified)', '', ' ', NA_character_)
 credential_supvars <- credential_supvars |>
