@@ -354,17 +354,6 @@ credential_supvars <- credential |>
   ) |>
   mutate(CREDENTIAL_AWARD_DATE_D = as.Date(CREDENTIAL_AWARD_DATE)) # create date format of award date
 
-#dbExecute(con, qry01b_CredentialSupVars) # add some more columns to be filled in later
-#dbExecute(
-#  con,
-#  "ALTER TABLE [CredentialSupVars] ADD CONSTRAINT PK_CredSupVars_ID PRIMARY KEY (ID);"
-#)
-#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_1) # add some columns to CredSupVarsEnrol
-#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_2) # bring in data from STP_Enrolment
-#dbExecute(con, qry01b_CredentialSupVarsFromEnrol_3) # Empty strings ' ' in psi_birthdate_cleaned were cast to 1900-01-01.
-
-# Test R chunk below by comparing against the psi_birthdate cleaned cols in the SQL version of credential_supvars_enrolment.
-
 credential_supvars_enrolment <- credential_supvars_enrolment |>
   left_join(
     stp_enrolment |>
@@ -391,15 +380,6 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 
 
 # ---- 02 Developmental Records ----
-# flag STP_Credential_Record_Type records with PSI_CREDENTIAL_CATEGORY = 'DEVELOPMENTAL CREDENTIAL' 'OTHER' 'NONE' 'SHORT CERTIFICATE'
-dbExecute(con, qry02a_DropCredCategory)
-dbExecute(
-  con,
-  "ALTER TABLE  STP_Credential_Record_Type ADD DropCredCategory NVARCHAR(50) NULL"
-)
-dbExecute(con, qry02b_DeleteCredCategory)
-dbExecute(con, "DROP TABLE Drop_Credential_Category")
-
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
@@ -424,17 +404,8 @@ stp_credential_record_type <-
 # ---- 03 Miscellaneous ----
 ## ---- ** Manual **  ----
 # change date in qry03c_DeletePartialYear
-# that query flags STP_Credential_Record_Type records whose CREDENTIAL_AWARD_DATE >= '<model-year>-09-01'
-#dbExecute(con, qry03a1_ConvertAwardDate) # data type conversion
-#dbExecute(con, qry03b_DropPartialYear)
-#dbExecute(
-#  con,
-#  "ALTER TABLE  STP_Credential_Record_Type ADD DropPartialYear NVARCHAR(50) NULL"
-#)
-#dbExecute(con, qry03c_DeletePartialYear)
-#dbExecute(con, "DROP TABLE Drop_Partial_Year")
 
-stp_credential_record_type2 <-
+stp_credential_record_type <-
   credential_supvars |>
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
   select(ID) |>
@@ -470,84 +441,137 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   )
 
 # ---- 03 Gender Cleaning ----
-dbExecute(con, qry03e_CredentialSupVarsGender) # create a table with unique EPEN/gender from CredentialSupVarsFromEnrolment
-dbExecute(con, qry03fCredential_SupVarsGenderCleaning1)
-dbExecute(con, qry03fCredential_SupVarsGenderCleaning2)
-dbExecute(con, "DROP TABLE CredentialSupVars_MultiGenderCounter")
-dbExecute(con, qry03fCredential_SupVarsGenderCleaning3)
-dbExecute(con, qry03fCredential_SupVarsGenderCleaning4)
-dbExecute(con, qry03fCredential_SupVarsGenderCleaning5)
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step1")
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step2")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning6)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning7)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning8)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning9)
-dbExecute(con, "DROP TABLE RW_TEST_ENROL_GENDER_morethanone_list_stepa")
-dbExecute(con, "DROP TABLE RW_TEST_ENROL_GENDER_morethanone_list")
-dbExecute(con, "DROP TABLE RW_TEST_ENROL_GENDER_morethanone_listIDS")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning10)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning11)
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step3")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning12)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning13)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning14)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning15)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning16)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning17)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning18)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning19)
-dbExecute(con, "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknowns_Step2")
-dbExecute(con, "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknowns_Step3")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning20)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning21)
-dbExecute(con, "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknowns")
-dbExecute(
-  con,
-  "ALTER TABLE  credentialsupvars ALTER COLUMN psi_gender_cleaned NVARCHAR(50) NULL"
-)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning22)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning23)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning24)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning25)
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step5")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning26a)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning26b)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning27)
-dbExecute(con, "DROP TABLE CredentialSupVars_MultiGenderForNULLS")
-dbExecute(con, "DROP TABLE CredentialSupVars_MultiGenderCounterForNULLS")
-dbExecute(
-  con,
-  "ALTER TABLE tmp_credentialgendercleaning_step6 ADD psi_gender_cleaned_flag nvarchar(50)"
-)
-dbExecute(
-  con,
-  "ALTER TABLE tmp_credentialgendercleaning_step7 ADD psi_gender_cleaned nvarchar(50)"
-)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning28)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning29)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning30)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning31)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning32)
-dbExecute(
-  con,
-  "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknownsforNULLS_Step1"
-)
-dbExecute(
-  con,
-  "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknownsforNULLS_Step2"
-)
-dbExecute(
-  con,
-  "DROP TABLE tmp_CredentialSupVars_Gender_CleanUnknownsforNULLS_Step3"
-)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning33)
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step7")
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning34)
-dbExecute(con, qry03fCredential_SupVars_Enrol_GenderCleaning35)
-dbExecute(con, "DROP TABLE tmp_CredentialGenderCleaning_Step6")
-dbExecute(con, "DROP TABLE CredentialSupVars_MultiGender")
-dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment_MultiGender")
+na_vals <- c('U', 'Unknown', '(Unspecified)', '', ' ', NA_character_)
+
+#credential_supvars_enrolment.bk <- credential_supvars_enrolment
+#credential_supvars.bk <- credential_supvars
+credential_supvars <- credential_supvars.bk
+
+credential_supvars <- credential_supvars |>
+  mutate(PSI_GENDER_CLEANED = NA_character_)
+
+missing_gender <- credential_supvars |>
+  filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
+  distinct(
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_GENDER_CLEANED
+  )
+
+src_gender_lookup <- credential_supvars_enrolment |>
+  filter(!PSI_GENDER %in% na_vals) |>
+  distinct(
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_GENDER,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_SCHOOL_YEAR
+  )
+
+epen_missing_gender <- missing_gender |>
+  filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  inner_join(
+    src_gender_lookup |>
+      filter(!ENCRYPTED_TRUE_PEN %in% na_vals),
+    by = c("ENCRYPTED_TRUE_PEN")
+  ) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
+  slice(1) |>
+  ungroup() |>
+  select(ENCRYPTED_TRUE_PEN, PSI_GENDER_CLEANED = PSI_GENDER) |>
+  distinct()
+
+credential_supvars <- credential_supvars |>
+  left_join(
+    epen_missing_gender |>
+      select(
+        ENCRYPTED_TRUE_PEN,
+        PSI_GENDER_CLEANED
+      ),
+    suffix = c("", "_y"),
+    # Safety distinct to ensure no row duplication
+    distinct(ENCRYPTED_TRUE_PEN, .keep_all = TRUE),
+    by = "ENCRYPTED_TRUE_PEN"
+  ) |>
+  select(-PSI_GENDER_CLEANED_y)
+
+
+still_missing_gender <- credential_supvars |>
+  filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
+  distinct(
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_GENDER_CLEANED
+  )
+
+src_gender_lookup <- stp_enrolment |>
+  filter(!PSI_GENDER %in% na_vals) |>
+  distinct(
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_GENDER,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_SCHOOL_YEAR
+  )
+
+epen_still_missing_gender <- still_missing_gender |>
+  filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  inner_join(
+    src_gender_lookup |>
+      filter(!ENCRYPTED_TRUE_PEN %in% na_vals),
+    by = c("ENCRYPTED_TRUE_PEN")
+  ) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
+  slice(1) |>
+  ungroup() |>
+  select(ENCRYPTED_TRUE_PEN, GENDER_FROM_STP_ENROLMENT = PSI_GENDER) |>
+  distinct()
+
+no_epen_still_missing_gender <- still_missing_gender |>
+  filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  inner_join(
+    src_gender_lookup |>
+      filter(ENCRYPTED_TRUE_PEN %in% na_vals),
+    by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
+  ) |>
+  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
+  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
+  slice(1) |>
+  ungroup() |>
+  select(
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    GENDER_FROM_STP_ENROLMENT = PSI_GENDER
+  ) |>
+  distinct()
+
+credential_supvars <- credential_supvars |>
+  left_join(
+    epen_still_missing_gender,
+    by = "ENCRYPTED_TRUE_PEN"
+  ) |>
+  left_join(
+    no_epen_still_missing_gender,
+    by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
+  ) |>
+  mutate(
+    PSI_GENDER_CLEANED = coalesce(
+      PSI_GENDER_CLEANED,
+      GENDER_FROM_STP_ENROLMENT.x,
+      GENDER_FROM_STP_ENROLMENT.y
+    )
+  ) |>
+  select(-GENDER_FROM_STP_ENROLMENT.x, -GENDER_FROM_STP_ENROLMENT.y)
+
+#credential_supvars.ref <- credential_supvars
+
+## GOT TO HERE !!
 
 dbGetQuery(
   con,
