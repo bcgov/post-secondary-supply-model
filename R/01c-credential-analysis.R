@@ -46,6 +46,7 @@ stp_credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Credential"'))
 )
+
 stp_enrolment_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
@@ -54,6 +55,7 @@ stp_credential_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')) # EPEN shouldn't be in this table - why is it here??
 )
+
 stp_enrolment_valid <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
@@ -396,7 +398,7 @@ stp_credential_record_type <-
     by = "ID"
   ) |>
   mutate(
-    DropCredCategory = if_else(is.na(DropCredCategory), "No", DropCredCategory)
+    DropCredCategory = replace_na(DropCredCategory, "No")
   )
 
 # ---- 03 Miscellaneous ----
@@ -410,30 +412,6 @@ stp_credential_record_type <-
     DropPartialYear = if_else(is.na(DropPartialYear), "No", DropPartialYear)
   )
 
-# note: can this move below gender cleaning immediately before birthdate cleaning?
-#dbExecute(con, qry03d_CredentialSupVarsBirthdate) # create a table with unique EPEN/birthdates from CredentialSupVarsFromEnrolment
-#dbExecute(
-#  con,
-#  "UPDATE  CredentialSupVars_BirthdateClean
-#                SET psi_birthdate_cleaned_D = cast(psi_birthdate_cleaned as date)
-#                WHERE psi_birthdate_cleaned is not null AND psi_birthdate_cleaned NOT IN ('', ' ')"
-#)
-
-credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
-  select(
-    ENCRYPTED_TRUE_PEN,
-    psi_birthdate_cleaned,
-    PSI_STUDENT_NUMBER,
-    PSI_CODE
-  ) |>
-  distinct() |>
-  mutate(
-    psi_birthdate_cleaned_D = if_else(
-      !is.na(psi_birthdate_cleaned) & !(psi_birthdate_cleaned %in% c("", " ")),
-      as.Date(psi_birthdate_cleaned),
-      as.Date(NA)
-    )
-  )
 
 # ---- 03 Gender Cleaning ----
 # Performs a targeted data recovery for missing gender information.
@@ -445,7 +423,7 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
 # within each pass, the data is placed into buckets based on whether ENCRYPTED_TRUE_PEN is available or not
 # note: the "not" bucket hasn't been implemented yet for pass 1, in order to keep in alignment with the SQL environment
 # also, this strategy assumes that the most recent record is the most accurate, which may not always be the case.
-# we could use a more sophisticated approach if needed, such as considering multiple recent records or averaging values.
+# we could use a more sophisticated approach if needed, such as considering multiple records or averaging values.
 
 na_vals <- c('U', 'Unknown', '(Unspecified)', '', ' ', NA_character_)
 credential_supvars <- credential_supvars |>
@@ -563,7 +541,7 @@ no_epen_still_missing_gender <- still_missing_gender |>
   ) |>
   distinct()
 
-# add recovered genders to credential_supvars
+# add recovered genders back to credential_supvars
 credential_supvars <- credential_supvars |>
   left_join(
     epen_still_missing_gender,
@@ -582,50 +560,128 @@ credential_supvars <- credential_supvars |>
   ) |>
   select(-GENDER_FROM_STP_ENROLMENT.x, -GENDER_FROM_STP_ENROLMENT.y)
 
-#credential_supvars.ref <- credential_supvars
+credential_supvars.ref <- credential_supvars
 
-## GOT TO HERE !!
-
-dbGetQuery(
-  con,
-  "
-SELECT T.ENCRYPTED_TRUE_PEN FROM (
-SELECT DISTINCT ENCRYPTED_TRUE_PEN, psi_gender_cleaned
-FROM CredentialSupVars
-) T
-GROUP BY T.ENCRYPTED_TRUE_PEN
-HAVING COUNT(*) > 1"
-)
-
-dbGetQuery(
-  con,
-  "
-SELECT T.PSI_CODE, T.PSI_STUDENT_NUMBER FROM (
-SELECT DISTINCT PSI_CODE, PSI_STUDENT_NUMBER, psi_gender_cleaned
-FROM CredentialSupVars
-) T
-GROUP BY T.PSI_CODE, T.PSI_STUDENT_NUMBER
-HAVING COUNT(*) > 1"
-)
 
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
-# the biggest issue in this section is there are too many psi_birthdate_cleaned cols.
-dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate) # run for the records that matched on ENCRYPTED_TRUE_PEN (non-null/blank)
-dbExecute(con, qry04a_UpdateCredentialSupVarsBirthdate2) # supports the PSI_CODE/PSI_STUDENT number combos
-dbExecute(con, "ALTER TABLE CredentialSupVars ADD LAST_SEEN_BIRTHDATE DATE")
-dbExecute(
-  con,
-  "ALTER TABLE CredentialSupVarsFromEnrolment ADD LAST_SEEN_BIRTHDATE DATE"
-)
-dbExecute(con, qry04a1_UpdateCredentialSupVarsBirthdate)
-dbExecute(con, qry04a2_UpdateCredentialSupVarsBirthdate)
-dbExecute(con, qry04a3_UpdateCredentialSupVarsBirthdate)
-dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
+# note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
+na_vals <- c("", " ", NA_character_, NA, '(Unspecified)')
 
-dbExecute(con, qry04b_UpdateCredentiaSupVarsGender)
-dbExecute(con, "DROP TABLE CredentialSupVars_Gender")
-dbExecute(con, "DROP VIEW Credential")
-dbExecute(con, qry04c_RecreateCredentialViewWithSupVars)
+credential_supvars_enrolment <- credential_supvars_enrolment |>
+  left_join(
+    stp_enrolment |> select(ID, LAST_SEEN_BIRTHDATE),
+    by = c("EnrolmentID" = "ID")
+  )
+
+# check if LAST_SEEN_BIRTHDATE can be included when table is created
+credential_supvars <- credential_supvars |>
+  left_join(
+    credential_supvars_enrolment |>
+      distinct(ENCRYPTED_TRUE_PEN, LAST_SEEN_BIRTHDATE),
+    by = "ENCRYPTED_TRUE_PEN"
+  )
+
+credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
+  select(
+    ENCRYPTED_TRUE_PEN,
+    psi_birthdate_cleaned,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE
+  ) |>
+  distinct() |>
+  mutate(
+    # we should handle NA transformation when loading into R.
+    psi_birthdate_cleaned = if_else(
+      psi_birthdate_cleaned %in% na_vals,
+      NA_character_,
+      psi_birthdate_cleaned
+    )
+  ) |>
+  mutate(
+    psi_birthdate_cleaned_D = as.Date(psi_birthdate_cleaned) # we should be able to just cast this in the beginnning
+  )
+
+credential_supvars <- credential_supvars |>
+  left_join(
+    credential_supvars_birthdate_clean |>
+      filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
+      distinct(
+        ENCRYPTED_TRUE_PEN,
+        bd_pen = psi_birthdate_cleaned,
+        bd_pen_d = psi_birthdate_cleaned_D
+      ),
+    by = c("ENCRYPTED_TRUE_PEN")
+  ) |>
+  left_join(
+    credential_supvars_birthdate_clean |>
+      distinct(
+        PSI_STUDENT_NUMBER,
+        PSI_CODE,
+        bd_stu = psi_birthdate_cleaned,
+        bd_stu_d = psi_birthdate_cleaned_D
+      ),
+    by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
+  )
+
+credential_supvars <- credential_supvars |>
+  mutate(
+    psi_birthdate_cleaned = coalesce(bd_pen, bd_stu),
+    psi_birthdate_cleaned_D = coalesce(bd_pen_d, bd_stu_d),
+  ) |>
+  select(-bd_pen, -bd_pen_d, -bd_stu, -bd_stu_d) # a small handful of dates found in R version that were NA in SQL version
+
+
+credential_supvars <- credential_supvars |>
+  mutate(
+    psi_birthdate_cleaned_D = coalesce(
+      psi_birthdate_cleaned_D,
+      as.Date(LAST_SEEN_BIRTHDATE)
+    )
+  )
+
+credential <- stp_credential |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_FULL_NAME,
+    PSI_SCHOOL_YEAR,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_CIP,
+    CREDENTIAL_AWARD_DATE
+  ) |>
+  inner_join(
+    credential_supvars |>
+      select(
+        ID,
+        CREDENTIAL_AWARD_DATE_D,
+        psi_birthdate_cleaned,
+        psi_birthdate_cleaned_D,
+        PSI_GENDER_CLEANED
+      ),
+    by = "ID"
+  ) |>
+  inner_join(
+    stp_credential_record_type |>
+      select(ID, RecordStatus, DropCredCategory, DropPartialYear),
+    by = "ID"
+  ) |>
+  filter(
+    RecordStatus == 0,
+    is.na(DropCredCategory),
+    is.na(DropPartialYear)
+  )
+
+cr_r <- credential_view
+cr_sql <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential"'))
+)
+
 
 # ---- 05 Age and Credential Update ----
 dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup)
