@@ -562,7 +562,6 @@ credential_supvars <- credential_supvars |>
 
 credential_supvars.ref <- credential_supvars
 
-
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
 na_vals <- c("", " ", NA_character_, NA, '(Unspecified)')
@@ -676,28 +675,74 @@ credential <- stp_credential |>
     is.na(DropPartialYear)
   )
 
-cr_r <- credential_view
-cr_sql <- dbReadTable(
+
+# ---- 05 Age and Credential Update and Cleaning ----
+credential <- credential |>
+  mutate(
+    AGE_AT_GRAD = as.integer(floor(
+      interval(psi_birthdate_cleaned_D, CREDENTIAL_AWARD_DATE_D) / years(1)
+    ))
+  ) |>
+  left_join(
+    age_group_lookup,
+    by = join_by(between(AGE_AT_GRAD, LowerBound, UpperBound))
+  ) |>
+  mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
+  select(-any_of(names(age_group_lookup)))
+
+# calculate credential school year based on award date
+credential <- credential |>
+  mutate(
+    cred_month = lubridate::month(CREDENTIAL_AWARD_DATE_D),
+    cred_year = lubridate::year(CREDENTIAL_AWARD_DATE_D)
+  ) |>
+  mutate(
+    cred_year_start = if_else(cred_month < 9, cred_year - 1, cred_year),
+    cred_year_end = if_else(cred_month < 9, cred_year, cred_year + 1)
+  ) |>
+  mutate(
+    PSI_CREDENTIAL_SCHOOL_YEAR = paste0(
+      cred_year_start,
+      "/",
+      substr(as.character(cred_year_end), 3, 4)
+    )
+  ) |>
+  select(-cred_month, -cred_year, -cred_year_start, -cred_year_end)
+
+valid_genders <- c('Female', 'Male', 'Gender Diverse')
+
+# pull more genders from the stp_enrolment table to fill in gaps
+credential <- credential |>
+  left_join(
+    stp_enrolment |>
+      filter(PSI_GENDER %in% valid_genders) |>
+      distinct(
+        ENCRYPTED_TRUE_PEN,
+        PSI_STUDENT_NUMBER,
+        PSI_CODE,
+        PSI_GENDER_FROM_ENROLMENT = PSI_GENDER
+      ),
+    by = c("ENCRYPTED_TRUE_PEN", "PSI_STUDENT_NUMBER", "PSI_CODE"),
+    relationship = "many-to-many"
+  ) |>
+  mutate(
+    PSI_GENDER_CLEANED = coalesce(PSI_GENDER_CLEANED, PSI_GENDER_FROM_ENROLMENT)
+  ) |>
+  select(-PSI_GENDER_FROM_ENROLMENT)
+
+
+dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."Credential"'))
-)
+) -> cr_sql
+names(cr_sql) <- toupper(names(cr_sql))
+names(cr_r) <- toupper(names(cr_r))
+glimpse(cr_r)
+glimpse(cr_sql)
+cr_sql$CREDENTIAL_AWARD_DATE_D <- as.Date(cr_sql$CREDENTIAL_AWARD_DATE_D)
+cr_sql$PSI_BIRTHDATE_CLEANED_D <- as.Date(cr_sql$PSI_BIRTHDATE_CLEANED_D)
+anti_join(cr_r, cr_sql) |> nrow()
 
-
-# ---- 05 Age and Credential Update ----
-dbExecute(con, qry05a_FindDistinctCredentials_CreateViewCredentialRemoveDup)
-# NOTE: check that the birthdate cleaned_D column populated correctly
-dbExecute(
-  con,
-  "UPDATE Credential SET psi_birthdate_cleaned_D = psi_birthdate_cleaned where psi_birthdate_cleaned is not null"
-)
-dbExecute(con, qry05c_UpdateAgeAtGrad)
-dbExecute(con, qry05d_UpdateAgeGroupAtGrad)
-dbExecute(con, qry06e_UpdateAwardSchoolYear)
-
-# ---- 07 Credential Cleaning ----
-## ---- ** Create NON DUP ** ----
-dbExecute(con, qry07a1a_UpdateGender)
-dbExecute(con, qry07a1b_Create_Credential_Non_Dup)
 dbExecute(con, qry07a1c_tmp_Credential_Gender)
 dbExecute(con, qry07a1d_tmp_Credential_GenderDups)
 dbExecute(con, qry07a1e_tmp_Credential_GenderDups_FindMaxCredDate)
