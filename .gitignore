@@ -7,4 +7,6 @@ scratch/*
 post-secondary-supply-model.Rproj
 GEMINI.md
 R/refactor_example_01a.R
-REFACTOR_PLAN.md
+R/REFACTOR_PLAN.md
+R/SOP_02a_Progam_Matching.md
+CLAUDE.md

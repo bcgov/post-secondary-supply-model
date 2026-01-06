@@ -13,13 +13,10 @@
 #   Credential_Non_Dup_BGS_IDs
 #   Credential_Non_Dup_GRAD_IDs
 
-options(java.parameters = " -Xmx102400m") ## For reading oracle tables
-
 library(tidyverse)
 library(odbc)
 library(DBI)
 library(glue)
-library(RJDBC)
 library(dbplyr)
 library(config)
 
@@ -30,10 +27,11 @@ my_schema <- config::get("myschema")
 
 # Connect to Decimal
 con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
 # ---- Read in INFOWARE tables ----
 # Note: These tables should be loaded by 'R/load-infoware-lookups.R'
@@ -48,7 +46,7 @@ required_tables <- c(
   "INFOWARE_L_CIP_2DIGITS_CIP2016"
 )
 
-missing_tables <- required_tables[!map_lgl(required_tables, ~dbExistsTable(con, Id(schema = my_schema, table = .x)))]
+missing_tables <- required_tables[!map_lgl(required_tables, ~ dbExistsTable(con, Id(schema = my_schema, table = .x)))]
 
 if (length(missing_tables) > 0) {
   stop(glue::glue("The following required tables are missing in schema '{my_schema}': {paste(missing_tables, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."))
@@ -74,9 +72,9 @@ stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
 t_bgs_step1 <- infoware_bgs_19_23 %>%
   inner_join(infoware_cohort_info, by = "STQU_ID") %>%
   select(
-    PEN, STUDID, STQU_ID, SRV_Y_N, RESPONDENT, Year, SUBM_CD, 
-    INSTITUTION_CODE, INSTITUTION, CIP2DIG, CIP2DIG_NAME, CIP4DIG, 
-    CIP_4DIGIT_NO_PERIOD, CIP4DIG_NAME, CIP_6DIGIT_1, CIP_6DIGIT_NO_PERIOD, 
+    PEN, STUDID, STQU_ID, SRV_Y_N, RESPONDENT, Year, SUBM_CD,
+    INSTITUTION_CODE, INSTITUTION, CIP2DIG, CIP2DIG_NAME, CIP4DIG,
+    CIP_4DIGIT_NO_PERIOD, CIP4DIG_NAME, CIP_6DIGIT_1, CIP_6DIGIT_NO_PERIOD,
     CIP6DIG_NAME, PROGRAM, DASHBOARD_PROGRAM, CPC
   )
 
@@ -85,9 +83,9 @@ t_bgs_step2 <- infoware_bgs_18_22 %>%
   filter(Year == 2018) %>%
   inner_join(infoware_cohort_info, by = "STQU_ID") %>%
   select(
-    PEN, STUDID, STQU_ID, SRV_Y_N, RESPONDENT, Year, SUBM_CD, 
-    INSTITUTION_CODE, INSTITUTION, CIP2DIG, CIP2DIG_NAME, CIP4DIG, 
-    CIP_4DIGIT_NO_PERIOD, CIP4DIG_NAME, CIP_6DIGIT_1, CIP_6DIGIT_NO_PERIOD, 
+    PEN, STUDID, STQU_ID, SRV_Y_N, RESPONDENT, Year, SUBM_CD,
+    INSTITUTION_CODE, INSTITUTION, CIP2DIG, CIP2DIG_NAME, CIP4DIG,
+    CIP_4DIGIT_NO_PERIOD, CIP4DIG_NAME, CIP_6DIGIT_1, CIP_6DIGIT_NO_PERIOD,
     CIP6DIG_NAME, PROGRAM, DASHBOARD_PROGRAM, CPC
   )
 
@@ -191,7 +189,7 @@ stp_cip_ids <- credential_non_dup_tbl %>%
 bgs_ids_base <- stp_cip_ids %>%
   filter(OUTCOMES_CRED == "BGS") %>%
   select(
-    ID, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
+    ID, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
     PSI_CREDENTIAL_CIP, PSI_AWARD_SCHOOL_YEAR, OUTCOMES_CRED,
     STP_CIP_CODE_4, STP_CIP_CODE_4_NAME, STP_CIP_CODE_2, STP_CIP_CODE_2_NAME
   ) %>%
@@ -224,7 +222,7 @@ credential_grad_ids <- stp_cip_ids %>%
 bgs_matching <- t_bgs_final %>%
   filter(PEN != "", !is.na(PEN), PEN != "0") %>%
   inner_join(
-    credential_bgs_ids, 
+    credential_bgs_ids,
     by = c("PEN" = "PSI_PEN")
   ) %>%
   select(
@@ -251,41 +249,41 @@ bgs_matching_flagged <- bgs_matching %>%
   mutate(
     Match_Inst = case_when(
       PSI_CODE == INSTITUTION_CODE ~ "Yes",
-      PSI_CODE == 'CAPU' & INSTITUTION_CODE == 'CAP' ~ "Yes",
-      PSI_CODE == 'CAP' & INSTITUTION_CODE == 'CAPU' ~ "Yes",
-      PSI_CODE == 'DOUG' & INSTITUTION_CODE == 'DGL' ~ "Yes",
-      PSI_CODE == 'UCC' & INSTITUTION_CODE == 'TRU' ~ "Yes",
-      PSI_CODE %in% c('ECIAD', 'ECU') & INSTITUTION_CODE %in% c('ECU', 'ECUAD', 'ECIAD') ~ "Yes",
-      PSI_CODE %in% c('KWAN', 'KPU') & INSTITUTION_CODE %in% c('KPU', 'KWN') ~ "Yes",
-      PSI_CODE %in% c('MALA', 'MAL') & INSTITUTION_CODE %in% c('VIU', 'MAL') ~ "Yes",
-      PSI_CODE %in% c('OUC', 'OKAN') & INSTITUTION_CODE %in% c('OKAN', 'OKN', 'OUC') ~ "Yes",
-      PSI_CODE == 'OLA' & INSTITUTION_CODE == 'TRUOL' ~ "Yes",
-      PSI_CODE %in% c('UCFV', 'UFV') & INSTITUTION_CODE %in% c('UFV', 'FVAL', 'UCFV') ~ "Yes",
-      PSI_CODE == 'UBCO' & INSTITUTION_CODE == 'UBC' ~ "Yes",
-      PSI_CODE == 'UBCV' & INSTITUTION_CODE == 'UBC' ~ "Yes",
+      PSI_CODE == "CAPU" & INSTITUTION_CODE == "CAP" ~ "Yes",
+      PSI_CODE == "CAP" & INSTITUTION_CODE == "CAPU" ~ "Yes",
+      PSI_CODE == "DOUG" & INSTITUTION_CODE == "DGL" ~ "Yes",
+      PSI_CODE == "UCC" & INSTITUTION_CODE == "TRU" ~ "Yes",
+      PSI_CODE %in% c("ECIAD", "ECU") & INSTITUTION_CODE %in% c("ECU", "ECUAD", "ECIAD") ~ "Yes",
+      PSI_CODE %in% c("KWAN", "KPU") & INSTITUTION_CODE %in% c("KPU", "KWN") ~ "Yes",
+      PSI_CODE %in% c("MALA", "MAL") & INSTITUTION_CODE %in% c("VIU", "MAL") ~ "Yes",
+      PSI_CODE %in% c("OUC", "OKAN") & INSTITUTION_CODE %in% c("OKAN", "OKN", "OUC") ~ "Yes",
+      PSI_CODE == "OLA" & INSTITUTION_CODE == "TRUOL" ~ "Yes",
+      PSI_CODE %in% c("UCFV", "UFV") & INSTITUTION_CODE %in% c("UFV", "FVAL", "UCFV") ~ "Yes",
+      PSI_CODE == "UBCO" & INSTITUTION_CODE == "UBC" ~ "Yes",
+      PSI_CODE == "UBCV" & INSTITUTION_CODE == "UBC" ~ "Yes",
       TRUE ~ NA_character_
     ),
     Match_Award_School_Year = case_when(
-      (YEAR == 2000 & PSI_AWARD_SCHOOL_YEAR %in% c('1997/1998', '1998/1999')) |
-      (YEAR == 2002 & PSI_AWARD_SCHOOL_YEAR %in% c('1999/2000', '2000/2001')) |
-      (YEAR == 2004 & PSI_AWARD_SCHOOL_YEAR %in% c('2001/2002', '2002/2003')) |
-      (YEAR == 2006 & PSI_AWARD_SCHOOL_YEAR %in% c('2003/2004', '2004/2005')) |
-      (YEAR == 2008 & PSI_AWARD_SCHOOL_YEAR %in% c('2005/2006', '2006/2007')) |
-      (YEAR == 2009 & PSI_AWARD_SCHOOL_YEAR %in% c('2006/2007', '2007/2008')) |
-      (YEAR == 2010 & PSI_AWARD_SCHOOL_YEAR %in% c('2007/2008', '2008/2009')) |
-      (YEAR == 2011 & PSI_AWARD_SCHOOL_YEAR %in% c('2008/2009', '2009/2010')) |
-      (YEAR == 2012 & PSI_AWARD_SCHOOL_YEAR %in% c('2009/2010', '2010/2011')) |
-      (YEAR == 2013 & PSI_AWARD_SCHOOL_YEAR %in% c('2010/2011', '2011/2012')) |
-      (YEAR == 2014 & PSI_AWARD_SCHOOL_YEAR %in% c('2011/2012', '2012/2013')) |
-      (YEAR == 2015 & PSI_AWARD_SCHOOL_YEAR %in% c('2012/2013', '2013/2014')) |
-      (YEAR == 2016 & PSI_AWARD_SCHOOL_YEAR %in% c('2013/2014', '2014/2015')) |
-      (YEAR == 2017 & PSI_AWARD_SCHOOL_YEAR %in% c('2014/2015', '2015/2016')) |
-      (YEAR == 2018 & PSI_AWARD_SCHOOL_YEAR %in% c('2015/2016', '2016/2017')) |
-      (YEAR == 2019 & PSI_AWARD_SCHOOL_YEAR %in% c('2016/2017', '2017/2018')) |
-      (YEAR == 2020 & PSI_AWARD_SCHOOL_YEAR %in% c('2017/2018', '2018/2019')) |
-      (YEAR == 2021 & PSI_AWARD_SCHOOL_YEAR %in% c('2018/2019', '2019/2020')) |
-      (YEAR == 2022 & PSI_AWARD_SCHOOL_YEAR %in% c('2019/2020', '2020/2021')) |
-      (YEAR == 2023 & PSI_AWARD_SCHOOL_YEAR %in% c('2020/2021', '2021/2022')) ~ "Yes",
+      (YEAR == 2000 & PSI_AWARD_SCHOOL_YEAR %in% c("1997/1998", "1998/1999")) |
+        (YEAR == 2002 & PSI_AWARD_SCHOOL_YEAR %in% c("1999/2000", "2000/2001")) |
+        (YEAR == 2004 & PSI_AWARD_SCHOOL_YEAR %in% c("2001/2002", "2002/2003")) |
+        (YEAR == 2006 & PSI_AWARD_SCHOOL_YEAR %in% c("2003/2004", "2004/2005")) |
+        (YEAR == 2008 & PSI_AWARD_SCHOOL_YEAR %in% c("2005/2006", "2006/2007")) |
+        (YEAR == 2009 & PSI_AWARD_SCHOOL_YEAR %in% c("2006/2007", "2007/2008")) |
+        (YEAR == 2010 & PSI_AWARD_SCHOOL_YEAR %in% c("2007/2008", "2008/2009")) |
+        (YEAR == 2011 & PSI_AWARD_SCHOOL_YEAR %in% c("2008/2009", "2009/2010")) |
+        (YEAR == 2012 & PSI_AWARD_SCHOOL_YEAR %in% c("2009/2010", "2010/2011")) |
+        (YEAR == 2013 & PSI_AWARD_SCHOOL_YEAR %in% c("2010/2011", "2011/2012")) |
+        (YEAR == 2014 & PSI_AWARD_SCHOOL_YEAR %in% c("2011/2012", "2012/2013")) |
+        (YEAR == 2015 & PSI_AWARD_SCHOOL_YEAR %in% c("2012/2013", "2013/2014")) |
+        (YEAR == 2016 & PSI_AWARD_SCHOOL_YEAR %in% c("2013/2014", "2014/2015")) |
+        (YEAR == 2017 & PSI_AWARD_SCHOOL_YEAR %in% c("2014/2015", "2015/2016")) |
+        (YEAR == 2018 & PSI_AWARD_SCHOOL_YEAR %in% c("2015/2016", "2016/2017")) |
+        (YEAR == 2019 & PSI_AWARD_SCHOOL_YEAR %in% c("2016/2017", "2017/2018")) |
+        (YEAR == 2020 & PSI_AWARD_SCHOOL_YEAR %in% c("2017/2018", "2018/2019")) |
+        (YEAR == 2021 & PSI_AWARD_SCHOOL_YEAR %in% c("2018/2019", "2019/2020")) |
+        (YEAR == 2022 & PSI_AWARD_SCHOOL_YEAR %in% c("2019/2020", "2020/2021")) |
+        (YEAR == 2023 & PSI_AWARD_SCHOOL_YEAR %in% c("2020/2021", "2021/2022")) ~ "Yes",
       TRUE ~ NA_character_
     ),
     Match_CIP_CODE_4 = if_else(BGS_FINAL_CIP_CODE_4 == STP_FINAL_CIP_CODE_4, "Yes", NA_character_),
@@ -334,10 +332,10 @@ manual_updates <- manual_candidates %>%
 # Upload updates to DB and Update Main Table
 if (nrow(manual_updates) > 0) {
   copy_to(con, manual_updates, "tmp_manual_updates", overwrite = TRUE)
-  
+
   bgs_matching_updated <- bgs_matching_tbl %>%
     left_join(
-      tbl(con, "tmp_manual_updates"), 
+      tbl(con, "tmp_manual_updates"),
       by = c("STQU_ID", "ID")
     ) %>%
     mutate(
@@ -386,17 +384,18 @@ credential_bgs_updated <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_
   left_join(
     bgs_matching_final %>%
       filter(!is.na(Final_Consider_A_Match) | !is.na(Final_Probable_Match)) %>%
-      select(ID, 
-             MATCH_FINAL_CIP_4 = FINAL_CIP_CODE_4, 
-             MATCH_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
-             MATCH_FINAL_CIP_2 = FINAL_CIP_CODE_2,
-             MATCH_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
-             MATCH_FINAL_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
-             MATCH_FINAL_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
-             MATCH_USE_BGS = USE_BGS_CIP,
-             MATCH_BGS_CIP_4 = BGS_FINAL_CIP_CODE_4,
-             MATCH_BGS_CIP_4_NAME = BGS_FINAL_CIP_CODE_4_NAME,
-             Final_Consider_A_Match, Final_Probable_Match),
+      select(ID,
+        MATCH_FINAL_CIP_4 = FINAL_CIP_CODE_4,
+        MATCH_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
+        MATCH_FINAL_CIP_2 = FINAL_CIP_CODE_2,
+        MATCH_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
+        MATCH_FINAL_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
+        MATCH_FINAL_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
+        MATCH_USE_BGS = USE_BGS_CIP,
+        MATCH_BGS_CIP_4 = BGS_FINAL_CIP_CODE_4,
+        MATCH_BGS_CIP_4_NAME = BGS_FINAL_CIP_CODE_4_NAME,
+        Final_Consider_A_Match, Final_Probable_Match
+      ),
     by = "ID"
   ) %>%
   mutate(
@@ -435,17 +434,18 @@ t_bgs_updated <- tbl(con, in_schema(my_schema, "T_BGS_Data_Final_for_OutcomesMat
   left_join(
     bgs_matching_final %>%
       filter(!is.na(Final_Consider_A_Match) | !is.na(Final_Probable_Match)) %>%
-      select(STQU_ID, 
-             MATCH_FINAL_CIP_4 = FINAL_CIP_CODE_4, 
-             MATCH_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
-             MATCH_FINAL_CIP_2 = FINAL_CIP_CODE_2,
-             MATCH_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
-             MATCH_FINAL_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
-             MATCH_FINAL_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
-             MATCH_USE_BGS = USE_BGS_CIP,
-             MATCH_STP_CIP_4 = STP_FINAL_CIP_CODE_4,
-             MATCH_STP_CIP_4_NAME = STP_FINAL_CIP_CODE_4_NAME,
-             Final_Consider_A_Match, Final_Probable_Match),
+      select(STQU_ID,
+        MATCH_FINAL_CIP_4 = FINAL_CIP_CODE_4,
+        MATCH_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
+        MATCH_FINAL_CIP_2 = FINAL_CIP_CODE_2,
+        MATCH_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
+        MATCH_FINAL_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
+        MATCH_FINAL_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
+        MATCH_USE_BGS = USE_BGS_CIP,
+        MATCH_STP_CIP_4 = STP_FINAL_CIP_CODE_4,
+        MATCH_STP_CIP_4_NAME = STP_FINAL_CIP_CODE_4_NAME,
+        Final_Consider_A_Match, Final_Probable_Match
+      ),
     by = "STQU_ID"
   ) %>%
   mutate(
@@ -480,3 +480,4 @@ t_bgs_updated <- tbl(con, in_schema(my_schema, "T_BGS_Data_Final_for_OutcomesMat
 # ---- Clean up ----
 dbExecute(con, "DROP TABLE tmp_manual_updates")
 dbDisconnect(con)
+
