@@ -6,7 +6,8 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
@@ -61,11 +62,11 @@ stp_enrolment_valid <- dbReadTable(
   SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
 )
 
-stp_credential.orig <- stp_credential # save a copy while testing
-stp_enrolment_valid.orig <- stp_enrolment_valid # save a copy while testing
-stp_enrolment.orig <- stp_enrolment # save a copy while testing
-stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
-stp_credential_record_type.orig <- stp_credential_record_type # save a copy while testing
+#stp_credential.orig <- stp_credential # save a copy while testing
+#stp_enrolment_valid.orig <- stp_enrolment_valid # save a copy while testing
+#stp_enrolment.orig <- stp_enrolment # save a copy while testing
+#stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
+#stp_credential_record_type.orig <- stp_credential_record_type # save a copy while testing
 
 # Define lookup tables
 outcome_credential <- data.frame(
@@ -264,7 +265,7 @@ latest_enrolment_epen <- stp_enrolment_valid |>
     PSI_MIN_START_DATE
   )
 
-credential_supvars_enrolment_epen <- latest_enrolment_epen |>
+cred_supvars_enrol_epen <- latest_enrolment_epen |>
   inner_join(
     credential,
     by = c("ENCRYPTED_TRUE_PEN"),
@@ -306,7 +307,7 @@ latest_enrolment_no_epen <- stp_enrolment_valid |>
     PSI_MIN_START_DATE
   )
 
-credential_supvars_enrolment_no_epen <- latest_enrolment_no_epen |>
+cred_supvars_enrol_no_pen <- latest_enrolment_no_epen |>
   inner_join(
     credential,
     by = c("PSI_CODE", "PSI_STUDENT_NUMBER"),
@@ -326,8 +327,8 @@ credential_supvars_enrolment_no_epen <- latest_enrolment_no_epen |>
   distinct()
 
 credential_supvars_enrolment <- rbind(
-  credential_supvars_enrolment_epen,
-  credential_supvars_enrolment_no_epen
+  cred_supvars_enrol_epen,
+  cred_supvars_enrol_no_pen
 ) |>
   distinct()
 
@@ -387,10 +388,10 @@ stp_credential_record_type <-
       filter(
         PSI_CREDENTIAL_CATEGORY %in%
           c(
-            'Developmental Credential',
-            'Other',
-            'None',
-            'Short Certificate'
+           "Developmental Credential",
+            "Other",
+            "None",
+            "Short Certificate"
           )
       ) |>
       mutate(DropCredCategory = "Yes") |>
@@ -421,11 +422,11 @@ stp_credential_record_type <-
 #     1. looks for most recent gender record from credential_supvars_enrolment
 #     2. looks for most recent gender record from stp_enrolment
 # within each pass, the data is placed into buckets based on whether ENCRYPTED_TRUE_PEN is available or not
-# note: the "not" bucket hasn't been implemented yet for pass 1, in order to keep in alignment with the SQL environment
+# note: the "not" bucket hasn"t been implemented yet for pass 1, in order to keep in alignment with the SQL environment
 # also, this strategy assumes that the most recent record is the most accurate, which may not always be the case.
 # we could use a more sophisticated approach if needed, such as considering multiple records or averaging values.
 
-na_vals <- c('U', 'Unknown', '(Unspecified)', '', ' ', NA_character_)
+na_vals <- c("U", "Unknown", "(Unspecified)", "", " ", NA_character_)
 credential_supvars <- credential_supvars |>
   mutate(PSI_GENDER_CLEANED = NA_character_)
 
@@ -564,7 +565,7 @@ credential_supvars.ref <- credential_supvars
 
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
-na_vals <- c("", " ", NA_character_, NA, '(Unspecified)')
+na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 
 credential_supvars_enrolment <- credential_supvars_enrolment |>
   left_join(
@@ -709,7 +710,7 @@ credential <- credential |>
   ) |>
   select(-cred_month, -cred_year, -cred_year_start, -cred_year_end)
 
-valid_genders <- c('Female', 'Male', 'Gender Diverse')
+valid_genders <- c("Female", "Male", "Gender Diverse")
 
 # pull more genders from the stp_enrolment table to fill in gaps
 credential <- credential |>
@@ -844,7 +845,7 @@ res <- res %>%
     rank,
     .by_group = TRUE
   ) %>%
-  mutate(highest_cred_by_date = replace(highest_cred_by_date, 1, 'Yes')) %>%
+  mutate(highest_cred_by_date = replace(highest_cred_by_date, 1, "Yes")) %>%
   ungroup()
 
 res <- res %>%
@@ -857,10 +858,10 @@ res <- res %>%
     desc(credential_award_date_d),
     .by_group = TRUE
   ) %>%
-  mutate(highest_cred_by_rank = replace(highest_cred_by_rank, 1, 'Yes')) %>%
+  mutate(highest_cred_by_rank = replace(highest_cred_by_rank, 1, "Yes")) %>%
   ungroup()
 
-dbWriteTable(con, name = 'tmp_Credential_Ranking', res, overwrite = TRUE)
+dbWriteTable(con, name = "tmp_Credential_Ranking", res, overwrite = TRUE)
 
 dbExecute(
   con,
@@ -903,7 +904,7 @@ for (i in 1:nrow(d)) {
           SET AGE_AT_GRAD = ?age 
           WHERE PSI_GENDER_CLEANED  = ?gender
             AND PSI_CREDENTIAL_CATEGORY = ?cred
-            AND (AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = ' ');"
+            AND (AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = " ");"
   sql <- sqlInterpolate(
     con,
     sql,
@@ -956,12 +957,12 @@ dbExecute(
 dbExecute(
   con,
   "UPDATE Credential_Non_Dup SET CONCATENATED_ID = ENCRYPTED_TRUE_PEN 
-                 WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'))"
+                 WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN NOT IN ("", " ", "(Unspecified)"))"
 )
 dbExecute(
   con,
   "UPDATE Credential_Non_Dup SET CONCATENATED_ID = PSI_STUDENT_NUMBER + PSI_CODE 
-                WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ('', ' ', '(Unspecified)'))"
+                WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ("", " ", "(Unspecified)"))"
 )
 dbExecute(con, qry12_Create_View_tblCredentialHighestRank)
 
