@@ -16,11 +16,11 @@ library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-source("./sql/01-credential-analysis/01b-credential-analysis.R")
-source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
-source(
-  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
-)
+#source("./sql/01-credential-analysis/01b-credential-analysis.R")
+#source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
+#source(
+#  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
+#)
 source("./sql/01-credential-analysis/credential-non-dup-psi_visa_status.R")
 #source("./sql/01-credential-analysis/credential-ranking.R")
 
@@ -54,8 +54,12 @@ stp_enrolment_record_type <- dbReadTable(
 )
 stp_credential_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')) # EPEN shouldn't be in this table - why is it here??
+  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')) 
 )
+# DropCredCategory and DropPartialYear shouldn't be in this table. EPEN either?
+# Toggle if you need to remove manually during development - this can happen as a
+# result of the SQL schema environment becoming out of sync with R enviro.
+# stp_credential_record_type <- stp_credential_record_type |> select(-DropCredCategory, -DropPartialYear)
 
 stp_enrolment_valid <- dbReadTable(
   con,
@@ -384,7 +388,7 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
-    credential |>
+    (credential |>
       filter(
         PSI_CREDENTIAL_CATEGORY %in%
           c(
@@ -395,8 +399,8 @@ stp_credential_record_type <-
           )
       ) |>
       mutate(DropCredCategory = "Yes") |>
-      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY),
-    by = "ID"
+      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY))
+      , by = "ID"
   ) |>
   mutate(
     DropCredCategory = replace_na(DropCredCategory, "No")
@@ -561,7 +565,7 @@ credential_supvars <- credential_supvars |>
   ) |>
   select(-GENDER_FROM_STP_ENROLMENT.x, -GENDER_FROM_STP_ENROLMENT.y)
 
-credential_supvars.ref <- credential_supvars
+
 
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
@@ -672,10 +676,9 @@ credential <- stp_credential |>
   ) |>
   filter(
     RecordStatus == 0,
-    is.na(DropCredCategory),
-    is.na(DropPartialYear)
+    DropCredCategory == "No",
+    DropPartialYear == "No"
   )
-
 
 # ---- 05 Age and Credential  ----
 credential <- credential |>
@@ -759,8 +762,8 @@ credential_non_dup <- credential_non_dup |>
 credential <- credential |>
   select(-PSI_GENDER_CLEANED) |>
   left_join(
-    credential_non_dup |> select(id, PSI_GENDER_CLEANED),
-    by = "id"
+    credential_non_dup |> select(ID, PSI_GENDER_CLEANED),
+    by = "ID"
   )
 
 # ---- Impute Missing Gender ----
@@ -796,6 +799,19 @@ credential_non_dup <- credential_non_dup |>
     )
   ) |>
   select(-genders, -weights)
+
+sql_test <- dbReadTable(con, "credential_non_dup")
+r_test <- credential_non_dup
+names(r_test) <- tolower(names(r_test))
+names(sql_test) <- tolower(names(sql_test))
+sql_test$psi_birthdate_cleaned_d <- as.Date(sql_test$psi_birthdate_cleaned_d)
+sql_test$credential_award_date_d <- as.Date(sql_test$credential_award_date_d)
+anti_join(r_test, sql_test) |> nrow()
+
+credential_non_dup.ref <- credential_non_dup
+credential.ref <- credential
+credential_supvars.ref <- credential_supvars
+credential_supvars_enrolment.ref <- credential_supvars_enrolment
 
 # ---- 08 Credential Ranking ----
 dbExecute(con, qry08_Create_Credential_Ranking_View_a)
