@@ -73,133 +73,31 @@ stp_enrolment_valid <- dbReadTable(
 #stp_credential_record_type.orig <- stp_credential_record_type # save a copy while testing
 
 # Define lookup tables
-outcome_credential <- data.frame(
-  Credential = c(
-    "ADVANCED DIPLOMA",
-    "APPRENTICESHIP",
-    "ASSOCIATE DEGREE",
-    "BACHELORS DEGREE",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "DOCTORATE",
-    "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE CERTIFICATE",
-    "GRADUATE DIPLOMA",
-    "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA",
-    "ADVANCED CERTIFICATE",
-    "ADVANCED DIPLOMA",
-    "APPRENTICESHIP",
-    "ASSOCIATE DEGREE",
-    "BACHELORS DEGREE",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "DOCTORATE",
-    "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE CERTIFICATE",
-    "GRADUATE DIPLOMA",
-    "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA",
-    "ADVANCED CERTIFICATE"
-  ),
-  Category = c(
-    "DACSO",
-    "APPSO",
-    "DACSO",
-    "BGS",
-    "DACSO",
-    "DACSO",
-    "GRAD",
-    "BGS",
-    "GRAD",
-    "GRAD",
-    "GRAD",
-    "DACSO",
-    "DACSO",
-    "DACSO",
-    "DACSO",
-    "APPSO",
-    "DACSO",
-    "BGS",
-    "DACSO",
-    "DACSO",
-    "GRAD",
-    "BGS",
-    "GRAD",
-    "GRAD",
-    "GRAD",
-    "DACSO",
-    "DACSO",
-    "DACSO"
-  ),
-  stringsAsFactors = FALSE
+outcome_credential <- tibble(
+  PSI_CREDENTIAL_CATEGORY = str_to_title(c(
+    "ADVANCED CERTIFICATE", "ADVANCED DIPLOMA", "APPRENTICESHIP", 
+    "ASSOCIATE DEGREE", "BACHELORS DEGREE", "CERTIFICATE", 
+    "DIPLOMA", "DOCTORATE", "FIRST PROFESSIONAL DEGREE", 
+    "GRADUATE CERTIFICATE", "GRADUATE DIPLOMA", "MASTERS DEGREE", 
+    "POST-DEGREE CERTIFICATE", "POST-DEGREE DIPLOMA"
+  )),
+  Outcomes_Cred = c(
+    "DACSO", "DACSO", "APPSO", "DACSO", "BGS", "DACSO", 
+    "DACSO", "GRAD", "BGS", "GRAD", "GRAD", "GRAD", 
+    "DACSO", "DACSO"
+  )
 )
 
-credential_rank <- data.frame(
-  Credential = c(
-    "ADVANCED CERTIFICATE",
-    "ADVANCED DIPLOMA",
-    "APPRENTICESHIP",
-    "ASSOCIATE DEGREE",
-    "BACHELORS DEGREE",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "DOCTORATE",
-    "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE CERTIFICATE",
-    "GRADUATE DIPLOMA",
-    "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA",
-    "ADVANCED CERTIFICATE",
-    "ADVANCED DIPLOMA",
-    "APPRENTICESHIP",
-    "ASSOCIATE DEGREE",
-    "BACHELORS DEGREE",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "DOCTORATE",
-    "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE CERTIFICATE",
-    "GRADUATE DIPLOMA",
-    "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA"
-  ),
-  Rank = c(
-    10,
-    9,
-    14,
-    11,
-    8,
-    13,
-    12,
-    1,
-    7,
-    4,
-    3,
-    2,
-    6,
-    5,
-    10,
-    9,
-    14,
-    11,
-    8,
-    13,
-    12,
-    1,
-    7,
-    4,
-    3,
-    2,
-    6,
-    5
-  ),
-  stringsAsFactors = FALSE
-)
+credential_rank <- tibble::tibble(
+  PSI_CREDENTIAL_CATEGORY =  str_to_title(c(
+    "ADVANCED CERTIFICATE", "ADVANCED DIPLOMA", "APPRENTICESHIP",
+    "ASSOCIATE DEGREE", "BACHELORS DEGREE", "CERTIFICATE",
+    "DIPLOMA", "DOCTORATE", "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE", "GRADUATE DIPLOMA", "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE", "POST-DEGREE DIPLOMA"
+  )),
+  RANK = c(10, 9, 14, 11, 8, 13, 12, 1, 7, 4, 3, 2, 6, 5)
+) 
 
 age_group_lookup <- data.frame(
   AgeIndex = 1:9,
@@ -832,6 +730,30 @@ dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
 dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
 dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
 dbExecute(con, qry08_Create_Credential_Ranking_View_g)
+
+base_data <- credential_non_dup |>
+  left_join(credential_rank |> mutate(Credential = str_to_title(Credential)),
+    by = c("PSI_CREDENTIAL_CATEGORY" = "Credential"))
+
+pen_group <- base_data |>
+  filter(!(ENCRYPTED_TRUE_PEN %in% na_vals)) |>
+  filter(n() > 1, .by = ENCRYPTED_TRUE_PEN)
+
+stud_num_group <- base_data |>
+  filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  filter(n() > 1, .by = c(PSI_CODE, PSI_STUDENT_NUMBER))
+
+credential_ranking <- bind_rows(pen_group, stud_num_group) |>
+  select(
+    id, 
+    ENCRYPTED_TRUE_PEN, 
+    PSI_STUDENT_NUMBER, 
+    PSI_CODE, 
+    CREDENTIAL_AWARD_DATE_D, 
+    RANK, 
+    starts_with("Highest_Cred")
+  )
+
 
 res <- dbGetQuery(
   con,
