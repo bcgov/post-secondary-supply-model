@@ -6,7 +6,8 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
@@ -49,14 +50,14 @@ stp_enrolment_record_type <- dbReadTable(
   SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
 )
 
-stp_credential.orig <- stp_credential # save a copy while testing
-stp_enrolment.orig <- stp_enrolment # save a copy while testing
-stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
+#stp_credential.orig <- stp_credential # save a copy while testing
+#stp_enrolment.orig <- stp_enrolment # save a copy while testing
+#stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
 
 stp_credential |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
-      c('', ' ', '(Unspecified)') |
+      c("", " ", "(Unspecified)") |
       is.na(ENCRYPTED_TRUE_PEN)
   ) |>
   nrow()
@@ -108,8 +109,9 @@ stp_credential <- stp_credential |>
 # 8 = Recommendation for Certification
 
 # ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
-invalid_vals <- c('', ' ', '(Unspecified)')
-dev_cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89') # this may be the same list as defined in enrolement processing
+# Cips list may be the same list as defined in enrolement processing - we should move to a global file
+invalid_vals <- c("", " ", "(Unspecified)")
+dev_cips <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
 
 enrol_skills_lookup <- stp_enrolment |>
   # Join with enrolment record type to find the Status 6 records
@@ -143,7 +145,7 @@ stp_credential_record_type <- stp_credential |>
       (ENCRYPTED_TRUE_PEN %in% invalid_vals) &
         (PSI_STUDENT_NUMBER %in% invalid_vals | PSI_CODE %in% invalid_vals) ~ 1,
       # --- Record Type 2 ---
-      PSI_CREDENTIAL_LEVEL == 'Developmental' ~ 2,
+      PSI_CREDENTIAL_LEVEL == "Developmental" ~ 2,
 
       # --- Record Type 6---
       is_skills_match == TRUE ~ 6,
@@ -151,18 +153,18 @@ stp_credential_record_type <- stp_credential |>
       # --- Status 7: Developmental CIPs (With "Keep" Exceptions) ---
       # there may be more exceptions to add - in previous years some manual checks were done.
       (CIP2 %in% dev_cips) &
-        !((PSI_CODE == 'UVIC' &
+        !((PSI_CODE == "UVIC" &
           PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-            'PROF SPEC CERTIFICATE IN MIDDLE YEARS LANG AND LITERACY') |
-          (PSI_CODE == 'NIC' &
-            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == 'Aquaculture Technician 1') |
-          (PSI_CODE == 'NIC' &
-            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == 'Coastal Forest Resource') |
-          (PSI_CODE == 'NIC' &
+            "PROF SPEC CERTIFICATE IN MIDDLE YEARS LANG AND LITERACY") |
+          (PSI_CODE == "NIC" &
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Aquaculture Technician 1") |
+          (PSI_CODE == "NIC" &
+            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Coastal Forest Resource") |
+          (PSI_CODE == "NIC" &
             PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-              'Underground Mining Essentials')) ~ 7,
+              "Underground Mining Essentials")) ~ 7,
       # --- Status 8: Recommendation for Certification
-      PSI_CREDENTIAL_CATEGORY == 'Recommendation For Certification' ~ 8,
+      PSI_CREDENTIAL_CATEGORY == "Recommendation For Certification" ~ 8,
 
       # Default: leave other records as NA (or 0) for now
       TRUE ~ 0
@@ -172,11 +174,11 @@ stp_credential_record_type <- stp_credential |>
 
 stp_credential_record_type |> count(RecordStatus)
 
-tables_to_keep = c(
-  'stp_enrolment',
-  'stp_credential',
-  'stp_enrolment_record_type',
-  'stp_credential_record_type',
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
 )
 
 rm(list = setdiff(ls(), tables_to_keep))

@@ -6,7 +6,8 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
@@ -49,7 +50,7 @@ stp_enrolment <- stp_enrolment_raw # save a copy while testing
 stp_enrolment |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
-      c('', ' ', '(Unspecified)') |
+      c("", " ", "(Unspecified)") |
       is.na(ENCRYPTED_TRUE_PEN)
   ) |>
   nrow()
@@ -110,9 +111,10 @@ stp_enrolment <- stp_enrolment |>
 # 8 = Recommendation for Certification
 
 # hard coded values
-invalid_pen <- c('', ' ', '(Unspecified)')
-cips <- c('21', '32', '33', '34', '35', '36', '37', '53', '89')
-ce_pattern = "Continuing Education|Continuing Studies|Audit|^CE " # original SQl used patterns %Continuing Education and %Continuing Studies
+# original SQl used patterns %Continuing Education and %Continuing Studies
+invalid_pen <- c("", " ", "(Unspecified)")
+cips <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
+ce_pattern <- "Continuing Education|Continuing Studies|Audit|^CE "
 
 stp_enrolment_record_type <- stp_enrolment |>
   select(
@@ -139,17 +141,16 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(
     rec_type = case_when(
       # Record Status 1: qry02a to qry02c
-      ((PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
-        ENCRYPTED_TRUE_PEN %in% invalid_pen) ~ 1,
+      (PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
+        ENCRYPTED_TRUE_PEN %in% invalid_pen ~ 1,
 
       # Record Status 2: qry03a and qry03b
-      toupper(PSI_STUDY_LEVEL) == 'DEVELOPMENTAL' ~ 2,
+      toupper(PSI_STUDY_LEVEL) == "DEVELOPMENTAL" ~ 2,
 
       # Record Status 6: qry03c to qry03j
-      (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
-        PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') &
-        !((PSI_CODE %in% c('UFV', 'UCFV')) &
-          (PSI_PROGRAM_CODE == 'TEACH ED'))) ~ 6,
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Skills Crs Only" &
+        PSI_CREDENTIAL_CATEGORY %in% c("None", "Other") &
+        !(PSI_CODE %in% c("UFV", "UCFV") & PSI_PROGRAM_CODE == "TEACH ED") ~ 6,
 
       # More Record Status 6:
       str_detect(
@@ -158,25 +159,25 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
       ) ~ 6,
 
       # More Record Status 6:
-      (PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other') & CIP2 %in% cips) ~ 6,
+      (PSI_CREDENTIAL_CATEGORY %in% c("None", "Other") & CIP2 %in% cips) ~ 6,
 
       # More Record Status 6:
-      (PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Skills Crs Only' &
-        !PSI_CREDENTIAL_CATEGORY %in% c('None', 'Other', 'Short Certificate') &
-        ((PSI_CODE == 'SEL' &
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Skills Crs Only" &
+        !PSI_CREDENTIAL_CATEGORY %in% c("None", "Other", "Short Certificate") &
+        ((PSI_CODE == "SEL" &
           PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-            'Community, Corporate & International Development') |
-          (PSI_CODE == 'NIC' & CIP2 %in% cips))) ~ 6,
+            "Community, Corporate & International Development") |
+          (PSI_CODE == "NIC" & CIP2 %in% cips)) ~ 6,
 
       # Record Status 7: qry03k
-      PSI_CONTINUING_EDUCATION_COURSE_ONLY == 'Not Skills Crs Only' &
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Not Skills Crs Only" &
         CIP2 %in% cips ~ 7, # qry 03k and qry03l series
 
       # Record Status 3: qry04a to qry04b
-      PSI_ENTRY_STATUS == 'No Transition' ~ 3,
+      PSI_ENTRY_STATUS == "No Transition" ~ 3,
 
       # Record Status 5: qry06a to
-      ATTENDING_PSI_OUTSIDE_BC == 'Y' ~ 5,
+      ATTENDING_PSI_OUTSIDE_BC == "Y" ~ 5,
 
       # DEFAULT: Fallback for all other records
       TRUE ~ 0
@@ -294,8 +295,8 @@ stp_enrolment_record_type |> count(rec_type, is_min_enrol, is_first_enrol)
 birthdate_cleaning_summary <- stp_enrolment |>
   select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
   filter(
-    !PSI_BIRTHDATE %in% c('', ' ', '(Unspecified)'),
-    !ENCRYPTED_TRUE_PEN %in% c('', ' ', '(Unspecified)')
+    !PSI_BIRTHDATE %in% c("", " ", "(Unspecified)"),
+    !ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
   ) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
@@ -325,7 +326,7 @@ birthdate_update <- birthdate_cleaning_summary |>
       # If they only have one date, use it
       MinPSIBirthdate == MaxPSIBirthdate ~ MinPSIBirthdate,
 
-      # Tie-breaker 1: Match the 'Last Seen' date
+      # Tie-breaker 1: Match the "Last Seen" date
       MaxPSIBirthdate == LastSeenBirthdate ~ MaxPSIBirthdate,
       #MinPSIBirthdate == LastSeenBirthdate ~ MinPSIBirthdate, # old logic didn't include this
 
@@ -346,12 +347,12 @@ stp_enrolment <- stp_enrolment |>
   ) |>
   mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE)) # or PSI_BIRTHDATE = coalesce....
 
-tables_to_keep = c(
-  'stp_enrolment',
-  'stp_credential',
-  'stp_enrolment_record_type',
-  'stp_credential_record_type',
-  'stp_enrolment_valid'
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
+  "stp_enrolment_valid"
 )
 
 rm(list = setdiff(ls(), tables_to_keep))
