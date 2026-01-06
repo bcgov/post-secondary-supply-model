@@ -16,7 +16,7 @@ library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-#source("./sql/01-credential-analysis/01b-credential-analysis.R")
+source("./sql/01-credential-analysis/01b-credential-analysis.R")
 #source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
 #source(
 #  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
@@ -97,7 +97,7 @@ credential_rank <- tibble::tibble(
     "POST-DEGREE CERTIFICATE", "POST-DEGREE DIPLOMA"
   )),
   RANK = c(10, 9, 14, 11, 8, 13, 12, 1, 7, 4, 3, 2, 6, 5)
-) 
+)
 
 age_group_lookup <- data.frame(
   AgeIndex = 1:9,
@@ -698,120 +698,43 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-genders, -weights)
 
-sql_test <- dbReadTable(con, "credential_non_dup")
-r_test <- credential_non_dup
-names(r_test) <- tolower(names(r_test))
-names(sql_test) <- tolower(names(sql_test))
-sql_test$psi_birthdate_cleaned_d <- as.Date(sql_test$psi_birthdate_cleaned_d)
-sql_test$credential_award_date_d <- as.Date(sql_test$credential_award_date_d)
-anti_join(r_test, sql_test) |> nrow()
 
-credential_non_dup.ref <- credential_non_dup
-credential.ref <- credential
-credential_supvars.ref <- credential_supvars
-credential_supvars_enrolment.ref <- credential_supvars_enrolment
+
+#credential_non_dup.ref <- credential_non_dup
+#credential.ref <- credential
+#credential_supvars.ref <- credential_supvars
+#credential_supvars_enrolment.ref <- credential_supvars_enrolment
 
 # ---- 08 Credential Ranking ----
-dbExecute(con, qry08_Create_Credential_Ranking_View_a)
-dbExecute(con, qry08_Create_Credential_Ranking_View_b)
-dbExecute(con, qry08_Create_Credential_Ranking_View_c)
-dbExecute(con, qry08_Create_Credential_Ranking_View_d)
-dbExecute(
-  con,
-  "ALTER TABLE tmp_Credential_Ranking_step3 ADD PSI_STUDENT_NUMBER varchar(50)"
-)
-dbExecute(
-  con,
-  "ALTER TABLE tmp_Credential_Ranking_step3 ADD PSI_CODE varchar(50)"
-)
-dbExecute(con, qry08_Create_Credential_Ranking_View_e)
-dbExecute(con, qry08_Create_Credential_Ranking_View_f)
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step1")
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step2")
-dbExecute(con, "DROP TABLE tmp_CredentialNonDup_STUD_NUM_PSI_CODE_MoreThanOne")
-dbExecute(con, qry08_Create_Credential_Ranking_View_g)
+# The R version produces similar results to SQL.  Some differences noted
+# in how SQL and R handle tie-breaking.  This introduced some discrepency 
+# at the row-level.  Should have minimal impact on overall results. 
 
 base_data <- credential_non_dup |>
-  left_join(credential_rank |> mutate(Credential = str_to_title(Credential)),
-    by = c("PSI_CREDENTIAL_CATEGORY" = "Credential"))
+  left_join(credential_rank,
+    by = c("PSI_CREDENTIAL_CATEGORY"))
 
 pen_group <- base_data |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE,CREDENTIAL_AWARD_DATE_D,RANK) |>
   filter(!(ENCRYPTED_TRUE_PEN %in% na_vals)) |>
-  filter(n() > 1, .by = ENCRYPTED_TRUE_PEN)
+  group_by(ENCRYPTED_TRUE_PEN) |> 
+  arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
+  mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
+  arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
+  mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
+  ungroup() 
 
 stud_num_group <- base_data |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE,CREDENTIAL_AWARD_DATE_D,RANK) |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
-  filter(n() > 1, .by = c(PSI_CODE, PSI_STUDENT_NUMBER))
+  group_by(PSI_CODE, PSI_STUDENT_NUMBER) |> 
+  arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
+  mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
+  arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
+  mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
+  ungroup() 
 
-credential_ranking <- bind_rows(pen_group, stud_num_group) |>
-  select(
-    id, 
-    ENCRYPTED_TRUE_PEN, 
-    PSI_STUDENT_NUMBER, 
-    PSI_CODE, 
-    CREDENTIAL_AWARD_DATE_D, 
-    RANK, 
-    starts_with("Highest_Cred")
-  )
-
-
-res <- dbGetQuery(
-  con,
-  "SELECT DISTINCT id,
-                        credential_ranking.encrypted_true_pen,
-                        credential_ranking.psi_student_number,
-                        credential_ranking.psi_code,
-                        [encrypted_true_pen]+[psi_student_number] AS concatenated_id,
-                        credential_ranking.credential_award_date_d,
-                        credential_ranking.rank,
-                        credential_ranking.highest_cred_by_date, 
-                        credential_ranking.highest_cred_by_rank FROM credential_ranking"
-)
-names(res) <- tolower(names(res))
-
-res <- res %>%
-  mutate(highest_cred_by_rank = NA) %>%
-  mutate(highest_cred_by_date = NA)
-
-res <- res %>%
-  group_by(encrypted_true_pen, psi_student_number) %>%
-  arrange(
-    encrypted_true_pen,
-    psi_student_number,
-    psi_code,
-    desc(credential_award_date_d),
-    rank,
-    .by_group = TRUE
-  ) %>%
-  mutate(highest_cred_by_date = replace(highest_cred_by_date, 1, "Yes")) %>%
-  ungroup()
-
-res <- res %>%
-  group_by(encrypted_true_pen, psi_student_number) %>%
-  arrange(
-    encrypted_true_pen,
-    psi_student_number,
-    psi_code,
-    rank,
-    desc(credential_award_date_d),
-    .by_group = TRUE
-  ) %>%
-  mutate(highest_cred_by_rank = replace(highest_cred_by_rank, 1, "Yes")) %>%
-  ungroup()
-
-dbWriteTable(con, name = "tmp_Credential_Ranking", res, overwrite = TRUE)
-
-dbExecute(
-  con,
-  "ALTER TABLE tmp_credential_Ranking ALTER COLUMN id INT NOT NULL;"
-)
-
-dbExecute(con, qry08a1_Update_CredentialNonDup_with_highestDate_Rank)
-dbExecute(con, qry08a_Run_after_Credential_Ranking)
-dbExecute(con, qry08b_Rank_non_multi_cred)
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking")
-dbExecute(con, "DROP TABLE tmp_Credential_Ranking_step3")
-dbExecute(con, "DROP VIEW Credential_Ranking")
+credential_ranking <- bind_rows(pen_group, stud_num_group) 
 
 # ---- 09 Age Gender Distributions ----
 dbExecute(con, qry09a_ExtractNoAge)
@@ -986,3 +909,4 @@ dbDisconnect(con)
 # ---- These tables used later ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')))
+
