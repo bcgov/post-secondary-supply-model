@@ -676,7 +676,7 @@ credential <- stp_credential |>
   )
 
 
-# ---- 05 Age and Credential Update and Cleaning ----
+# ---- 05 Age and Credential  ----
 credential <- credential |>
   mutate(
     AGE_AT_GRAD = as.integer(floor(
@@ -731,99 +731,70 @@ credential <- credential |>
   select(-PSI_GENDER_FROM_ENROLMENT)
 
 
-dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Credential"'))
-) -> cr_sql
-names(cr_sql) <- toupper(names(cr_sql))
-names(cr_r) <- toupper(names(cr_r))
-glimpse(cr_r)
-glimpse(cr_sql)
-cr_sql$CREDENTIAL_AWARD_DATE_D <- as.Date(cr_sql$CREDENTIAL_AWARD_DATE_D)
-cr_sql$PSI_BIRTHDATE_CLEANED_D <- as.Date(cr_sql$PSI_BIRTHDATE_CLEANED_D)
-anti_join(cr_r, cr_sql) |> nrow()
+# --- make non dup table ----
+credential_non_dup <- credential |>
+  group_by(
+    ENCRYPTED_TRUE_PEN,
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_CATEGORY,
+    CREDENTIAL_AWARD_DATE_D
+  ) |>
+  slice_max(ID, n = 1, with_ties = FALSE) |>
+  ungroup()
 
-dbExecute(con, qry07a1c_tmp_Credential_Gender)
-dbExecute(con, qry07a1d_tmp_Credential_GenderDups)
-dbExecute(con, qry07a1e_tmp_Credential_GenderDups_FindMaxCredDate)
+credential_non_dup <- credential_non_dup |>
+  group_by(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
+  arrange(CREDENTIAL_AWARD_DATE_D, .by_group = TRUE) |>
+  mutate(PSI_GENDER_CLEANED = last(PSI_GENDER_CLEANED)) |>
+  ungroup()
 
-dbExecute(
-  con,
-  "ALTER TABLE tmp_Dup_Credential_EPEN_Gender_MaxCredDate ADD PSI_GENDER varchar(10)"
-)
-dbExecute(con, qry07a1f_tmp_Credential_GenderDups_PickGender)
-dbExecute(con, qry07a1g_Update_Credential_Non_Dup_GenderDups)
-dbExecute(con, qry07a1h_Update_Credential_GenderDups)
-dbExecute(con, qry07a2a_ExtractNoGender)
-dbExecute(con, qry07a2b_ExtractNoGenderUnique)
-dbExecute(con, qry07a2c_Create_CRED_Extract_No_Gender_EPEN_with_MultiCred)
-dbExecute(
-  con,
-  "ALTER TABLE CRED_Extract_No_Gender_Unique ADD MultiCredFlag varchar(2)"
-)
-dbExecute(con, qry07a2d_Update_MultiCredFlag)
-dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_EPEN_with_MultiCred")
+# assign most recent gender to each student. I'm not sure why we are still needing to
+# assign genders here.  I wonder if there is a better approach such as make a master
+# list for each student with a single project-level id, bday, gender etc to use for the full 01 series (and beyond?).
+credential <- credential |>
+  select(-PSI_GENDER_CLEANED) |>
+  left_join(
+    credential_non_dup |> select(id, PSI_GENDER_CLEANED),
+    by = "id"
+  )
 
-## ---- Impute Missing Gender ----
-d <- dbGetQuery(con, qry07b_GenderDistribution) %>%
-  mutate(Expr1 = replace_na(Expr1, 0))
+# ---- Impute Missing Gender ----
+# This procedure performs proportional stochastic imputation to fill in missing gender data.
+# It calculates the existing gender distribution for each credential category and then
+# uses those ratios as weights to "flip a coin" for every empty record
+# ensuring the final dataset maintains the same statistical balance as the known population.
 
-nulls <- d %>%
-  filter(is.na(PSI_GENDER)) %>%
-  select(-PSI_GENDER)
+# 1. Create the probability weights per category
+gender_weights <- credential_non_dup |>
+  filter(!is.na(PSI_GENDER_CLEANED)) |>
+  count(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  group_by(PSI_CREDENTIAL_CATEGORY) |>
+  mutate(prob = n / sum(n)) |>
+  summarise(
+    genders = list(PSI_GENDER_CLEANED),
+    weights = list(prob),
+    .groups = "drop"
+  )
 
-f_d <- d %>%
-  filter(!is.na(PSI_GENDER)) %>%
-  group_by(PSI_CREDENTIAL_CATEGORY) %>%
-  mutate(p = Expr1 / sum(Expr1)) %>%
-  filter(PSI_GENDER == 'Female') %>%
-  select(-c(PSI_GENDER, Expr1))
-
-m_d <- d %>%
-  filter(!is.na(PSI_GENDER)) %>%
-  group_by(PSI_CREDENTIAL_CATEGORY) %>%
-  mutate(p = Expr1 / sum(Expr1)) %>%
-  filter(PSI_GENDER == 'Male') %>%
-  select(-c(PSI_GENDER, Expr1))
-
-top_nf <- inner_join(f_d, nulls) %>%
-  mutate(n = round(Expr1 * p)) %>%
-  select(PSI_CREDENTIAL_CATEGORY, n)
-
-top_nm <- inner_join(m_d, nulls) %>%
-  mutate(n = round(Expr1 * p)) %>%
-  select(PSI_CREDENTIAL_CATEGORY, n)
-
-top_nf
-top_nm
-
-
-## ---- STOP !! manually add top_nf to queries below ----
-# then change queries and do the same for top_mf
-# Code later: https://github.com/r-dbi/DBI/issues/193
-dbExecute(con, qry07c10_Assign_TopID_GenderF_GradCert)
-dbExecute(con, qry07c11_Assign_TopID_GenderF_GradDipl)
-dbExecute(con, qry07c12_Assign_TopID_GenderF_Masters)
-dbExecute(con, qry07c13_Assign_TopID_GenderF_PostDegCert)
-dbExecute(con, qry07c14_Assign_TopID_GenderF_PostDegDipl)
-dbExecute(con, qry07c1_Assign_TopID_GenderF_AdvancedCert)
-dbExecute(con, qry07c2_Assign_TopID_GenderF_AdvancedDip)
-dbExecute(con, qry07c3_Assign_TopID_GenderF_Apprenticeship)
-dbExecute(con, qry07c4_Assign_TopID_GenderF_AssocDegree)
-dbExecute(con, qry07c5_Assign_TopID_GenderF_Bachelor)
-dbExecute(con, qry07c6_Assign_TopID_GenderF_Certificate)
-dbExecute(con, qry07c7_Assign_TopID_GenderF_Diploma)
-dbExecute(con, qry07c8_Assign_TopID_GenderF_Doctorate)
-dbExecute(con, qry07c9_Assign_TopID_GenderF_FirstProfDeg)
-dbExecute(con, qry07c_Assign_TopID_GenderM)
-dbExecute(con, qry07d_CorrectGender1)
-dbExecute(con, qry07d_CorrectGender2)
-dbExecute(con, "DROP TABLE CRED_Extract_No_Gender")
-dbExecute(con, "DROP TABLE CRED_Extract_No_Gender_Unique")
-dbExecute(con, "DROP VIEW Credential_Remove_Dup")
-dbExecute(con, "DROP TABLE tmp_credential_epen_gender")
-dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender")
-dbExecute(con, "DROP TABLE tmp_dup_credential_epen_gender_maxcreddate")
+# 2. Apply the weighted coin flip
+set.seed(42)
+credential_non_dup <- credential_non_dup |>
+  left_join(gender_weights, by = "PSI_CREDENTIAL_CATEGORY") |>
+  mutate(
+    PSI_GENDER_CLEANED = case_when(
+      !is.na(PSI_GENDER_CLEANED) ~ PSI_GENDER_CLEANED,
+      TRUE ~ as.character(map2(
+        genders,
+        weights,
+        ~ sample(.x, size = 1, prob = .y)
+      ))
+    )
+  ) |>
+  select(-genders, -weights)
 
 # ---- 08 Credential Ranking ----
 dbExecute(con, qry08_Create_Credential_Ranking_View_a)
