@@ -700,11 +700,6 @@ credential_non_dup <- credential_non_dup |>
 
 
 
-#credential_non_dup.ref <- credential_non_dup
-#credential.ref <- credential
-#credential_supvars.ref <- credential_supvars
-#credential_supvars_enrolment.ref <- credential_supvars_enrolment
-
 # ---- 08 Credential Ranking ----
 # The R version produces similar results to SQL.  Some differences noted
 # in how SQL and R handle tie-breaking.  This introduced some discrepency 
@@ -735,65 +730,59 @@ stud_num_group <- base_data |>
   ungroup() 
 
 credential_ranking <- bind_rows(pen_group, stud_num_group) 
+credential_non_dup <- credential_non_dup |> 
+  left_join(credential_ranking, by = join_by(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, CREDENTIAL_AWARD_DATE_D)) |> select(-RANK) 
 
-# ---- 09 Age Gender Distributions ----
-dbExecute(con, qry09a_ExtractNoAge)
-dbExecute(con, "ALTER TABLE CRED_Extract_No_Age ADD PRIMARY KEY (id);")
-dbExecute(con, qry09b_ExtractNoAgeUnique)
-dbExecute(con, "ALTER TABLE CRED_Extract_No_Age_Unique ADD PRIMARY KEY (id);")
-
-sql <- "SELECT PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, COUNT(*) AS NumWithNullAge
-FROM CRED_Extract_No_Age_Unique GROUP BY PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY"
-CRED_Extract_No_Age_Unique <- dbGetQuery(con, sql)
-CREDAgeDistributionbyGender <- dbGetQuery(con, qry09d_ShowAgeGenderDistribution)
-
-d <- CREDAgeDistributionbyGender %>%
-  group_by(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY) %>%
-  mutate(p = NumGrads / sum(NumGrads)) %>%
-  left_join(
-    CRED_Extract_No_Age_Unique,
-    by = join_by(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY)
-  ) %>%
-  mutate(n = round(p * NumWithNullAge)) %>%
-  arrange(PSI_GENDER_CLEANED, PSI_CREDENTIAL_CATEGORY, AGE_AT_GRAD) %>%
-  filter(!is.na(NumWithNullAge))
-
-# consider sampling instead to ensure randomness and give full coverage
-print("imputing missing age_at_grad ....")
-for (i in 1:nrow(d)) {
-  sql <- "UPDATE TOP(?n) CRED_Extract_No_Age_Unique
-          SET AGE_AT_GRAD = ?age 
-          WHERE PSI_GENDER_CLEANED  = ?gender
-            AND PSI_CREDENTIAL_CATEGORY = ?cred
-            AND (AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = " ");"
-  sql <- sqlInterpolate(
-    con,
-    sql,
-    n = as.numeric(d[i, "n"]),
-    age = as.numeric(d[i, "AGE_AT_GRAD"]),
-    gender = as.character(d[i, "PSI_GENDER_CLEANED"]),
-    cred = as.character(d[i, "PSI_CREDENTIAL_CATEGORY"])
+# ---- 09 Age Gender Distributions ---
+age_weights <- credential_non_dup |>
+  filter(
+    !is.na(AGE_AT_GRAD), 
+    !(AGE_AT_GRAD %in% na_vals),
+    HIGHEST_CRED_BY_DATE == "Yes"
+  ) |>
+  count(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED, AGE_AT_GRAD) |>
+  group_by(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  mutate(prob = n / sum(n)) |>
+  summarise(
+    ages = list(AGE_AT_GRAD),
+    weights = list(prob),
+    .groups = "drop"
   )
-  dbExecute(con, sql)
-}
-print("....done")
 
-# assign a random age between 19 and 54 to any remaining nulls.
-dbExecute(
-  con,
-  "UPDATE CRED_Extract_No_Age_Unique
-                SET AGE_AT_GRAD = (ABS(CHECKSUM(NewId())) % 35) + 19
-                WHERE AGE_AT_GRAD IS NULL OR AGE_AT_GRAD = ' '"
-)
+set.seed(42)
+imputed_student_ages <- credential_non_dup |>
+  filter(HIGHEST_CRED_BY_DATE == "Yes") |>
+  filter(AGE_AT_GRAD %in% na_vals) |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  left_join(age_weights, by = c("PSI_CREDENTIAL_CATEGORY", "PSI_GENDER_CLEANED")) |>
+  mutate(
+    FINAL_AGE = case_when(
+      # If we have no matching distribution (e.g., a brand new category), fallback to random
+      is.null(ages) ~ sample(19:54, 1), 
+      TRUE ~ as.numeric(map2(ages, weights, ~ sample(.x, size = 1, prob = .y)))
+    )
+  ) |>
+  select(-ages, -weights)
 
-# See documentation at this point for further processing of multiple credentials
+credential_non_dup <- credential_non_dup |>
+  left_join(imputed_student_ages, by = join_by(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED)) |>
+  mutate(
+    AGE_AT_GRAD = coalesce(as.numeric(AGE_AT_GRAD), FINAL_AGE)
+  ) |>
+  select(-FINAL_AGE)
 
-dbExecute(con, qry10_Update_Extract_No_Age)
-dbExecute(con, qry11a_UpdateAgeAtGrad)
-dbExecute(con, qry11b_UpdateAGAtGrad)
-dbExecute(con, "DROP TABLE CRED_Extract_No_Age")
-dbExecute(con, "DROP TABLE CRED_Extract_No_Age_Unique")
-#dbExecute(con, "DROP TABLE CREDAgeDistributionbyGender")
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    age_group_lookup|> select(AgeIndex, LowerBound, UpperBound),
+    by = join_by(between(AGE_AT_GRAD, LowerBound, UpperBound))
+  ) |>
+  mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
+  select(-AgeIndex, -LowerBound, -UpperBound) 
+
+#credential_non_dup.ref <- credential_non_dup
+#credential.ref <- credential
+#credential_supvars.ref <- credential_supvars
+#credential_supvars_enrolment.ref <- credential_supvars_enrolment
 
 # ---- VISA Status ----
 dbExecute(con, "ALTER TABLE CredentialSupVars ADD PSI_VISA_STATUS varchar(50)")
@@ -804,7 +793,8 @@ dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_2)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_3)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_4)
 dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_5)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_6)
+dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_6)imputed_student_ages
+
 dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
 dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step2")
 dbExecute(con, "DROP TABLE Credential_Non_Dup_VisaStatus_Cleaning_Step1")
