@@ -785,20 +785,36 @@ credential_non_dup <- credential_non_dup |>
 #credential_supvars_enrolment.ref <- credential_supvars_enrolment
 
 # ---- VISA Status ----
-dbExecute(con, "ALTER TABLE CredentialSupVars ADD PSI_VISA_STATUS varchar(50)")
-dbExecute(con, "ALTER TABLE Credential_Non_Dup ADD PSI_VISA_STATUS varchar(50)")
-dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_1)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_2)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_3)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_4)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_5)
-dbExecute(con, CredentialSupVars_VisaStatus_Cleaning_6)imputed_student_ages
+cols_specific <- c(
+  "ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", 
+  "PSI_PROGRAM_CODE", "PSI_CREDENTIAL_PROGRAM_DESCRIPTION", "PSI_SCHOOL_YEAR"
+)
+cols_broad <- c(
+  "ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "PSI_SCHOOL_YEAR"
+)
 
-dbGetQuery(con, CredentialSupVars_VisaStatus_Cleaning_check)
-dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step2")
-dbExecute(con, "DROP TABLE Credential_Non_Dup_VisaStatus_Cleaning_Step1")
-dbExecute(con, "DROP TABLE CredentialSupVars_VisaStatus_Cleaning_Step1")
+# Note, there are a few extra rows added in the left joins: need to investigate
+credential_non_dup <- credential_non_dup |>
+  # Attempt 1: Perfect Match (6 columns)
+  left_join(
+    credential_supvars_enrolment |> select(all_of(cols_specific), VISA_SPECIFIC = PSI_VISA_STATUS)|> distinct(), 
+    relationship = "many-to-many") |>
+  # Attempt 2: Broad Match (4 columns)
+  left_join(
+    credential_supvars_enrolment |> select(all_of(cols_broad), VISA_BROAD = PSI_VISA_STATUS) |> distinct(),
+    relationship = "many-to-many"
+  ) |>
+  # Apply Hierarchy: Original -> Perfect Match -> Broad Match
+  mutate(PSI_VISA_STATUS = coalesce(VISA_SPECIFIC, VISA_BROAD)) |>
+  select(-VISA_SPECIFIC, -VISA_BROAD)
+credential_non_dup |> 
+
+credential_supvars <- 
+credential_supvars |>
+  left_join(
+    credential_non_dup |> select(ID, PSI_VISA_STATUS),
+    by = "ID") |> count(PSI_VISA_STATUS)
+
 
 # ---- Highest Rank ----
 dbExecute(
