@@ -54,7 +54,7 @@ stp_enrolment_record_type <- dbReadTable(
 )
 stp_credential_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')) 
+  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
 )
 # DropCredCategory and DropPartialYear shouldn't be in this table. EPEN either?
 # Toggle if you need to remove manually during development - this can happen as a
@@ -75,26 +75,55 @@ stp_enrolment_valid <- dbReadTable(
 # Define lookup tables
 outcome_credential <- tibble(
   PSI_CREDENTIAL_CATEGORY = str_to_title(c(
-    "ADVANCED CERTIFICATE", "ADVANCED DIPLOMA", "APPRENTICESHIP", 
-    "ASSOCIATE DEGREE", "BACHELORS DEGREE", "CERTIFICATE", 
-    "DIPLOMA", "DOCTORATE", "FIRST PROFESSIONAL DEGREE", 
-    "GRADUATE CERTIFICATE", "GRADUATE DIPLOMA", "MASTERS DEGREE", 
-    "POST-DEGREE CERTIFICATE", "POST-DEGREE DIPLOMA"
+    "ADVANCED CERTIFICATE",
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA"
   )),
   Outcomes_Cred = c(
-    "DACSO", "DACSO", "APPSO", "DACSO", "BGS", "DACSO", 
-    "DACSO", "GRAD", "BGS", "GRAD", "GRAD", "GRAD", 
-    "DACSO", "DACSO"
+    "DACSO",
+    "DACSO",
+    "APPSO",
+    "DACSO",
+    "BGS",
+    "DACSO",
+    "DACSO",
+    "GRAD",
+    "BGS",
+    "GRAD",
+    "GRAD",
+    "GRAD",
+    "DACSO",
+    "DACSO"
   )
 )
 
 credential_rank <- tibble::tibble(
-  PSI_CREDENTIAL_CATEGORY =  str_to_title(c(
-    "ADVANCED CERTIFICATE", "ADVANCED DIPLOMA", "APPRENTICESHIP",
-    "ASSOCIATE DEGREE", "BACHELORS DEGREE", "CERTIFICATE",
-    "DIPLOMA", "DOCTORATE", "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE CERTIFICATE", "GRADUATE DIPLOMA", "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE", "POST-DEGREE DIPLOMA"
+  PSI_CREDENTIAL_CATEGORY = str_to_title(c(
+    "ADVANCED CERTIFICATE",
+    "ADVANCED DIPLOMA",
+    "APPRENTICESHIP",
+    "ASSOCIATE DEGREE",
+    "BACHELORS DEGREE",
+    "CERTIFICATE",
+    "DIPLOMA",
+    "DOCTORATE",
+    "FIRST PROFESSIONAL DEGREE",
+    "GRADUATE CERTIFICATE",
+    "GRADUATE DIPLOMA",
+    "MASTERS DEGREE",
+    "POST-DEGREE CERTIFICATE",
+    "POST-DEGREE DIPLOMA"
   )),
   RANK = c(10, 9, 14, 11, 8, 13, 12, 1, 7, 4, 3, 2, 6, 5)
 )
@@ -290,15 +319,15 @@ stp_credential_record_type <-
       filter(
         PSI_CREDENTIAL_CATEGORY %in%
           c(
-           "Developmental Credential",
+            "Developmental Credential",
             "Other",
             "None",
             "Short Certificate"
           )
       ) |>
       mutate(DropCredCategory = "Yes") |>
-      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY))
-      , by = "ID"
+      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY)),
+    by = "ID"
   ) |>
   mutate(
     DropCredCategory = replace_na(DropCredCategory, "No")
@@ -462,7 +491,6 @@ credential_supvars <- credential_supvars |>
     )
   ) |>
   select(-GENDER_FROM_STP_ENROLMENT.x, -GENDER_FROM_STP_ENROLMENT.y)
-
 
 
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
@@ -699,44 +727,66 @@ credential_non_dup <- credential_non_dup |>
   select(-genders, -weights)
 
 
-
 # ---- 08 Credential Ranking ----
 # The R version produces similar results to SQL.  Some differences noted
-# in how SQL and R handle tie-breaking.  This introduced some discrepency 
-# at the row-level.  Should have minimal impact on overall results. 
+# in how SQL and R handle tie-breaking.  This introduced some discrepency
+# at the row-level.  Should have minimal impact on overall results.
 
 base_data <- credential_non_dup |>
-  left_join(credential_rank,
-    by = c("PSI_CREDENTIAL_CATEGORY"))
+  left_join(credential_rank, by = c("PSI_CREDENTIAL_CATEGORY"))
 
 pen_group <- base_data |>
-  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE,CREDENTIAL_AWARD_DATE_D,RANK) |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    CREDENTIAL_AWARD_DATE_D,
+    RANK
+  ) |>
   filter(!(ENCRYPTED_TRUE_PEN %in% na_vals)) |>
-  group_by(ENCRYPTED_TRUE_PEN) |> 
+  group_by(ENCRYPTED_TRUE_PEN) |>
   arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
   mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
   arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
   mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
-  ungroup() 
+  ungroup()
 
 stud_num_group <- base_data |>
-  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE,CREDENTIAL_AWARD_DATE_D,RANK) |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    CREDENTIAL_AWARD_DATE_D,
+    RANK
+  ) |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
-  group_by(PSI_CODE, PSI_STUDENT_NUMBER) |> 
+  group_by(PSI_CODE, PSI_STUDENT_NUMBER) |>
   arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
   mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
   arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
   mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
-  ungroup() 
+  ungroup()
 
-credential_ranking <- bind_rows(pen_group, stud_num_group) 
-credential_non_dup <- credential_non_dup |> 
-  left_join(credential_ranking, by = join_by(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, CREDENTIAL_AWARD_DATE_D)) |> select(-RANK) 
+credential_ranking <- bind_rows(pen_group, stud_num_group)
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    credential_ranking,
+    by = join_by(
+      ID,
+      ENCRYPTED_TRUE_PEN,
+      PSI_STUDENT_NUMBER,
+      PSI_CODE,
+      CREDENTIAL_AWARD_DATE_D
+    )
+  ) |>
+  select(-RANK)
 
 # ---- 09 Age Gender Distributions ---
 age_weights <- credential_non_dup |>
   filter(
-    !is.na(AGE_AT_GRAD), 
+    !is.na(AGE_AT_GRAD),
     !(AGE_AT_GRAD %in% na_vals),
     HIGHEST_CRED_BY_DATE == "Yes"
   ) |>
@@ -750,22 +800,35 @@ age_weights <- credential_non_dup |>
   )
 
 set.seed(42)
+# verify that these results produce similar distributions, the differences in
+# sampling results may be considered insignificant
 imputed_student_ages <- credential_non_dup |>
   filter(HIGHEST_CRED_BY_DATE == "Yes") |>
   filter(AGE_AT_GRAD %in% na_vals) |>
   select(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
-  left_join(age_weights, by = c("PSI_CREDENTIAL_CATEGORY", "PSI_GENDER_CLEANED")) |>
+  left_join(
+    age_weights,
+    by = c("PSI_CREDENTIAL_CATEGORY", "PSI_GENDER_CLEANED")
+  ) |>
   mutate(
     FINAL_AGE = case_when(
       # If we have no matching distribution (e.g., a brand new category), fallback to random
-      is.null(ages) ~ sample(19:54, 1), 
+      is.null(ages) ~ sample(19:54, 1),
       TRUE ~ as.numeric(map2(ages, weights, ~ sample(.x, size = 1, prob = .y)))
     )
   ) |>
   select(-ages, -weights)
 
 credential_non_dup <- credential_non_dup |>
-  left_join(imputed_student_ages, by = join_by(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED)) |>
+  left_join(
+    imputed_student_ages,
+    by = join_by(
+      ID,
+      ENCRYPTED_TRUE_PEN,
+      PSI_CREDENTIAL_CATEGORY,
+      PSI_GENDER_CLEANED
+    )
+  ) |>
   mutate(
     AGE_AT_GRAD = coalesce(as.numeric(AGE_AT_GRAD), FINAL_AGE)
   ) |>
@@ -773,11 +836,11 @@ credential_non_dup <- credential_non_dup |>
 
 credential_non_dup <- credential_non_dup |>
   left_join(
-    age_group_lookup|> select(AgeIndex, LowerBound, UpperBound),
+    age_group_lookup |> select(AgeIndex, LowerBound, UpperBound),
     by = join_by(between(AGE_AT_GRAD, LowerBound, UpperBound))
   ) |>
   mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
-  select(-AgeIndex, -LowerBound, -UpperBound) 
+  select(-AgeIndex, -LowerBound, -UpperBound)
 
 #credential_non_dup.ref <- credential_non_dup
 #credential.ref <- credential
@@ -786,60 +849,177 @@ credential_non_dup <- credential_non_dup |>
 
 # ---- VISA Status ----
 cols_specific <- c(
-  "ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", 
-  "PSI_PROGRAM_CODE", "PSI_CREDENTIAL_PROGRAM_DESCRIPTION", "PSI_SCHOOL_YEAR"
+  "ENCRYPTED_TRUE_PEN",
+  "PSI_CODE",
+  "PSI_STUDENT_NUMBER",
+  "PSI_PROGRAM_CODE",
+  "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+  "PSI_SCHOOL_YEAR"
 )
+
+# The 4-column broad fallback match
 cols_broad <- c(
-  "ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "PSI_SCHOOL_YEAR"
+  "ENCRYPTED_TRUE_PEN",
+  "PSI_CODE",
+  "PSI_STUDENT_NUMBER",
+  "PSI_SCHOOL_YEAR"
 )
 
 # Note, there are a few extra rows added in the left joins: need to investigate
+# QA: I've found dups in the credential_non_dup table (ironic)
 credential_non_dup <- credential_non_dup |>
   # Attempt 1: Perfect Match (6 columns)
   left_join(
-    credential_supvars_enrolment |> select(all_of(cols_specific), VISA_SPECIFIC = PSI_VISA_STATUS)|> distinct(), 
-    relationship = "many-to-many") |>
+    credential_supvars_enrolment |>
+      select(all_of(cols_specific), VISA_SPECIFIC = PSI_VISA_STATUS) |>
+      distinct(),
+    relationship = "many-to-many"
+  ) |>
   # Attempt 2: Broad Match (4 columns)
   left_join(
-    credential_supvars_enrolment |> select(all_of(cols_broad), VISA_BROAD = PSI_VISA_STATUS) |> distinct(),
+    credential_supvars_enrolment |>
+      select(all_of(cols_broad), VISA_BROAD = PSI_VISA_STATUS) |>
+      distinct(),
     relationship = "many-to-many"
   ) |>
   # Apply Hierarchy: Original -> Perfect Match -> Broad Match
   mutate(PSI_VISA_STATUS = coalesce(VISA_SPECIFIC, VISA_BROAD)) |>
   select(-VISA_SPECIFIC, -VISA_BROAD)
-credential_non_dup |> 
 
-credential_supvars <- 
-credential_supvars |>
+credential_supvars <- credential_supvars |>
   left_join(
     credential_non_dup |> select(ID, PSI_VISA_STATUS),
-    by = "ID") |> count(PSI_VISA_STATUS)
-
+    by = "ID"
+  )
 
 # ---- Highest Rank ----
-dbExecute(
-  con,
-  "ALTER TABLE Credential_Non_Dup ADD CONCATENATED_ID VARCHAR(255) NULL"
-)
-dbExecute(
-  con,
-  "UPDATE Credential_Non_Dup SET CONCATENATED_ID = ENCRYPTED_TRUE_PEN 
-                 WHERE (ENCRYPTED_TRUE_PEN IS NOT NULL AND ENCRYPTED_TRUE_PEN NOT IN ("", " ", "(Unspecified)"))"
-)
-dbExecute(
-  con,
-  "UPDATE Credential_Non_Dup SET CONCATENATED_ID = PSI_STUDENT_NUMBER + PSI_CODE 
-                WHERE (ENCRYPTED_TRUE_PEN IS NULL) OR (ENCRYPTED_TRUE_PEN IN ("", " ", "(Unspecified)"))"
-)
-dbExecute(con, qry12_Create_View_tblCredentialHighestRank)
+# this variable should be created at the beginning, before any analysis!
+credential_non_dup <- credential_non_dup |>
+  mutate(
+    CONCATENATED_ID = case_when(
+      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
+      !PSI_CODE %in% na_vals & !PSI_STUDENT_NUMBER %in% na_vals ~ paste0(
+        PSI_STUDENT_NUMBER,
+        PSI_CODE
+      ),
+      TRUE ~ NA_character_
+    )
+  )
 
-dbExecute(con, qry18a_ExtrLaterAwarded)
-dbExecute(con, qry18b_ExtrLaterAwarded)
-dbExecute(con, qry18c_ExtrLaterAwarded)
-dbExecute(con, qry18d_ExtrLaterAwarded)
-dbExecute(con, "DROP TABLE tmp_qry18b_ExtrLaterAwarded_2")
-dbExecute(con, "DROP TABLE tmp_qry18c_ExtrLaterAwarded_3")
-dbExecute(con, "DROP TABLE tblcredential_laterawarded")
+tbl_credential_highest_rank <- credential_non_dup |>
+  distinct(
+    ID,
+    PSI_BIRTHDATE_CLEANED = psi_birthdate_cleaned,
+    PSI_GENDER_CLEANED,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_SCHOOL_YEAR,
+    PSI_CODE,
+    CREDENTIAL_AWARD_DATE,
+    RecordStatus,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_CATEGORY,
+    CREDENTIAL_AWARD_DATE_D,
+    AGE_AT_GRAD,
+    AGE_GROUP_AT_GRAD,
+    PSI_BIRTHDATE_CLEANED_D = psi_birthdate_cleaned_D,
+    HIGHEST_CRED_BY_RANK,
+    CONCATENATED_ID
+  ) |>
+  inner_join(
+    credential_supvars |>
+      distinct(ID, PSI_VISA_STATUS),
+    by = "ID",
+    relationship = "many-to-many"
+  ) |>
+  filter(HIGHEST_CRED_BY_RANK == "Yes")
+
+# Recreates qry18a and qry18b logic
+tbl_later_awarded <- credential_non_dup |>
+  distinct(
+    LID = ID,
+    CONCATENATED_ID,
+    LATER_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
+    HIGHEST_CRED_BY_DATE,
+    PSI_CREDENTIAL_CATEGORY
+  ) |>
+  inner_join(credential_rank, by = "PSI_CREDENTIAL_CATEGORY") |>
+  inner_join(
+    tbl_credential_highest_rank |>
+      distinct(
+        HID = ID,
+        HIGHEST_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
+        CONCATENATED_ID
+      ),
+    by = "CONCATENATED_ID"
+  ) |>
+  filter(LATER_AWARD_DATE > HIGHEST_AWARD_DATE)
+
+tbl_later_awarded <-
+  tbl_later_awarded |>
+  mutate(
+    MONTHS_DIFF = lubridate::interval(
+      HIGHEST_AWARD_DATE,
+      LATER_AWARD_DATE
+    ) /
+      months(1)
+  ) |>
+  filter(case_when(
+    PSI_CREDENTIAL_CATEGORY %in%
+      c(
+        "Apprenticeship",
+        "Bachelors Degree",
+        "First Professional Degree"
+      ) ~ TRUE,
+    PSI_CREDENTIAL_CATEGORY %in%
+      c("Advanced Diploma", "Advanced Certificate") &
+      MONTHS_DIFF <= 36 ~ TRUE,
+    PSI_CREDENTIAL_CATEGORY %in%
+      c(
+        "Diploma",
+        "Masters Degree",
+        "Graduate Diploma",
+        "Post-Degree Diploma"
+      ) &
+      MONTHS_DIFF <= 30 ~ TRUE,
+    PSI_CREDENTIAL_CATEGORY %in%
+      c(
+        "Associate Degree",
+        "Certificate",
+        "Graduate Certificate",
+        "Post-Degree Certificate"
+      ) &
+      MONTHS_DIFF <= 18 ~ TRUE,
+
+    TRUE ~ FALSE
+  )) |>
+  select(
+    LID,
+    HID,
+    CONCATENATED_ID,
+    LATER_AWARD_DATE
+  )
+
+# Recreates qry18c and qry18d logic combined
+tbl_credential_delay_effect <- tbl_later_awarded |>
+  group_by(CONCATENATED_ID) |>
+  slice_max(LATER_AWARD_DATE, n = 1, with_ties = TRUE) |>
+  slice_min(LID, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(
+    LID,
+    HID,
+    CONCATENATED_ID,
+    LATER_AWARD_DATE
+  )
+
+# Got to here, check tbl_credential_delay_effect against
+# there are extra cases in the R version. Likely due to slice_min/slice_max
+# tie-breakers?
+sql_test <- dbReadTable(con, "tblCredential_DelayEffect")
 
 # ---- 13 Delay Date ----
 dbExecute(con, qry19_UpdateDelayDate)
@@ -915,4 +1095,3 @@ dbDisconnect(con)
 # ---- These tables used later ----
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')))
-
