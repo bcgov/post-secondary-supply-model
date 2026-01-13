@@ -325,23 +325,24 @@ stp_credential_record_type <-
             "Short Certificate"
           )
       ) |>
-      mutate(DropCredCategory = "Yes") |>
-      select(ID, DropCredCategory, PSI_CREDENTIAL_CATEGORY)),
+      mutate(DropCredCategory_new = "Yes") |>
+      select(ID, DropCredCategory_new, PSI_CREDENTIAL_CATEGORY)),
     by = "ID"
   ) |>
   mutate(
-    DropCredCategory = replace_na(DropCredCategory, "No")
-  )
+    DropCredCategory = coalesce(DropCredCategory_new, DropCredCategory, "No")
+  ) |>
+  select(-DropCredCategory_new)
 
 # ---- 03 Miscellaneous ----
 stp_credential_record_type <-
   credential_supvars |>
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
   select(ID) |>
-  mutate(DropPartialYear = "Yes") |>
+  mutate(DropPartialYear_new = "Yes") |>
   right_join(stp_credential_record_type, by = "ID") |>
   mutate(
-    DropPartialYear = if_else(is.na(DropPartialYear), "No", DropPartialYear)
+    DropPartialYear = coalesce(DropPartialYear, DropPartialYear_new, "No")
   )
 
 
@@ -631,10 +632,10 @@ credential <- credential |>
     cred_year_end = if_else(cred_month < 9, cred_year, cred_year + 1)
   ) |>
   mutate(
-    PSI_CREDENTIAL_SCHOOL_YEAR = paste0(
+    PSI_AWARD_SCHOOL_YEAR = paste0(
       cred_year_start,
       "/",
-      substr(as.character(cred_year_end), 3, 4)
+      as.character(cred_year_end)
     )
   ) |>
   select(-cred_month, -cred_year, -cred_year_start, -cred_year_end)
@@ -842,10 +843,6 @@ credential_non_dup <- credential_non_dup |>
   mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-#credential_non_dup.ref <- credential_non_dup
-#credential.ref <- credential
-#credential_supvars.ref <- credential_supvars
-#credential_supvars_enrolment.ref <- credential_supvars_enrolment
 
 # ---- VISA Status ----
 cols_specific <- c(
@@ -944,6 +941,7 @@ tbl_later_awarded <- credential_non_dup |>
     CONCATENATED_ID,
     LATER_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
     HIGHEST_CRED_BY_DATE,
+    PSI_AWARD_SCHOOL_YEAR,
     PSI_CREDENTIAL_CATEGORY
   ) |>
   inner_join(credential_rank, by = "PSI_CREDENTIAL_CATEGORY") |>
@@ -954,53 +952,57 @@ tbl_later_awarded <- credential_non_dup |>
         HIGHEST_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
         CONCATENATED_ID
       ),
-    by = "CONCATENATED_ID"
+    by = join_by("CONCATENATED_ID")
   ) |>
   filter(LATER_AWARD_DATE > HIGHEST_AWARD_DATE)
 
 tbl_later_awarded <-
   tbl_later_awarded |>
+  # MONTHS_DIFF is the number of month boundaries btwn LATER_AWARD_DATE and HIGHEST_AWARD_DATE
+  # this accuratley converts SQL DATEDIFF
   mutate(
-    MONTHS_DIFF = lubridate::interval(
-      HIGHEST_AWARD_DATE,
-      LATER_AWARD_DATE
-    ) /
-      months(1)
+    MONTHS_DIFF = (year(LATER_AWARD_DATE) - year(HIGHEST_AWARD_DATE)) *
+      12 +
+      (month(LATER_AWARD_DATE) - month(HIGHEST_AWARD_DATE))
   ) |>
-  filter(case_when(
-    PSI_CREDENTIAL_CATEGORY %in%
-      c(
-        "Apprenticeship",
-        "Bachelors Degree",
-        "First Professional Degree"
-      ) ~ TRUE,
-    PSI_CREDENTIAL_CATEGORY %in%
-      c("Advanced Diploma", "Advanced Certificate") &
-      MONTHS_DIFF <= 36 ~ TRUE,
-    PSI_CREDENTIAL_CATEGORY %in%
-      c(
-        "Diploma",
-        "Masters Degree",
-        "Graduate Diploma",
-        "Post-Degree Diploma"
-      ) &
-      MONTHS_DIFF <= 30 ~ TRUE,
-    PSI_CREDENTIAL_CATEGORY %in%
-      c(
-        "Associate Degree",
-        "Certificate",
-        "Graduate Certificate",
-        "Post-Degree Certificate"
-      ) &
-      MONTHS_DIFF <= 18 ~ TRUE,
+  mutate(
+    keep = case_when(
+      PSI_CREDENTIAL_CATEGORY %in%
+        c(
+          "Apprenticeship",
+          "Bachelors Degree",
+          "First Professional Degree"
+        ) ~ TRUE,
+      PSI_CREDENTIAL_CATEGORY %in%
+        c("Advanced Diploma", "Advanced Certificate") &
+        MONTHS_DIFF <= 36 ~ TRUE,
+      PSI_CREDENTIAL_CATEGORY %in%
+        c(
+          "Diploma",
+          "Masters Degree",
+          "Graduate Diploma",
+          "Post-Degree Diploma"
+        ) &
+        MONTHS_DIFF <= 30 ~ TRUE,
+      PSI_CREDENTIAL_CATEGORY %in%
+        c(
+          "Associate Degree",
+          "Certificate",
+          "Graduate Certificate",
+          "Post-Degree Certificate"
+        ) &
+        MONTHS_DIFF <= 18 ~ TRUE,
 
-    TRUE ~ FALSE
-  )) |>
+      TRUE ~ FALSE
+    )
+  ) |>
+  filter(keep) |>
   select(
     LID,
     HID,
     CONCATENATED_ID,
-    LATER_AWARD_DATE
+    LATER_AWARD_DATE,
+    PSI_AWARD_SCHOOL_YEAR
   )
 
 # Recreates qry18c and qry18d logic combined
@@ -1013,13 +1015,10 @@ tbl_credential_delay_effect <- tbl_later_awarded |>
     LID,
     HID,
     CONCATENATED_ID,
-    LATER_AWARD_DATE
+    LATER_AWARD_DATE,
+    PSI_AWARD_SCHOOL_YEAR
   )
-
-# Got to here, check tbl_credential_delay_effect against
-# there are extra cases in the R version. Likely due to slice_min/slice_max
-# tie-breakers?
-sql_test <- dbReadTable(con, "tblCredential_DelayEffect")
+# perfect to here
 
 # ---- 13 Delay Date ----
 dbExecute(con, qry19_UpdateDelayDate)
