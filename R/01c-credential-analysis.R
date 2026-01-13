@@ -16,7 +16,7 @@ library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-source("./sql/01-credential-analysis/01b-credential-analysis.R")
+source("./sql/01-credential-analysis/01c-credential-analysis.R")
 #source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
 #source(
 #  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
@@ -903,6 +903,7 @@ credential_non_dup <- credential_non_dup |>
     )
   )
 
+# ---- 13 Delay Date and highest rank----
 tbl_credential_highest_rank <- credential_non_dup |>
   distinct(
     ID,
@@ -919,6 +920,7 @@ tbl_credential_highest_rank <- credential_non_dup |>
     PSI_CREDENTIAL_CIP,
     PSI_CREDENTIAL_LEVEL,
     PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR,
     CREDENTIAL_AWARD_DATE_D,
     AGE_AT_GRAD,
     AGE_GROUP_AT_GRAD,
@@ -933,6 +935,7 @@ tbl_credential_highest_rank <- credential_non_dup |>
     relationship = "many-to-many"
   ) |>
   filter(HIGHEST_CRED_BY_RANK == "Yes")
+
 
 # Recreates qry18a and qry18b logic
 tbl_later_awarded <- credential_non_dup |>
@@ -1015,25 +1018,61 @@ tbl_credential_delay_effect <- tbl_later_awarded |>
     LID,
     HID,
     CONCATENATED_ID,
-    LATER_AWARD_DATE,
-    PSI_AWARD_SCHOOL_YEAR
+    CREDENTIAL_AWARD_DATE_D_DELAYED = LATER_AWARD_DATE,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
   )
 # perfect to here
 
-# ---- 13 Delay Date ----
-dbExecute(con, qry19_UpdateDelayDate)
-dbExecute(con, "DROP TABLE tblCredential_DelayEffect")
+tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+  left_join(
+    tbl_credential_delay_effect |>
+      select(
+        HID,
+        CREDENTIAL_AWARD_DATE_D_DELAYED,
+        PSI_AWARD_SCHOOL_YEAR_DELAYED
+      ),
+    by = join_by(ID == HID)
+  )
 
-dbExecute(
-  con,
-  "ALTER TABLE Credential_Non_Dup 
-                ADD CREDENTIAL_AWARD_DATE_D_DELAYED date, 
-                PSI_AWARD_SCHOOL_YEAR_DELAYED varchar(50);"
-)
 
-dbExecute(con, qry13a_UpdateDelayedCredDate)
-dbExecute(con, qry13b_UpdateDelayedCredDate)
-dbExecute(con, qry13_UpdateDelayedCredDate)
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    tbl_credential_highest_rank |>
+      select(
+        ID,
+        CREDENTIAL_AWARD_DATE_D_DELAYED,
+        PSI_AWARD_SCHOOL_YEAR_DELAYED
+      ),
+    by = "ID",
+    relationship = "many-to-many"
+  ) |>
+  mutate(
+    CREDENTIAL_AWARD_DATE_D_DELAYED = coalesce(
+      CREDENTIAL_AWARD_DATE_D_DELAYED,
+      CREDENTIAL_AWARD_DATE_D
+    ),
+    PSI_AWARD_SCHOOL_YEAR_DELAYED = coalesce(
+      PSI_AWARD_SCHOOL_YEAR_DELAYED,
+      PSI_AWARD_SCHOOL_YEAR
+    )
+  )
+credential_non_dup.ref <- credential_non_dup
+
+
+tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+  mutate(
+    CREDENTIAL_AWARD_DATE_D_DELAYED = coalesce(
+      CREDENTIAL_AWARD_DATE_D_DELAYED,
+      CREDENTIAL_AWARD_DATE_D
+    )
+  ) |>
+  mutate(
+    PSI_AWARD_SCHOOL_YEAR_DELAYED = coalesce(
+      PSI_AWARD_SCHOOL_YEAR_DELAYED,
+      PSI_AWARD_SCHOOL_YEAR
+    )
+  )
+
 
 # ---- 14-15 research University + Outcomes Credential ----
 dbExecute(con, qry14_ResearchUniversity)
