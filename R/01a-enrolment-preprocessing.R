@@ -147,7 +147,7 @@ stp_enrolment_record_type <- stp_enrolment |>
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(
-    rec_type = case_when(
+    RecordStatus = case_when(
       # Record Status 1: qry02a to qry02c
       (PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
         ENCRYPTED_TRUE_PEN %in% invalid_pen ~ 1,
@@ -191,7 +191,7 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
       TRUE ~ 0
     )
   ) |>
-  select(ID, rec_type)
+  select(ID, RecordStatus)
 
 # Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
 # find more skills based courses and/or keep some that were excluded.  The manual
@@ -202,7 +202,8 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
 # coding.
 
 sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
-stp_enrolment_record_type <- dbGetQuery(con, sql)
+stp_enrolment_record_type <- dbGetQuery(con, sql) |>
+  select(ID, RecordStatus) # we may need to change the column names later
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -222,7 +223,7 @@ stp_enrolment_valid <- stp_enrolment |>
     PSI_ENROLMENT_SEQUENCE
   ) |>
   inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
-  filter(rec_type == 0)
+  filter(RecordStatus == 0)
 
 
 ## ------------------------------------------------------------------------------------------------
@@ -268,13 +269,13 @@ stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
     is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
     is_first_enrol = if_else((is_first_enrol | is_first_enrol_combo), 1, 0)
   ) |>
-  select(ID, rec_type, is_min_enrol, is_first_enrol)
+  select(ID, RecordStatus, is_min_enrol, is_first_enrol)
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   left_join(stp_enrolment_valid_final) |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
 
-stp_enrolment_record_type |> count(rec_type, is_min_enrol, is_first_enrol)
+stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
