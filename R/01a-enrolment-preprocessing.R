@@ -223,8 +223,8 @@ stp_enrolment_valid <- stp_enrolment |>
     PSI_ENROLMENT_SEQUENCE
   ) |>
   inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
-  filter(RecordStatus == 0)
-
+  filter(RecordStatus == 0) |>
+  select(-RecordStatus)
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -269,7 +269,7 @@ stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
     is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
     is_first_enrol = if_else((is_first_enrol | is_first_enrol_combo), 1, 0)
   ) |>
-  select(ID, RecordStatus, is_min_enrol, is_first_enrol)
+  select(ID, is_min_enrol, is_first_enrol)
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   left_join(stp_enrolment_valid_final) |>
