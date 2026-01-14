@@ -29,18 +29,26 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-if (!dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_raw"')))) {
-  stop(
-    "STP_Enrolment table does not exist in the database. Please check the data load process."
-  )
-}
+# if (!dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_raw"')))) {
+#   stop(
+#     "STP_Enrolment table does not exist in the database. Please check the data load process."
+#   )
+# }
+#
+# stp_enrolment <- dbGetQuery(
+#   con,
+#   glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
+# )
+#
 
-stp_enrolment_raw <- dbGetQuery(
+# stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+
+stp_enrolment <- dbGetQuery(
   con,
-  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_raw];")
-)
+  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
+) |>
+  select(-psi_birthdate_cleaned)
 
-stp_enrolment <- stp_enrolment_raw # save a copy while testing
 ## -----------------------------------------------------------------------------------------------
 
 ## --------------------------------------Initial Data Checks--------------------------------------
@@ -57,7 +65,7 @@ stp_enrolment |>
 
 stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
-stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+
 # -------------------------------------------------------------------------------------------------
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
