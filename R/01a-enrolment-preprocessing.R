@@ -276,6 +276,7 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
 
 stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
+
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
@@ -336,7 +337,8 @@ stp_enrolment <- stp_enrolment |>
     birthdate_update,
     by = "ENCRYPTED_TRUE_PEN"
   ) |>
-  mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE)) # or PSI_BIRTHDATE = coalesce....
+  mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
+# I think this _FINAL version should be renamed to _CLEANED - confirm??
 
 tables_to_keep <- c(
   "stp_enrolment",
