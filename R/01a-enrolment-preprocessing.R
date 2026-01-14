@@ -225,24 +225,6 @@ stp_enrolment_valid <- stp_enrolment |>
   filter(rec_type == 0)
 
 
-#sql <- glue::glue(
-#  "
-#SELECT R.ID
-#  , R.RecordStatus as rec_type
-#  , E. ENCRYPTED_TRUE_PEN
-#  , E. PSI_STUDENT_NUMBER
-#  , E. PSI_CODE
-#  , E. PSI_MIN_START_DATE
-#  , E. PSI_SCHOOL_YEAR
-#  , E. PSI_ENROLMENT_SEQUENCE
-#FROM [{my_schema}].[STP_Enrolment_Record_Type] R
-#INNER JOIN [{my_schema}].[STP_Enrolment] E
-#ON E.ID = R.ID
-#WHERE RecordStatus = 0;"
-#)
-#
-#stp_enrolment_valid <- dbGetQuery(con, sql)
-
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Min Enrolment --------------------------------------------
