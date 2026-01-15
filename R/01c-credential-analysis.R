@@ -16,13 +16,13 @@ library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-source("./sql/01-credential-analysis/01c-credential-analysis.R")
+#source("./sql/01-credential-analysis/01c-credential-analysis.R")
 #source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
 #source(
 #  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
 #)
-source("./sql/01-credential-analysis/credential-non-dup-psi_visa_status.R")
-source("./sql/01-credential-analysis/credential-ranking.R")
+#source("./sql/01-credential-analysis/credential-non-dup-psi_visa_status.R")
+#source("./sql/01-credential-analysis/credential-ranking.R")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")

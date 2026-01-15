@@ -15,11 +15,10 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-## ---------------------------------- extract data from SQL Server ------------------------------
+# ---- Configure LAN Paths and DB Connection -----
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
 con <- dbConnect(
   odbc(),
@@ -28,20 +27,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-
-# if (!dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_raw"')))) {
-#   stop(
-#     "STP_Enrolment table does not exist in the database. Please check the data load process."
-#   )
-# }
-#
-# stp_enrolment <- dbGetQuery(
-#   con,
-#   glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
-# )
-#
-
-# stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+# ---- Check Required Tables etc. ----
 
 stp_enrolment <- dbGetQuery(
   con,
@@ -64,6 +50,9 @@ stp_enrolment |>
   nrow()
 
 stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
+
+
+stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
 
 
 # -------------------------------------------------------------------------------------------------
@@ -101,6 +90,8 @@ stp_enrolment <- stp_enrolment |>
       .names = "{.col}"
     )
   )
+
+
 ## ------------------------------------------------------------------------------------------------
 
 ## --------------------------------------- Create Record Type Table -------------------------------

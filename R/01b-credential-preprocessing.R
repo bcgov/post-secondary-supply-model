@@ -21,10 +21,8 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-# ---- Configure LAN Paths and DB Connection -----
-source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")
 
-# set connection string to decimal
+# ---- Configure LAN Paths and DB Connection -----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 
@@ -36,17 +34,20 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
+
 # ---- Check Required Tables etc. ----
 stp_credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Credential"'))
 )
 
+
 # These should be in the R environment already.  If not, toggle.
 #stp_enrolment_record_type <- dbReadTable(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
 #)
+
 #stp_enrolment <- dbReadTable(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
@@ -179,7 +180,7 @@ tables_to_keep <- c(
   "stp_enrolment",
   "stp_credential",
   "stp_enrolment_record_type",
-  "stp_credential_record_type",
+  "stp_credential_record_type"
 )
 
 rm(list = setdiff(ls(), tables_to_keep))
