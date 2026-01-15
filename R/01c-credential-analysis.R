@@ -288,7 +288,6 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
     )
   )
 
-
 # ---- 02 Developmental Records ----
 # add a drop credential flag, presumably for later use
 stp_credential_record_type <-
@@ -304,26 +303,27 @@ stp_credential_record_type <-
             "Short Certificate"
           )
       ) |>
-      mutate(DropCredCategory_new = "Yes") |>
-      select(ID, DropCredCategory_new, PSI_CREDENTIAL_CATEGORY)),
+      mutate(DropCredCategory = "Yes") |>
+      select(ID, DropCredCategory)),
     by = "ID"
   ) |>
   mutate(
-    DropCredCategory = coalesce(DropCredCategory_new, DropCredCategory, "No")
-  ) |>
-  select(-DropCredCategory_new)
+    DropCredCategory = if_else(is.na(DropCredCategory), "No", DropCredCategory)
+  )
 
 # ---- 03 Miscellaneous ----
 stp_credential_record_type <-
   credential_supvars |>
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
   select(ID) |>
-  mutate(DropPartialYear_new = "Yes") |>
+  mutate(DropPartialYear = "Yes") |>
   right_join(stp_credential_record_type, by = "ID") |>
   mutate(
-    DropPartialYear = coalesce(DropPartialYear, DropPartialYear_new, "No")
+    DropPartialYear = if_else(is.na(DropPartialYear), "No", DropPartialYear)
   )
 
+sql_test <- dbReadTable(con, "STP_Credential_Record_Type")
+r_test <- stp_credential_record_type
 
 # ---- 03 Gender Cleaning ----
 # Performs a targeted data recovery for missing gender information.
