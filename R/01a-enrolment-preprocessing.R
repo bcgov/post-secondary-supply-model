@@ -337,8 +337,8 @@ stp_enrolment <- stp_enrolment |>
     birthdate_update,
     by = "ENCRYPTED_TRUE_PEN"
   ) |>
-  mutate(PSI_BIRTHDATE_FINAL = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
-# I think this _FINAL version should be renamed to _CLEANED - confirm??
+  mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
+# Keeping as lower case to match the SQL versions, jfn.
 
 tables_to_keep <- c(
   "stp_enrolment",
@@ -349,3 +349,5 @@ tables_to_keep <- c(
 )
 
 rm(list = setdiff(ls(), tables_to_keep))
+
+dbDisconnect(con)

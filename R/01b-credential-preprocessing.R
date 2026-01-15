@@ -37,22 +37,20 @@ con <- dbConnect(
 )
 
 # ---- Check Required Tables etc. ----
-stp_enrolment <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
-)
 stp_credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."STP_Credential"'))
 )
-stp_enrolment_record_type <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
-)
 
-#stp_credential.orig <- stp_credential # save a copy while testing
-#stp_enrolment.orig <- stp_enrolment # save a copy while testing
-#stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
+# These should be in the R environment already.  If not, toggle.
+#stp_enrolment_record_type <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
+#)
+#stp_enrolment <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+#)
 
 stp_credential |>
   filter(
