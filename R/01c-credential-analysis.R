@@ -46,9 +46,6 @@ con <- dbConnect(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
 #)
-
-# Should EPEN be in stp_credential_record_type?
-
 #stp_enrolment_valid <- dbReadTable(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
@@ -343,11 +340,6 @@ stp_credential_record_type <-
 na_vals <- c("U", "Unknown", "(Unspecified)", "", " ", NA_character_)
 credential_supvars <- credential_supvars |>
   mutate(PSI_GENDER_CLEANED = NA_character_)
-
-#useful for development
-#credential_supvars_enrolment.bk <- credential_supvars_enrolment
-#credential_supvars.bk <- credential_supvars
-#credential_supvars <- credential_supvars.bk
 
 # First pass: find genders from credential_supvars_enrolment
 missing_gender <- credential_supvars |>
