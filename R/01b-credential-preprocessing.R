@@ -180,7 +180,8 @@ tables_to_keep <- c(
   "stp_enrolment",
   "stp_credential",
   "stp_enrolment_record_type",
-  "stp_credential_record_type"
+  "stp_credential_record_type",
+  "stp_enrolment_valid"
 )
 
 rm(list = setdiff(ls(), tables_to_keep))

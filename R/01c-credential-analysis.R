@@ -16,14 +16,6 @@ library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-#source("./sql/01-credential-analysis/01c-credential-analysis.R")
-#source("./sql/01-credential-analysis/credential-sup-vars-from-enrolment.R")
-#source(
-#  "./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R"
-#)
-#source("./sql/01-credential-analysis/credential-non-dup-psi_visa_status.R")
-#source("./sql/01-credential-analysis/credential-ranking.R")
-
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 db_schema <- config::get("dbschema")
@@ -36,41 +28,31 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# ---- Get Required Tables (for testing only) ----
-# remove after development and replace with a check that the table exists
-# in the current R environment
-stp_enrolment <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
-)
-stp_credential <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
-)
+# These should be in the R environment already.  If not, toggle.
+#stp_enrolment <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+#)
+#stp_credential <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+#)
+#
+#stp_enrolment_record_type <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
+#)
+#stp_credential_record_type <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
+#)
 
-stp_enrolment_record_type <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
-)
-stp_credential_record_type <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
-)
-# DropCredCategory and DropPartialYear shouldn't be in this table. EPEN either?
-# Toggle if you need to remove manually during development - this can happen as a
-# result of the SQL schema environment becoming out of sync with R enviro.
-# stp_credential_record_type <- stp_credential_record_type |> select(-DropCredCategory, -DropPartialYear)
+# Should EPEN be in stp_credential_record_type?
 
-stp_enrolment_valid <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
-)
-
-#stp_credential.orig <- stp_credential # save a copy while testing
-#stp_enrolment_valid.orig <- stp_enrolment_valid # save a copy while testing
-#stp_enrolment.orig <- stp_enrolment # save a copy while testing
-#stp_enrolment_record_type.orig <- stp_enrolment_record_type # save a copy while testing
-#stp_credential_record_type.orig <- stp_credential_record_type # save a copy while testing
+#stp_enrolment_valid <- dbReadTable(
+#  con,
+#  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
+#)
 
 # Define lookup tables
 outcome_credential <- tibble(
