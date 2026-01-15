@@ -306,9 +306,6 @@ stp_credential_record_type <-
       mutate(DropCredCategory = "Yes") |>
       select(ID, DropCredCategory)),
     by = "ID"
-  ) |>
-  mutate(
-    DropCredCategory = if_else(is.na(DropCredCategory), "No", DropCredCategory)
   )
 
 # ---- 03 Miscellaneous ----
@@ -317,10 +314,7 @@ stp_credential_record_type <-
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
   select(ID) |>
   mutate(DropPartialYear = "Yes") |>
-  right_join(stp_credential_record_type, by = "ID") |>
-  mutate(
-    DropPartialYear = if_else(is.na(DropPartialYear), "No", DropPartialYear)
-  )
+  right_join(stp_credential_record_type, by = "ID")
 
 sql_test <- dbReadTable(con, "STP_Credential_Record_Type")
 r_test <- stp_credential_record_type
