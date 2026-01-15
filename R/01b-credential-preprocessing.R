@@ -62,11 +62,14 @@ stp_credential |>
 
 stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
+
 # Add primary key: this may not be necessary but leaving for now
 stp_credential <- stp_credential |>
   mutate(ID = row_number()) |>
   relocate(ID, .before = CREDENTIAL_AWARD_DATE)
 
+
+# ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 date_cols <- c(
   "CREDENTIAL_AWARD_DATE",
   "PSI_PROGRAM_EFFECTIVE_DATE"
