@@ -316,9 +316,6 @@ stp_credential_record_type <-
   mutate(DropPartialYear = "Yes") |>
   right_join(stp_credential_record_type, by = "ID")
 
-sql_test <- dbReadTable(con, "STP_Credential_Record_Type")
-r_test <- stp_credential_record_type
-
 # ---- 03 Gender Cleaning ----
 # Performs a targeted data recovery for missing gender information.
 # Essentially, identify students with missing gender values and
@@ -333,16 +330,16 @@ r_test <- stp_credential_record_type
 
 na_vals <- c("U", "Unknown", "(Unspecified)", "", " ", NA_character_)
 credential_supvars <- credential_supvars |>
-  mutate(PSI_GENDER_CLEANED = NA_character_)
+  mutate(psi_gender_cleaned = NA_character_)
 
 # First pass: find genders from credential_supvars_enrolment
 missing_gender <- credential_supvars |>
-  filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
+  filter(psi_gender_cleaned %in% na_vals) |> # Select initial subset of columns
   distinct(
     ENCRYPTED_TRUE_PEN,
     PSI_STUDENT_NUMBER,
     PSI_CODE,
-    PSI_GENDER_CLEANED
+    psi_gender_cleaned
   )
 
 src_gender_lookup <- credential_supvars_enrolment |>
@@ -368,7 +365,7 @@ epen_missing_gender <- missing_gender |>
   arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
   slice(1) |>
   ungroup() |>
-  select(ENCRYPTED_TRUE_PEN, PSI_GENDER_CLEANED = PSI_GENDER) |>
+  select(ENCRYPTED_TRUE_PEN, psi_gender_cleaned = PSI_GENDER) |>
   distinct()
 
 # add recovered genders to credential_supvars
@@ -377,23 +374,23 @@ credential_supvars <- credential_supvars |>
     epen_missing_gender |>
       select(
         ENCRYPTED_TRUE_PEN,
-        PSI_GENDER_CLEANED
+        psi_gender_cleaned
       ),
     suffix = c("", "_y"),
     # Safety distinct to ensure no row duplication
     distinct(ENCRYPTED_TRUE_PEN, .keep_all = TRUE),
     by = "ENCRYPTED_TRUE_PEN"
   ) |>
-  select(-PSI_GENDER_CLEANED_y)
+  select(-psi_gender_cleaned_y)
 
 # Second pass: find genders from stp_enrolment for those still missing
 still_missing_gender <- credential_supvars |>
-  filter(PSI_GENDER_CLEANED %in% na_vals) |> # Select initial subset of columns
+  filter(psi_gender_cleaned %in% na_vals) |> # Select initial subset of columns
   distinct(
     ENCRYPTED_TRUE_PEN,
     PSI_STUDENT_NUMBER,
     PSI_CODE,
-    PSI_GENDER_CLEANED
+    psi_gender_cleaned
   )
 
 src_gender_lookup <- stp_enrolment |>
@@ -453,8 +450,9 @@ credential_supvars <- credential_supvars |>
     by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
   ) |>
   mutate(
-    PSI_GENDER_CLEANED = coalesce(
-      PSI_GENDER_CLEANED,
+    psi_gender_cleaned = coalesce(
+      # use lower case to align with SQL versions
+      psi_gender_cleaned,
       GENDER_FROM_STP_ENROLMENT.x,
       GENDER_FROM_STP_ENROLMENT.y
     )
@@ -560,7 +558,7 @@ credential <- stp_credential |>
         CREDENTIAL_AWARD_DATE_D,
         psi_birthdate_cleaned,
         psi_birthdate_cleaned_D,
-        PSI_GENDER_CLEANED
+        psi_gender_cleaned
       ),
     by = "ID"
   ) |>
@@ -571,8 +569,8 @@ credential <- stp_credential |>
   ) |>
   filter(
     RecordStatus == 0,
-    DropCredCategory == "No",
-    DropPartialYear == "No"
+    is.na(DropCredCategory),
+    is.na(DropPartialYear)
   )
 
 # ---- 05 Age and Credential  ----
@@ -625,7 +623,7 @@ credential <- credential |>
     relationship = "many-to-many"
   ) |>
   mutate(
-    PSI_GENDER_CLEANED = coalesce(PSI_GENDER_CLEANED, PSI_GENDER_FROM_ENROLMENT)
+    psi_gender_cleaned = coalesce(psi_gender_cleaned, PSI_GENDER_FROM_ENROLMENT)
   ) |>
   select(-PSI_GENDER_FROM_ENROLMENT)
 
@@ -648,18 +646,19 @@ credential_non_dup <- credential |>
 credential_non_dup <- credential_non_dup |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
   arrange(CREDENTIAL_AWARD_DATE_D, .by_group = TRUE) |>
-  mutate(PSI_GENDER_CLEANED = last(PSI_GENDER_CLEANED)) |>
+  mutate(psi_gender_cleaned = last(psi_gender_cleaned)) |>
   ungroup()
 
 # assign most recent gender to each student. I'm not sure why we are still needing to
 # assign genders here.  I wonder if there is a better approach such as make a master
 # list for each student with a single project-level id, bday, gender etc to use for the full 01 series (and beyond?).
 credential <- credential |>
-  select(-PSI_GENDER_CLEANED) |>
+  select(-psi_gender_cleaned) |>
   left_join(
-    credential_non_dup |> select(ID, PSI_GENDER_CLEANED),
+    credential_non_dup |> select(ID, psi_gender_cleaned),
     by = "ID"
   )
+
 
 # ---- Impute Missing Gender ----
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
@@ -669,12 +668,12 @@ credential <- credential |>
 
 # 1. Create the probability weights per category
 gender_weights <- credential_non_dup |>
-  filter(!is.na(PSI_GENDER_CLEANED)) |>
-  count(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  filter(!is.na(psi_gender_cleaned)) |>
+  count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   group_by(PSI_CREDENTIAL_CATEGORY) |>
   mutate(prob = n / sum(n)) |>
   summarise(
-    genders = list(PSI_GENDER_CLEANED),
+    genders = list(psi_gender_cleaned),
     weights = list(prob),
     .groups = "drop"
   )
@@ -684,8 +683,8 @@ set.seed(42)
 credential_non_dup <- credential_non_dup |>
   left_join(gender_weights, by = "PSI_CREDENTIAL_CATEGORY") |>
   mutate(
-    PSI_GENDER_CLEANED = case_when(
-      !is.na(PSI_GENDER_CLEANED) ~ PSI_GENDER_CLEANED,
+    psi_gender_cleaned = case_when(
+      !is.na(psi_gender_cleaned) ~ psi_gender_cleaned,
       TRUE ~ as.character(map2(
         genders,
         weights,
@@ -694,6 +693,21 @@ credential_non_dup <- credential_non_dup |>
     )
   ) |>
   select(-genders, -weights)
+
+rm(
+  cred_supvars_enrol_epen,
+  cred_supvars_enrol_no_pen,
+  credential_supvars_birthdate_clean,
+  epen_missing_gender,
+  epen_still_missing_gender,
+  gender_weights,
+  latest_enrolment_epen,
+  latest_enrolment_no_epen,
+  missing_gender,
+  no_epen_still_missing_gender,
+  src_gender_lookup,
+  still_missing_gender
+)
 
 
 # ---- 08 Credential Ranking ----
@@ -752,6 +766,32 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-RANK)
 
+sql_test <- dbGetQuery(
+  con,
+  glue::glue(
+    "SELECT ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    CREDENTIAL_AWARD_DATE_D,
+    HIGHEST_CRED_BY_DATE,
+    HIGHEST_CRED_BY_RANK  FROM [PSSM2023].[{my_schema}].[credential_non_dup];"
+  )
+)
+sql_test$CREDENTIAL_AWARD_DATE_D <- as.Date(sql_test$CREDENTIAL_AWARD_DATE_D)
+glimpse(sql_test)
+
+r_test <- credential_non_dup |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    CREDENTIAL_AWARD_DATE_D,
+    HIGHEST_CRED_BY_DATE,
+    HIGHEST_CRED_BY_RANK
+  )
+
 # ---- 09 Age Gender Distributions ---
 age_weights <- credential_non_dup |>
   filter(
@@ -759,8 +799,8 @@ age_weights <- credential_non_dup |>
     !(AGE_AT_GRAD %in% na_vals),
     HIGHEST_CRED_BY_DATE == "Yes"
   ) |>
-  count(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED, AGE_AT_GRAD) |>
-  group_by(PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD) |>
+  group_by(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   mutate(prob = n / sum(n)) |>
   summarise(
     ages = list(AGE_AT_GRAD),
@@ -774,10 +814,10 @@ set.seed(42)
 imputed_student_ages <- credential_non_dup |>
   filter(HIGHEST_CRED_BY_DATE == "Yes") |>
   filter(AGE_AT_GRAD %in% na_vals) |>
-  select(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, PSI_GENDER_CLEANED) |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   left_join(
     age_weights,
-    by = c("PSI_CREDENTIAL_CATEGORY", "PSI_GENDER_CLEANED")
+    by = c("PSI_CREDENTIAL_CATEGORY", "psi_gender_cleaned")
   ) |>
   mutate(
     FINAL_AGE = case_when(
@@ -795,7 +835,7 @@ credential_non_dup <- credential_non_dup |>
       ID,
       ENCRYPTED_TRUE_PEN,
       PSI_CREDENTIAL_CATEGORY,
-      PSI_GENDER_CLEANED
+      psi_gender_cleaned
     )
   ) |>
   mutate(
@@ -830,8 +870,7 @@ cols_broad <- c(
   "PSI_SCHOOL_YEAR"
 )
 
-# Note, there are a few extra rows added in the left joins: need to investigate
-# QA: I've found dups in the credential_non_dup table (ironic)
+# !! this introduced duplicates so chose "first" match on PSI_VISA_STATUS!!
 credential_non_dup <- credential_non_dup |>
   # Attempt 1: Perfect Match (6 columns)
   left_join(
@@ -849,26 +888,17 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   # Apply Hierarchy: Original -> Perfect Match -> Broad Match
   mutate(PSI_VISA_STATUS = coalesce(VISA_SPECIFIC, VISA_BROAD)) |>
-  select(-VISA_SPECIFIC, -VISA_BROAD)
+  select(-VISA_SPECIFIC, -VISA_BROAD) |>
+  distinct()
+
+credential_non_dup <- credential_non_dup2 |>
+  slice_max(PSI_VISA_STATUS, n = 1, by = ID, with_ties = FALSE)
+
 
 credential_supvars <- credential_supvars |>
   left_join(
-    credential_non_dup |> select(ID, PSI_VISA_STATUS),
+    credential_non_dup2 |> select(ID, PSI_VISA_STATUS),
     by = "ID"
-  )
-
-# ---- Highest Rank ----
-# this variable should be created at the beginning, before any analysis!
-credential_non_dup <- credential_non_dup |>
-  mutate(
-    CONCATENATED_ID = case_when(
-      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
-      !PSI_CODE %in% na_vals & !PSI_STUDENT_NUMBER %in% na_vals ~ paste0(
-        PSI_STUDENT_NUMBER,
-        PSI_CODE
-      ),
-      TRUE ~ NA_character_
-    )
   )
 
 # ---- 13 Delay Date and highest rank----
@@ -876,7 +906,7 @@ tbl_credential_highest_rank <- credential_non_dup |>
   distinct(
     ID,
     PSI_BIRTHDATE_CLEANED = psi_birthdate_cleaned,
-    PSI_GENDER_CLEANED,
+    psi_gender_cleaned,
     ENCRYPTED_TRUE_PEN,
     PSI_STUDENT_NUMBER,
     PSI_SCHOOL_YEAR,
