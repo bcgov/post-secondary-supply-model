@@ -1073,58 +1073,213 @@ credential_non_dup <- credential_non_dup |>
     by = "PSI_CREDENTIAL_CATEGORY"
   )
 
-# update non-dup table here
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
+  "stp_enrolment_valid",
+  "age_group_lookup",
+  "credential_rank",
+  "credential_non_dup",
+  "credential_sup_vars",
+  "tbl_credential_highest_rank",
+  "tbl_credential_delay_effect",
+  "outcome_credential",
+  "con",
+  "db_config",
+  "my_schema",
+  "db_schema"
+)
+
+rm(list = setdiff(ls(), tables_to_keep))
 
 # ---- Break and do Program Matching ----
-# IMPORTANT!!! THIS SECTION CAN ONLY BE RUN AFTER THE PROGRAM MATCHING WORK HAS BEEN DONE
-# TODO: This will later be moved to a different script.
-# Tables that are needed at this point include:
-
-# ---- Check Required Tables ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
+# IMPORTANT!!! THE NEXT SECTION CAN ONLY BE RUN AFTER THE PROGRAM MATCHING WORK HAS BEEN DONE
+#source("./R/02a-update-cred-non-dup.R")
 
 # ---- 20 Final Distributions ----
 # NOTE: Exclude_CIPs queries end up with Invalid column name 'FINAL_CIP_CLUSTER_CODE'.
-dbExecute(con, qry20a_1Credential_By_Year_AgeGroup)
-dbExecute(con, qry20a_1Credential_By_Year_AgeGroup_Exclude_CIPs)
-dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic)
-dbExecute(con, qry20a_2Credential_By_Year_AgeGroup_Domestic_Exclude_CIPs)
-dbExecute(con, qry20a_3Credential_By_Year_AgeGroup_Domestic_Exclude_RU_DACSO)
-dbExecute(
-  con,
-  qry20a_4Credential_By_Year_CIP4_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
-)
-dbExecute(
-  con,
-  qry20a_4Credential_By_Year_CIP4_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
-) #
-dbExecute(con, qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_CIPs)
-dbExecute(
-  con,
-  qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
-)
+credential_by_year_age_group <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |> #filters out invalid ages
+  filter(PSI_CREDENTIAL_CATEGORY != "Apprenticeship") |>
+  group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
-# these two need a table we don't have - ignore for now
-# dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
-# dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
+# Exclude CIP clusters 09 and 10
+credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
-dbExecute(con, qry20a_99_Checking_Excluding_RU_DACSO_Variables)
+# Domestic only
+credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS)
+  ) |>
+  group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
-# not used?
-# dbGetQuery(con, qryCreateIDinSTPCredential)
+# Domestic only, exclude CIPs
+credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    (PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS)),
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
-dbExecute(con, qry_Update_Cdtl_Sup_Vars_InternationalFlag)
 
+# Domestic only, exclude research universities and DACSO
+credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS),
+    is.na(RESEARCH_UNIVERSITY) |
+      (RESEARCH_UNIVERSITY == 1 & OUTCOMES_CRED != 'DACSO')
+  ) |>
+  group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
+
+# CIP4, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
+credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS),
+    is.na(RESEARCH_UNIVERSITY) |
+      (RESEARCH_UNIVERSITY == 1 & OUTCOMES_CRED != 'DACSO'),
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(
+    FINAL_CIP_CODE_4,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  ) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(
+    FINAL_CIP_CODE_4,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  )
+
+
+# CIP4, Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
+credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    (PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS)),
+    is.na(RESEARCH_UNIVERSITY) |
+      (RESEARCH_UNIVERSITY == 1 & OUTCOMES_CRED != 'DACSO'),
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(
+    FINAL_CIP_CODE_4,
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  ) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(
+    FINAL_CIP_CODE_4,
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  )
+
+# Gender, AgeGroup, Domestic, Exclude CIPs
+credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS),
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  ) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  )
+
+# Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
+credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+  inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
+  inner_join(
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
+    by = "id"
+  ) |>
+  filter(
+    PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
+    (PSI_VISA_STATUS == "Domestic" | is.na(PSI_VISA_STATUS)),
+    is.na(RESEARCH_UNIVERSITY) |
+      (RESEARCH_UNIVERSITY == 1 & OUTCOMES_CRED != 'DACSO'),
+    FINAL_CIP_CLUSTER_CODE != "09",
+    FINAL_CIP_CLUSTER_CODE != "10"
+  ) |>
+  group_by(
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  ) |>
+  summarise(Count = n(), .groups = "drop") |>
+  arrange(
+    psi_gender_cleaned,
+    AgeGroup,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_AWARD_SCHOOL_YEAR_DELAYED
+  )
 # ---- Clean Up ----
-dbExecute(con, "DROP TABLE CredentialSupVarsFromEnrolment")
-dbExecute(con, "DROP TABLE CredentialSupVars")
-dbExecute(con, "DROP TABLE CredentialSupVars_BirthdateClean")
-dbExecute(con, "DROP VIEW Credential")
-dbExecute(con, "DROP VIEW Credential_Ranking")
 dbDisconnect(con)
-
-# ---- These tables used later ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')))
