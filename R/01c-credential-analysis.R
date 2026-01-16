@@ -766,32 +766,6 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-RANK)
 
-sql_test <- dbGetQuery(
-  con,
-  glue::glue(
-    "SELECT ID,
-    ENCRYPTED_TRUE_PEN,
-    PSI_STUDENT_NUMBER,
-    PSI_CODE,
-    CREDENTIAL_AWARD_DATE_D,
-    HIGHEST_CRED_BY_DATE,
-    HIGHEST_CRED_BY_RANK  FROM [PSSM2023].[{my_schema}].[credential_non_dup];"
-  )
-)
-sql_test$CREDENTIAL_AWARD_DATE_D <- as.Date(sql_test$CREDENTIAL_AWARD_DATE_D)
-glimpse(sql_test)
-
-r_test <- credential_non_dup |>
-  select(
-    ID,
-    ENCRYPTED_TRUE_PEN,
-    PSI_STUDENT_NUMBER,
-    PSI_CODE,
-    CREDENTIAL_AWARD_DATE_D,
-    HIGHEST_CRED_BY_DATE,
-    HIGHEST_CRED_BY_RANK
-  )
-
 # ---- 09 Age Gender Distributions ---
 age_weights <- credential_non_dup |>
   filter(
@@ -891,17 +865,29 @@ credential_non_dup <- credential_non_dup |>
   select(-VISA_SPECIFIC, -VISA_BROAD) |>
   distinct()
 
-credential_non_dup <- credential_non_dup2 |>
+credential_non_dup <- credential_non_dup |>
   slice_max(PSI_VISA_STATUS, n = 1, by = ID, with_ties = FALSE)
 
 
 credential_supvars <- credential_supvars |>
   left_join(
-    credential_non_dup2 |> select(ID, PSI_VISA_STATUS),
+    credential_non_dup |> select(ID, PSI_VISA_STATUS),
     by = "ID"
   )
 
 # ---- 13 Delay Date and highest rank----
+
+credential_non_dup <- credential_non_dup |>
+  mutate(
+    CONCATENATED_ID = case_when(
+      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
+      !PSI_CODE %in% na_vals & !PSI_STUDENT_NUMBER %in% na_vals ~ glue::glue(
+        "{PSI_STUDENT_NUMBER}{PSI_CODE}"
+      ),
+      TRUE ~ NA
+    )
+  )
+
 tbl_credential_highest_rank <- credential_non_dup |>
   distinct(
     ID,
@@ -1019,7 +1005,6 @@ tbl_credential_delay_effect <- tbl_later_awarded |>
     CREDENTIAL_AWARD_DATE_D_DELAYED = LATER_AWARD_DATE,
     PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
   )
-# perfect to here
 
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
   left_join(
@@ -1054,8 +1039,6 @@ credential_non_dup <- credential_non_dup |>
       PSI_AWARD_SCHOOL_YEAR
     )
   )
-credential_non_dup.ref <- credential_non_dup
-
 
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
   mutate(
@@ -1073,8 +1056,22 @@ tbl_credential_highest_rank <- tbl_credential_highest_rank |>
 
 
 # ---- 14-15 research University + Outcomes Credential ----
-dbExecute(con, qry14_ResearchUniversity)
-dbExecute(con, qry15_OutcomeCredential)
+research_universities <- c("SFU", "UBC", "UBCV", "UBCO", "UNBC", "UVIC", "RRU")
+credential_non_dup <- credential_non_dup |>
+  mutate(
+    RESEARCH_UNIVERSITY = if_else(
+      PSI_CODE %in% research_universities,
+      1L,
+      NA_integer_
+    )
+  )
+
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    outcome_credential |>
+      select(PSI_CREDENTIAL_CATEGORY, OUTCOMES_CRED = Outcomes_Cred),
+    by = "PSI_CREDENTIAL_CATEGORY"
+  )
 
 # update non-dup table here
 
