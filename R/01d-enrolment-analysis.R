@@ -16,52 +16,160 @@
 # Relies on STP_Enrolment data table, STP_Enrolment_Record_Type, Credential View, AgeGroupLookup
 # Creates tables qry09c_MinEnrolment (one of them) to be used for grad projections
 
-library(arrow)
 library(tidyverse)
-library(odbc)
-library(DBI)
 set.seed(123456)
 
-# ---- Configure LAN Paths and DB Connection -----
-lan <- config::get("lan")
-source(glue::glue("./sql/01d-enrolment-analysis/01d-enrolment-analysis.R"))
-
-db_config <- config::get("decimal")
-my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
-
-con <- dbConnect(
-  odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
-# ---- Check required Tables etc. ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."AgeGroupLookup"'))) # lookup
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential"'))) # view created in credential preprocessing (I think, check this)
-
 # ---- Extract first-time enrolled records ----
-dbExecute(con, qry01a_MinEnrolmentSupVar)
-dbExecute(
-  con,
-  "ALTER table MinEnrolmentSupVar ADD CONSTRAINT PK_MinEnrolSupVarsID PRIMARY KEY (ID)"
-)
-dbExecute(con, qry01b_MinEnrolmentSupVar)
-dbExecute(con, qry01c_MinEnrolmentSupVar)
-dbExecute(con, qry01d1_MinEnrolmentSupVar)
-dbExecute(con, qry01d2_MinEnrolmentSupVar)
-dbExecute(con, qry01e_MinEnrolmentSupVar)
+# qry01a through qry01e
+na_vals = c("", " ", "(Unspecified)")
+min_enrolment_sup_var <- stp_enrolment |>
+  select(ID, psi_birthdate_cleaned, PSI_MIN_START_DATE) |>
+  inner_join(
+    stp_enrolment_record_type |>
+      select(ID, MinEnrolment, FirstEnrolment, RecordStatus),
+    by = "ID"
+  ) |>
+  rename_with(toupper) |>
+  mutate(
+    PSI_BIRTHDATE_CLEANED_D = if_else(
+      PSI_BIRTHDATE_CLEANED %in%
+        na_vals |
+        PSI_BIRTHDATE_CLEANED == as.Date("1900-01-01"),
+      as.Date(NA),
+      as.Date(PSI_BIRTHDATE_CLEANED)
+    ),
+    PSI_MIN_START_DATE_D = if_else(
+      PSI_MIN_START_DATE %in% na_vals,
+      as.Date(NA),
+      as.Date(PSI_MIN_START_DATE),
+    ),
+    IS_FIRST_ENROLMENT = if_else(FIRSTENROLMENT == 1, "Yes", NA_character_),
+    AGE_AT_ENROL_DATE = NA_real_,
+    AGE_GROUP_ENROL_DATE = NA_real_,
+    AGE_AT_CENSUS_2016 = NA_real_,
+    AGE_GROUP_CENSUS_2016 = NA_real_,
+    IS_SKILLS_BASED = NA_integer_
+  )
 
 # ---- Create MinEnrolment View ---
-dbExecute(con, qry_CreateMinEnrolmentView)
-dbExecute(con, qry02a_UpdateAgeAtEnrol)
-dbExecute(con, qry02b_UpdateAGAtEnrol)
-dbExecute(con, qry04a1_UpdateMinEnrolment_Gender)
-dbExecute(con, qry04a2_UpdateMinEnrolment_Gender)
+min_enrolment <- stp_enrolment |>
+  select(
+    ID,
+    PSI_PEN,
+    PSI_BIRTHDATE,
+    psi_birthdate_cleaned,
+    PSI_GENDER,
+    PSI_STUDENT_NUMBER,
+    PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT,
+    TRUE_PEN,
+    ENCRYPTED_TRUE_PEN,
+    PSI_SCHOOL_YEAR,
+    PSI_REGISTRATION_TERM,
+    PSI_STUDENT_POSTAL_CODE_CURRENT,
+    PSI_INDIGENOUS_STATUS,
+    PSI_NEW_STUDENT_FLAG,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_CODE,
+    PSI_TYPE,
+    PSI_FULL_NAME,
+    PSI_BASIS_OF_ADMISSION,
+    PSI_MIN_START_DATE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_PROGRAM_CODE,
+    PSI_CIP_CODE,
+    PSI_PROGRAM_EFFECTIVE_DATE,
+    PSI_FACULTY,
+    PSI_CONTINUING_EDUCATION_COURSE_ONLY,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_VISA_STATUS,
+    PSI_STUDY_LEVEL,
+    PSI_ENTRY_STATUS,
+    OVERALL_INDIGENOUS_STATUS
+  ) |>
+  inner_join(
+    stp_enrolment_record_type |>
+      filter(RecordStatus == 0, MinEnrolment == 1) |>
+      select(ID), # We only need the ID to facilitate the filter-join
+    by = "ID"
+  ) |>
+  inner_join(
+    min_enrolment_sup_var |>
+      select(
+        ID,
+        PSI_BIRTHDATE_CLEANED_D,
+        PSI_MIN_START_DATE_D,
+        AGE_AT_ENROL_DATE,
+        AGE_GROUP_ENROL_DATE,
+        AGE_AT_CENSUS_2016,
+        AGE_GROUP_CENSUS_2016,
+        IS_FIRST_ENROLMENT,
+        IS_SKILLS_BASED
+      ),
+    by = "ID"
+  )
+
+# calculate age at enrolement
+min_enrolment <- min_enrolment |>
+  # ---- qry02a_UpdateAgeAtEnrol ----
+  mutate(
+    AGE_AT_ENROL_DATE = if_else(
+      !is.na(PSI_BIRTHDATE_CLEANED_D) & !is.na(PSI_MIN_START_DATE_D),
+      floor(interval(PSI_BIRTHDATE_CLEANED_D, PSI_MIN_START_DATE_D) / years(1)),
+      NA_integer_
+    )
+  ) |>
+  # ---- qry02b_UpdateAGAtEnrol ----
+  left_join(
+    age_group_lookup,
+    by = join_by(between(AGE_AT_ENROL_DATE, LowerBound, UpperBound))
+  ) |>
+  mutate(AGE_GROUP_ENROL_DATE = AgeIndex) |>
+  select(-AgeIndex, -AgeGroup, -LowerBound, -UpperBound)
+
+# assign gender to min enrolement
+# Note: there are some epens with > 1 gender still (in the SQL version)
+# the original UPDATE query appears to not be deterministic, so choice of gender for
+# thes duplicates is arbitrary.
+# choosing slice(1)
+credential_epen <- credential |>
+  filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
+  select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
+  slice_max(
+    by = ENCRYPTED_TRUE_PEN,
+    order_by = gender_cred_epen,
+    with_ties = FALSE
+  )
+
+
+# no dups here
+credential_no_epen <- credential |>
+  filter(ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
+  select(
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    gender_cred_no_epen = psi_gender_cleaned
+  ) |>
+  slice_max(
+    by = c(PSI_STUDENT_NUMBER, PSI_CODE),
+    order_by = gender_cred_no_epen,
+    with_ties = FALSE
+  )
+
+min_enrolment <- min_enrolment |>
+  # ---- qry04a_UpdateMinEnrolment_Gender ----
+  left_join(credential_epen, by = join_by(ENCRYPTED_TRUE_PEN)) |> # some duplicates being introduced here
+  left_join(credential_no_epen, by = join_by(PSI_STUDENT_NUMBER, PSI_CODE)) |>
+  mutate(
+    gender_cred = coalesce(gender_cred_epen, gender_cred_no_epen)
+  ) |>
+  mutate(
+    PSI_GENDER = case_when(
+      is.na(PSI_GENDER) ~ gender_cred,
+      is.na(gender_cred) ~ PSI_GENDER,
+      TRUE ~ if_else(PSI_GENDER != gender_cred, gender_cred, PSI_GENDER)
+    )
+  )
+
 
 # ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
 # create a table with unique gender-epen or gender-{psi_code/psi_student_number}
@@ -86,6 +194,36 @@ dbExecute(
     "DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"
   )
 )
+
+sql <- SQL(glue::glue(
+  'SELECT ID
+  , PSI_GENDER
+      ,psi_birthdate_cleaned
+      ,PSI_MIN_START_DATE
+      ,AGE_AT_ENROL_DATE
+      ,AGE_GROUP_ENROL_DATE FROM "{my_schema}"."MinEnrolment"
+  ORDER BY ID'
+))
+st <- dbGetQuery(con, sql)
+rt <- min_enrolment2 |>
+  select(
+    ID,
+    PSI_GENDER,
+    psi_birthdate_cleaned,
+    PSI_MIN_START_DATE,
+    AGE_AT_ENROL_DATE,
+    AGE_GROUP_ENROL_DATE
+  ) |>
+  distinct()
+
+glimpse(rt)
+glimpse(st)
+
+names(rt) <- toupper(names(rt))
+names(st) <- toupper(names(st))
+
+i = c(1:6)
+anti_join(st[, i], rt) |> nrow()
 
 # ---- Assign one gender/student and update MinEnrolment table ----
 # Using Concatenated_ID instead of EPEN for the next set of queries.
