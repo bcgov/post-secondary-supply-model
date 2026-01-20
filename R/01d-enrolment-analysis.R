@@ -140,7 +140,6 @@ credential_epen <- credential |>
     with_ties = FALSE
   )
 
-
 # no dups here
 credential_no_epen <- credential |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
@@ -170,60 +169,26 @@ min_enrolment <- min_enrolment |>
     )
   )
 
+# note, there is a handful of students that may have mismatched genders, but also where EPEN
+# isn't consistent between credential and enrolment data.  More weight for the argument to have
+# one project-level ID per student.
 
 # ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
 # create a table with unique gender-epen or gender-{psi_code/psi_student_number}
-dbExecute(con, qry04b1_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b2_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b3_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b4_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b5_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b6_tmp_MinEnrolment_Gender)
-dbExecute(con, qry04b7_tmp_MinEnrolment_Gender)
+# I feel like we're going in circles...
 
-# sanity check - count of NULL records on concatenated ID variable
-dbGetQuery(
-  con,
-  "SELECT * FROM tmp_MinEnrolment_EPEN_Gender
-          WHERE CONCATENATED_ID IS NULL OR CONCATENATED_ID = '';"
-)
-
-dbExecute(
-  con,
-  glue::glue(
-    "DROP TABLE [{my_schema}].tmp_MinEnrolment_STUDNUM_PSICODE_Gender_step1;"
+tmp_gender_list <- min_enrolment |>
+  distinct(ENCRYPTED_TRUE_PEN, PSI_GENDER, PSI_STUDENT_NUMBER, PSI_CODE) |>
+  mutate(
+    CONCATENATED_ID = case_when(
+      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
+      TRUE ~ paste0(PSI_STUDENT_NUMBER, PSI_CODE)
+    )
   )
-)
 
-sql <- SQL(glue::glue(
-  'SELECT ID
-  , PSI_GENDER
-      ,psi_birthdate_cleaned
-      ,PSI_MIN_START_DATE
-      ,AGE_AT_ENROL_DATE
-      ,AGE_GROUP_ENROL_DATE FROM "{my_schema}"."MinEnrolment"
-  ORDER BY ID'
-))
-st <- dbGetQuery(con, sql)
-rt <- min_enrolment2 |>
-  select(
-    ID,
-    PSI_GENDER,
-    psi_birthdate_cleaned,
-    PSI_MIN_START_DATE,
-    AGE_AT_ENROL_DATE,
-    AGE_GROUP_ENROL_DATE
-  ) |>
-  distinct()
 
-glimpse(rt)
-glimpse(st)
+tmp_gender_list |> count(is.na(CONCATENATED_ID))
 
-names(rt) <- toupper(names(rt))
-names(st) <- toupper(names(st))
-
-i = c(1:6)
-anti_join(st[, i], rt) |> nrow()
 
 # ---- Assign one gender/student and update MinEnrolment table ----
 # Using Concatenated_ID instead of EPEN for the next set of queries.
