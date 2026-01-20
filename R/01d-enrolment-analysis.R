@@ -169,63 +169,41 @@ min_enrolment <- min_enrolment |>
     )
   )
 
-# note, there is a handful of students that may have mismatched genders, but also where EPEN
-# isn't consistent between credential and enrolment data.  More weight for the argument to have
-# one project-level ID per student.
-
-# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# create a table with unique gender-epen or gender-{psi_code/psi_student_number}
-# I feel like we're going in circles...
-
-tmp_gender_list <- min_enrolment |>
-  distinct(ENCRYPTED_TRUE_PEN, PSI_GENDER, PSI_STUDENT_NUMBER, PSI_CODE) |>
-  mutate(
-    CONCATENATED_ID = case_when(
-      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
-      TRUE ~ paste0(PSI_STUDENT_NUMBER, PSI_CODE)
-    )
-  )
-
-
-tmp_gender_list |> count(is.na(CONCATENATED_ID))
-
-
 # ---- Assign one gender/student and update MinEnrolment table ----
 # Using Concatenated_ID instead of EPEN for the next set of queries.
-dbExecute(con, qry04c_tmp_MinEnrolment_GenderDups)
-dbExecute(con, qry04d1_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d2_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d3_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d4_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d5_tmp_MinEnrolment_GenderDups_PickGender)
-dbExecute(con, qry04d6_tmp_MinEnrolment_GenderDups_PickGender)
+# I feel like we're going in circles...
+first_gender_lookup <- min_enrolment |>
+  filter(IS_FIRST_ENROLMENT == "Yes") |>
+  mutate(
+    CONCATENATED_ID = if_else(
+      !ENCRYPTED_TRUE_PEN %in% na_vals,
+      ENCRYPTED_TRUE_PEN,
+      paste0(PSI_STUDENT_NUMBER, PSI_CODE)
+    )
+  ) |>
+  distinct(CONCATENATED_ID, FIRST_GENDER = PSI_GENDER)
 
-dbExecute(con, qry04e1_UpdateMinEnrolment_EPEN_GenderDups)
-dbExecute(con, qry04e2_UpdateMinEnrolment_EPEN_GenderDups)
-
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender_step1;")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].tmp_MinEnrolment_EPEN_Gender;")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender;")
-)
-dbExecute(
-  con,
-  glue::glue(
-    "DROP TABLE [{my_schema}].tmp_Dup_MinEnrolment_EPEN_Gender_Unknowns;"
-  )
-)
+min_enrolment <- min_enrolment |>
+  mutate(
+    CONCATENATED_ID = if_else(
+      !ENCRYPTED_TRUE_PEN %in% na_vals,
+      ENCRYPTED_TRUE_PEN,
+      paste0(PSI_STUDENT_NUMBER, PSI_CODE)
+    )
+  ) |>
+  left_join(first_gender_lookup, by = "CONCATENATED_ID") |>
+  mutate(
+    PSI_GENDER = coalesce(FIRST_GENDER, PSI_GENDER)
+  ) |>
+  select(-FIRST_GENDER)
 
 # ---- impute gender  ----
-# impute gender into records associated with unknown/blank/NULL gender
-# this has been done in an Excel worksheet but am moving to code here
-# Development\SQL Server\CredentialAnalysis\AgeGenderDistribution (2017)
+
+# Perform a Proportional Imputation for missing gender data.
+# calculates the existing ratio of Females, Males, and Gender Diverse students in the "known"
+# population and then assigns those same proportions to the "unknown" population for their First Enrollment records.
+# essentially random assignment based on population weights to keep
+# gender statistics remain consistent with the known distribution
 
 dbExecute(con, qry05a1_Extract_No_Gender)
 dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment)
