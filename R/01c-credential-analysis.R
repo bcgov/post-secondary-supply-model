@@ -1073,6 +1073,7 @@ credential_non_dup <- credential_non_dup |>
     by = "PSI_CREDENTIAL_CATEGORY"
   )
 
+# refine as needed
 tables_to_keep <- c(
   "stp_enrolment",
   "stp_credential",
@@ -1081,6 +1082,7 @@ tables_to_keep <- c(
   "stp_enrolment_valid",
   "age_group_lookup",
   "credential_rank",
+  "credential",
   "credential_non_dup",
   "credential_sup_vars",
   "tbl_credential_highest_rank",

@@ -204,79 +204,68 @@ min_enrolment <- min_enrolment |>
 # population and then assigns those same proportions to the "unknown" population for their First Enrollment records.
 # essentially random assignment based on population weights to keep
 # gender statistics remain consistent with the known distribution
+na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
 
-dbExecute(con, qry05a1_Extract_No_Gender)
-dbExecute(con, qry05a1_Extract_No_Gender_First_Enrolment)
+extract_no_gender_first <- min_enrolment |>
+  filter(IS_FIRST_ENROLMENT == "Yes", PSI_GENDER %in% na_vals) |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER)
 
-# do first enrolments seperatly
-PropDist <- dbGetQuery(con, qry05a2_Show_Gender_Distribution)
-n <- nrow(dbGetQuery(con, "SELECT * FROM  Extract_No_Gender_First_Enrolment"))
-PropDist %>% mutate(p = NumEnrolled / sum(NumEnrolled), top_n = round(p * n))
+total_unknowns <- nrow(extract_no_gender_first)
 
-# for now, enter top_n into query definition (Female into qry06a1, Male into qry06a2)
-dbExecute(con, qry06a1_Assign_TopID_Gender)
-dbExecute(con, qry06a2_Assign_TopID_Gender2)
-dbExecute(con, qry06a2_Assign_TopID_Gender3)
+gender_weights <- min_enrolment |>
+  filter(IS_FIRST_ENROLMENT == "Yes", !PSI_GENDER %in% na_vals) |>
+  count(PSI_GENDER) |>
+  mutate(PROPORTION = n / sum(n)) |>
+  mutate(TARGET_N = round(PROPORTION * total_unknowns))
 
-# fill in some of the rest of those not first enrolments
-dbExecute(con, qry06a3_CorrectGender1)
+imputed_first_enrolments <- extract_no_gender_first |>
+  sample_frac(size = 1, replace = FALSE) |>
+  mutate(
+    PSI_GENDER = rep(
+      gender_weights$PSI_GENDER,
+      times = gender_weights$TARGET_N
+    ) |>
+      head(total_unknowns) |> # handle
+      as.character()
+  )
 
-# now get N for rest of not matched
-n <- nrow(dbGetQuery(
-  con,
-  "SELECT * FROM  Extract_No_Gender 
-WHERE     PSI_GENDER IS NULL 
-OR        PSI_GENDER = ' ' 
-OR        PSI_GENDER = 'U'
-OR        PSI_GENDER = 'Unknown'
-OR        PSI_GENDER = '(Unspecified)'"
-))
+extract_no_gender <- min_enrolment |>
+  filter(PSI_GENDER %in% na_vals) |>
+  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
+  left_join(
+    imputed_first_enrolments |>
+      distinct(PSI_GENDER, PSI_STUDENT_NUMBER, PSI_CODE),
+    by = join_by(PSI_STUDENT_NUMBER, PSI_CODE)
+  )
 
-#enter top_n into query definitions that follow
-PropDist %>% mutate(p = NumEnrolled / sum(NumEnrolled), top_n = round(p * n))
-dbExecute(con, qry06a3_CorrectGender2)
-dbExecute(con, qry06a3_CorrectGender3)
-dbExecute(con, qry06a3_CorrectGender4)
+# at this point SQL does some more proportional updates to obtain a gender for a handful of records, followed by
+# further processing to handle multiple EPEN-gender combos.
+# however, those records all have valid EPENS so I'm doing a second pass and joining by epen which seems
+# to do a similar thing, although the finals distributions are slightly inflated for Female.
+extract_no_gender <- extract_no_gender |>
+  left_join(
+    extract_no_gender |>
+      filter(PSI_GENDER %in% na_vals) |>
+      left_join(
+        imputed_first_enrolments |>
+          distinct(ENCRYPTED_TRUE_PEN, PSI_GENDER_to_update = PSI_GENDER)
+      )
+  ) |>
+  mutate(PSI_GENDER_to_update = coalesce(PSI_GENDER, PSI_GENDER_to_update)) |>
+  select(-PSI_GENDER)
 
-# not used
-# dbExecute(con, glue::glue("DROP TABLE [{my_schema}].GenderDistribution;"))
+min_enrolment <- min_enrolment |>
+  left_join(extract_no_gender |> select(ID, PSI_GENDER_to_update)) |>
+  mutate(
+    PSI_GENDER = if_else(
+      PSI_GENDER %in% na_vals,
+      PSI_GENDER_to_update,
+      PSI_GENDER
+    )
+  ) |>
+  select(-PSI_GENDER_to_update) |>
+  count(PSI_GENDER)
 
-dbExecute(con, qry06a4a_ExtractNoGender_DupEPENS)
-dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_1)
-
-# update topN again with following numbers
-n <- nrow(dbGetQuery(con, "SELECT * FROM  tmp_Extract_No_Gender_DupEPENS"))
-PropDist %>% mutate(p = NumEnrolled / sum(NumEnrolled), top_n = round(p * n))
-
-dbExecute(
-  con,
-  "ALTER TABLE tmp_Extract_No_Gender_DupEPENS ADD PSI_GENDER_to_use VARCHAR(50);"
-)
-dbExecute(con, qry06a4b_ExtractNoGender_DupEPENS_2)
-
-dbExecute(con, qry06a4c_Update_ExtractNoGender_DupEPENS)
-dbExecute(con, qry06a5_CorrectGender2)
-
-# Double check the proportions after assigning gender:
-dbGetQuery(con, qry06a4c_Check_Prop)
-
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender_First_Enrolment;")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].tmp_Extract_No_Gender_EPENS;")
-)
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].tmp_Extract_No_Gender_DupEPENS;")
-)
-
-# Checks to implement
-# remaining PSI_STUDENT_NUMBER and PSI_CODE assigned > 1 gender in table ExtractNoGender.
-# null EPEN but PSI_STUDENT_NUMBER/PSI_CODE assigned > 1 gender in view MinEnrolment
-# supposedly code for fixing in qry06a4c_Update_ExtractNoGender_DupPSI_Code_Number?
 
 # ---- Create Age and Gender Distrbutions ----
 dbExecute(con, qry07a_Extract_No_Age)
