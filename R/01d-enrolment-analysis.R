@@ -410,19 +410,26 @@ dbExecute(con, qry09c_MinEnrolment)
 # dbExecute(con, qry09c_MinEnrolment_PSI_TYPE)
 
 # ---- Clean Up ----
-
-# ---- Keep ----
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type;"'))
+# refine as needed
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
+  "stp_enrolment_valid",
+  "age_group_lookup",
+  "credential_rank",
+  "credential",
+  "credential_non_dup",
+  "credential_sup_vars",
+  "tbl_credential_highest_rank",
+  "tbl_credential_delay_effect",
+  "outcome_credential",
+  "con",
+  "db_config",
+  "my_schema",
+  "db_schema",
+  "min_enrolment"
 )
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type;"'))
-)
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment;"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid;"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential;"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."MinEnrolment"')))
 
-dbDisconnect(con)
+rm(list = setdiff(ls(), tables_to_keep))
