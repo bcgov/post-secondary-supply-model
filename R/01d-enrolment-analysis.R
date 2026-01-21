@@ -18,10 +18,10 @@ set.seed(123456)
 # What the code does: Acts as a pre-flight "circuit breaker" to ensure all source dataframes
 #   and lookup tables are present in global environemnt before processing. Prevents
 #   partial execution errors.
-# BA Notes: As more queries from SQL are ported and the process is refines,
+# QA/Review Notes:
+# - As more queries from SQL are ported and the process is refined,
 #   new tables may be added to the 'required_tables' list below.
 required_tables <- c(
-  "min_enrolment",
   "age_group_lookup",
   "outcome_credential",
   "credential",
@@ -38,18 +38,26 @@ if (length(missing) > 0) {
   ))
 }
 
+na_vals = c("", " ", "(Unspecified)", NA)
+
 # ---- Extract first-time enrolled records ----
-# SQL Reference: Originally sourced from branch 'main' (line 46)
-# Replicates: qry01a through qry01e (STP Enrolment Analysis)
+# SQL Reference:
+# - Originally sourced from branch 'main' (line 46)
+# Replicates:
+# - qry01a through qry01e (STP Enrolment Analysis)
 # What the code does:
-#   Merges 'stp_enrolment' with record types and standardizes schema.
-#   It performs initial type-casting for dates and creates placeholder
+# - Creates table min_enrolment_sup_vars from 'stp_enrolment'
+#   containing supplementary variables for later use.
+# - It performs initial type-casting for dates and creates placeholder
 #   columns for age/group variables that are populated in later steps.
-# BA Notes: Placeholder columns (AGE_AT_ENROL_DATE, etc.) are initialized as
-#     typed NAs (NA_real_) to maintain structure consistency
-#     with database tables.  There are many columns I suspect are non-essential
-#     which we may want to remove later.
-na_vals = c("", " ", "(Unspecified)")
+# QA/Review Notes:
+# - creates min_enrolment_sup_var (identical db table MinEnrolment)
+# - Placeholder columns (AGE_AT_ENROL_DATE, etc.) are initialized as
+#   typed NAs (NA_real_) to maintain structure consistency
+#   with database tables.  There are many columns I suspect are non-essential
+#   which we may want to remove later.
+# - qry defn for qry01d1_MinEnrolmentSupVar is missing a ")". qry errors - I fixed manually and reran.
+
 min_enrolment_sup_var <- stp_enrolment |>
   select(ID, psi_birthdate_cleaned, PSI_MIN_START_DATE) |>
   inner_join(
@@ -81,16 +89,22 @@ min_enrolment_sup_var <- stp_enrolment |>
 
 # ---- Create MinEnrolment View ---
 # SQL Reference: branch 'main' (line 46)
-# Replicates:
+# Replicates:qry_CreateMinEnrolmentView and qry02a-qry04a2 (missing 03 series)
 # What the code does:
-#   Constructs the core 'min_enrolment' dataframe by joining raw STP data with
-#   record-type filters and previously initialized supplemental variables.
-#   It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
-#   intervals and maps age groups via an inequality join.
+#  - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
+#  record-type filters and previously initialized supplemental variables.
+#  - It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
+#  intervals and maps age groups via an inequality join.
 # BA Notes:
-#   - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
-#     with the SQL version for QA/Review purposes. Non-essential columns
-#     can be dropped in a later 'refine' phase once the logic is validated.
+#  - creates min_enrolment_sup_var (identical db table MinEnrolment)
+#  - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
+#  with the SQL version for QA/Review purposes. Non-essential columns
+#  can be dropped in a later 'refine' phase once the logic is validated.
+#  - There are some epens with > 1 gender still (in the SQL version) as an original UPDATE query
+# appears to not be deterministic; without loss of generality(?) choosing slice_max.
+#  - hard to test the SQL version seperatly as min_enrolment is a view to stp_enrolment.  You'd need
+# to make sure this script hasn't been run once already which could be tricky or not reasonable.
+
 min_enrolment <- stp_enrolment |>
   select(
     ID,
@@ -147,7 +161,6 @@ min_enrolment <- stp_enrolment |>
     by = "ID"
   )
 
-
 min_enrolment <- min_enrolment |>
   mutate(
     AGE_AT_ENROL_DATE = if_else(
@@ -163,13 +176,6 @@ min_enrolment <- min_enrolment |>
   mutate(AGE_GROUP_ENROL_DATE = AgeIndex) |>
   select(-AgeIndex, -AgeGroup, -LowerBound, -UpperBound)
 
-
-# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# SQL version starts at line ? on branch main
-# replicates ?
-# What the code does:
-# BA Notes: there are some epens with > 1 gender still (in the SQL version)
-# the original UPDATE query appears to not be deterministic; without loss of generality(?) choosing slice_max.
 credential_epen <- credential |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
@@ -204,12 +210,18 @@ min_enrolment <- min_enrolment |>
       is.na(gender_cred) ~ PSI_GENDER,
       TRUE ~ if_else(PSI_GENDER != gender_cred, gender_cred, PSI_GENDER)
     )
-  )
+  ) |>
+  select(-gender_cred_epen, -gender_cred_no_epen, -gender_cred)
 
+# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
+# AND
 # ---- Assign one gender/student and update MinEnrolment table ----
-# SQL version starts at line 78 on branch main
-# Replicates: qry04c through qry04e2
+# SQL version starts at line 62 on branch main
+# Replicates: qry04b through qry04e2
 # What the code does:
+# - This code performs a Gender Standardization process based on a student’s earliest recorded data.
+# - It is designed to solve the problem of "conflicting records", where the same student might appear
+# with different gender labels across different rows in the dataset.
 # BA Notes: We use Concatenated_ID instead of EPEN for the next set of queries
 # I beleive this would be a useful approach to adopt for many of the other steps.
 first_gender_lookup <- min_enrolment |>
@@ -239,14 +251,12 @@ min_enrolment <- min_enrolment |>
 
 # ---- impute gender  ----
 # SQL version starts at line ? on branch main
-# Replicates:
+# Replicates: qry05a1 through qry06a5
 # What the code does:
+# - Perform a Proportional Imputation for missing gender data.
+# Instead of leaving "Unknown" genders as blanks or assigning them all to one category,
+# it calculates the "natural" distribution of the known population and applies that same ratio to the missing records.
 
-# Perform a Proportional Imputation for missing gender data.
-# calculates the existing ratio of Females, Males, and Gender Diverse students in the "known"
-# population and then assigns those same proportions to the "unknown" population for their First Enrollment records.
-# essentially random assignment based on population weights to keep
-# gender statistics remain consistent with the known distribution
 na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
 
 extract_no_gender_first <- min_enrolment |>
