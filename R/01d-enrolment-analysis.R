@@ -377,7 +377,16 @@ extract_no_age <- extract_no_age |>
 # Some manual updates were made here to remaining missing ages.
 # I haven't done the manual fixes as we're getting away from manual work
 
-dbExecute(con, qry07e_Update_MinEnrolment_With_Age)
+min_enrolment <- min_enrolment |>
+  left_join(
+    extract_no_age |>
+      distinct(ID, AGE_AT_ENROL_DATE_to_update = AGE_AT_ENROL_DATE)
+  ) |>
+  mutate(
+    AGE_AT_ENROL_DATE = coalesce(AGE_AT_ENROL_DATE, AGE_AT_ENROL_DATE_to_update)
+  ) |>
+  select(-AGE_AT_ENROL_DATE_to_update)
+
 
 dbExecute(
   con,
