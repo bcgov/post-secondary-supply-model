@@ -374,13 +374,9 @@ extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
 # ---- some manual edits ----
-dbExecute(con, qry07d_Create_Age_Manual_Fixes_View)
-# I think some manual updates to be made here to a handful of records.
+# Some manual updates were made here to remaining missing ages.
 # I haven't done the manual fixes as we're getting away from manual work
-# Come back to this later.  A different query is in documentation so compare
 
-dbExecute(con, qry07d2_Update_Birthdate)
-dbExecute(con, qry07d3_Update_Age)
 dbExecute(con, qry07e_Update_MinEnrolment_With_Age)
 
 dbExecute(
