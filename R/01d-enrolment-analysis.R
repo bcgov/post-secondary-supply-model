@@ -342,51 +342,29 @@ extract_no_age <- extract_no_age |>
   )
 
 # calculate missing ages from first enrolments
-multiple_enrol <- dbGetQuery(con, qry02a_Multiple_Enrol)
-calc_ages <- dbGetQuery(con, qry02b_Calc_Ages)
+calc_ages <- extract_no_age |>
+  # Arrange to ensure the first record (baseline) is chronologically first
+  arrange(PSI_STUDENT_NUMBER, PSI_CODE, PSI_MIN_START_DATE_D) |>
+  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
+  mutate(
+    # Get the baseline date and age from the first record in the group
+    base_date = first(PSI_MIN_START_DATE_D),
+    base_age = first(AGE_AT_ENROL_DATE),
 
-for (i in 1:nrow(multiple_enrol)) {
-  sn <- multiple_enrol %>% slice(i) %>% pull(PSI_STUDENT_NUMBER)
-  code <- multiple_enrol %>% slice(i) %>% pull(PSI_CODE)
-  rs <- calc_ages %>%
-    filter(PSI_STUDENT_NUMBER == sn, PSI_CODE == code) %>%
-    select(
-      PSI_STUDENT_NUMBER,
-      PSI_CODE,
-      PSI_MIN_START_DATE_D,
+    # Only calculate if the first record has an age (as per your 'if' logic)
+    AGE_AT_ENROL_DATE = if_else(
+      is.na(AGE_AT_ENROL_DATE) & !is.na(base_age),
+      base_age +
+        (as.POSIXlt(PSI_MIN_START_DATE_D)$year - as.POSIXlt(base_date)$year),
       AGE_AT_ENROL_DATE
     )
-  if (!is.na(rs %>% slice(1) %>% pull(AGE_AT_ENROL_DATE))) {
-    date1 = as.POSIXlt(rs[1, "PSI_MIN_START_DATE_D"])
-    age1 = rs[1, "AGE_AT_ENROL_DATE"]
-    rs[1, "AGE_AT_ENROL_DATE_NEW"] = rs[1, "AGE_AT_ENROL_DATE"]
-    for (j in 2:nrow(rs)) {
-      date2 = as.POSIXlt(rs[j, "PSI_MIN_START_DATE_D"])
-      rs[j, "AGE_AT_ENROL_DATE_NEW"] = age1 + (date2$year - date1$year)
-    }
-    calc_ages <- left_join(
-      calc_ages,
-      rs,
-      by = join_by(
-        PSI_STUDENT_NUMBER,
-        PSI_CODE,
-        PSI_MIN_START_DATE_D,
-        AGE_AT_ENROL_DATE
-      )
-    ) %>%
-      mutate(
-        AGE_AT_ENROL_DATE = if_else(
-          is.na(AGE_AT_ENROL_DATE),
-          AGE_AT_ENROL_DATE_NEW,
-          AGE_AT_ENROL_DATE
-        )
-      ) %>%
-      select(-AGE_AT_ENROL_DATE_NEW)
-  }
-}
+  ) |>
+  ungroup() |>
+  select(-base_date, -base_age)
 
 calc_ages <- calc_ages %>% select(ID, AGE_AT_ENROL_DATE)
-dbWriteTable(con, "R_Extract_No_Age", calc_ages, overwrite = TRUE)
+
+## Got to here
 dbExecute(con, qry_Update_Linked_dbo_Extract_No_Age_after_mod2)
 
 # ---- some manual edits ----
