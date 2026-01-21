@@ -387,20 +387,17 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
+min_enrolment <- min_enrolment |>
+  left_join(
+    age_group_lookup |> select(AgeIndex, LowerBound, UpperBound),
+    by = join_by(between(AGE_AT_ENROL_DATE, LowerBound, UpperBound))
+  ) |>
+  mutate(
+    # Update the target column and clean up the join helpers
+    AGE_GROUP_ENROL_DATE = AgeIndex
+  ) |>
+  select(-AgeIndex, -LowerBound, -UpperBound)
 
-dbExecute(
-  con,
-  glue::glue("DROP VIEW [{my_schema}].qry05c_Age_Manual_Fixes_View;")
-)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].R_Extract_No_Age;"))
-dbExecute(
-  con,
-  glue::glue("DROP TABLE [{my_schema}].Extract_No_Age_First_Enrolment;")
-)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Age;"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].Extract_No_Gender;"))
-
-dbExecute(con, qry08_UpdateAGAtEnrol)
 
 # ---- Final Distributions ----
 dbExecute(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
