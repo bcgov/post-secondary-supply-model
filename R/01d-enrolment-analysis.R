@@ -240,8 +240,8 @@ extract_no_gender <- min_enrolment |>
 
 # at this point SQL does some more proportional updates to obtain a gender for a handful of records, followed by
 # further processing to handle multiple EPEN-gender combos.
-# however, those records all have valid EPENS so I'm doing a second pass and joining by epen which seems
-# to do a similar thing, although the finals distributions are slightly inflated for Female.
+# however, those records all have valid EPENS so I'm doing a second pass and joining by epen.
+# The finals distributions are minimally off, but worth noting.
 extract_no_gender <- extract_no_gender |>
   left_join(
     extract_no_gender |>
@@ -364,8 +364,14 @@ calc_ages <- extract_no_age |>
 
 calc_ages <- calc_ages %>% select(ID, AGE_AT_ENROL_DATE)
 
-## Got to here
-dbExecute(con, qry_Update_Linked_dbo_Extract_No_Age_after_mod2)
+extract_no_age <- extract_no_age |>
+  left_join(
+    calc_ages |> rename(AGE_AT_ENROL_DATE_to_update = AGE_AT_ENROL_DATE)
+  ) |>
+  mutate(
+    AGE_AT_ENROL_DATE = coalesce(AGE_AT_ENROL_DATE, AGE_AT_ENROL_DATE_to_update)
+  ) |>
+  select(-AGE_AT_ENROL_DATE_to_update)
 
 # ---- some manual edits ----
 dbExecute(con, qry07d_Create_Age_Manual_Fixes_View)
