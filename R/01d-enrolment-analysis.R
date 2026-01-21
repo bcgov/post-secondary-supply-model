@@ -333,7 +333,13 @@ extract_no_age_first_enrolment <- extract_no_age_first_enrolment |>
   imap(~ impute_age_by_gender(.x, .y, age_weights)) |>
   list_rbind()
 
-dbExecute(con, qry07d1_Update_Extract_No_Age)
+
+extract_no_age <- extract_no_age |>
+  select(-AGE_AT_ENROL_DATE) |>
+  left_join(
+    extract_no_age_first_enrolment |>
+      distinct(ID = id, AGE_AT_ENROL_DATE)
+  )
 
 # calculate missing ages from first enrolments
 multiple_enrol <- dbGetQuery(con, qry02a_Multiple_Enrol)
