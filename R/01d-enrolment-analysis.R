@@ -10,14 +10,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# Workflow #4 (noting here for now)
-# Enrolment Analysis
-# Description:
-# Relies on STP_Enrolment data table, STP_Enrolment_Record_Type, Credential View, AgeGroupLookup
-# Creates tables qry09c_MinEnrolment (one of them) to be used for grad projections
-
 library(tidyverse)
 set.seed(123456)
+
+# ---- Check required Tables etc. ----
+required_tables <- c(
+  "min_enrolment",
+  "age_group_lookup",
+  "outcome_credential",
+  "credential",
+  "stp_enrolment",
+  "stp_enrolment_record_type"
+  #"stp_credential_record_type",
+  #"stp_credential",
+)
+
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
 
 # ---- Extract first-time enrolled records ----
 # qry01a through qry01e
