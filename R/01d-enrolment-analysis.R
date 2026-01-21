@@ -263,130 +263,75 @@ min_enrolment <- min_enrolment |>
       PSI_GENDER
     )
   ) |>
-  select(-PSI_GENDER_to_update) |>
-  count(PSI_GENDER)
+  select(-PSI_GENDER_to_update)
 
 
 # ---- Create Age and Gender Distrbutions ----
-dbExecute(con, qry07a_Extract_No_Age)
-dbExecute(con, qry07b_Extract_No_Age_First_Enrolment)
-dbExecute(con, "ALTER TABLE Extract_No_Age ADD IS_FIRST_ENROLMENT NVARCHAR(50)")
-dbExecute(con, qry07b2_update_Extract_No_Age_IsFirstEnrolment)
+extract_no_age <- min_enrolment |>
+  filter(is.na(AGE_AT_ENROL_DATE)) |>
+  distinct(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    AGE_AT_ENROL_DATE,
+    PSI_SCHOOL_YEAR,
+    PSI_MIN_START_DATE,
+    PSI_MIN_START_DATE_D,
+    IS_FIRST_ENROLMENT,
+    PSI_GENDER
+  )
+
+extract_no_age_first_enrol <- min_enrolment |>
+  filter(is.na(AGE_AT_ENROL_DATE), IS_FIRST_ENROLMENT == "Yes") |>
+  distinct(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_GENDER,
+    PSI_CODE,
+    AGE_AT_ENROL_DATE_first = AGE_AT_ENROL_DATE
+  )
+
 
 # ----- Assign age to records with missing age -----
 # impute based on age and gender distribution
-extract_no_age_first_enrolment <- dbGetQuery(
-  con,
-  "SELECT * FROM Extract_No_Age_First_Enrolment"
-)
-age_dist = dbGetQuery(con, qry07c_Show_Age_Distribution)
-n_miss = dbGetQuery(
-  con,
-  "SELECT PSI_GENDER, COUNT(*) AS n_miss 
-                    FROM Extract_No_Age_First_Enrolment 
-                    GROUP BY PSI_GENDER"
-)
 
-age_dist <- age_dist %>%
-  group_by(PSI_GENDER) %>%
-  mutate(PropEnrolled = round(NumEnrolled / sum(NumEnrolled), 5)) %>%
-  ungroup() %>%
-  inner_join(n_miss, by = join_by(PSI_GENDER)) %>%
-  mutate(NumDistribution = round(PropEnrolled * n_miss)) %>%
-  select(-n_miss)
+impute_age_by_gender <- function(sub_df, gender_name, lookup_table) {
+  # Look for the distribution for this specific gender
+  dist <- lookup_table |> filter(PSI_GENDER == gender_name)
 
-dbWriteTable(con, name = "AgeDistributionbyGender", age_dist, overwrite = TRUE)
+  # Fallback: If gender group is empty/missing, use the global age distribution
+  if (nrow(dist) == 0) {
+    dist <- lookup_table |>
+      count(AGE_AT_ENROL_DATE, wt = count) |>
+      mutate(prob = n / sum(n))
+  }
 
-m_id <- extract_no_age_first_enrolment %>%
-  filter(PSI_GENDER == 'Male', is.na(AGE_AT_ENROL_DATE)) %>%
-  pull(id)
-
-f_id <- extract_no_age_first_enrolment %>%
-  filter(PSI_GENDER == 'Female', is.na(AGE_AT_ENROL_DATE)) %>%
-  pull(id)
-
-gd_id <- extract_no_age_first_enrolment %>%
-  filter(PSI_GENDER == 'Gender Diverse', is.na(AGE_AT_ENROL_DATE)) %>%
-  pull(id)
-
-m_dist <- age_dist %>% filter(NumDistribution > 0, PSI_GENDER == 'Male')
-f_dist <- age_dist %>% filter(NumDistribution > 0, PSI_GENDER == 'Female')
-gd_dist <- age_dist %>%
-  filter(NumDistribution > 0, PSI_GENDER == 'Gender Diverse')
-
-m = data.frame(
-  id = m_id,
-  AGE_AT_ENROL_DATE = sample(
-    m_dist$AGE_AT_ENROL_DATE,
-    size = length(m_id),
+  # Assign the sampled ages
+  sub_df$AGE_AT_ENROL_DATE <- sample(
+    dist$AGE_AT_ENROL_DATE,
+    size = nrow(sub_df),
     replace = TRUE,
-    prob = m_dist$PropEnrolled
+    prob = dist$prob
   )
-)
-f = data.frame(
-  id = f_id,
-  AGE_AT_ENROL_DATE = sample(
-    f_dist$AGE_AT_ENROL_DATE,
-    size = length(f_id),
-    replace = TRUE,
-    prob = f_dist$PropEnrolled
-  )
-)
-# this errors as the gd groups are too small
-gd = data.frame(
-  id = gd_id,
-  AGE_AT_ENROL_DATE = sample(
-    gd_dist$AGE_AT_ENROL_DATE,
-    size = length(gd_id),
-    replace = TRUE,
-    prob = gd_dist$PropEnrolled
-  )
-)
+  return(sub_df)
+}
 
-# at this point stop including gd in the distributions
-extract_no_age_first_enrolment <- extract_no_age_first_enrolment %>%
-  left_join(rbind(m, f), by = join_by(id), suffix = c("", ".new")) %>%
-  mutate(
-    AGE_AT_ENROL_DATE = if_else(
-      is.na(AGE_AT_ENROL_DATE),
-      AGE_AT_ENROL_DATE.new,
-      AGE_AT_ENROL_DATE
-    )
-  ) %>%
-  select(-AGE_AT_ENROL_DATE.new)
+# 1. Prep the weights once
+age_weights <- min_enrolment |>
+  filter(!is.na(AGE_AT_ENROL_DATE), IS_FIRST_ENROLMENT == "Yes") |>
+  count(PSI_GENDER, AGE_AT_ENROL_DATE, name = "count") |>
+  group_by(PSI_GENDER) |>
+  mutate(prob = count / sum(count)) |>
+  ungroup()
 
-# however this leaves the GD ids with no age, so sample and set them equal to some other age from available
-no_age <- extract_no_age_first_enrolment %>%
-  filter(is.na(AGE_AT_ENROL_DATE)) %>%
-  pull(id)
-gd <- data.frame(
-  id = no_age,
-  AGE_AT_ENROL_DATE = sample(
-    extract_no_age_first_enrolment %>%
-      filter(!is.na(AGE_AT_ENROL_DATE)) %>%
-      pull(AGE_AT_ENROL_DATE),
-    size = length(no_age)
-  )
-)
-
-extract_no_age_first_enrolment <- extract_no_age_first_enrolment %>%
-  left_join(gd, by = join_by(id), suffix = c("", ".new")) %>%
-  mutate(
-    AGE_AT_ENROL_DATE = if_else(
-      is.na(AGE_AT_ENROL_DATE),
-      AGE_AT_ENROL_DATE.new,
-      AGE_AT_ENROL_DATE
-    )
-  ) %>%
-  select(-AGE_AT_ENROL_DATE.new)
-
-
-dbWriteTable(
-  con,
-  name = "Extract_No_Age_First_Enrolment",
-  value = extract_no_age_first_enrolment,
-  overwrite = TRUE
-)
+# 2. Run the imputation
+# We split by gender, apply the function, and bind the results back together
+extract_no_age_first_enrolment <- extract_no_age_first_enrolment |>
+  split(~PSI_GENDER) |>
+  imap(~ impute_age_by_gender(.x, .y, age_weights)) |>
+  list_rbind()
 
 dbExecute(con, qry07d1_Update_Extract_No_Age)
 
