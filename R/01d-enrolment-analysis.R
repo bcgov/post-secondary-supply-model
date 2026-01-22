@@ -96,7 +96,7 @@ min_enrolment_sup_var <- stp_enrolment |>
 #  - It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
 #  intervals and maps age groups via an inequality join.
 # BA Notes:
-#  - creates min_enrolment_sup_var (identical db table MinEnrolment)
+#  - creates min_enrolment (identical db table MinEnrolment)
 #  - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
 #  with the SQL version for QA/Review purposes. Non-essential columns
 #  can be dropped in a later 'refine' phase once the logic is validated.
@@ -250,7 +250,7 @@ min_enrolment <- min_enrolment |>
   select(-FIRST_GENDER)
 
 # ---- impute gender  ----
-# SQL version starts at line ? on branch main
+# SQL version starts ~line 101 on branch main
 # Replicates: qry05a1 through qry06a5
 # What the code does:
 # - Perform a Proportional Imputation for missing gender data.
@@ -320,9 +320,15 @@ min_enrolment <- min_enrolment |>
 
 
 # ---- Create Age and Gender Distrbutions ----
-# SQL version starts at line ? on branch main
-# Replicates:
+# SQL version starts at line 163 on branch main
+# Replicates: qry07a-qry07b2
 # What the code does:
+# - This code extracts and isolates records where the student's age could not be calculated.
+# - It prepares the data for a second round of imputation (on age) by identifying which students are missing an age.
+# BA Notes:
+# - compare extract_no_age to Extract_No_Age and
+# - compare extract_no_age_first_enrol to Extract_No_Age_First_Enrolment
+# R version carries the column PSI_GENDER - needed?
 extract_no_age <- min_enrolment |>
   filter(is.na(AGE_AT_ENROL_DATE)) |>
   distinct(
@@ -351,10 +357,15 @@ extract_no_age_first_enrol <- min_enrolment |>
 
 
 # ----- Assign age to records with missing age -----
-# SQL version starts at line ? on branch main
-# Replicates:
-# What the code does: impute based on age and gender distribution
+# SQL version starts at line 169 on branch main
+# Replicates: the R code from lines 171 to 263 (main)
+# What the code does:
+# - Performs a Stratified Proportional Imputation for missing ages.
+# - Followed by a Temporal Projection to fill in subsequent records.
+# - Updates extract_no_age with imputed ages
 # BA Notes:
+# compare extract_no_age to Extract_No_Age
+
 impute_age_by_gender <- function(sub_df, gender_name, lookup_table) {
   # Look for the distribution for this specific gender
   dist <- lookup_table |> filter(PSI_GENDER == gender_name)
@@ -386,7 +397,7 @@ age_weights <- min_enrolment |>
 
 # 2. Run the imputation
 # We split by gender, apply the function, and bind the results back together
-extract_no_age_first_enrolment <- extract_no_age_first_enrolment |>
+extract_no_age_first_enrol <- extract_no_age_first_enrol |>
   split(~PSI_GENDER) |>
   imap(~ impute_age_by_gender(.x, .y, age_weights)) |>
   list_rbind()
@@ -395,8 +406,8 @@ extract_no_age_first_enrolment <- extract_no_age_first_enrolment |>
 extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE) |>
   left_join(
-    extract_no_age_first_enrolment |>
-      distinct(ID = id, AGE_AT_ENROL_DATE)
+    extract_no_age_first_enrol |>
+      distinct(ID, AGE_AT_ENROL_DATE)
   )
 
 # calculate missing ages from first enrolments
