@@ -1,0 +1,52 @@
+body {
+    color: black;
+    font-size: 16px;
+    font-family: Helvetica;
+}
+
+h1 {
+    color: rgb(21, 43, 130);
+    font-size: 24px;
+    font-family: BC Sans;
+}
+
+h2 {
+    color: rgb(21, 43, 130);
+    font-size: 22px;
+    font-family: BC Sans;
+}
+
+h3 {
+    color: rgb(21, 43, 130);
+    font-size: 18px;
+    font-family: Helvetica;
+}
+
+.list-variable-names {
+    text-align: left;
+    font-size: 12px;
+ }
+
+.nav-tabs .nav-item .nav-link {
+    background-color: white;
+    color: rgb(21, 43, 130);
+}
+  
+.nav-tabs .nav-item .nav-link.active {
+    color: rgb(21, 43, 130);
+    font-weight: bold;
+
+}
+  
+.tab-content {
+    border-top: transparent;
+    padding: 20px;
+}
+  
+.tab-content .tab-pane {
+    background-color: #FFF;
+    color: black;
+    font-size: 16px;
+    font-family: Helvetica;
+}
+ 
