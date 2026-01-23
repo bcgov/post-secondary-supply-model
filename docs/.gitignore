@@ -4,3 +4,4 @@
 *.css
 /.quarto/
 !styles.css
+cip-to-noc*

@@ -6,6 +6,7 @@ format:
     toc-location: right
     toc-depth: 3
     number-sections: true
+    number-depth: 3
     theme: cerulean
     code-fold: true
     grid: 
@@ -13,6 +14,7 @@ format:
         sidebar-width: 100px
         margin-width: 300px
     css: styles.css
+    html-math-method: katex
     self-contained: true
 ---
 
@@ -20,37 +22,34 @@ format:
 
 _Provide a brief summary of the module’s purpose, scope, and key objectives._
 
-## Data Sources and Acquisition
+## Data Sources and Storage
 
 ### External Data Sources
 
-::: {.callout-note collapse="true" icon="false"}
-## [External Data Source Name]
+#### [External Data Source Name]
 
-**Source**: [Data provider or organization]  
-**Access Method**: [Describe how data is accessed, e.g., API, direct download, R package]
+Source: [Data provider or organization]  
+Access Method: [Describe how data is accessed, e.g., API, direct download, R package]
 
   - [List any required credentials, API keys, or setup steps]
   - Function calls: [Relevant function or method]
 
-**Description**: [Brief description of the data, coverage, and structure]
-:::
+Description: [Brief description of the data, coverage, and structure]
 
 <!-- Repeat the above callout for each external data source -->
 
 ### Internal/Processed Data Sources
 
-::: {.callout-note collapse="true" icon="false"}
-## [Internal Data Product Name]
+#### [Internal Data Product Name]
 
-**Source**: [Describe how/where the data is generated or stored]  
-**Access Method**: [Describe how to access the data]
+Source: [Describe how/where the data is generated or stored]  
+Access Method: [Describe how to access the data]
 
   - File location: [Path or variable]
   - Processing methodology: [Link to documentation or code if available]
 
-**Description**: [Brief description of the processed data]
-:::
+Description: [Brief description of the processed data]
+
 
 ### Data Storage Structure
 
@@ -67,126 +66,18 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
     └── visuals/         # Maps and visualizations
 ```
 
-## Global Constants and Configuration
+## Technical Specifications
 
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
+### Dependencies and Environment Requirements
 
-### Core Analysis Parameters
+#### System Requirements
 
-::: {.callout-note collapse="true" icon="false"}
-## Data Processing and Filtering
+- Network Access: [List required network resources]
+- Storage: [Note storage requirements]
+- Memory: [Note memory requirements]
+- External Data: [List any required external data]
 
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
-:::
-
-::: {.callout-note collapse="true" icon="false"}
-## File Path Configuration
-
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
-  - [Add other relevant paths as needed]
-:::
-
-## Core Pipeline Scripts Methodology
-
-### Data Preparation
-
-_Describe the process of transforming raw data into standardized intermediate files for analysis._
-
-#### Methodology Overview
-
-::: {.callout-note collapse="true" icon="false"}
-## 1. [Step Name]
-
-- **Input**: [Describe input data]
-- **Processing**: [Describe processing steps]
-- **Output**: [Describe output file or artifact]
-:::
-
-<!-- Repeat for each major step in the pipeline -->
-
-#### Critical Dependencies
-- **API Keys**: [List any required API keys]
-- **Network Access**: [List required network resources]
-- **Disk Space**: [Note any large storage requirements]
-
-### [Next Major Process, e.g., Catchment Assignment]
-
-_Describe the next major process in the pipeline, including methodology and logic._
-
-#### Methodology Overview
-
-::: {.callout-note collapse="true" icon="false"}
-## 1. [Primary Assignment Method]
-
-- **Logic**: [Describe assignment logic]
-- **Data Source**: [Describe data source]
-- **Coverage**: [Describe coverage/limitations]
-:::
-
-<!-- Repeat for secondary/fallback methods as needed -->
-
-### [Additional Analytical Steps]
-
-_Describe any additional analytical or classification steps, such as urban/rural classification, aggregation, etc._
-
-#### Methodology Overview
-
-::: {.callout-note collapse="true" icon="false"}
-## 1. [Classification/Analysis Step]
-
-- **Input**: [Describe input data]
-- **Logic**: [Describe logic or rules]
-- **Processing**: [Describe processing steps]
-:::
-
-<!-- Repeat as needed -->
-
-### Output Tables
-
-_Describe the final output tables, their structure, and intended use._
-
-#### Methodology Overview
-
-::: {.callout-note collapse="true" icon="false"}
-## 1. Data Sources and Processing
-
-- **Geographic Crosswalk**: [File name/description]
-- **Population Projections**: [File name/description]
-- **Other Data**: [File name/description]
-:::
-
-::: {.callout-note collapse="true" icon="false"}
-## 2. Calculated Metrics
-
-- [List and describe key calculated metrics]
-:::
-
-::: {.callout-note collapse="true" icon="false"}
-## 3. Final Integration
-
-_Describe how metrics are integrated into the final output._
-:::
-
-## Key Outputs
-
-_List and briefly describe the key outputs generated by this module._
-
-1. **[Output Name]**:  
-   - **File**: [filename]
-   - **Description**: [Brief description]
-
-<!-- Repeat for each key output -->
-
-## Dependencies and Environment Requirements
-
-### R Package Dependencies
+#### R Package Dependencies
 
 The following R packages are required for this module:
 
@@ -195,18 +86,76 @@ The following R packages are required for this module:
 - [List visualization/statistics packages]
 - [List file management packages]
 
-### System Requirements
 
-- **Network Access**: [List required network resources]
-- **Storage**: [Note storage requirements]
-- **Memory**: [Note memory requirements]
-- **External Data**: [List any required external data]
 
-### Authentication Setup
+#### Authentication Setup
 
 ```r
 # Example: API key configuration
 [package]::set_api_key('YOUR_API_KEY', install = TRUE)
 ```
+
+### Global Constants and Configuration
+
+Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
+
+#### Data Processing and Filtering
+
+  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
+  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
+  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
+  - `REQUIRED_COLS`: [List of required columns for validation]
+  - `POP_COLS`: [List of population-related columns]
+
+
+#### File Path Configuration
+
+  - `BASE_FOLDER`: Base folder for storage.
+  - `SRC_DATA_FOLDER`: Directory for source data files.
+  - `RAW_DATA_FOLDER`: Directory for raw input data.
+  - `OUTPUTS_FOLDER`: Directory for outputs.
+
+[Add other relevant settings as needed]
+
+
+## Methodology Overview
+
+_Repeat for each major step/script in the module_
+
+### [Method 1 Title]
+
+#### Methods
+
+#### Data Dictionary
+
+##### [Table 1 Name]
+
+
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+</ul>
+
+Key variables computed in this analysis:
+
+<ul class="list-variable-names">
+<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+</ul>
+
+ Variables not used in this analysis: 
+
+<ul class="list-variable-names">
+<li>AGE_AT_GRAD: NOT USED</li>
+<li>Age_Grad_Group: NOT USED</li>
+</ul>
+
+## Key Output Tables
+
+## Suggested Improvements
+
+## Additional Details
 
 _This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
