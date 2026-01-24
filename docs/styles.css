@@ -65,3 +65,15 @@ h5 {
     font-family: Helvetica;
 }
  
+/* Custom table styling for dense data */
+.table-condensed table {
+  font-size: 0.85em;
+  line-height: 1.2;
+  table-layout: fixed;
+  width: auto;
+}
+
+.list-variable-names {
+  font-size: 0.85em;
+  /* your other existing styles */
+}
