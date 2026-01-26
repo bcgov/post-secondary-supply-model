@@ -29,6 +29,7 @@ library(tidyverse)
 #db_config <- config::get("decimal")
 #lan <- config::get("lan")
 #my_schema <- config::get("myschema")
+#db_schema <- config::get("dbschema")
 
 # ---- Connection to database ----
 #db_config <- config::get("decimal")
@@ -55,7 +56,7 @@ credential_non_dup <- dbReadTable(
   SQL(glue::glue('"{db_schema}"."Credential_Non_Dup"'))
 )
 
-# rollover tables - this can be removed later
+# "rollover table" - this data is provisioned from SO
 years <- 2018:2023
 
 tmp_table_Age <- years %>%
@@ -158,7 +159,7 @@ t_pssm_projection_cred_grp <- tibble(
     NA
   )
 )
-# Constructing the Credential Classification Lookup Table
+
 combine_creds <- tibble(
   sort_order = 1:9,
   credential_code = c(
@@ -196,7 +197,7 @@ combine_creds <- tibble(
   ),
   is_active = c("Yes", "Yes", "Yes", "Yes", NA, "Yes", NA, "Yes", "Yes")
 )
-# Constructing the STP Credential Normalization Lookup Table
+
 stp_dacso_prgm_credential_lookup <- tibble(
   PRGRM_Credential_Awarded = c(
     "ADGR",
@@ -251,6 +252,28 @@ age_group_lookup <- tibble(
   UpperBound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
 )
 
+# these should now be in the R environment
+required_tables <- c(
+  "t_dacso_data_part_1",
+  "credential_non_dup",
+  "age_group_lookup",
+  "stp_dacso_prgm_credential_lookup",
+  "combine_creds",
+  "tbl_age",
+  "t_pssm_projection_cred_grp",
+  "tmp_table_Age"
+)
+
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
+
+na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
 dbExecute(
