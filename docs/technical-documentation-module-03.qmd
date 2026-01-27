@@ -1,0 +1,204 @@
+---
+title: "Module 03 - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+This script computes the ratio of near completers to graduates by age group and credential.  Near completers who later received a credential according to the STP Credential file, or had an earlier credential are subtracted from the total of all near completers. 
+
+Annual ratios are computed for all available years and an average taken of two or three representative years (chosen by investigation).  PSSM model 2023 used an average ratio of 2018-2019. 
+
+
+## Data Sources and Storage
+
+### External Data Sources - NA 
+
+### Internal/Processed Data Sources
+
+#### credential_non_dup
+
+Source: Generated in Module 02 from STP Credential Data
+Access Method: In R environment or via ODBC link to database
+
+  - File location: [Path or variable]
+  - Processing methodology: [Link to documentation or code if available]
+
+Description: STP Credential years searched: 2002/03 - 2022/23
+
+#### t_dacso_data_part_1
+
+Source: Student Outcomes Survey Data (DACSO?)
+Access Method: See Student Outcomes Team
+
+  - [List any required credentials, API keys, or setup steps]
+  - Function calls: [Relevant function or method]
+
+Description: 
+Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
+Credentials: Diploma, Associate Degree, and Certificate 
+
+Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
+
+
+### Data Storage Structure
+
+Where data is housed in internal storage locations, it is stored in a hierarchical folder structure accessible via read_csv().
+
+```
+[BASE_FOLDER]/
+├── data/
+    ├── student-outcomes/  
+    └── csv/            
+        └── so-provision/ # provided by Student Outcomes
+├── development/
+    ├── csv/  
+    └── gh-source/ # temporary storage for lookups and etc.         
+
+└── outputs/
+    ├── tables/          # Final output tables  
+    └── visuals/         # Maps and visualizations
+```
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: [Note storage requirements]
+- External Data: [List any required external data]
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse`
+- [List spatial analysis packages]
+- [List visualization/statistics packages]
+- [List file management packages]
+
+
+#### Authentication Setup
+
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
+```r
+library(DBI)
+library(odbc)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+```
+<!-- 
+### Global Constants and Configuration
+
+Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository. 
+
+#### Data Processing and Filtering
+<!-- 
+  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
+  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
+  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
+  - `REQUIRED_COLS`: [List of required columns for validation]
+  - `POP_COLS`: [List of population-related columns]
+
+
+#### File Path Configuration
+
+  - `BASE_FOLDER`: Base folder for storage.
+  - `SRC_DATA_FOLDER`: Directory for source data files.
+  - `RAW_DATA_FOLDER`: Directory for raw input data.
+  - `OUTPUTS_FOLDER`: Directory for outputs.
+
+[Add other relevant settings as needed]
+-->
+
+## Methodology Overview
+
+_Repeat for each major step/script in the module_
+
+### [Method 1 Title]
+
+#### Methods
+
+#### Data Dictionary 
+
+##### tbl_age
+
+<ul class="list-variable-names">
+<li>Age (Integer): </li>
+<li>Age_Group (Integer): </li>
+</ul>
+
+##### t_pssm_projection_cred_grp
+
+<ul class="list-variable-names">
+<li>PSSM_Projection_Credential (String): </li>
+<li>PSSM_Credential (String): </li>
+<li>PSSM_Credential_Name (String): </li>
+<li>COSC_GRAD_STATUS_LGDS_CD (Integer): </li>
+</ul>
+
+##### combine_creds
+
+<ul class="list-variable-names">
+<li>sort_order (Integer): </li>
+<li>credential_code (String): </li>
+<li>credential_name (String): </li>
+<li>reporting_category (String): </li>
+<li>is_active (String): </li>
+</ul>
+
+##### stp_dacso_prgrm_credential_lookup
+
+<ul class="list-variable-names">
+<li>PRGRM_Credential_Awarded (String): </li>
+<li>PRGM_Credential_Awarded_Name (String): </li>
+<li>STP_PRGM_Credential_Awarded_Name (String): </li>
+</ul>
+
+##### age_group_lookup
+
+<ul class="list-variable-names">
+<li>AgeIndex (Integer): </li>
+<li>AgeGroup (String): </li>
+<li>LowerBound (Integer): </li>
+<li>UpperBound (Integer): </li>
+</ul>
+
+## Key Output Tables
+
+## Suggested Improvements
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
