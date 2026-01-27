@@ -61,6 +61,11 @@ credential_non_dup <- dbReadTable(
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 )
 
+stp_credential <- dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+)
+
 # "rollover table" - this data is provisioned from SO
 years <- 2018:2023
 # write to Decimal as tmp_tbl_Age_AppendNewYears
@@ -369,65 +374,163 @@ t_dacso_data_part_1_tempselection |>
   )
 
 # ---- Add PEN to Non-Dup table ----
-# Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
-sql <- glue::glue(
-  "ALTER TABLE pssm2023.[{my_schema}].credential_non_dup
-ADD PSI_PEN NVARCHAR(255) NULL;"
-)
-dbExecute(decimal_con, sql)
-
-sql <- glue::glue(
-  "UPDATE N
-SET N.PSI_PEN = C.PSI_PEN
-FROM pssm2023.[{my_schema}].credential_non_dup AS N
-INNER JOIN dbo.STP_Credential AS C
-ON N.ID = C.ID
-"
-)
-dbExecute(decimal_con, sql)
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    stp_credential |>
+      select(id = ID, psi_pen = PSI_PEN),
+    by = "id"
+  )
 
 # ---- DACSO Matching STP Credential ----
-dbExecute(decimal_con, qry01_Match_DACSO_to_STP_Credential_Non_DUP_on_PEN)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD stp_prgm_credential_awarded_name nvarchar(50) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_credential nvarchar(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_cip_code_4 nvarchar(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_CIP_CODE_2 nvarchar(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_award_school_year nvarchar(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_inst nvarchar(10) NULL"
-)
-dbExecute(decimal_con, qry_Update_STP_PRGM_Credential_Awarded_Name)
 
-# How many PEN matched records also match STP on credential category
-dbExecute(decimal_con, qry02_Match_DACSO_STP_Credential_PSI_CRED_Category)
-# How many PEN matched records also match STP on CIP4
-dbExecute(decimal_con, qry03_Match_DACSO_STP_Credential_CIPCODE4)
-# How many PEN matched records also match STP on CIP2
-dbExecute(decimal_con, qry03b_Match_DACSO_STP_Credential_CIPCODE2)
-# How many PEN matched records also match STP on Award Year.
-dbExecute(decimal_con, qry04_Match_DACSO_STP_Credential_AwardYear) # Manual: Add the new year combinations to query design first
-# How many PEN matched records also match STP on Inst code
-dbExecute(decimal_con, qry05_Match_DACSO_STP_Credential_Inst)
-# Print summary of the matching results.
+# Stage 1: Execute Join, Filter, and Column Initialization
+dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
+  filter(!coci_pen %in% na_vals) |>
+  inner_join(
+    credential_non_dup,
+    by = c("coci_pen" = "psi_pen"),
+    relationship = "many-to-many"
+  ) |>
+  # Replicating GROUP BY logic to ensure distinct records
+  distinct(
+    coci_stqu_id,
+    coci_inst_cd,
+    id,
+    coci_pen,
+    psi_code,
+    prgm_credential_awarded,
+    prgm_credential_awarded_name,
+    pssm_credential,
+    pssm_credential_name,
+    psi_credential_category,
+    outcomes_cred,
+    lcp4_cd,
+    final_cip_code_4 = FINAL_CIP_CODE_4,
+    coci_subm_cd,
+    psi_award_school_year,
+    cosc_grad_status_lgds_cd_group
+  ) |>
+  # Initialize the six requested placeholders
+  mutate(
+    match_credential = NA_character_,
+    match_cip_code_4 = NA_character_,
+    match_cip_code_2 = NA_character_,
+    match_award_school_year = NA_character_,
+    match_inst = NA_character_
+  )
+
+# Stage 2: Join with Lookup table to populate stp_prgm_credential_awarded_name
+dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
+  left_join(
+    stp_dacso_prgm_credential_lookup |>
+      select(
+        prgrm_credential_awarded = PRGRM_Credential_Awarded,
+        stp_prgm_credential_awarded_name = STP_PRGM_Credential_Awarded_Name,
+        prgm_credential_awarded_name = PRGM_Credential_Awarded_Name
+      ),
+    by = c("prgm_credential_awarded" = "prgrm_credential_awarded")
+  )
+
+dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
+  mutate(
+    match_credential = if_else(
+      prgm_credential_awarded_name == psi_credential_category,
+      "yes",
+      match_credential
+    ),
+    match_cip_code_4 = if_else(
+      lcp4_cd == final_cip_code_4,
+      "yes",
+      match_cip_code_4
+    ),
+    match_cip_code_2 = if_else(
+      str_sub(lcp4_cd, 1, 2) == str_sub(final_cip_code_4, 1, 2),
+      "yes",
+      match_cip_code_2
+    ),
+    match_award_school_year = if_else(
+      # Extract digits from 'C_OutcXX' and compare against school year ranges
+      (coci_subm_cd == "C_Outc06" &
+        psi_award_school_year %in% c("2003/2004", "2004/2005")) |
+        (coci_subm_cd == "C_Outc07" &
+          psi_award_school_year %in% c("2004/2005", "2005/2006")) |
+        (coci_subm_cd == "C_Outc08" &
+          psi_award_school_year %in% c("2005/2006", "2006/2007")) |
+        (coci_subm_cd == "C_Outc09" &
+          psi_award_school_year %in% c("2006/2007", "2007/2008")) |
+        (coci_subm_cd == "C_Outc10" &
+          psi_award_school_year %in% c("2007/2008", "2008/2009")) |
+        (coci_subm_cd == "C_Outc11" &
+          psi_award_school_year %in% c("2008/2009", "2009/2010")) |
+        (coci_subm_cd == "C_Outc12" &
+          psi_award_school_year %in% c("2009/2010", "2010/2011")) |
+        (coci_subm_cd == "C_Outc13" &
+          psi_award_school_year %in% c("2010/2011", "2011/2012")) |
+        (coci_subm_cd == "C_Outc14" &
+          psi_award_school_year %in% c("2011/2012", "2012/2013")) |
+        (coci_subm_cd == "C_Outc15" &
+          psi_award_school_year %in% c("2012/2013", "2013/2014")) |
+        (coci_subm_cd == "C_Outc16" &
+          psi_award_school_year %in% c("2013/2014", "2014/2015")) |
+        (coci_subm_cd == "C_Outc17" &
+          psi_award_school_year %in% c("2014/2015", "2015/2016")) |
+        (coci_subm_cd == "C_Outc18" &
+          psi_award_school_year %in% c("2015/2016", "2016/2017")) |
+        (coci_subm_cd == "C_Outc19" &
+          psi_award_school_year %in% c("2016/2017", "2017/2018")) |
+        (coci_subm_cd == "C_Outc20" &
+          psi_award_school_year %in% c("2017/2018", "2018/2019")) |
+        (coci_subm_cd == "C_Outc21" &
+          psi_award_school_year %in% c("2018/2019", "2019/2020")) |
+        (coci_subm_cd == "C_Outc22" &
+          psi_award_school_year %in% c("2019/2020", "2020/2021")) |
+        (coci_subm_cd == "C_Outc23" &
+          psi_award_school_year %in% c("2020/2021", "2021/2022")),
+      "yes",
+      match_award_school_year
+    ),
+    match_inst = if_else(
+      psi_code == coci_inst_cd |
+        (psi_code == "CAP" & coci_inst_cd == "CAPU") |
+        (psi_code == "KWAN" & coci_inst_cd == "KPU") |
+        (psi_code == "OLA" & coci_inst_cd == "TRU") |
+        (psi_code == "MALA" & coci_inst_cd == "VIU") |
+        (psi_code == "OUC" & coci_inst_cd == "OKAN") |
+        (psi_code == "UCFV" & coci_inst_cd == "UFV") |
+        (psi_code == "UCC" & coci_inst_cd == "TRU") |
+        (psi_code == "NWCC" & coci_inst_cd == "CMTN"),
+      "yes",
+      match_inst
+    )
+  )
+
+match_summary_table <- dacso_matching_stp_credential_pen |>
+  group_by(
+    match_credential,
+    match_cip_code_4,
+    match_award_school_year,
+    match_inst
+  ) |>
+  summarize(
+    Expr1 = n(),
+    .groups = "drop"
+  ) |>
+  arrange(
+    desc(match_credential),
+    desc(match_cip_code_4),
+    desc(match_award_school_year),
+    desc(match_inst)
+  )
+
+# Print summary of the matching results for comparison
 dbGetQuery(decimal_con, qry06_Match_DACSO_STP_Credential_Summary)
 
-#  These are considered final matches to STP credential.
+# off a bit in match_credential - investigate why. (involves the following query, run previously).
+# Possible culprit is the inenr join on stp_dacso_prgm_credential_lookup
+# qry02_Match_DACSO_STP_Credential_PSI_CRED_Category
+## GOT TO HERE, all reqd tables are in my schema
+
+# These are considered final matches to STP credential.
 dbExecute(
   decimal_con,
   "ALTER TABLE dacso_matching_stp_credential_pen ADD final_consider_a_match nvarchar(10) NULL"
