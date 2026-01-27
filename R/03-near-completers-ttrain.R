@@ -24,42 +24,47 @@
 # Notes: Using age at grad (not age at survey) for age groupings.
 
 library(tidyverse)
+library(DBI)
+library(odbc)
+library(config)
 
 # ---- Configure LAN and file paths ----
 #db_config <- config::get("decimal")
-#lan <- config::get("lan")
-#my_schema <- config::get("myschema")
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
 #db_schema <- config::get("dbschema")
 
 # ---- Connection to database ----
-#db_config <- config::get("decimal")
-#decimal_con <- dbConnect(
-#  odbc::odbc(),
-#  Driver = db_config$driver,
-#  Server = db_config$server,
-#  Database = db_config$database,
-#  Trusted_Connection = "True"
-#)
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
 # ---- Data Requirements and SQL Definitons ----
 #source("./sql/03-near-completers/near-completers-investigation-ttrain.R")
 #source("./sql/03-near-completers/dacso-near-completers.R")
 
 # tables made in earlier part of workflow
+# for testing, copy T_DACSO_Data_Part_1 from dbo.  Drop Age_At_Grad
 t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
-  SQL(glue::glue('"{db_schema}"."t_dacso_data_part_1"'))
-)
+  SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
+) |>
+  select(-Age_At_Grad)
 
 credential_non_dup <- dbReadTable(
   decimal_con,
-  SQL(glue::glue('"{db_schema}"."Credential_Non_Dup"'))
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 )
 
 # "rollover table" - this data is provisioned from SO
 years <- 2018:2023
-
-tmp_table_Age <- years %>%
+# write to Decimal as tmp_tbl_Age_AppendNewYears
+tmp_tbl_age_append_new_years <- years |>
   purrr::map_dfr(
     ~ {
       file_path <- glue::glue(
@@ -67,6 +72,19 @@ tmp_table_Age <- years %>%
       )
       read_csv(file_path, col_types = "dcdcd")
     }
+  )
+
+# write to Decimal as tmp_tbl_Age
+tmp_tbl_age <- read_csv(
+  glue::glue(
+    "{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"
+  ),
+  col_types = "dccccdd"
+) |>
+  mutate(
+    TPID_DATE_OF_BIRTH = as.Date(TPID_DATE_OF_BIRTH),
+    COSC_ENRL_END_DATE = as.Date(COSC_ENRL_END_DATE),
+    COSC_GRAD_CREDENTIAL_DATE = as.Date(COSC_GRAD_CREDENTIAL_DATE)
   )
 
 # lookups
@@ -159,6 +177,7 @@ t_pssm_projection_cred_grp <- tibble(
     NA
   )
 )
+
 
 combine_creds <- tibble(
   sort_order = 1:9,
@@ -276,46 +295,78 @@ if (length(missing) > 0) {
 na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_CLEANED NVARCHAR(20) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD ENDDT_CLEANED NVARCHAR(20) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD BTHDT_DATE NVARCHAR(20) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_tbl_Age_AppendNewYears ADD ENDDT_DATE NVARCHAR(20) NULL"
-)
-dbExecute(decimal_con, qry_make_tmp_table_Age_step2)
-dbExecute(
-  decimal_con,
-  "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_CLEANED = '' WHERE ENDDT_CLEANED = '00/1/0000'"
-)
-dbExecute(decimal_con, qry_make_tmp_table_Age_step3)
-dbExecute(
-  decimal_con,
-  "UPDATE tmp_tbl_Age_AppendNewYears SET ENDDT_DATE = NULL WHERE ENDDT_DATE = '1900-01-01'"
-)
-dbExecute(decimal_con, qry_make_tmp_table_Age_step4)
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age_AppendNewYears") # drop the new table
+tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
+  select(
+    COSC_STQU_ID = COCI_STQU_ID,
+    COSC_SUBM_CD = COCI_SUBM_CD,
+    TPID_DATE_OF_BIRTH = BTHDT,
+    COSC_ENRL_END_DATE = ENDDT,
+    COCI_AGE_AT_SURVEY
+  ) |>
+  mutate(
+    TPID_DATE_OF_BIRTH = lubridate::ym(TPID_DATE_OF_BIRTH, quiet = TRUE), # implicitly convert "bad" dates to NA
+    COSC_ENRL_END_DATE = lubridate::ym(COSC_ENRL_END_DATE, quiet = TRUE), # implicitly convert "bad" dates to NA
+    COSC_GRAD_CREDENTIAL_DATE = NA_character_,
+    Age_At_Grad = NA_real_
+  )
 
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_Data_Part_1 ADD Age_At_Grad FLOAT NULL"
-)
-# dbExecute(decimal_con, "ALTER TABLE tmp_tbl_age ADD Age_At_Grad FLOAT NULL") # in 'load-near-completers-ttrain.R', we read the CSV for it and it has the age at grad.
-dbExecute(decimal_con, qry99_Update_Age_At_Grad)
-dbExecute(decimal_con, qry99a_Update_Age_At_Grad)
+#dups made their way in...lookout!
+tmp_tbl_age <- tmp_tbl_age |>
+  distinct() |>
+  rbind(tmp_tbl_age_append_new_years |> distinct())
 
-# use a temporary subset of columns from T_DACSO_DATA_Part_1 for selection
-dbExecute(decimal_con, qry_make_T_DACSO_DATA_Part_1_TempSelection)
-dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
+tmp_tbl_age <- tmp_tbl_age |>
+  mutate(
+    ref_date = coalesce(COSC_GRAD_CREDENTIAL_DATE, COSC_ENRL_END_DATE),
+    year_diff = year(ref_date) - year(TPID_DATE_OF_BIRTH),
+    birthday_ref_year = make_date(
+      year(ref_date),
+      month(TPID_DATE_OF_BIRTH),
+      day(TPID_DATE_OF_BIRTH)
+    ),
+    AGE_AT_GRAD = if_else(
+      ref_date < birthday_ref_year,
+      year_diff - 1,
+      year_diff
+    )
+  ) |>
+  select(-ref_date, -year_diff, -birthday_ref_year)
+
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  inner_join(
+    tmp_tbl_age |>
+      select(COSC_STQU_ID, Age_At_Grad = AGE_AT_GRAD),
+    by = c("coci_stqu_id" = "COSC_STQU_ID")
+  ) |>
+  distinct()
+
+t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
+  distinct(
+    coci_stqu_id,
+    coci_subm_cd,
+    coci_age_at_survey,
+    age_at_grad = Age_At_Grad,
+    cosc_grad_status_lgds_cd_group,
+    prgm_credential_awarded,
+    prgm_credential_awarded_name,
+    pssm_credential,
+    pssm_credential_name
+  )
+
+# ian used this to pick representitive years (happens later in workflow)
+t_dacso_data_part_1_tempselection |>
+  filter(
+    !is.na(cosc_grad_status_lgds_cd_group),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  group_by(cosc_grad_status_lgds_cd_group, coci_subm_cd) |>
+  summarize(student_count = n(), .groups = "drop") |>
+  pivot_wider(
+    names_from = coci_subm_cd,
+    values_from = student_count,
+    values_fill = 0
+  )
 
 # ---- Add PEN to Non-Dup table ----
 # Note: Move to earlier workflow - 02 series.  This updates credential non-dup in current schema only
