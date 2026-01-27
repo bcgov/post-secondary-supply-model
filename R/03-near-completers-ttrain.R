@@ -382,7 +382,6 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
-
 # Stage 1: Execute Join, Filter, and Column Initialization
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
