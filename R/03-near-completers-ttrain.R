@@ -640,27 +640,57 @@ nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1
     )
   )
 
-dbExecute(decimal_con, qry_make_table_NearCompleters)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_Before_DACSO NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_After_DACSO NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_NearCompleters ADD Has_Multiple_STP_Credentials NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_update_T_DACSO_Near_Completers_step1)
-dbExecute(decimal_con, qry_update_T_DACSO_Near_Completers_step2)
+
+t_dacso_nearcompleters <- t_dacso_data_part_1 |>
+  # 1. Filter for the core population
+  filter(
+    cosc_grad_status_lgds_cd_group == "3",
+    Age_At_Grad >= 17,
+    Age_At_Grad <= 64
+  ) |>
+  # 2. Join with the full credential list (this creates multiple rows temporarily)
+  left_join(
+    nearcompleters_in_stp_credential_step1 |>
+      select(
+        coci_stqu_id,
+        stp_credential_awarded_before_dacso,
+        stp_credential_awarded_after_dacso
+      ),
+    by = "coci_stqu_id"
+  ) |>
+  group_by(across(c(
+    coci_stqu_id,
+    coci_subm_cd,
+    Age_At_Grad,
+    cosc_grad_status_lgds_cd_group,
+    prgm_credential_awarded,
+    prgm_credential_awarded_name,
+    pssm_credential,
+    pssm_credential_name
+  ))) |>
+  summarize(
+    stp_credential_awarded_before_dacso = if_else(
+      any(stp_credential_awarded_before_dacso == "Yes", na.rm = TRUE),
+      "Yes",
+      NA_character_
+    ),
+    stp_credential_awarded_after_dacso = if_else(
+      any(stp_credential_awarded_after_dacso == "Yes", na.rm = TRUE),
+      "Yes",
+      NA_character_
+    ),
+    .groups = "drop"
+  )
 
 # ---- Flag near-completers with multiple credentials----
+# T_DACSO_NearCompleters add flag Has_Multiple_STP_Credential (Yes/NA) for COCI_STQU_ID groups n>1
 dbExecute(decimal_con, qry_NearCompleters_With_More_Than_One_Cdtl)
 dbExecute(decimal_con, qry_Update_T_NearCompleters_HasMultipleCdtls)
 
+# NearCompleters_in_STP_Credential_Step1 join T_DACSO_NearCompleters bring in Has_Multiple_STP_Credential flag
 dbExecute(decimal_con, qry_Clean_NearCompleters_MultiCdtls_Step1)
+
+# NearCompleters_in_STP_Credential_Step1 order by COCI_STQU_ID, ID, desc(PSI_AWARD_SCHOOL_YEAR)
 dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step2)
 
 # Find record with max psi award year
@@ -669,13 +699,19 @@ dbExecute(
   decimal_con,
   "ALTER TABLE tmp_NearCompletersWithMultiCredentials_Cleaning ADD Max_Award_School_Year NVARCHAR(10) NULL"
 )
+
 dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step3)
 
 dbExecute(
   decimal_con,
   "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL"
 )
+
+# NearCompleters_in_STP_Credential_Step1  flag Max_Award_School_Year = 'Yes'/NA.  Then
+# add Dup_STQUID_UseThisRecord where Max_Award_School_Year = 'Yes' and Has_Multiple_STP_Credentials = 'Yes'
 dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step4)
+
+# then stop and compare NearCompleters_in_STP_Credential_Step1
 dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step5)
 dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step6)
 dbExecute(decimal_con, qry_PickMaxYear_Step2)
