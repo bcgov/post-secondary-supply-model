@@ -1,0 +1,7 @@
+linters: linters_with_defaults(
+  line_length_linter(100),
+  commented_code_linter = NULL,
+  trailing_whitespace_linter = NULL
+)
+exclusions: list("renv", "data-raw")
+encoding: "UTF-8"
