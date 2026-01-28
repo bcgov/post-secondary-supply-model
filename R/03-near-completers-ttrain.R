@@ -560,21 +560,85 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   )
 
 # ---- Flag near-completers with earlier or later credential----
-dbExecute(decimal_con, qry_Find_NearCompleters_in_STP_Credential_Step1)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE nearcompleters_in_stp_credential_step1 ADD STP_Credential_Awarded_Before_DACSO NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE nearcompleters_in_stp_credential_step1 ADD STP_Credential_Awarded_After_DACSO NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE nearcompleters_in_stp_credential_step1 ADD Has_Multiple_STP_Credentials NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_Update_STP_Credential_Awarded_Before_DACSO)
-dbExecute(decimal_con, qry_Update_STP_Credential_Awarded_After_DACSO)
+
+#identify "Near-Completers" and join their survey data with their credential records.
+nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
+  select(
+    coci_stqu_id,
+    coci_subm_cd,
+    Age_At_Grad,
+    prgm_credential_awarded,
+    prgm_credential_awarded_name,
+    pssm_credential,
+    pssm_credential_name,
+    lcp4_cd,
+    cosc_grad_status_lgds_cd_group
+  ) |>
+  # 1. Filter for specific outcome codes, age range, and status '3'
+  filter(
+    coci_subm_cd %in% paste0("C_Outc", sprintf("%02d", 7:23)),
+    Age_At_Grad >= 17,
+    Age_At_Grad <= 64,
+    cosc_grad_status_lgds_cd_group == "3"
+  ) |>
+  inner_join(
+    dacso_matching_stp_credential_pen |>
+      select(
+        coci_stqu_id,
+        id,
+        coci_pen,
+        coci_inst_cd,
+        psi_code,
+        prgm_credential_awarded,
+        prgm_credential_awarded_name,
+        stp_prgm_credential_awarded_name,
+        pssm_credential,
+        pssm_credential_name,
+        psi_credential_category,
+        outcomes_cred,
+        final_cip_code_4,
+        psi_award_school_year,
+        match_award_school_year,
+        match_inst,
+        final_consider_a_match,
+        match_all_4_flag,
+        match_credential,
+        match_cip_code_4,
+        match_cip_code_2
+      ),
+    by = "coci_stqu_id",
+    suffix = c("_dacso", "_stp") # Handles duplicate column names automatically
+  ) |>
+  rename(
+    dacso_prgm_credential_awarded = prgm_credential_awarded_dacso,
+    dacso_prgm_credential_awarded_name = prgm_credential_awarded_name_dacso,
+    dacso_pssm_credential = pssm_credential_dacso,
+    dacso_pssm_credential_name = pssm_credential_name_dacso
+  )
+
+
+# Logic: The max 'Before' award year is always (Survey Value + 1998)
+# e.g., Outcome 07 + 1998 = 2005. Any award <= 2005 is 'Before'.
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  mutate(
+    survey_val = as.numeric(str_extract(coci_subm_cd, "\\d+")),
+    award_year_start = as.numeric(str_sub(psi_award_school_year, 1, 4)),
+    stp_credential_awarded_before_dacso = if_else(
+      award_year_start <= (survey_val + 1998),
+      "Yes",
+      NA_character_
+    )
+  ) |>
+  select(-survey_val, -award_year_start)
+
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  mutate(
+    stp_credential_awarded_after_dacso = if_else(
+      is.na(stp_credential_awarded_before_dacso),
+      "Yes",
+      NA_character_
+    )
+  )
 
 dbExecute(decimal_con, qry_make_table_NearCompleters)
 dbExecute(
