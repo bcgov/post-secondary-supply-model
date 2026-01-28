@@ -77,9 +77,13 @@ tmp_tbl_age_append_new_years <- years |>
       )
       read_csv(file_path, col_types = "dcdcd")
     }
-  )
+  ) |>
+  distinct() # this creates dups. TODO: investigate
 
-# write to Decimal as tmp_tbl_Age
+# write to Decimal as tmp_tbl_Age - historically this strategy was used as a
+# shortcut to pulling all years each time.  The new years of data were appended
+# to last model run's data.
+# moving forward, we should be able to ask for X number of years.
 tmp_tbl_age <- read_csv(
   glue::glue(
     "{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"
@@ -157,8 +161,8 @@ t_pssm_projection_cred_grp <- tibble(
     "Doctorate",
     "Graduate certificate/diploma",
     "Master's degree",
-    "Post-degree certificate/diploma",
-    "Post-degree certificate/diploma",
+    "Post-Degree certificate/diploma",
+    "Post-Degree certificate/diploma",
     "First professional degree",
     "Graduate certificate/diploma",
     "Apprenticeship",
@@ -223,7 +227,7 @@ combine_creds <- tibble(
 )
 
 stp_dacso_prgm_credential_lookup <- tibble(
-  PRGRM_Credential_Awarded = c(
+  PRGM_Credential_Awarded = c(
     "ADGR",
     "ADIP",
     "CERT",
@@ -241,8 +245,8 @@ stp_dacso_prgm_credential_lookup <- tibble(
     "Diploma",
     "No credential",
     "Other credential",
-    "Post-degree Certificate",
-    "Post-degree Diploma",
+    "Post-Degree Certificate",
+    "Post-Degree Diploma",
     "University Transfer"
   ),
   STP_PRGM_Credential_Awarded_Name = c(
@@ -285,7 +289,7 @@ required_tables <- c(
   "combine_creds",
   "tbl_age",
   "t_pssm_projection_cred_grp",
-  "tmp_table_Age"
+  "tmp_tbl_age"
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -300,6 +304,7 @@ if (length(missing) > 0) {
 na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
+# combine all age data from previous and new years
 tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
   select(
     COSC_STQU_ID = COCI_STQU_ID,
@@ -315,11 +320,11 @@ tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
     Age_At_Grad = NA_real_
   )
 
-#dups made their way in...lookout!
 tmp_tbl_age <- tmp_tbl_age |>
-  distinct() |>
-  rbind(tmp_tbl_age_append_new_years |> distinct())
+  rbind(tmp_tbl_age_append_new_years) |>
+  distinct() # just in case
 
+# derive age at grad variable
 tmp_tbl_age <- tmp_tbl_age |>
   mutate(
     ref_date = coalesce(COSC_GRAD_CREDENTIAL_DATE, COSC_ENRL_END_DATE),
@@ -337,14 +342,16 @@ tmp_tbl_age <- tmp_tbl_age |>
   ) |>
   select(-ref_date, -year_diff, -birthday_ref_year)
 
+# bring age at grad into t_dacso dataset
 t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   inner_join(
     tmp_tbl_age |>
       select(COSC_STQU_ID, Age_At_Grad = AGE_AT_GRAD),
     by = c("coci_stqu_id" = "COSC_STQU_ID")
   ) |>
-  distinct()
+  distinct() # just in case
 
+# temp table useful for something...
 t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
   distinct(
     coci_stqu_id,
@@ -358,15 +365,20 @@ t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
     pssm_credential_name
   )
 
-# ian used this to pick representitive years (happens later in workflow)
+# was used this to pick representitive years for completers:non-completers
+# the logic used to pick the ratio has something to
+# do with the particular years (COVID messed some of this up)
+# but probably can use just an average.  decision point.
 t_dacso_data_part_1_tempselection |>
   filter(
     !is.na(cosc_grad_status_lgds_cd_group),
     age_at_grad >= 17,
     age_at_grad <= 64
   ) |>
-  group_by(cosc_grad_status_lgds_cd_group, coci_subm_cd) |>
-  summarize(student_count = n(), .groups = "drop") |>
+  summarize(
+    student_count = n(),
+    .by = c("cosc_grad_status_lgds_cd_group", "coci_subm_cd")
+  ) |>
   pivot_wider(
     names_from = coci_subm_cd,
     values_from = student_count,
@@ -382,7 +394,7 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
-# Stage 1: Execute Join, Filter, and Column Initialization
+# join t_dacso data with credential_non_dup,
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
   inner_join(
@@ -390,7 +402,6 @@ dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
     by = c("coci_pen" = "psi_pen"),
     relationship = "many-to-many"
   ) |>
-  # Replicating GROUP BY logic to ensure distinct records
   distinct(
     coci_stqu_id,
     coci_inst_cd,
@@ -408,14 +419,6 @@ dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
     coci_subm_cd,
     psi_award_school_year,
     cosc_grad_status_lgds_cd_group
-  ) |>
-  # Initialize the six requested placeholders
-  mutate(
-    match_credential = NA_character_,
-    match_cip_code_4 = NA_character_,
-    match_cip_code_2 = NA_character_,
-    match_award_school_year = NA_character_,
-    match_inst = NA_character_
   )
 
 # Stage 2: Join with Lookup table to populate stp_prgm_credential_awarded_name
@@ -423,29 +426,32 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   left_join(
     stp_dacso_prgm_credential_lookup |>
       select(
-        prgrm_credential_awarded = PRGRM_Credential_Awarded,
-        stp_prgm_credential_awarded_name = STP_PRGM_Credential_Awarded_Name,
-        prgm_credential_awarded_name = PRGM_Credential_Awarded_Name
+        prgm_credential_awarded = PRGM_Credential_Awarded,
+        stp_prgm_credential_awarded_name = STP_PRGM_Credential_Awarded_Name
       ),
-    by = c("prgm_credential_awarded" = "prgrm_credential_awarded")
+    by = c("prgm_credential_awarded" = "prgm_credential_awarded")
   )
 
 dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   mutate(
     match_credential = if_else(
-      prgm_credential_awarded_name == psi_credential_category,
+      str_equal(
+        prgm_credential_awarded_name,
+        psi_credential_category,
+        ignore_case = TRUE
+      ),
       "yes",
-      match_credential
+      NA_character_
     ),
     match_cip_code_4 = if_else(
       lcp4_cd == final_cip_code_4,
       "yes",
-      match_cip_code_4
+      NA_character_
     ),
     match_cip_code_2 = if_else(
       str_sub(lcp4_cd, 1, 2) == str_sub(final_cip_code_4, 1, 2),
-      "yes",
-      match_cip_code_2
+      "Yes", #align with SQL version which capitalizes this
+      NA_character_
     ),
     match_award_school_year = if_else(
       # Extract digits from 'C_OutcXX' and compare against school year ranges
@@ -486,7 +492,7 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
         (coci_subm_cd == "C_Outc23" &
           psi_award_school_year %in% c("2020/2021", "2021/2022")),
       "yes",
-      match_award_school_year
+      NA_character_
     ),
     match_inst = if_else(
       psi_code == coci_inst_cd |
@@ -499,7 +505,7 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
         (psi_code == "UCC" & coci_inst_cd == "TRU") |
         (psi_code == "NWCC" & coci_inst_cd == "CMTN"),
       "yes",
-      match_inst
+      NA_character_
     )
   )
 
@@ -521,27 +527,37 @@ match_summary_table <- dacso_matching_stp_credential_pen |>
     desc(match_inst)
   )
 
-# Print summary of the matching results for comparison
-dbGetQuery(decimal_con, qry06_Match_DACSO_STP_Credential_Summary)
+# These are considered final matches to STP credential
+dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
+  mutate(
+    match_all_4_flag = if_else(
+      if_all(
+        c(
+          match_credential,
+          match_cip_code_4,
+          match_award_school_year,
+          match_inst
+        ),
+        ~ .x == "yes"
+      ),
+      "yes",
+      NA_character_
+    ),
 
-# off a bit in match_credential - investigate why. (involves the following query, run previously).
-# Possible culprit is the inenr join on stp_dacso_prgm_credential_lookup
-# qry02_Match_DACSO_STP_Credential_PSI_CRED_Category
-## GOT TO HERE, all reqd tables are in my schema
+    # Step 2: Determine final match status based on Step 1 OR the CIP-2 fallback
+    final_consider_a_match = case_when(
+      match_all_4_flag == "yes" ~ "yes",
 
-# These are considered final matches to STP credential.
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD final_consider_a_match nvarchar(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE dacso_matching_stp_credential_pen ADD match_all_4_flag nvarchar(10) NULL"
-)
-dbExecute(decimal_con, qry07_DACSO_STP_Credential_MatchAll4_Flag)
+      # Fallback: CIP-4 is missing, but CIP-2 and everything else matches
+      match_credential == "yes" &
+        match_cip_code_2 == "Yes" &
+        is.na(match_cip_code_4) &
+        match_award_school_year == "yes" &
+        match_inst == "yes" ~ "yes",
 
-#  Flag records that match on inst, award year, credential, and CIP 2 (but not CIP 4) as final matches too.
-dbExecute(decimal_con, qry08_DACSO_STP_Credential_Final_Match_Flag)
+      TRUE ~ NA_character_
+    )
+  )
 
 # ---- Flag near-completers with earlier or later credential----
 dbExecute(decimal_con, qry_Find_NearCompleters_in_STP_Credential_Step1)
