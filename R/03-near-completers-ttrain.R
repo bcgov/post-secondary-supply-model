@@ -845,12 +845,7 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
     by = "coci_stqu_id"
   )
 
-r_t <- t_dacso_data_part_1
-names(r_t) <- tolower(names(r_t))
-s_t <- dbReadTable(decimal_con, "T_DACSO_DATA_Part_1")
-names(s_t) <- tolower(names(s_t))
-names(s_t)
-
+#GOT TO HERE!!
 
 # ----- Check Near Completers Ratios -----
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
@@ -861,6 +856,13 @@ dbGetQuery(
   qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad
 )
 dbGetQuery(decimal_con, qry_details_of_STP_Credential_Matching)
+
+r_t <- t_dacso_data_part_1
+names(r_t) <- tolower(names(r_t))
+s_t <- dbReadTable(decimal_con, "T_DACSO_DATA_Part_1")
+names(s_t) <- tolower(names(s_t))
+names(s_t)
+
 
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 #1 (col H in Excel sheet)
