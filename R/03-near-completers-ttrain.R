@@ -54,7 +54,7 @@ t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
 ) |>
-  select(-Age_At_Grad)
+  select(-Age_At_Grad, -Grad_Status_Factoring_in_STP, -Has_STP_Credential)
 
 credential_non_dup <- dbReadTable(
   decimal_con,
@@ -683,119 +683,174 @@ t_dacso_nearcompleters <- t_dacso_data_part_1 |>
   )
 
 # ---- Flag near-completers with multiple credentials----
-# T_DACSO_NearCompleters add flag Has_Multiple_STP_Credential (Yes/NA) for COCI_STQU_ID groups n>1
-dbExecute(decimal_con, qry_NearCompleters_With_More_Than_One_Cdtl)
-dbExecute(decimal_con, qry_Update_T_NearCompleters_HasMultipleCdtls)
 
-# NearCompleters_in_STP_Credential_Step1 join T_DACSO_NearCompleters bring in Has_Multiple_STP_Credential flag
-dbExecute(decimal_con, qry_Clean_NearCompleters_MultiCdtls_Step1)
+# Update the main matching table with 'Multiple' and 'UseThis' flags
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  group_by(coci_stqu_id) |>
+  mutate(
+    has_multiple_stp_credentials = if_else(n() > 1, "Yes", NA_character_)
+  ) |>
+  ungroup()
 
-# NearCompleters_in_STP_Credential_Step1 order by COCI_STQU_ID, ID, desc(PSI_AWARD_SCHOOL_YEAR)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step2)
+ids <- nearcompleters_in_stp_credential_step1 |>
+  filter(has_multiple_stp_credentials == "Yes") |>
+  pull(coci_stqu_id)
 
-# Find record with max psi award year
-dbExecute(decimal_con, qry_PickMaxYear_step1)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_NearCompletersWithMultiCredentials_Cleaning ADD Max_Award_School_Year NVARCHAR(10) NULL"
-)
+# Update the final reporting table with the 'Multiple' flag
+t_dacso_nearcompleters <- t_dacso_nearcompleters |>
+  mutate(
+    has_multiple_stp_credentials = if_else(
+      coci_stqu_id %in% ids,
+      "Yes",
+      NA_character_
+    )
+  )
 
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step3)
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  group_by(coci_stqu_id) |>
+  mutate(
+    Max_Award_School_Year = if_else(
+      psi_award_school_year == max(psi_award_school_year, na.rm = TRUE),
+      "Yes",
+      NA_character_
+    )
+  ) |>
+  ungroup()
 
-dbExecute(
-  decimal_con,
-  "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL"
-)
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  mutate(
+    dup_stquid_usethisrecord = if_else(
+      has_multiple_stp_credentials == "Yes" &
+        Max_Award_School_Year == "Yes",
+      "Yes",
+      NA_character_
+    )
+  )
 
-# NearCompleters_in_STP_Credential_Step1  flag Max_Award_School_Year = 'Yes'/NA.  Then
-# add Dup_STQUID_UseThisRecord where Max_Award_School_Year = 'Yes' and Has_Multiple_STP_Credentials = 'Yes'
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step4)
 
-# then stop and compare NearCompleters_in_STP_Credential_Step1
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step5)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step6)
-dbExecute(decimal_con, qry_PickMaxYear_Step2)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE tmp_NearCompletersWithMultiCredentials_MaxYearCleaning ADD Final_Record_To_Use NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_PickMaxYear_Step3)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Final_Record_To_Use NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step10)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)
+# This replaces Steps 5, 6, PickMaxYear 2, and PickMaxYear 3
+final_winners <- nearcompleters_in_stp_credential_step1 |>
+  filter(dup_stquid_usethisrecord == "Yes") |>
+  group_by(coci_stqu_id) |>
+  filter(n() > 1) |>
+  filter(id == max(id, na.rm = TRUE)) |>
+  mutate(final_record_to_use = "Yes") |>
+  ungroup() |>
+  select(
+    id,
+    coci_stqu_id,
+    final_record_to_use,
+    stp_credential_awarded_before_dacso,
+    stp_credential_awarded_after_dacso
+  )
 
-dbExecute(
-  decimal_con,
-  "ALTER TABLE DACSO_Matching_STP_Credential_PEN ADD Dup_STQUID_UseThisRecord NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_Update_DupStqu_ID_UseThisRecord2)
-#dbExecute(decimal_con, "ALTER TABLE NearCompleters_in_STP_Credential_Step1 ADD Final_Record_To_Use NVARCHAR(10) NULL")
-dbExecute(decimal_con, qry_Update_Final_Record_To_Use_NearCompletersDups)
-dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step12)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_Before_DACSO_Final NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_NearCompleters ADD STP_Credential_Awarded_After_DACSO_Final NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_Update_Final_STP_Cred_Before_or_After_Step1)
+# 2. Update the main matching table (Replaces Step 10)
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  left_join(
+    final_winners |> select(id, coci_stqu_id, final_record_to_use),
+    by = c("id", "coci_stqu_id")
+  )
 
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Has_STP_Credential NVARCHAR(10) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_Data_Part_1 ADD Has_STP_Credential NVARCHAR(10)"
-)
-dbExecute(decimal_con, qry_update_Has_STP_Credential)
+# 3. Update the final reporting table (Replaces Step 13)
+t_dacso_nearcompleters <- t_dacso_nearcompleters |>
+  left_join(
+    final_winners |>
+      select(
+        coci_stqu_id,
+        stp_credential_awarded_before_dacso_update = stp_credential_awarded_before_dacso,
+        stp_credential_awarded_after_dacso_update = stp_credential_awarded_after_dacso,
+      ),
+    by = "coci_stqu_id"
+  ) |>
+  mutate(
+    stp_credential_awarded_before_dacso = coalesce(
+      stp_credential_awarded_before_dacso,
+      stp_credential_awarded_before_dacso_update
+    ),
+    stp_credential_awarded_after_dacso = coalesce(
+      stp_credential_awarded_after_dacso,
+      stp_credential_awarded_after_dacso_update
+    )
+  ) |>
+  select(
+    -stp_credential_awarded_before_dacso_update,
+    -stp_credential_awarded_after_dacso_update
+  )
 
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_Data_Part_1 ADD Grad_Status_Factoring_in_STP nvarchar(2) NULL"
-)
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_DACSO_DATA_Part_1_TempSelection ADD Grad_Status_Factoring_in_STP NVARCHAR(10) NULL"
-)
-dbExecute(decimal_con, qry_update_Grad_Status_Factoring_in_STP_step1)
-dbExecute(decimal_con, qry_update_Grad_Status_Factoring_in_STP_step2)
+# off by a small handful here in "t_dacso_nearcompleters.stp_credential_awarded_before_dacso" before column
+#  (I there where there were multiple awards in a single year)
+#dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)
 
-dbExecute(
-  decimal_con,
-  "UPDATE T_DACSO_DATA_Part_1 
-                        SET Has_STP_Credential = T_DACSO_DATA_Part_1_TempSelection.Has_STP_Credential,
-                            Grad_Status_Factoring_In_STP = T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_In_STP
-                        FROM T_DACSO_DATA_Part_1 INNER JOIN T_DACSO_DATA_Part_1_TempSelection 
-                        ON T_DACSO_DATA_Part_1.COCI_STQU_ID = T_DACSO_DATA_Part_1_TempSelection.COCI_STQU_ID"
-)
+# Update the primary matching table with the finalized 'UseThisRecord' flag
+dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
+  left_join(
+    final_winners |> select(id, coci_stqu_id, final_record_to_use),
+    by = c("id", "coci_stqu_id")
+  ) |>
+  rename(dup_stquid_usethisrecord = final_record_to_use)
 
-dbExecute(
-  decimal_con,
-  "DROP TABLE tmp_NearCompletersWithMultiCredentials_Cleaning"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE tmp_NearCompletersWithMultiCredentials_MaxYear"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE tmp_NearCompletersWithMultiCredentials_MaxYearCleaning"
-)
-dbExecute(decimal_con, "DROP TABLE T_DACSO_NearCompleters")
-dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYear")
-dbExecute(
-  decimal_con,
-  "DROP TABLE tmp_DACSO_NearCompleters_with_Multiple_Cdtls"
-)
-dbExecute(decimal_con, "DROP TABLE tmp_MaxAwardYearCleaning_MaxID")
-dbExecute(decimal_con, "DROP TABLE DACSO_Matching_STP_Credential_PEN")
-dbExecute(decimal_con, "DROP TABLE nearcompleters_in_stp_credential_step1")
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  mutate(
+    final_record_to_use = if_else(
+      is.na(final_record_to_use) & is.na(has_multiple_stp_credentials),
+      "Yes",
+      final_record_to_use
+    )
+  )
+
+t_dacso_nearcompleters <- t_dacso_nearcompleters |>
+  left_join(
+    nearcompleters_in_stp_credential_step1 |>
+      filter(final_record_to_use == "yes") |>
+      select(
+        coci_stqu_id,
+        stp_credential_awarded_before_dacso_final = stp_credential_awarded_before_dacso,
+        stp_credential_awarded_after_dacso_final = stp_credential_awarded_after_dacso
+      ),
+    by = "coci_stqu_id"
+  )
+
+t_dacso_data_part_1_tempselection <- t_dacso_data_part_1_tempselection |>
+  left_join(
+    t_dacso_nearcompleters |>
+      filter(
+        stp_credential_awarded_before_dacso == "Yes" |
+          stp_credential_awarded_after_dacso == "Yes"
+      ) |>
+      select(coci_stqu_id) |>
+      mutate(has_stp_credential = "Yes"),
+    by = "coci_stqu_id"
+  ) |>
+  mutate(grad_status_factoring_in_stp = cosc_grad_status_lgds_cd_group)
+
+t_dacso_data_part_1_tempselection <- t_dacso_data_part_1_tempselection |>
+  mutate(
+    grad_status_factoring_in_stp = as.character(if_else(
+      (grad_status_factoring_in_stp == 3 &
+        !is.na(has_stp_credential) &
+        has_stp_credential == "Yes"),
+      1,
+      grad_status_factoring_in_stp
+    ))
+  )
+
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  left_join(
+    t_dacso_data_part_1_tempselection |>
+      select(
+        coci_stqu_id,
+        has_stp_credential = has_stp_credential,
+        grad_status_factoring_in_stp = grad_status_factoring_in_stp
+      ),
+    by = "coci_stqu_id"
+  )
+
+r_t <- t_dacso_data_part_1
+names(r_t) <- tolower(names(r_t))
+s_t <- dbReadTable(decimal_con, "T_DACSO_DATA_Part_1")
+names(s_t) <- tolower(names(s_t))
+names(s_t)
+
 
 # ----- Check Near Completers Ratios -----
 dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
