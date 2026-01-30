@@ -159,11 +159,11 @@ Finally, subjects originally classified as "Near-Completers" (Status 3) who poss
 ##### col H in Excel sheet
 
 Raw respondent data is transformed into a structured frequency distribution of program classification (CIP-4) by age-based cohort.
-The "Near-Completer" population ($Status = 3$) is extracted from survey reporting cycles, specifically Outcome 19 and Outcome 20. Individual records are binned by categorical age bins where the respondent's age at graduation satisfies boundary conditions specified in the table `AgeGroupLookup`. The resulting table serves as a primary frequency matrix, cross-tabulating age groups with specific institutional credentials and 4-digit Classification of Instructional Programs (CIP) codes. 
+The "Near-Completer" population ($Status = 3$) is extracted from survey reporting cycles, specifically Outcome 19 and Outcome 20. Individual records are binned by categorical age bins where the respondent's age at graduation satisfies boundary conditions specified in the table `AgeGroupLookup`. The resulting table serves as a primary frequency matrix, cross-tabulating age groups with specific institutional credentials and 4-digit Classification of Instructional Programs (CIP) codes. Only those categories verified for the PSSM 2017-18 model are included in the final output; granular records are collapsed into higher-level taxonomic buckets, and a frequency count is computed for each unique intersection of variables.
 
-A secondary reclassification is done to ensure categorical alignment within the PSSM 2017-18 reporting framework. The  `combine_creds` mapping table is used to reconcile institutional credential names into standardized categories. Only those categories verified for the PSSM 2017-18 model are included in the final output; granular records are collapsed into higher-level taxonomic buckets, and a frequency count is computed for each unique intersection of variables.
+#####  Col I
 
-##### 
+Student records that were transitioned from non-completer to graduate status for cycles (Outcomes 19 and 20) were isolated. This was achieved by isolated records for students whose academic status needed to be corrected, based on confirmed provincial matches ($Has\_STP\_Credential = 'Yes'$). These records are then stratified into a standardized frequency distribution, categorized by demographic age bins and 4-digit program classifications (CIP-4). Only those categories verified for the PSSM 2017-18 model are included in the final output; Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
 
 
 #### Data Dictionary 
