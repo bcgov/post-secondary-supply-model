@@ -845,25 +845,92 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
     by = "coci_stqu_id"
   )
 
-#GOT TO HERE!!
-
 # ----- Check Near Completers Ratios -----
-dbGetQuery(decimal_con, qry99_Investigate_Near_Completes_vs_Graduates_by_Year)
-dbGetQuery(decimal_con, qry99_GradStatus_Factoring_in_STP_Credential_by_Year)
-dbGetQuery(decimal_con, qry99_GradStatus_byCred_by_Year_Age_At_Grad)
-dbGetQuery(
-  decimal_con,
-  qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad
-)
-dbGetQuery(decimal_con, qry_details_of_STP_Credential_Matching)
+# Note: the table tmp_tbl_Age in my schema had
+# duplicates.  Fixed (I think) but keep an eye on it.
+t_dacso_data_part_1_tempselection |>
+  filter(
+    !is.na(cosc_grad_status_lgds_cd_group),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  group_by(cosc_grad_status_lgds_cd_group, coci_subm_cd) |>
+  summarise(count = n(), .groups = "drop") |>
+  pivot_wider(
+    names_from = coci_subm_cd,
+    values_from = count,
+    id_cols = cosc_grad_status_lgds_cd_group
+  ) |>
+  mutate(across(starts_with("C_Outc"), ~ replace_na(., 0)))
 
-r_t <- t_dacso_data_part_1
-names(r_t) <- tolower(names(r_t))
-s_t <- dbReadTable(decimal_con, "T_DACSO_DATA_Part_1")
-names(s_t) <- tolower(names(s_t))
-names(s_t)
+t_dacso_data_part_1_tempselection |>
+  filter(
+    !is.na(grad_status_factoring_in_stp),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  count(grad_status_factoring_in_stp, coci_subm_cd) |>
+  pivot_wider(
+    names_from = coci_subm_cd,
+    values_from = n,
+    values_fill = 0
+  ) |>
+  arrange(grad_status_factoring_in_stp)
 
+t_dacso_data_part_1_tempselection |>
+  filter(
+    !is.na(cosc_grad_status_lgds_cd_group),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  group_by(
+    pssm_credential,
+    pssm_credential_name,
+    cosc_grad_status_lgds_cd_group,
+    coci_subm_cd
+  ) |>
+  summarise(count = n(), .groups = "drop") |>
+  pivot_wider(
+    names_from = coci_subm_cd,
+    values_from = count,
+    values_fill = 0
+  ) |>
+  arrange(pssm_credential, cosc_grad_status_lgds_cd_group)
 
+t_dacso_data_part_1_tempselection |>
+  filter(
+    !is.na(grad_status_factoring_in_stp),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  group_by(
+    pssm_credential,
+    pssm_credential_name,
+    grad_status_factoring_in_stp,
+    coci_subm_cd
+  ) |>
+  summarise(count = n(), .groups = "drop") |>
+  pivot_wider(
+    names_from = coci_subm_cd,
+    values_from = count,
+    values_fill = 0
+  ) |>
+  arrange(pssm_credential, grad_status_factoring_in_stp)
+
+t_dacso_data_part_1_tempselection |>
+  filter(
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  count(
+    coci_subm_cd,
+    cosc_grad_status_lgds_cd_group,
+    grad_status_factoring_in_stp,
+    name = "record_count"
+  ) |>
+  arrange(coci_subm_cd, cosc_grad_status_lgds_cd_group)
+
+#GOT TO HERE!!
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 #1 (col H in Excel sheet)
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
