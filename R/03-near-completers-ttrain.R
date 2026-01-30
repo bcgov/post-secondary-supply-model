@@ -280,6 +280,24 @@ age_group_lookup <- tibble(
   UpperBound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
 )
 
+credential_rank_lookup <- tribble(
+  ~PSI_CREDENTIAL_CATEGORY    , ~RANK ,
+  "ADVANCED CERTIFICATE"      ,    10 ,
+  "ADVANCED DIPLOMA"          ,     9 ,
+  "APPRENTICESHIP"            ,    14 ,
+  "ASSOCIATE DEGREE"          ,    11 ,
+  "BACHELORS DEGREE"          ,     8 ,
+  "CERTIFICATE"               ,    13 ,
+  "DIPLOMA"                   ,    12 ,
+  "DOCTORATE"                 ,     1 ,
+  "FIRST PROFESSIONAL DEGREE" ,     7 ,
+  "GRADUATE CERTIFICATE"      ,     4 ,
+  "GRADUATE DIPLOMA"          ,     3 ,
+  "MASTERS DEGREE"            ,     2 ,
+  "POST-DEGREE CERTIFICATE"   ,     6 ,
+  "POST-DEGREE DIPLOMA"       ,     5
+)
+
 # these should now be in the R environment
 required_tables <- c(
   "t_dacso_data_part_1",
@@ -289,7 +307,8 @@ required_tables <- c(
   "combine_creds",
   "tbl_age",
   "t_pssm_projection_cred_grp",
-  "tmp_tbl_age"
+  "tmp_tbl_age",
+  credential_rank
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -949,6 +968,50 @@ NearCompleters_CIP4_CombinedCred <- NearCompleters_CIP4_CombinedCred %>%
   summarise(
     count = sum(CombinedCredCount, na.rm = TRUE),
     .by = c(age_group, lcip4_cred, lcp4_cd)
+  )
+
+# ---- Stage 1: Population Stratification and Age-Binning ----
+# Replaces qry99_Near_completes_total_by_CIP4
+nearcompleters_cip4 <- t_dacso_data_part_1 %>%
+  filter(
+    cosc_grad_status_lgds_cd_group == "3",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20")
+  ) %>%
+  inner_join(
+    age_group_lookup,
+    by = join_by(Age_At_Grad >= LowerBound, Age_At_Grad <= UpperBound)
+  ) %>%
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
+  ) %>%
+  count(
+    AgeGroup,
+    prgm_credential_awarded_name,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    name = "Count"
+  )
+
+# ---- Stage 2: Taxonomic Consolidation and String Normalization ----
+# Replaces qry_Make_NearCompleters_CIP4_CombinedCred and the R post-processing
+nearcompleters_cip4_final <- nearcompleters_cip4 %>%
+  # Reconcile institutional credentials into PSSM standardized categories
+  inner_join(
+    combine_creds,
+    by = "prgm_credential_awarded_name"
+  ) %>%
+  # Restrict to validated categories for the target model year
+  filter(use_in_pssm_2017_18 == "Yes") %>%
+  # Normalize credential strings by removing binary match-status markers
+  mutate(
+    lcip4_cred = str_remove_all(lcip4_cred, "-\\s(0|1)\\s")
+  ) %>%
+  # Final deterministic aggregation of the frequency matrix
+  summarise(
+    count = sum(Count, na.rm = TRUE),
+    .by = c(AgeGroup, lcip4_cred, lcp4_cd)
   )
 
 #2 (col I in Excel sheet)
