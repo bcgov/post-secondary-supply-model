@@ -930,8 +930,9 @@ t_dacso_data_part_1_tempselection |>
   ) |>
   arrange(coci_subm_cd, cosc_grad_status_lgds_cd_group)
 
-#GOT TO HERE!!
+
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
+# ----------------------- Transferred From Excel Sheet -----------------------
 #1 (col H in Excel sheet)
 dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
 dbExecute(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred)

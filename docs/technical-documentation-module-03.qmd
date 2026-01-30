@@ -27,34 +27,36 @@ Annual ratios are computed for all available years and an average taken of two o
 
 ## Data Sources and Storage
 
-### External Data Sources - NA 
+### External Data Sources 
+
+#### STP Credential Data
+
+Source: Provided from Ministry of Post-Secondary Education and Future Skills [?]
+Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
+Description: STP Credential years searched: 2002/03 - 2022/23
 
 ### Internal/Processed Data Sources
 
 #### credential_non_dup
 
-Source: Generated in Module 02 from STP Credential Data
-Access Method: In R environment or via ODBC link to database
-
-  - File location: [Path or variable]
-  - Processing methodology: [Link to documentation or code if available]
-
+Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
 Description: STP Credential years searched: 2002/03 - 2022/23
 
 #### t_dacso_data_part_1
 
-Source: Student Outcomes Survey Data (DACSO?)
-Access Method: See Student Outcomes Team
-
-  - [List any required credentials, API keys, or setup steps]
-  - Function calls: [Relevant function or method]
-
+Source and Access Method: Contact Student Outcomes Team
 Description: 
-Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
-Credentials: Diploma, Associate Degree, and Certificate 
+- Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
+- Credentials: Diploma, Associate Degree, and Certificate 
+- Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
 
-Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
+#### tmp_tbl_age 
 
+Source and Access Method: Contact Student Outcomes Team
+Description: 
+
+- longitudinal master-lookup of birthdates and survey exit dates. Used to derive the age filters (such as the 17–64 range) we in aggregated tables.
+- Historically, new data was appended to prior model run's data.  For 2026, we can request the full range required, SQL queries saved on the LAN for convenience.
 
 ### Data Storage Structure
 
@@ -90,10 +92,10 @@ Where data is housed in internal storage locations, it is stored in a hierarchic
 
 The following R packages are required for this module:
 
-- `tidyverse`
-- [List spatial analysis packages]
-- [List visualization/statistics packages]
-- [List file management packages]
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
 
 
 #### Authentication Setup
@@ -103,6 +105,7 @@ To connect to SQL Servers, we require a configuration file to connect securely t
 ```r
 library(DBI)
 library(odbc)
+library(config)
 
 # get configuration from config file 
 db_config <- config::get("decimal")
@@ -118,37 +121,35 @@ con <- dbConnect(odbc(),
 strSQL <- "SELECT * FROM <table>.<name>"
 df <- dbGetQuery(con, strSQL)
 ```
-<!-- 
-### Global Constants and Configuration
 
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository. 
+### Methodology Overview
 
-#### Data Processing and Filtering
-<!-- 
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
+#### Demographic Attribute Normalization and Age Derivation
 
+Student temporal markers are standardized by normalizing date formats and consolidating annual records into a longitudinal master repository. The student age at graduation is derived by comparing birth dates to administrative exit dates; these data are then joined to the primary dataset to facilitate the mandatory cohort eligibility filtering ($17 \le x \le 64$) required for provincial reporting.
 
-#### File Path Configuration
+#### Cohort Baseline and Longitudinal Analysis
 
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
+A unique subset of student records is used to establish a longitudinal baseline for cohort distribution analysis. The primary dataset is deduplicated and filtered to establish a consistent population for observation. 
 
-[Add other relevant settings as needed]
--->
+A frequency matrix that cross-tabulates graduation status against submission years is generated to **quantify** the statistical relationship between graduates and non-completers across multiple reporting cycles. These historical ratios help identify significant deviations in the data trend—such as the artificial variances introduced during the COVID-19 pandemic—and allow for the normalization of the cohort before final status reclassification.
 
-## Methodology Overview
+#### Relational Linkage and Match Validation
 
-_Repeat for each major step/script in the module_
+The primary relational linkage between survey respondents and provincial record systems is achieved using the Personal Education Number (PEN) as the unique identifier. This process integrates verified institutional credentials with the DACSO dataset and applies a standardized lookup to normalize program credential names for consistent reporting across the cohort.
 
-### [Method 1 Title]
+Four primary criteria are used to validate that the provincial credential record aligns with the survey respondent's profile: 
 
-#### Methods
+* **Credential Type**
+* **Program of Study (CIP code)**
+* **Temporal Alignment (School Year)**
+* **Institutional Identity**
+
+A record is confirmed as a verified match if it satisfies **all four** criteria. Alternatively, if the specific 4-digit program code is missing but the high-level area of study (CIP-2) and the other three criteria match, the record is accepted to account for minor reporting variances in program classification.
+
+#### Credential Promotion (Reclassification)
+
+Verified records are partitioned into two discrete temporal windows based on the survey reporting cycle. Credentials awarded within or prior to the survey reporting cycle are classified as "Before" awards, while those occurring subsequently are classified as "After" awards. This stratification ensures that the reclassification logic accounts for the timing of the award relative to the survey period.
 
 #### Data Dictionary 
 
@@ -200,5 +201,3 @@ _Repeat for each major step/script in the module_
 ## Suggested Improvements
 
 ## Additional Details
-
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
