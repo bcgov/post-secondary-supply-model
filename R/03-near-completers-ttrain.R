@@ -189,8 +189,7 @@ t_pssm_projection_cred_grp <- tibble(
 
 
 combine_creds <- tibble(
-  sort_order = 1:9,
-  credential_code = c(
+  combined_cred = c(
     "3 - ADCT or ADIP",
     "3 - ADGR or UT",
     "3 - CERT",
@@ -201,7 +200,7 @@ combine_creds <- tibble(
     "3 - PDCT or PDDP",
     "3 - PDCT or PDDP"
   ),
-  credential_name = c(
+  prgm_credential_awarded_name = c(
     "Advanced Diploma",
     "Associate Degree",
     "Certificate",
@@ -212,7 +211,7 @@ combine_creds <- tibble(
     "Post-degree Diploma",
     "Post-degree Certificate"
   ),
-  reporting_category = c(
+  combined_cred_name = c(
     "Advanced Certificate/Advanced Diploma",
     "Associate Degree/University Transfer",
     "Certificate",
@@ -223,7 +222,17 @@ combine_creds <- tibble(
     "Post-degree Certificate/Post-degree Diploma",
     "Post-degree Certificate/Post-degree Diploma"
   ),
-  is_active = c("Yes", "Yes", "Yes", "Yes", NA, "Yes", NA, "Yes", "Yes")
+  use_in_pssm_2017_18 = c(
+    "Yes",
+    "Yes",
+    "Yes",
+    "Yes",
+    NA,
+    "Yes",
+    NA,
+    "Yes",
+    "Yes"
+  )
 )
 
 stp_dacso_prgm_credential_lookup <- tibble(
@@ -280,7 +289,7 @@ age_group_lookup <- tibble(
   UpperBound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
 )
 
-credential_rank_lookup <- tribble(
+credential_rank <- tribble(
   ~PSI_CREDENTIAL_CATEGORY    , ~RANK ,
   "ADVANCED CERTIFICATE"      ,    10 ,
   "ADVANCED DIPLOMA"          ,     9 ,
@@ -953,65 +962,50 @@ t_dacso_data_part_1_tempselection |>
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 # ----------------------- Transferred From Excel Sheet -----------------------
 #1 (col H in Excel sheet)
-dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4)
-dbExecute(decimal_con, qry_Make_NearCompleters_CIP4_CombinedCred)
-NearCompleters_CIP4_CombinedCred <- dbReadTable(
-  decimal_con,
-  "NearCompleters_CIP4_CombinedCred"
-)
-NearCompleters_CIP4_CombinedCred$lcip4_cred <- gsub(
-  "-\\s(0|1)\\s",
-  "",
-  NearCompleters_CIP4_CombinedCred$lcip4_cred
-)
-NearCompleters_CIP4_CombinedCred <- NearCompleters_CIP4_CombinedCred %>%
-  summarise(
-    count = sum(CombinedCredCount, na.rm = TRUE),
-    .by = c(age_group, lcip4_cred, lcp4_cd)
-  )
-
-# ---- Stage 1: Population Stratification and Age-Binning ----
-# Replaces qry99_Near_completes_total_by_CIP4
-nearcompleters_cip4 <- t_dacso_data_part_1 %>%
+nearcompleters_cip4 <- t_dacso_data_part_1 |>
   filter(
     cosc_grad_status_lgds_cd_group == "3",
     coci_subm_cd %in% c("C_Outc19", "C_Outc20")
-  ) %>%
+  ) |>
   inner_join(
     age_group_lookup,
     by = join_by(Age_At_Grad >= LowerBound, Age_At_Grad <= UpperBound)
-  ) %>%
+  ) |>
   left_join(
     credential_rank,
-    by = c("prgm_credential_awarded_name" = "psi_credential_category")
-  ) %>%
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
   count(
     AgeGroup,
     prgm_credential_awarded_name,
-    lcip4_cred,
+    LCIP4_CRED,
     lcp4_cd,
     lcp4_cip_4digits_name,
     name = "Count"
   )
 
-# ---- Stage 2: Taxonomic Consolidation and String Normalization ----
-# Replaces qry_Make_NearCompleters_CIP4_CombinedCred and the R post-processing
-nearcompleters_cip4_final <- nearcompleters_cip4 %>%
-  # Reconcile institutional credentials into PSSM standardized categories
+nearcompleters_cip4_combinedcred <- nearcompleters_cip4 |>
   inner_join(
-    combine_creds,
+    combine_creds |>
+      filter(use_in_pssm_2017_18 == "Yes"),
     by = "prgm_credential_awarded_name"
-  ) %>%
-  # Restrict to validated categories for the target model year
-  filter(use_in_pssm_2017_18 == "Yes") %>%
-  # Normalize credential strings by removing binary match-status markers
-  mutate(
-    lcip4_cred = str_remove_all(lcip4_cred, "-\\s(0|1)\\s")
-  ) %>%
-  # Final deterministic aggregation of the frequency matrix
+  ) |>
   summarise(
-    count = sum(Count, na.rm = TRUE),
-    .by = c(AgeGroup, lcip4_cred, lcp4_cd)
+    CombinedCredCount = sum(Count, na.rm = TRUE),
+    .by = c(
+      AgeGroup,
+      combined_cred_name,
+      LCIP4_CRED,
+      lcp4_cd,
+      lcp4_cip_4digits_name
+    )
+  )
+
+nearcompleters_cip4_combinedcred <- nearcompleters_cip4_combinedcred |>
+  mutate(lcip4_cred = gsub("-\\s(0|1)\\s", "", LCIP4_CRED)) |>
+  summarise(
+    count = sum(CombinedCredCount, na.rm = TRUE),
+    .by = c(AgeGroup, LCIP4_CRED, lcp4_cd)
   )
 
 #2 (col I in Excel sheet)

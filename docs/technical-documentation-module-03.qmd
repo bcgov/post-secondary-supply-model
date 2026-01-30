@@ -156,6 +156,15 @@ A deterministic tie-breaking protocol is applied to students possessing multiple
 
 Finally, subjects originally classified as "Near-Completers" (Status 3) who possess a verified provincial credential are "promoted" to "Graduate" status (Status 1). This reclassification synthesizes survey-level observations with administrative data, producing the `grad_status_factoring_in_stp` attribute, which serves as the terminal variable for provincial longitudinal success reporting.
 
+##### col H in Excel sheet
+
+Raw respondent data is transformed into a structured frequency distribution of program classification (CIP-4) by age-based cohort.
+The "Near-Completer" population ($Status = 3$) is extracted from survey reporting cycles, specifically Outcome 19 and Outcome 20. Individual records are binned by categorical age bins where the respondent's age at graduation satisfies boundary conditions specified in the table `AgeGroupLookup`. The resulting table serves as a primary frequency matrix, cross-tabulating age groups with specific institutional credentials and 4-digit Classification of Instructional Programs (CIP) codes. 
+
+A secondary reclassification is done to ensure categorical alignment within the PSSM 2017-18 reporting framework. The  `combine_creds` mapping table is used to reconcile institutional credential names into standardized categories. Only those categories verified for the PSSM 2017-18 model are included in the final output; granular records are collapsed into higher-level taxonomic buckets, and a frequency count is computed for each unique intersection of variables.
+
+##### 
+
 
 #### Data Dictionary 
 
