@@ -1076,34 +1076,68 @@ near_completers_cip4_with_stp_combined_cred <- near_completers_cip4_with_stp_com
 
 
 #3 (col K in Excel sheet)
-dbExecute(decimal_con, qry99_Completers_agg_factoring_in_STP_Credential_by_CIP4)
-dbExecute(
-  decimal_con,
-  "alter table completersfactoringinstp_cip4 add lcip4_cred_cleaned nvarchar(50) NULL;"
-)
-dbExecute(
-  decimal_con,
-  "update completersfactoringinstp_cip4 
-                        set lcip4_cred_cleaned = 
-                        	CASE WHEN PATINDEX('%1 - %', lcip4_cred) = 1 THEN STUFF(lcip4_cred, 1, 3,'3 -')  
-                        	ELSE lcip4_cred
-                        	END
-                        from completersfactoringinstp_cip4"
-)
 
-dbExecute(decimal_con, qry_Make_CompletersFactoringInSTP_CIP4_CombinedCred)
-CompletersFactoringInSTP_CIP4_CombinedCred <- dbReadTable(
-  decimal_con,
-  "CompletersFactoringInSTP_CIP4_CombinedCred"
-)
-CompletersFactoringInSTP_CIP4_CombinedCred$lcip4_cred <- gsub(
-  "-\\s(0|1)\\s",
-  "",
-  CompletersFactoringInSTP_CIP4_CombinedCred$lcip4_cred_cleaned
-)
-CompletersFactoringInSTP_CIP4_CombinedCred <- CompletersFactoringInSTP_CIP4_CombinedCred %>%
+completers_factoring_in_stp_cip4 <- t_dacso_data_part_1 |>
+  select(-age_group) |>
+  filter(
+    grad_status_factoring_in_stp == "1",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
+    Age_At_Grad >= 17,
+    Age_At_Grad <= 64
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(Age_At_Grad >= lower_bound, Age_At_Grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
   summarise(
-    completers = sum(CombinedCredCount, na.rm = TRUE),
+    count = n(),
+    .by = c(
+      age_group,
+      prgm_credential_awarded_name,
+      LCIP4_CRED,
+      lcp4_cd,
+      lcp4_cip_4digits_name
+    )
+  )
+
+
+completers_factoring_in_stp_cip4 <- completers_factoring_in_stp_cip4 |>
+  mutate(
+    lcip4_cred_cleaned = if_else(
+      str_detect(LCIP4_CRED, "^1 - "),
+      str_replace(LCIP4_CRED, "^1 - ", "3 - "),
+      LCIP4_CRED
+    )
+  )
+
+completers_factoring_in_stp_cip4_combined_cred <- completers_factoring_in_stp_cip4 |>
+  inner_join(
+    combine_creds |> filter(use_in_pssm_2017_18 == "Yes"),
+    by = "prgm_credential_awarded_name"
+  ) |>
+  summarise(
+    combined_cred_count = sum(count, na.rm = TRUE),
+    .by = c(
+      age_group,
+      combined_cred_name,
+      lcip4_cred_cleaned,
+      lcp4_cd,
+      lcp4_cip_4digits_name
+    )
+  ) |>
+  mutate(
+    lcip4_cred = gsub(
+      "-\\s(0|1)\\s",
+      "",
+      lcip4_cred_cleaned
+    )
+  ) |>
+  summarise(
+    completers = sum(combined_cred_count, na.rm = TRUE),
     .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
