@@ -6,79 +6,97 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# STP Enrolment Preprocessing: Workflow #1
-# Description: 
-# Relies on: STP_Enrolment data table
-# Creates tables: STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment
-
-library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
 
 # ---- Configure LAN Paths and DB Connection -----
-lan <- config::get("lan")
-source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
-source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
-source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 # ---- Check Required Tables etc. ----
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
 
-## ---- Null values ----
-dbGetQuery(con, qry00a_check_null_epens)
-dbGetQuery(con, qry00b_check_unique_epens)
+stp_enrolment <- dbGetQuery(
+  con,
+  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
+) |>
+  select(-psi_birthdate_cleaned)
 
-## ---- Primary key and nulls ----
-dbExecute(con, qry00c_CreateIDinSTPEnrolment)
-dbExecute(con, qry00d_SetPKeyinSTPEnrolment)
+## -----------------------------------------------------------------------------------------------
 
+## --------------------------------------Initial Data Checks--------------------------------------
+## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+##   qry00a to qry00d
 
-# ---- Reformat yy-mm-dd to yyyy-mm-dd ----
-# check date variable format here
-dbGetQuery(con, "SELECT TOP 100 PSI_BIRTHDATE, 
-                  LAST_SEEN_BIRTHDATE, 
-                  PSI_PROGRAM_EFFECTIVE_DATE, 
-                  PSI_MIN_START_DATE 
-                 FROM STP_Enrolment;")
+stp_enrolment |>
+  filter(
+    ENCRYPTED_TRUE_PEN %in%
+      c("", " ", "(Unspecified)") |
+      is.na(ENCRYPTED_TRUE_PEN)
+  ) |>
+  nrow()
 
-# if in format yy-mm-dd then run the following queries to convert from yy-mm-dd to yyyy-mm-dd
-dbExecute(con, qrydates_create_tmp_table)
-dbExecute(con, qrydates_add_cols)
-dbExecute(con, qrydates_convert1)
-dbExecute(con, qrydates_convert2)
-dbExecute(con, qrydates_convert3)
-dbExecute(con, qrydates_convert4)
-dbExecute(con, qrydates_convert5)
-dbExecute(con, qrydates_convert6)
-dbExecute(con, qrydates_convert7)
-dbExecute(con, qrydates_convert8)
-dbExecute(con, qrydates_convert9)
-dbExecute(con, qrydates_convert10)
-dbExecute(con, qrydates_convert11)
-dbExecute(con, qrydates_convert12)
-dbExecute(con, qrydates_update1)
-dbExecute(con, qrydates_update2)
-dbExecute(con, qrydates_update3)
-dbExecute(con, qrydates_update4)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];")) 
+stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
 
-# ---- Create Record Type Table ----
+stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
+
+
+# -------------------------------------------------------------------------------------------------
+
+## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
+## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+## all queries in the file
+
+convert_date <- function(vec) {
+  # Years 26-99 go to 19xx
+  # Years 00-25 go to 20xx
+  yy <- as.numeric(substr(vec, 1, 2))
+
+  century_prefix <- case_when(
+    is.na(yy) ~ NA_character_,
+    yy < 24 ~ "20",
+    TRUE ~ "19"
+  )
+
+  lubridate::ymd(paste0(century_prefix, vec))
+}
+
+date_cols <- c(
+  "PSI_PROGRAM_EFFECTIVE_DATE",
+  "PSI_MIN_START_DATE",
+  "PSI_BIRTHDATE",
+  "LAST_SEEN_BIRTHDATE"
+)
+
+stp_enrolment <- stp_enrolment |>
+  mutate(
+    across(
+      .cols = date_cols,
+      .fns = convert_date,
+      .names = "{.col}"
+    )
+  )
+
+
+## ------------------------------------------------------------------------------------------------
+
+## --------------------------------------- Create Record Type Table -------------------------------
+## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
+##   qry01 to qry07 series
 
 # Record Status codes:
 # 0 = Good
@@ -86,220 +104,241 @@ dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_ConvertDateFormat];"))
 # 2 = Developmental
 # 3 = No PSI Transition
 # 4 = Credential Only (No Enrolment Record)
-# 5 = PSI_Outside_BC 
+# 5 = PSI_Outside_BC
 # 6 = Skills Based
 # 7 = Developmental CIP
-# 8 = Recommendation for Certification 
+# 8 = Recommendation for Certification
+
+# hard coded values
+# original SQl used patterns %Continuing Education and %Continuing Studies
+invalid_pen <- c("", " ", "(Unspecified)")
+cips <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
+ce_pattern <- "Continuing Education|Continuing Studies|Audit|^CE "
+
+stp_enrolment_record_type <- stp_enrolment |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    ATTENDING_PSI_OUTSIDE_BC,
+    PSI_CIP_CODE,
+    PSI_CODE,
+    PSI_CONTINUING_EDUCATION_COURSE_ONLY,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_ENTRY_STATUS,
+    PSI_MIN_START_DATE,
+    PSI_PROGRAM_CODE,
+    PSI_SCHOOL_YEAR,
+    PSI_STUDENT_NUMBER,
+    PSI_STUDY_LEVEL
+  ) |>
+  mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
 
-# ---- Define lookup table for ID/Record Status and populate with ID column and EPEN 
-dbExecute(con, qry01_ExtractAllID_into_STP_Enrolment_Record_Type)
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  mutate(
+    RecordStatus = case_when(
+      # Record Status 1: qry02a to qry02c
+      (PSI_STUDENT_NUMBER %in% invalid_pen | PSI_CODE %in% invalid_pen) &
+        ENCRYPTED_TRUE_PEN %in% invalid_pen ~ 1,
 
-# ----- Find records with Record_Status = 1 and update look up table -----
-dbExecute(con, qry02a_Record_With_PEN_Or_STUID)
-dbExecute(con, qry02b_Drop_No_PEN_Or_No_STUID)
-dbExecute(con, qry02c_Update_Drop_No_PEN_Or_No_STUID)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry02a_Record_With_PEN_Or_STUID];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_No_PEN_or_No_STUID];"))   
+      # Record Status 2: qry03a and qry03b
+      toupper(PSI_STUDY_LEVEL) == "DEVELOPMENTAL" ~ 2,
 
-# ----- Find records with Record_Status = 2 and update look up table -----
-dbExecute(con, qry03a_Drop_Record_Developmental)
-dbExecute(con, qry03b_Update_Drop_Record_Developmental)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental];"))
+      # Record Status 6: qry03c to qry03j
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Skills Crs Only" &
+        PSI_CREDENTIAL_CATEGORY %in% c("None", "Other") &
+        !(PSI_CODE %in% c("UFV", "UCFV") & PSI_PROGRAM_CODE == "TEACH ED") ~ 6,
 
-# ----- Find records with Record_Status = 6 and update look up table -----
-dbExecute(con, qry03c_Drop_Skills_Based)
-dbGetQuery(con, CheckSkillsBased) # check list of programs considered skills based.
+      # More Record Status 6:
+      str_detect(
+        PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+        regex(ce_pattern, ignore_case = TRUE)
+      ) ~ 6,
 
-dbExecute(con, "ALTER TABLE Drop_Skills_Based ADD KEEP nvarchar(2) NULL;")
-dbExecute(con, qry03da_Keep_TeachEd) 
-dbExecute(con, qry03d_Update_Drop_Record_Skills_Based) 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Skills_Based];")) 
+      # More Record Status 6:
+      (PSI_CREDENTIAL_CATEGORY %in% c("None", "Other") & CIP2 %in% cips) ~ 6,
 
-dbExecute(con, qry03d_1_Drop_Continuing_Ed)
-dbExecute(con, qry03d_2_Update_Drop_Continuing_Ed)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd];"))
+      # More Record Status 6:
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Skills Crs Only" &
+        !PSI_CREDENTIAL_CATEGORY %in% c("None", "Other", "Short Certificate") &
+        ((PSI_CODE == "SEL" &
+          PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+            "Community, Corporate & International Development") |
+          (PSI_CODE == "NIC" & CIP2 %in% cips)) ~ 6,
 
-dbExecute(con, qry03d_3_Drop_More_Continuing_Ed) 
-dbExecute(con, qry03d_4_Updated_Drop_ContinuingEdMore)
+      # Record Status 7: qry03k
+      PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Not Skills Crs Only" &
+        CIP2 %in% cips ~ 7, # qry 03k and qry03l series
 
-dbExecute(con, qry03e_Keep_Skills_Based)
-dbExecute(con, "ALTER TABLE Keep_Skills_Based ADD EXCLUDE nvarchar(2) NULL;")
-dbExecute(con, qry03ea_Exclude_Skills_Based_Programs)
+      # Record Status 3: qry04a to qry04b
+      PSI_ENTRY_STATUS == "No Transition" ~ 3,
 
-dbExecute(con, qry03f_Update_Keep_Record_Skills_Based) 
-dbExecute(con, qry03fb_Update_Keep_Record_Skills_Based) 
+      # Record Status 5: qry06a to
+      ATTENDING_PSI_OUTSIDE_BC == "Y" ~ 5,
 
-# manual investigation done here in the past and requires a review
-# leaving for now as has minimal impact on final distributions
-dbExecute(con, qry03g_create_table_SkillsBasedCourses) 
-dbExecute(con, "ALTER TABLE tmp_tbl_SkillsBasedCourses ADD KEEP nvarchar(2) NULL;")
-dbExecute(con, qry03g_b_Keep_More_Skills_Based) 
-dbExecute(con, qry03g_c_Update_Keep_More_Skills_Based)
-dbExecute(con, qry03g_c2_Update_More_Selkirk)
-dbExecute(con, qry03g_d_EnrolCoursesSeen)
-dbExecute(con, qry03h_create_table_Suspect_Skills_Based) 
-dbExecute(con, qry03i_Find_Suspect_Skills_Based) 
-dbExecute(con, qry03i2_Drop_Suspect_Skills_Based)   #see documentation, this is related to some manula work that wasn't done in 2023
-dbExecute(con, qry03j_Update_Suspect_Skills_Based) 
-dbGetQuery(con, RecordTypeSummary)
+      # DEFAULT: Fallback for all other records
+      TRUE ~ 0
+    )
+  ) |>
+  select(ID, RecordStatus)
 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_ContinuingEd_More];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Keep_Skills_Based];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_MoreSkillsBased_to_Keep];"))  
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_EnrolCoursesSeen];"))  
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_Suspect_Skills_Based];")) 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_SkillsBasedCourses];"))  
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Suspect_Skills_Based];"))                
+# Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
+# find more skills based courses and/or keep some that were excluded.  The manual
+# investigation resulted in a table with a column "keep".  This was used to further
+# refine the record status (affcting only record status 0 and 6).
+# The affected queries are: qry03g, 03g_b, 03g_c, 03g_c2, 03_d, 03h, 03i, 03i2, 03j
+# for now, pull the final enrolement record type table from decimal to keep
+# coding.
 
-# ---- Find records with Record_Status = 7 and update look up table ----
-dbExecute(con, qry03k_Drop_Developmental_CIPS)        
-dbExecute(con, "ALTER TABLE Drop_Developmental_CIPS 
-          ADD DO_NOT_EXCLUDE nvarchar(2) NULL;")
-dbExecute(con, qry03l_Update_Developmental_CIPs)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_Developmental_CIPS];"))
+sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
+stp_enrolment_record_type <- dbGetQuery(con, sql) |>
+  select(ID, RecordStatus) # we may need to change the column names later
 
-# ---- Find records with Record_Status = 5 and update look up table ----
-dbExecute(con, qry04a_Drop_No_PSI_Transition)
-dbExecute(con, qry04b_Update_Drop_No_PSI_Transition)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_No_Transition];"))
+## ------------------------------------------------------------------------------------------------
 
-dbExecute(con, qry06a_Drop_PSI_Outside_BC)
-dbExecute(con, qry06b_Update_Drop_PSI_Outside_BC)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[Drop_PSI_Outside_BC];"))
+## ------------------------------------------------------------------------------------------------
 
-# ---- Set Remaining Records to Record_Status = 0 ----
-dbExecute(con, qry07_Update_RecordStatus_No_Dropped)
-dbExecute(con, qry08a_Create_Table_STP_Enrolment_Valid)
-dbExecute(con, "ALTER TABLE [STP_Enrolment_Valid] 
-                ADD CONSTRAINT ValidEnrolmentPK_ID
-                PRIMARY KEY (ID);")
+## --------------------------------------- Create Valid Enrolment Table ---------------------------
+## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
 
-# check count of records in STP_Enrolment_Valid associated with > 1 EPEN.  
-cat("Records associated with > 1 EPEN:")
-print(dbGetQuery(con, "SELECT  T.PSI_CODE, T.PSI_STUDENT_NUMBER, COUNT(*) 
-                FROM (
-	              SELECT PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN
-	                FROM  STP_Enrolment_Valid
-	                GROUP BY  PSI_CODE, PSI_STUDENT_NUMBER, ENCRYPTED_TRUE_PEN) T
-                GROUP BY  T.PSI_CODE, T.PSI_STUDENT_NUMBER
-                HAVING COUNT(*) <> 1"))
+stp_enrolment_valid <- stp_enrolment |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_STUDENT_NUMBER,
+    PSI_CODE,
+    PSI_MIN_START_DATE,
+    PSI_SCHOOL_YEAR,
+    PSI_ENROLMENT_SEQUENCE
+  ) |>
+  inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
+  filter(RecordStatus == 0) |>
+  select(-RecordStatus)
 
-dbGetQuery(con, RecordTypeSummary)
+## ------------------------------------------------------------------------------------------------
 
-# ---- Min Enrolment ----
-# Find record with minimum enrollment sequence for each student per school year 
-# by ENCRYPTED_TRUE_PEN
-dbExecute(con, qry09a_MinEnrolmentPEN)
-dbExecute(con, qry09b_MinEnrolmentPEN)
-dbExecute(con, qry09c_MinEnrolmentPEN)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry09a_MinEnrolmentPEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry09b_MinEnrolmentPEN];"))
+## ------------------------------------- Min Enrolment --------------------------------------------
+## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
+## qry09 to qry14
+# Notes: n a handful of cases, the SQL version improperly orders records with PSI_ENROLMENT_SEQUENCE == 10 and 11.
+# R's arrange() handles them properly,
 
-# by PSI_CODE/PSI_STUDENT_NUMBER combo for students records with null ENCRYPTED_TRUE_PEN's
-dbExecute(con, qry10a_MinEnrolmentSTUID)
-dbExecute(con, qry10b_MinEnrolmentSTUID)
-dbExecute(con, qry10c_MinEnrolmentSTUID)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry10b_MinEnrolmentSTUID];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry10a_MinEnrolmentSTUID];"))
+# Logic for valid PEN's
+valid_pen_data <- stp_enrolment_valid |>
+  filter(!ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  arrange(
+    PSI_MIN_START_DATE,
+    as.numeric(PSI_ENROLMENT_SEQUENCE),
+    as.numeric(ID)
+  ) |>
+  mutate(is_first_enrol = row_number() == 1) |>
+  group_by(ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR) |>
+  mutate(is_min_enrol_seq = row_number() == 1) |>
+  ungroup()
 
-# Flag each record in STP_Enrolment_Record_Type as min enrollment (TRUE = 1, FALSE  = 0)
-dbExecute(con, qry11a_Update_MinEnrolmentPEN)
-dbExecute(con, qry11b_Update_MinEnrolmentSTUID)
-dbExecute(con, qry11c_Update_MinEnrolment_NA)
+# Logic for Invalid PEN's (Student Number + PSI Code Combo)
+invalid_pen_data <- stp_enrolment_valid |>
+  filter(ENCRYPTED_TRUE_PEN %in% invalid_pen) |>
+  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
+  arrange(
+    PSI_MIN_START_DATE,
+    as.numeric(PSI_ENROLMENT_SEQUENCE),
+    as.numeric(ID)
+  ) |>
+  mutate(is_first_enrol_combo = row_number() == 1) |>
+  group_by(PSI_STUDENT_NUMBER, PSI_CODE, PSI_SCHOOL_YEAR) |>
+  mutate(is_min_enrol_seq_combo = row_number() == 1) |>
+  ungroup()
 
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[MinEnrolment_ID_PEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[MinEnrolment_ID_STUID];"))
+# Combine - this should be the same as the old stp_enrolment_record_type
+stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
+  mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
+  mutate(
+    is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
+    is_first_enrol = if_else((is_first_enrol | is_first_enrol_combo), 1, 0)
+  ) |>
+  select(ID, is_min_enrol, is_first_enrol)
 
-# ---- First Enrollment Date ---- 
-# Find earliest enrollment record for each student per school year
-# by ENCRYPTED_TRUE_PEN
-dbExecute(con, qry12a_FirstEnrolmentPEN)
-dbExecute(con, qry12b_FirstEnrolmentPEN)
-dbExecute(con, qry12c_FirstEnrolmentPEN)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry12a_FirstEnrolmentPEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry12b_FirstEnrolmentPEN];"))
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  left_join(stp_enrolment_valid_final) |>
+  mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
 
-# by PSI_CODE/PSI_STUDENT_NUMBER combo for students records with null ENCRYPTED_TRUE_PEN's
-dbExecute(con, qry13a_FirstEnrolmentSTUID)
-dbExecute(con, qry13b_FirstEnrolmentSTUID)
-dbExecute(con, qry13c_FirstEnrolmentSTUID)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry13a_FirstEnrolment_STUID];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[tmp_tbl_qry13b_FirstEnrolment_STUID];"))
+stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
 
-# Flag each record in STP_Enrolment_Record_Type as first enrollment (TRUE = 1, FALSE  = 0)
-dbExecute(con, qry14a_Update_FirstEnrolmentPEN)
-dbExecute(con, qry14b_Update_FirstEnrolmentSTUID)
-dbExecute(con, qry14c_Update_FirstEnrolmentNA)
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_PEN];"))
-dbExecute(con, glue::glue("DROP TABLE [{my_schema}].[FirstEnrolment_ID_STUID];"))
+## ------------------------------------------------------------------------------------------------
 
-# ---- Clean Birthdates ----
-dbExecute(con, qry01_BirthdateCleaning) 
-dbExecute(con, qry02_BirthdateCleaning)
-dbExecute(con, qry03_BirthdateCleaning)
-dbExecute(con, qry04_BirthdateCleaning)
-dbExecute(con, "ALTER table tmp_MaxPSIBirthdate ADD NumBirthdateRecords INT NULL")
-dbExecute(con, "ALTER table tmp_MinPSIBirthdate ADD NumBirthdateRecords INT NULL")
-dbExecute(con, qry05_BirthdateCleaning)
-dbExecute(con, qry06_BirthdateCleaning)
-dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD MinPSIBirthdate NVARCHAR(50) NULL,
-                    NumMinBirthdateRecords INT NULL,
-                    MaxPSIBirthdate NVARCHAR(50) NULL,
-                    NumMaxBirthdateRecords INT NULL")
-dbExecute(con, qry07a_BirthdateCleaning)
-dbExecute(con, qry07b_BirthdateCleaning)
-dbExecute(con, "DROP TABLE tmp_MinPSIBirthdate")
-dbExecute(con, "DROP TABLE tmp_MaxPSIBirthdate")
+## ------------------------------------- Clean Birthdates -----------------------------------------
+## reference: source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
+## qry01 to qry11
 
-dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD LastSeenBirthdate NVARCHAR(50) NULL;")
-dbExecute(con, qry08_BirthdateCleaning)
-dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD UseMaxOrMin_FINAL NVARCHAR(50) NULL;")
-dbExecute(con, qry09_BirthdateCleaning)
-dbExecute(con, "ALTER table tmp_MoreThanOne_Birthdate 
-                ADD psi_birthdate_cleaned NVARCHAR(50) NULL;")
-dbExecute(con, qry10_BirthdateCleaning)
-dbExecute(con, qry11_BirthdateCleaning)
+# qry01 to qry08
+birthdate_cleaning_summary <- stp_enrolment |>
+  select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
+  filter(
+    !PSI_BIRTHDATE %in% c("", " ", "(Unspecified)"),
+    !ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
+  ) |>
+  group_by(ENCRYPTED_TRUE_PEN) |>
+  group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
+  summarize(
+    NBirthdateRecords = n(),
+    LastSeenBirthdate = first(LAST_SEEN_BIRTHDATE), #should only be one "last seen" per student
+    .groups = "drop_last"
+  ) |>
+  summarize(
+    DistinctBirthdates = n(), # Useful for auditing
+    MinPSIBirthdate = min(PSI_BIRTHDATE),
+    MaxPSIBirthdate = max(PSI_BIRTHDATE),
+    NumMinBirthdateRecords = NBirthdateRecords[
+      PSI_BIRTHDATE == min(PSI_BIRTHDATE)
+    ][1],
+    NumMaxBirthdateRecords = NBirthdateRecords[
+      PSI_BIRTHDATE == max(PSI_BIRTHDATE)
+    ][1],
+    LastSeenBirthdate = first(LastSeenBirthdate)
+  ) |>
+  ungroup()
 
-dbExecute(con, "ALTER TABLE STP_Enrolment ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
+#qry09 to qry11
+birthdate_update <- birthdate_cleaning_summary |>
+  mutate(
+    psi_birthdate_cleaned = case_when(
+      # If they only have one date, use it
+      MinPSIBirthdate == MaxPSIBirthdate ~ MinPSIBirthdate,
 
-#Update STP Enrolment with birthdates for those EPENS which have > 1 birthdate records 
-dbExecute(con, qry12_BirthdateCleaning)
+      # Tie-breaker 1: Match the "Last Seen" date
+      MaxPSIBirthdate == LastSeenBirthdate ~ MaxPSIBirthdate,
+      #MinPSIBirthdate == LastSeenBirthdate ~ MinPSIBirthdate, # old logic didn't include this
 
-# some records have a null PSI_BIRTHDATE, search for non-null PSI_BIRTHDATE for these EPENS
-dbExecute(con, qry13_BirthdateCleaning)
-dbExecute(con, qry14_BirthdateCleaning)
-dbExecute(con, qry15_BirthdateCleaning)
-dbExecute(con, "ALTER TABLE tmp_NullBirthdateCleaned ADD psi_birthdate_cleaned NVARCHAR(50) NULL")
-dbExecute(con, qry16_BirthdateCleaning)
-dbExecute(con, qry17_BirthdateCleaning)
+      # Tie-breaker 2: Use the date that appears most frequently
+      NumMaxBirthdateRecords > NumMinBirthdateRecords ~ MaxPSIBirthdate,
+      NumMaxBirthdateRecords < NumMinBirthdateRecords ~ MinPSIBirthdate,
 
-# Update STP_Enrolment with birthdates found in non-null records 
-dbExecute(con, qry18_BirthdateCleaning)
-dbExecute(con, qry19_BirthdateCleaning)
+      # Default fallback
+      TRUE ~ MinPSIBirthdate
+    )
+  ) |>
+  select(ENCRYPTED_TRUE_PEN, psi_birthdate_cleaned)
 
-# sanity check on psi_birthdate_cleaned - finish this and save report
-dbExecute(con, qry20_BirthdateCleaning)
-dbGetQuery(con, qry21_BirthdateCleaning)
+stp_enrolment <- stp_enrolment |>
+  left_join(
+    birthdate_update,
+    by = "ENCRYPTED_TRUE_PEN"
+  ) |>
+  mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
+# Keeping as lower case to match the SQL versions, jfn.
 
-# ---- Clean Up and check tables to keep ----
-dbExecute(con, "DROP TABLE tmp_BirthDate")
-dbExecute(con, "DROP TABLE tmp_MoreThanOne_Birthdate")
-dbExecute(con, "DROP TABLE tmp_NullBirthdate")
-dbExecute(con, "DROP TABLE tmp_NonNullBirthdate")
-dbExecute(con, "DROP TABLE tmp_NullBirthdateCleaned")
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
+  "stp_enrolment_valid"
+)
 
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')))
+rm(list = setdiff(ls(), tables_to_keep))
 
 dbDisconnect(con)
-
-
-
-
-
-

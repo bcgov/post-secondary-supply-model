@@ -1,0 +1,79 @@
+body {
+    color: black;
+    font-size: 16px;
+    font-family: Helvetica;
+}
+
+h1 {
+    color: rgb(21, 43, 130);
+    font-size: 24px;
+    font-family: BC Sans;
+}
+
+h2 {
+    color: rgb(21, 43, 130);
+    font-size: 22px;
+    font-family: BC Sans;
+}
+
+h3 {
+    color: rgb(21, 43, 130);
+    font-size: 18px;
+    font-family: Helvetica;
+}
+
+h4 {
+    color: rgb(21, 43, 130);
+    font-size: 16px;
+    font-family: Helvetica;
+    font-weight: bold;
+}
+
+h5 {
+    color: black;
+    font-size: 14px;
+    font-family: Helvetica;
+    font-weight: bold;
+}
+
+
+.list-variable-names {
+    text-align: left;
+    font-size: 12px;
+ }
+
+.nav-tabs .nav-item .nav-link {
+    background-color: white;
+    color: rgb(21, 43, 130);
+}
+  
+.nav-tabs .nav-item .nav-link.active {
+    color: rgb(21, 43, 130);
+    font-weight: bold;
+
+}
+  
+.tab-content {
+    border-top: transparent;
+    padding: 20px;
+}
+  
+.tab-content .tab-pane {
+    background-color: #FFF;
+    color: black;
+    font-size: 16px;
+    font-family: Helvetica;
+}
+ 
+/* Custom table styling for dense data */
+.table-condensed table {
+  font-size: 0.85em;
+  line-height: 1.2;
+  table-layout: fixed;
+  width: auto;
+}
+
+.list-variable-names {
+  font-size: 0.85em;
+  /* your other existing styles */
+}
