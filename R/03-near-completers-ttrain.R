@@ -61,10 +61,10 @@ credential_non_dup <- dbReadTable(
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 )
 
-stp_credential <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
-)
+#stp_credential <- dbReadTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+#)
 
 # "rollover table" - this data is provisioned from SO
 years <- 2018:2023
@@ -961,22 +961,27 @@ t_dacso_data_part_1_tempselection |>
 
 # Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 # ----------------------- Transferred From Excel Sheet -----------------------
-#1 (col H in Excel sheet)
+names(age_group_lookup) <- tolower(names(age_group_lookup)) # here for development to match SQL
+
+#1 (col H in Excel sheet C_Outc12_13_14RatiosAgeGradCIP4)
+# BA Notes: I'm concerned we are using different age groups compared with the original sheet
+
 nearcompleters_cip4 <- t_dacso_data_part_1 |>
+  select(-age_group) |>
   filter(
     cosc_grad_status_lgds_cd_group == "3",
     coci_subm_cd %in% c("C_Outc19", "C_Outc20")
   ) |>
   inner_join(
     age_group_lookup,
-    by = join_by(Age_At_Grad >= Lower_Bound, Age_At_Grad <= Upper_Bound)
+    by = join_by(Age_At_Grad >= lower_bound, Age_At_Grad <= upper_bound)
   ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
   ) |>
   count(
-    Age_Group,
+    age_group,
     prgm_credential_awarded_name,
     LCIP4_CRED,
     lcp4_cd,
@@ -993,7 +998,7 @@ nearcompleters_cip4_combinedcred <- nearcompleters_cip4 |>
   summarise(
     CombinedCredCount = sum(Count, na.rm = TRUE),
     .by = c(
-      Age_Group,
+      age_group,
       combined_cred_name,
       LCIP4_CRED,
       lcp4_cd,
@@ -1005,14 +1010,14 @@ nearcompleters_cip4_combinedcred <- nearcompleters_cip4_combinedcred |>
   mutate(lcip4_cred = gsub("-\\s(0|1)\\s", "", LCIP4_CRED)) |>
   summarise(
     count = sum(CombinedCredCount, na.rm = TRUE),
-    .by = c(Age_Group, LCIP4_CRED, lcp4_cd)
+    .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
 #2 (col I in Excel sheet)
-names(age_group_lookup) <- tolower(names(age_group_lookup))
+
 # ---- Extraction of Verified Transitions (Replaces SQL Query) ----
-nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 %>%
-  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) %>%
+nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
+  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
   select(
     coci_pen,
     coci_stqu_id,
@@ -1143,48 +1148,91 @@ completers_factoring_in_stp_cip4_combined_cred <- completers_factoring_in_stp_ci
 
 
 #4 (col M in Excel sheet)
-dbExecute(decimal_con, qry99_Completers_agg_byCIP4)
-dbExecute(
-  decimal_con,
-  "alter table completerscip4 add lcip4_cred_cleaned nvarchar(50) NULL;"
-)
-dbExecute(
-  decimal_con,
-  "update completerscip4 
-                        set lcip4_cred_cleaned = 
-                        	CASE WHEN PATINDEX('%1 - %', lcip4_cred) = 1 THEN STUFF(lcip4_cred, 1, 3,'3 -') 
-                        	ELSE lcip4_cred
-                        	END
-                        from completerscip4"
-)
-
-dbExecute(decimal_con, qry_Make_Completers_CIP4_CombinedCred)
-Completers_CIP4_CombinedCred <- dbReadTable(
-  decimal_con,
-  "Completers_CIP4_CombinedCred"
-)
-Completers_CIP4_CombinedCred$lcip4_cred <- gsub(
-  "-\\s(0|1)\\s",
-  "",
-  Completers_CIP4_CombinedCred$lcip4_cred_cleaned
-)
-Completers_CIP4_CombinedCred <- Completers_CIP4_CombinedCred %>%
+completers_cip4 <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group) |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "1",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  # Relational linkage for credential hierarchy data
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
   summarise(
-    c_not_factoring_stp = sum(CombinedCredCount, na.rm = TRUE),
+    Expr1 = n(),
+    .by = c(
+      age_group,
+      prgm_credential_awarded_name,
+      lcp4_cd,
+      lcp4_cip_4digits_name,
+      LCIP4_CRED
+    )
+  )
+
+completers_cip4 <- completers_cip4 |>
+  mutate(
+    lcip4_cred_cleaned = if_else(
+      str_detect(LCIP4_CRED, "^1 - "),
+      str_replace(LCIP4_CRED, "^1 - ", "3 - "),
+      LCIP4_CRED
+    )
+  )
+
+completers_cip4_combined_cred <- completers_cip4 |>
+  inner_join(
+    combine_creds |> filter(use_in_pssm_2017_18 == "Yes"),
+    by = "prgm_credential_awarded_name"
+  ) |>
+  summarise(
+    combined_cred_count = sum(Expr1, na.rm = TRUE),
+    .by = c(
+      age_group,
+      combined_cred_name,
+      lcip4_cred_cleaned,
+      lcp4_cd,
+      lcp4_cip_4digits_name
+    )
+  )
+
+completers_cip4_combined_cred <- completers_cip4_combined_cred |>
+  mutate(
+    lcip4_cred = gsub(
+      "-\\s(0|1)\\s",
+      "",
+      lcip4_cred_cleaned
+    )
+  ) |>
+  summarise(
+    c_not_factoring_stp = sum(combined_cred_count, na.rm = TRUE),
     .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
-T_DACSO_Near_Completers_RatioAgeAtGradCIP4 <- NearCompleters_CIP4_CombinedCred %>%
+# ---- Make some ratios ----
+#T_DACSO_Near_Completers_RatioAgeAtGradCIP42 <-
+t_dacso_nearcompleters_ratioageatgradcip4 <-
+  #NearCompleters_CIP4_CombinedCred %>%
+  nearcompleters_cip4_combinedcred |>
   left_join(
-    NearCompleters_CIP4_With_STP_CombinedCred,
+    #NearCompleters_CIP4_With_STP_CombinedCred,
+    near_completers_cip4_with_stp_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
   ) %>%
   left_join(
-    CompletersFactoringInSTP_CIP4_CombinedCred,
+    #CompletersFactoringInSTP_CIP4_CombinedCred,
+    completers_factoring_in_stp_cip4_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
   ) %>%
   left_join(
-    Completers_CIP4_CombinedCred,
+    #Completers_CIP4_CombinedCred,
+    completers_cip4_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
   ) %>%
   mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
@@ -1196,17 +1244,6 @@ T_DACSO_Near_Completers_RatioAgeAtGradCIP4 <- NearCompleters_CIP4_CombinedCred %
   mutate(across(where(is.double), ~ na_if(., Inf))) %>%
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."T_DACSO_Near_Completers_RatioAgeAtGradCIP4"'
-  )),
-  T_DACSO_Near_Completers_RatioAgeAtGradCIP4
-)
-dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4")
-dbExecute(decimal_con, "DROP TABLE NearCompleters_CIP4_with_STP_Credential")
-dbExecute(decimal_con, "DROP TABLE completersfactoringinstp_cip4")
-dbExecute(decimal_con, "DROP TABLE completerscip4")
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 #1: paste to col E
