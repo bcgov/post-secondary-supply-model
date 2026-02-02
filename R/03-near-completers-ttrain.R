@@ -1247,25 +1247,68 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 #1: paste to col E
-dbExecute(decimal_con, qry99_Near_completes_total_byGender)
-Near_completes_total_byGender <- dbReadTable(
-  decimal_con,
-  "Near_completes_total_byGender"
-)
-dbExecute(decimal_con, "DROP TABLE Near_completes_total_byGender")
+library(dplyr)
+
+# ---- Demographic Stratification of Near-Completers by Gender ----
+# Replaces: qry_Make_Near_completes_total_byGender
+
+near_completes_total_by_gender <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group) |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "3",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20")
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(tpid_lgnd_cd != "0") |>
+  summarise(
+    count = n(),
+    .by = c(
+      tpid_lgnd_cd,
+      age_group,
+      prgm_credential_awarded_name
+    )
+  )
 
 #2: paste to col F
-dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_by_Gender)
-Near_completes_total_with_STP_Credential_by_Gender <- dbReadTable(
-  decimal_con,
-  "Near_completes_total_with_STP_Credential_by_Gender"
-) %>%
-  rename("nc_with_early_or_late" = "Count") %>%
+near_completes_total_with_stp_by_gender <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group, -has_stp_credential) |>
+  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
+  inner_join(
+    t_dacso_data_part_1_tempselection |>
+      distinct(coci_stqu_id, has_stp_credential),
+    by = "coci_stqu_id"
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(
+    has_stp_credential == "Yes",
+    tpid_lgnd_cd != "0"
+  ) |>
+  summarise(
+    nc_with_early_or_late = n(),
+    .by = c(
+      tpid_lgnd_cd,
+      age_group,
+      prgm_credential_awarded_name,
+      has_stp_credential
+    )
+  ) |>
   select(-has_stp_credential)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Near_completes_total_with_STP_Credential_by_Gender"
-)
 
 #3: looks like paste to H (check)
 dbExecute(decimal_con, qry99_Completers_agg_by_gender)

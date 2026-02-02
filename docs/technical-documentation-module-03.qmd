@@ -129,7 +129,7 @@ df <- dbGetQuery(con, strSQL)
 
 Student temporal markers are standardized by normalizing date formats and consolidating annual records into a longitudinal master repository. The student age at graduation is derived by comparing birth dates to administrative exit dates; these data are then joined to the primary dataset to facilitate the mandatory cohort eligibility filtering ($17 \le x \le 64$) required for provincial reporting.
 
-##### Cohort Baseline and Longitudinal Analysis
+##### Cohort Baseline and Longitudinal Analysis (Exploratory Only)
 
 A unique subset of student records is used to establish a longitudinal baseline for cohort distribution analysis; the primary dataset is deduplicated and age-eligibility filters are applied ($17 \le x \le 64$). 
 
