@@ -1247,10 +1247,6 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 #1: paste to col E
-library(dplyr)
-
-# ---- Demographic Stratification of Near-Completers by Gender ----
-# Replaces: qry_Make_Near_completes_total_byGender
 
 near_completes_total_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
@@ -1311,13 +1307,36 @@ near_completes_total_with_stp_by_gender <- t_dacso_data_part_1 |>
   select(-has_stp_credential)
 
 #3: looks like paste to H (check)
-dbExecute(decimal_con, qry99_Completers_agg_by_gender)
-Completers_agg_by_gender <- dbReadTable(
-  decimal_con,
-  "Completers_agg_by_gender"
-) %>%
-  rename("completers" = "Count")
-dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender")
+
+completers_agg_by_gender <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group) |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "1",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(tpid_lgnd_cd != "0") |>
+  summarise(
+    completers = n(),
+    .by = c(
+      age_group,
+      prgm_credential_awarded_name,
+      tpid_lgnd_cd
+    )
+  )
+
+r_t <- completers_agg_by_gender
+s_t <- Completers_agg_by_gender
 
 ratio.df = Near_completes_total_byGender %>%
   left_join(Near_completes_total_with_STP_Credential_by_Gender) %>%
