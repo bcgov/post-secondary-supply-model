@@ -156,23 +156,54 @@ A deterministic tie-breaking protocol is applied to students possessing multiple
 
 Finally, subjects originally classified as "Near-Completers" (Status 3) who possess a verified provincial credential are "promoted" to "Graduate" status (Status 1). This reclassification synthesizes survey-level observations with administrative data, producing the `grad_status_factoring_in_stp` attribute, which serves as the terminal variable for provincial longitudinal success reporting.
 
-##### col H in Excel sheet
+##### Age at Grad Ratios
+
+Derived from sheet C_Outc12_13_14RatiosAgeGradCIP4 
+
+**col H**
 
 Raw respondent data is transformed into a structured frequency distribution of program classification (CIP-4) by age-based cohort.
-The "Near-Completer" population ($Status = 3$) is extracted from survey reporting cycles, specifically Outcome 19 and Outcome 20. Individual records are binned by categorical age bins where the respondent's age at graduation satisfies boundary conditions specified in the table `AgeGroupLookup`. The resulting table serves as a primary frequency matrix, cross-tabulating age groups with specific institutional credentials and 4-digit Classification of Instructional Programs (CIP) codes. 
+
+The "Near-Completer" population (**cosc_grad_status_lgds_cd_group = 3**) is extracted from survey reporting cycles, specifically Outcome 19 and Outcome 20. Individual records are binned by categorical age bins where the respondent's age at graduation satisfies boundary conditions specified in the table `AgeGroupLookup`. The resulting table serves as a primary frequency matrix, cross-tabulating age groups with specific institutional credentials and 4-digit Classification of Instructional Programs (CIP) codes. 
 
 Only those categories verified for the PSSM 2017-18 model are included in the final output; granular records are collapsed into higher-level taxonomic buckets, and a frequency count is computed for each unique intersection of variables.
 
-#####  Col I
+**col I**
 
-Student records that were transitioned from non-completer to graduate status for cycles (Outcomes 19 and 20) were isolated. This was achieved by isolated records for students whose academic status needed to be corrected, based on confirmed provincial matches ($Has\_STP\_Credential = 'Yes'$). These records are then stratified into a standardized frequency distribution, categorized by demographic age bins and 4-digit program classifications (CIP-4). 
+Student records that were transitioned from non-completer to graduate status for cycles (Outcomes 19 and 20) were isolated. This was achieved by identifying records for students whose academic status needed to be corrected, based on confirmed provincial matches (**Has_STP_Credential = 'Yes'**). These records are then stratified into a standardized frequency distribution, categorized by demographic age bins and 4-digit program classifications (CIP-4). 
+
+Only those categories verified for the PSSM 2017-18 model are included in the final output; Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
+
+**col K**
+
+Student records are identified for those who attained a confirmed graduate status (**grad_status_factoring_in_stp = '1'**) within the Outcomes 19 and 20 reporting cycles. These records are filtered to include only individuals within the mandatory 17–64 age range and are stratified into discrete age cohorts using a non-equi join with the agegrouplookup table. A frequency table is generated that aggregates counts by institutional credential name and 4-digit program classifications (CIP-4).
 
 Only those categories verified for the PSSM 2017-18 model are included in the final output; Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
 
-##### Col K
-Student records are identified for those who attained a confirmed graduate status (grad_status_factoring_in_stp = '1') within the Outcomes 19 and 20 reporting cycles. These records are filtered to include only individuals within the mandatory 17–64 age range and are stratified into discrete age cohorts using a non-equi join with the agegrouplookup table. A frequency table is generated that aggregates counts by institutional credential name and 4-digit program classifications (CIP-4).
+**col M**
 
-Only those categories verified for the PSSM 2017-18 model are included in the final output; Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
+Student records are identified for individuals attaining confirmed graduate status (**cosc_grad_status_lgds_cd_group = '1'**) within the Outcomes 19 and 20 reporting cycles. Observations are restricted to the mandatory 17–64 age range and stratified into discrete age cohorts via a non-equi join with the agegrouplookup table. 
+
+An initial frequency distribution is generated, aggregating record counts by demographic strata, institutional credential names, and 4-digit program classifications (CIP-4). Only those credential categories verified for the PSSM 2017-18 model are included in the final output. Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
+
+##### Gender at Grad Ratios
+
+Queries are for Excel: C_Outc12_13_14RatiosByGender
+
+**col E**
+Student records are identified for individuals maintaining a "Near-Completer" classification (cosc_grad_status_lgds_cd_group = '3') within the Outcomes 19 and 20 reporting cycles. Observations are filtered to exclude unspecified gender identifiers (tpid_lgnd_cd = '0') and are stratified into discrete age cohorts through a non-equi join with the age_group_lookup table.
+
+A frequency table is generated that aggregates respondent counts by gender, age group, and institutional program credential. Only those credential categories verified for the PSSM 2017-18 model are included in the final output. Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
+
+**col F**
+Student records are identified for with a confirmed administrative match within the Student Transitions Project (STP) dataset(**Has_STP_Credential = 'Yes'**) for the Outcomes 19 and 20 reporting cycles. The cohort is stratified into discrete age cohorts through a non-equi join with the age_group_lookup table and filtered to exclude unspecified gender identifiers (**tpid_lgnd_cd = '0'**). 
+
+A frequency table is generated that aggregates respondent counts by gender, age group, and institutional program credential. Only those credential categories verified for the PSSM 2017-18 model are included in the final output. Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
+
+**col H(?)**
+Student records are identified for individuals attaining confirmed graduate status (**cosc_grad_status_lgds_cd_group = '1'**) within the Outcomes 19 and 20 reporting cycles. Observations are restricted to the mandatory 17–64 age range and stratified into discrete age cohorts via a non-equi join with the age_group_lookup table. The dataset is further refined to exclude unspecified gender identifiers (**tpid_lgnd_cd = '0'**), ensuring demographic integrity.
+
+A frequency table is generated that aggregates respondent counts by gender, age group, and institutional program credential. Only those credential categories verified for the PSSM 2017-18 model are included in the final output. Some minor cleaning was performed before producing a purified count of "promoted" graduates across disparate academic fields. 
 
 #### Data Dictionary 
 
