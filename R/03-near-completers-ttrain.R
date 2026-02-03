@@ -1242,7 +1242,6 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 #1: paste to col E
-
 near_completes_total_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1302,7 +1301,6 @@ near_completes_total_with_stp_by_gender <- t_dacso_data_part_1 |>
   select(-has_stp_credential)
 
 #3: looks like paste to H (check)
-
 completers_agg_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1331,16 +1329,15 @@ completers_agg_by_gender <- t_dacso_data_part_1 |>
   )
 
 ## GOT TO HERE!!
-
-ratio.df = Near_completes_total_byGender |>
-  left_join(Near_completes_total_with_STP_Credential_by_Gender) |>
-  left_join(Completers_agg_by_gender) |>
+ratio.df = near_completes_total_by_gender |>
+  left_join(near_completes_total_with_stp_by_gender) |>
+  left_join(completers_agg_by_gender) |>
   rename("gender" = "tpid_lgnd_cd")
 
 # we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
-  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
+  mutate(n_nc_stp = count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
 ratio.df2 <- ratio.df |>
@@ -1354,7 +1351,7 @@ ratio.df2 <- ratio.df |>
     .by = c(gender, age_group, prgm_credential_awarded_name)
   )
 
-T_DACSO_Near_Completers_RatioByGender <-
+t_dacso_near_completers_ratio_by_gender <-
   ratio.df |>
   left_join(ratio.df2) |>
   mutate(
@@ -1369,52 +1366,99 @@ T_DACSO_Near_Completers_RatioByGender <-
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) |>
   select(-ratio_adgt)
 
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."T_DACSO_Near_Completers_RatioByGender"'
-  )),
-  T_DACSO_Near_Completers_RatioByGender
-)
-
 # 4. Same as above (3.) but by year - to get historical
 
 # 4.1: paste to col E
-dbExecute(decimal_con, qry99_Near_completes_total_byGender_year)
-Near_completes_total_byGender_year <- dbReadTable(
-  decimal_con,
-  "Near_completes_total_byGender_year"
-)
-dbExecute(decimal_con, "DROP TABLE Near_completes_total_byGender_year")
+
+near_completes_total_by_gender_year <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group) |>
+  filter(cosc_grad_status_lgds_cd_group == "3") |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(tpid_lgnd_cd != "0") |>
+  summarise(
+    count = n(),
+    .by = c(
+      coci_subm_cd,
+      tpid_lgnd_cd,
+      age_group,
+      prgm_credential_awarded_name
+    )
+  )
+
 
 # 4.2: paste to col F
-dbExecute(
-  decimal_con,
-  qry99_Near_completes_total_with_STP_Credential_by_Gender_year
-)
-Near_completes_total_with_STP_Credential_by_Gender_year <- dbReadTable(
-  decimal_con,
-  "Near_completes_total_with_STP_Credential_by_Gender_year"
-) |>
-  rename("nc_with_early_or_late" = "Count") |>
+near_completes_total_with_stp_by_gender_year <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group, -has_stp_credential) |>
+  inner_join(
+    t_dacso_data_part_1_tempselection |>
+      select(coci_stqu_id, has_stp_credential),
+    by = "coci_stqu_id"
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(
+    has_stp_credential == "Yes",
+    tpid_lgnd_cd != "0"
+  ) |>
+  summarise(
+    nc_with_early_or_late = n(),
+    .by = c(
+      coci_subm_cd,
+      tpid_lgnd_cd,
+      age_group,
+      prgm_credential_awarded_name,
+      has_stp_credential
+    )
+  ) |>
   select(-has_stp_credential)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Near_completes_total_with_STP_Credential_by_Gender_year"
-)
+
 
 # 4.3 get full ratio
-dbExecute(decimal_con, qry99_Completers_agg_by_gender_age_year)
-Completers_agg_by_gender_age_year <- dbReadTable(
-  decimal_con,
-  "Completers_agg_by_gender_age_year"
-) |>
-  rename("completers" = "Count")
-dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender_age_year")
+completers_agg_by_gender_age_year <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad) |>
+  select(-age_group) |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "1",
+    age_at_grad >= 17,
+    age_at_grad <= 64
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(tpid_lgnd_cd != "0") |>
+  summarise(
+    completers = n(),
+    .by = c(
+      coci_subm_cd,
+      age_group,
+      prgm_credential_awarded_name,
+      tpid_lgnd_cd
+    )
+  )
 
-ratio.df = Near_completes_total_byGender_year |>
-  left_join(Near_completes_total_with_STP_Credential_by_Gender_year) |>
-  left_join(Completers_agg_by_gender_age_year) |>
+ratio.df = near_completes_total_by_gender_year |>
+  left_join(near_completes_total_with_stp_by_gender_year) |>
+  left_join(completers_agg_by_gender_age_year) |>
   rename("gender" = "tpid_lgnd_cd")
 
 # we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
@@ -1436,7 +1480,7 @@ ratio.df2 <- ratio.df |>
 
 # my question here - is this the right year to switch to?
 # in lookup table, DACSO data should be sent back by one
-T_DACSO_Near_Completers_RatioByGender_year <-
+t_dacso_near_completers_ratio_by_gender_year <-
   ratio.df |>
   left_join(ratio.df2) |>
   mutate(
@@ -1454,14 +1498,6 @@ T_DACSO_Near_Completers_RatioByGender_year <-
   mutate(
     year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7, 8))) - 1
   )
-
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."T_DACSO_Near_Completers_RatioByGender_year"'
-  )),
-  T_DACSO_Near_Completers_RatioByGender_year
-)
 
 # random query
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
