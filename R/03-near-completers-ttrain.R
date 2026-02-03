@@ -99,7 +99,7 @@ tmp_tbl_age <- read_csv(
 # lookups
 tbl_age <- tibble(
   Age = 0:150
-) %>%
+) |>
   mutate(
     Age_Group = case_when(
       Age >= 15 & Age <= 16 ~ 1,
@@ -1032,16 +1032,16 @@ nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
   inner_join(
     age_group_lookup,
     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  ) %>%
+  ) |>
   inner_join(
     t_dacso_data_part_1_tempselection |> distinct(coci_stqu_id),
     by = "coci_stqu_id"
-  ) %>%
+  ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) %>%
-  filter(has_stp_credential == "Yes") %>%
+  ) |>
+  filter(has_stp_credential == "Yes") |>
   summarise(
     count = n(),
     .by = c(
@@ -1052,7 +1052,7 @@ nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
       lcp4_cd,
       lcp4_cip_4digits_name
     )
-  ) %>%
+  ) |>
   arrange(age_group, prgm_credential_awarded_name)
 
 near_completers_cip4_with_stp_combined_cred <- nearcompleters_cip4_with_stp_credential |>
@@ -1216,32 +1216,27 @@ completers_cip4_combined_cred <- completers_cip4_combined_cred |>
   )
 
 # ---- Make some ratios ----
-#T_DACSO_Near_Completers_RatioAgeAtGradCIP42 <-
 t_dacso_nearcompleters_ratioageatgradcip4 <-
-  #NearCompleters_CIP4_CombinedCred %>%
   nearcompleters_cip4_combinedcred |>
   left_join(
-    #NearCompleters_CIP4_With_STP_CombinedCred,
     near_completers_cip4_with_stp_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
-  ) %>%
+  ) |>
   left_join(
-    #CompletersFactoringInSTP_CIP4_CombinedCred,
     completers_factoring_in_stp_cip4_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
-  ) %>%
+  ) |>
   left_join(
-    #Completers_CIP4_CombinedCred,
     completers_cip4_combined_cred,
     by = join_by(age_group, lcip4_cred, lcp4_cd)
-  ) %>%
-  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
+  ) |>
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
   mutate(
     near_completers_stp_cred = count - nc_with_earlier_or_later,
     ratio = near_completers_stp_cred / completers,
     ratio_not_factoring_stp = near_completers_stp_cred / c_not_factoring_stp
-  ) %>%
-  mutate(across(where(is.double), ~ na_if(., Inf))) %>%
+  ) |>
+  mutate(across(where(is.double), ~ na_if(., Inf))) |>
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
 
@@ -1335,33 +1330,33 @@ completers_agg_by_gender <- t_dacso_data_part_1 |>
     )
   )
 
-## GOT TO HERE
+## GOT TO HERE!!
 
-ratio.df = Near_completes_total_byGender %>%
-  left_join(Near_completes_total_with_STP_Credential_by_Gender) %>%
-  left_join(Completers_agg_by_gender) %>%
+ratio.df = Near_completes_total_byGender |>
+  left_join(Near_completes_total_with_STP_Credential_by_Gender) |>
+  left_join(Completers_agg_by_gender) |>
   rename("gender" = "tpid_lgnd_cd")
 
 # we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
-ratio.df <- ratio.df %>%
-  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
-  mutate(n_nc_stp = Count - nc_with_early_or_late) %>%
+ratio.df <- ratio.df |>
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
+  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
-ratio.df2 <- ratio.df %>%
+ratio.df2 <- ratio.df |>
   filter(
     prgm_credential_awarded_name %in%
       c("Associate Degree", "University Transfer")
-  ) %>%
-  mutate(prgm_credential_awarded_name = "Associate Degree") %>%
+  ) |>
+  mutate(prgm_credential_awarded_name = "Associate Degree") |>
   summarise(
     ratio_adgt = sum(n_nc_stp) / sum(completers),
     .by = c(gender, age_group, prgm_credential_awarded_name)
   )
 
 T_DACSO_Near_Completers_RatioByGender <-
-  ratio.df %>%
-  left_join(ratio.df2) %>%
+  ratio.df |>
+  left_join(ratio.df2) |>
   mutate(
     ratio = if_else(
       prgm_credential_awarded_name %in%
@@ -1369,9 +1364,9 @@ T_DACSO_Near_Completers_RatioByGender <-
       ratio_adgt,
       ratio
     )
-  ) %>%
-  mutate(across(where(is.double), ~ na_if(., Inf))) %>%
-  mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
+  ) |>
+  mutate(across(where(is.double), ~ na_if(., Inf))) |>
+  mutate_all(function(x) ifelse(is.nan(x), NA, x)) |>
   select(-ratio_adgt)
 
 dbWriteTable(
@@ -1400,8 +1395,8 @@ dbExecute(
 Near_completes_total_with_STP_Credential_by_Gender_year <- dbReadTable(
   decimal_con,
   "Near_completes_total_with_STP_Credential_by_Gender_year"
-) %>%
-  rename("nc_with_early_or_late" = "Count") %>%
+) |>
+  rename("nc_with_early_or_late" = "Count") |>
   select(-has_stp_credential)
 dbExecute(
   decimal_con,
@@ -1413,27 +1408,27 @@ dbExecute(decimal_con, qry99_Completers_agg_by_gender_age_year)
 Completers_agg_by_gender_age_year <- dbReadTable(
   decimal_con,
   "Completers_agg_by_gender_age_year"
-) %>%
+) |>
   rename("completers" = "Count")
 dbExecute(decimal_con, "DROP TABLE Completers_agg_by_gender_age_year")
 
-ratio.df = Near_completes_total_byGender_year %>%
-  left_join(Near_completes_total_with_STP_Credential_by_Gender_year) %>%
-  left_join(Completers_agg_by_gender_age_year) %>%
+ratio.df = Near_completes_total_byGender_year |>
+  left_join(Near_completes_total_with_STP_Credential_by_Gender_year) |>
+  left_join(Completers_agg_by_gender_age_year) |>
   rename("gender" = "tpid_lgnd_cd")
 
 # we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
-ratio.df <- ratio.df %>%
-  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
-  mutate(n_nc_stp = Count - nc_with_early_or_late) %>%
+ratio.df <- ratio.df |>
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
+  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
-ratio.df2 <- ratio.df %>%
+ratio.df2 <- ratio.df |>
   filter(
     prgm_credential_awarded_name %in%
       c("Associate Degree", "University Transfer")
-  ) %>%
-  mutate(prgm_credential_awarded_name = "Associate Degree") %>%
+  ) |>
+  mutate(prgm_credential_awarded_name = "Associate Degree") |>
   summarise(
     ratio_adgt = sum(n_nc_stp) / sum(completers),
     .by = c(gender, age_group, prgm_credential_awarded_name)
@@ -1442,8 +1437,8 @@ ratio.df2 <- ratio.df %>%
 # my question here - is this the right year to switch to?
 # in lookup table, DACSO data should be sent back by one
 T_DACSO_Near_Completers_RatioByGender_year <-
-  ratio.df %>%
-  left_join(ratio.df2) %>%
+  ratio.df |>
+  left_join(ratio.df2) |>
   mutate(
     ratio = if_else(
       prgm_credential_awarded_name %in%
@@ -1451,10 +1446,10 @@ T_DACSO_Near_Completers_RatioByGender_year <-
       ratio_adgt,
       ratio
     )
-  ) %>%
-  mutate(across(where(is.double), ~ na_if(., Inf))) %>%
-  mutate_all(function(x) ifelse(is.nan(x), NA, x)) %>%
-  select(-ratio_adgt) %>%
+  ) |>
+  mutate(across(where(is.double), ~ na_if(., Inf))) |>
+  mutate_all(function(x) ifelse(is.nan(x), NA, x)) |>
+  select(-ratio_adgt) |>
   # subtract one here so that it's the first half of the school year
   mutate(
     year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7, 8))) - 1
