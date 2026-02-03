@@ -118,21 +118,21 @@ tbl_age <- tibble(
 
 t_pssm_projection_cred_grp <- tibble(
   PSSM_Projection_Credential = c(
-    "ADVANCED CERTIFICATE",
-    "ASSOCIATE DEGREE",
-    "ADVANCED DIPLOMA",
-    "BACHELORS DEGREE",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "DOCTORATE",
-    "GRADUATE CERTIFICATE",
-    "MASTERS DEGREE",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA",
-    "FIRST PROFESSIONAL DEGREE",
-    "GRADUATE DIPLOMA",
-    "APPRAPPR",
-    "APPRCERT"
+    "Advanced Certificate",
+    "Associate Degree",
+    "Advanced Diploma",
+    "Bachelors Degree",
+    "Certificate",
+    "Diploma",
+    "Doctorate",
+    "Graduate Certificate",
+    "Masters Degree",
+    "Post-Degree Certificate",
+    "Post-Degree Diploma",
+    "First Professional Degree",
+    "Graduate Diploma",
+    "Apprappr",
+    "Apprcert"
   ),
   PSSM_Credential = c(
     "ADCT or ADIP",
@@ -1015,7 +1015,6 @@ nearcompleters_cip4_combinedcred <- nearcompleters_cip4_combinedcred |>
 
 #2 (col I in Excel sheet)
 
-# ---- Extraction of Verified Transitions (Replaces SQL Query) ----
 nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
   filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
   select(
@@ -1499,40 +1498,140 @@ t_dacso_near_completers_ratio_by_gender_year <-
     year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7, 8))) - 1
   )
 
+
+# GOT TO HERE...
 # random query
 #dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
 
 # ---- TTRAIN tables ----
 # This part is not completed  - see documentation
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
-dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
-dbExecute(
-  decimal_con,
-  qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN
-)
-dbExecute(decimal_con, qry99_Near_completes_program_dist_count)
+# BA Notes: What do we do with these?
+near_completes_total_by_cip4_ttrain <- t_dacso_data_part_1 |>
+  rename(age_at_grad = Age_At_Grad, lcip4_cred = LCIP4_CRED) |>
+  select(-age_group) |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "3",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20")
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  summarise(
+    count = n(),
+    .by = c(
+      age_group,
+      prgm_credential_awarded_name,
+      lcip4_cred,
+      lcp4_cd,
+      lcp4_cip_4digits_name,
+      ttrain,
+      cosc_grad_status_lgds_cd_group
+    )
+  )
 
-dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-dbExecute(
+near_completes_total_with_stp_by_cip4_ttrain <- t_dacso_data_part_1 |>
+  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
+  rename(age_at_grad = Age_At_Grad, lcip4_cred = LCIP4_CRED) |>
+  select(-age_group, -has_stp_credential) |>
+  inner_join(
+    t_dacso_data_part_1_tempselection |>
+      select(coci_stqu_id, has_stp_credential),
+    by = "coci_stqu_id"
+  ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+  ) |>
+  filter(has_stp_credential == "Yes") |>
+  summarise(
+    count = n(),
+    .by = c(
+      age_group,
+      prgm_credential_awarded_name,
+      has_stp_credential,
+      lcip4_cred,
+      lcp4_cd,
+      lcp4_cip_4digits_name,
+      ttrain,
+      cosc_grad_status_lgds_cd_group
+    )
+  )
+
+# the grouping columns are not not included in the join - which side (.x or .y) should we
+# group on?
+t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain <- near_completes_total_by_cip4_ttrain |>
+  select(
+    age_group,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    ttrain,
+    cosc_grad_status_lgds_cd_group,
+    prgm_credential_awarded_name,
+    count
+  ) |>
+  inner_join(
+    t_pssm_projection_cred_grp,
+    by = join_by(prgm_credential_awarded_name == PSSM_Projection_Credential)
+  ) |>
+  left_join(
+    near_completes_total_with_stp_by_cip4_ttrain,
+    by = c("ttrain", "age_group", "prgm_credential_awarded_name", "lcip4_cred"),
+    suffix = c(".total", ".stp")
+  )
+
+t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain <- t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
+  summarise(
+    pssm_cred = paste0(
+      first(cosc_grad_status_lgds_cd_group.total),
+      " - ",
+      first(PSSM_Credential)
+    ),
+    count_total = sum(count.total, na.rm = TRUE),
+    near_completers_with_stp = sum(replace_na(count.stp, 0)),
+    near_completers_remaining = count_total - near_completers_with_stp,
+    .by = c(
+      PSSM_Credential,
+      age_group,
+      lcip4_cred,
+      lcp4_cd.total,
+      lcp4_cip_4digits_name.total,
+      cosc_grad_status_lgds_cd_group.total,
+      ttrain
+    )
+  )
+
+r_t <- t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain
+s_t <- dbReadTable(
   decimal_con,
-  "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN"
+  "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"
 )
+
 
 # ---- HISTORICAL TTRAIN queries ----
 # note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
-dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
-dbExecute(
-  decimal_con,
-  qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history
-)
-dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history)
-
-dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN"
-)
-
+#dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
+#dbExecute(
+#  decimal_con,
+#  qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history
+#)
+#dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history)
+#
+#dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
+#dbExecute(
+#  decimal_con,
+#  "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN"
+#)
 
 # ---- Clean Up ----
 # TODO: clean up this section
