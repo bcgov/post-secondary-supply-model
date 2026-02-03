@@ -10,31 +10,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script computes the ratio of near completers to graduates by age group and credential
-# Near completers who later received a credential according to the STP Credential
-# file or had an earlier credential are subtracted from the total of all near completers.
-#
-# Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64
-# Credentials: From Diploma, Associate Degree, and Certificate Outcomes Survey cohorts.
-# Survey years: 2018, 2019, 2020, 2021, 2022, 2023 for PSSM 2023
-# STP Credential years searched: 2002/03 - 2022/23
-#
-# Annual ratios are computed for all available years and an average taken of two or three representative years
-# (chosen by investigation).  PSSM model 2023 used an average ratio of 2018-2019.
-# Notes: Using age at grad (not age at survey) for age groupings.
-
 library(tidyverse)
 library(DBI)
 library(odbc)
 library(config)
 
 # ---- Configure LAN and file paths ----
-#db_config <- config::get("decimal")
+#PR Notes for this section:
+
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-#db_schema <- config::get("dbschema")
 
 # ---- Connection to database ----
+#PR Notes for this section:
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(
   odbc::odbc(),
@@ -45,30 +33,37 @@ decimal_con <- dbConnect(
 )
 
 # ---- Data Requirements and SQL Definitons ----
-#source("./sql/03-near-completers/near-completers-investigation-ttrain.R")
-#source("./sql/03-near-completers/dacso-near-completers.R")
+# PR Notes for this section:
+# 1) several tables were made in earlier scripts that I assume will be
+# written back to decimal for intermediate storage (between script processes).  For the PR, you may need
+# to bring them in from the master schema into your schema before running this code.
+# 2) tmp_tbl_age has some strange design issues.  Historically, the analyst appended new data onto old data
+# but now we should be able to work with SO team to transfer one csv (possibly split into years) to the LAN.
+# For development, there are historical years that we are appending (can we remove them) and both sets
+# are likley to have duplicates.  For development, we need to write this table to decimal (after doing distinct())
+# along with tmp_tbl_age.  We need to remove one of these tables after this refactor
 
-# tables made in earlier part of workflow
-# for testing, copy T_DACSO_Data_Part_1 from dbo.  Drop Age_At_Grad
+#source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
+#source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
+
 t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
 ) |>
-  select(-Age_At_Grad, -Grad_Status_Factoring_in_STP, -Has_STP_Credential)
+  select(-Age_At_Grad, -Grad_Status_Factoring_in_STP, -Has_STP_Credential) # remove after this refactor
 
 credential_non_dup <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 )
 
-#stp_credential <- dbReadTable(
-#  decimal_con,
-#  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
-#)
+stp_credential <- dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+)
 
-# "rollover table" - this data is provisioned from SO
 years <- 2018:2023
-# write to Decimal as tmp_tbl_Age_AppendNewYears
+
 tmp_tbl_age_append_new_years <- years |>
   purrr::map_dfr(
     ~ {
@@ -78,12 +73,8 @@ tmp_tbl_age_append_new_years <- years |>
       read_csv(file_path, col_types = "dcdcd")
     }
   ) |>
-  distinct() # this creates dups. TODO: investigate
+  distinct() # duplicates in this data
 
-# write to Decimal as tmp_tbl_Age - historically this strategy was used as a
-# shortcut to pulling all years each time.  The new years of data were appended
-# to last model run's data.
-# moving forward, we should be able to ask for X number of years.
 tmp_tbl_age <- read_csv(
   glue::glue(
     "{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"
@@ -94,7 +85,8 @@ tmp_tbl_age <- read_csv(
     TPID_DATE_OF_BIRTH = as.Date(TPID_DATE_OF_BIRTH),
     COSC_ENRL_END_DATE = as.Date(COSC_ENRL_END_DATE),
     COSC_GRAD_CREDENTIAL_DATE = as.Date(COSC_GRAD_CREDENTIAL_DATE)
-  )
+  ) |>
+  distinct() # no duplicates in this data, but just in case.
 
 # lookups
 tbl_age <- tibble(
@@ -332,6 +324,14 @@ if (length(missing) > 0) {
 na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
+# PR Notes for this section:
+# 1) near the end of this section we create a new table from the t_dacso dataset.
+# The new table will be used later in the workflow; I think it is erronesouly
+# placed here in this section.
+# 2) the next section of the script is a "Check" used for a manual decision:
+# It was used to pick representitive years from which to calculate the completers to near-completers ratio.
+# I suspect the analyst had other insight to draw upon when making this decsion.
+
 # combine all age data from previous and new years
 tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
   select(
@@ -345,11 +345,12 @@ tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
     TPID_DATE_OF_BIRTH = lubridate::ym(TPID_DATE_OF_BIRTH, quiet = TRUE), # implicitly convert "bad" dates to NA
     COSC_ENRL_END_DATE = lubridate::ym(COSC_ENRL_END_DATE, quiet = TRUE), # implicitly convert "bad" dates to NA
     COSC_GRAD_CREDENTIAL_DATE = NA_character_,
-    Age_At_Grad = NA_real_
+    Age_At_Grad = NA_real_ # remove after this refactor
   )
 
 tmp_tbl_age <- tmp_tbl_age |>
   rbind(tmp_tbl_age_append_new_years) |>
+  select(-Age_At_Grad) |> # remove after this refactor
   distinct() # just in case
 
 # derive age at grad variable
@@ -379,7 +380,7 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   ) |>
   distinct() # just in case
 
-# temp table useful for something...
+# this table should be moved out of this section (see notes above)
 t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
   distinct(
     coci_stqu_id,
@@ -393,10 +394,6 @@ t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
     pssm_credential_name
   )
 
-# was used this to pick representitive years for completers:non-completers
-# the logic used to pick the ratio has something to
-# do with the particular years (COVID messed some of this up)
-# but probably can use just an average.  decision point.
 t_dacso_data_part_1_tempselection |>
   filter(
     !is.na(cosc_grad_status_lgds_cd_group),
@@ -422,6 +419,7 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
+# PR Notes:
 # join t_dacso data with credential_non_dup,
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
@@ -959,13 +957,14 @@ t_dacso_data_part_1_tempselection |>
   arrange(coci_subm_cd, cosc_grad_status_lgds_cd_group)
 
 
-# Queries are for Excel: C_Outc12_13_14RatiosAgeGradCIP4
 # ----------------------- Transferred From Excel Sheet -----------------------
-names(age_group_lookup) <- tolower(names(age_group_lookup)) # here for development to match SQL
+# PR Notes:
+# 1) age_group_lookup colnames are set to lower case here to align with SQL queries
+# 2) col H: we appear to be using different age groups from the original.  However,
+# there is code to handle this in 04-graduate-projections.R so we get to decide which way is "right"
+names(age_group_lookup) <- tolower(names(age_group_lookup)) # remove (or move) after refactor
 
 #1 (col H in Excel sheet C_Outc12_13_14RatiosAgeGradCIP4)
-# BA Notes: I'm concerned we are using different age groups compared with the original sheet
-
 nearcompleters_cip4 <- t_dacso_data_part_1 |>
   select(-age_group) |>
   filter(
@@ -1327,7 +1326,6 @@ completers_agg_by_gender <- t_dacso_data_part_1 |>
     )
   )
 
-## GOT TO HERE!!
 ratio.df = near_completes_total_by_gender |>
   left_join(near_completes_total_with_stp_by_gender) |>
   left_join(completers_agg_by_gender) |>
@@ -1463,7 +1461,7 @@ ratio.df = near_completes_total_by_gender_year |>
 # we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
-  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
+  mutate(n_nc_stp = count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
 ratio.df2 <- ratio.df |>

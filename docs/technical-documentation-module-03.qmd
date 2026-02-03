@@ -24,7 +24,6 @@ This script computes the ratio of near completers to graduates by age group and 
 
 Annual ratios are computed for all available years and an average taken of two or three representative years (chosen by investigation).  PSSM model 2023 used an average ratio of 2018-2019. 
 
-
 ## Data Sources and Storage
 
 ### External Data Sources 
