@@ -1335,8 +1335,7 @@ completers_agg_by_gender <- t_dacso_data_part_1 |>
     )
   )
 
-r_t <- completers_agg_by_gender
-s_t <- Completers_agg_by_gender
+## GOT TO HERE
 
 ratio.df = Near_completes_total_byGender %>%
   left_join(Near_completes_total_with_STP_Credential_by_Gender) %>%
