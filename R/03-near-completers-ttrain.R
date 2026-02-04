@@ -34,14 +34,19 @@ decimal_con <- dbConnect(
 
 # ---- Data Requirements and SQL Definitons ----
 # PR Notes for this section:
-# 1) several tables were made in earlier scripts that I assume will be
+# 1) several key tables were made in earlier scripts that I assume will be
 # written back to decimal for intermediate storage (between script processes).  For the PR, you may need
-# to bring them in from the master schema into your schema before running this code.
-# 2) tmp_tbl_age has some strange design issues.  Historically, the analyst appended new data onto old data
-# but now we should be able to work with SO team to transfer one csv (possibly split into years) to the LAN.
-# For development, there are historical years that we are appending (can we remove them) and both sets
-# are likley to have duplicates.  For development, we need to write this table to decimal (after doing distinct())
-# along with tmp_tbl_age.  We need to remove one of these tables after this refactor
+# to bring them in from the master schema into your schema before running this code.  You'll need the following key
+# tables in decimal: STP_Credential, t_dacso_data_part_1,credential_non_dup
+# 2) additionally, for the PR only, you'll need a few lookup tables in decimal.  They are on the LAN but I hard-coded
+# them here so you can write them to decimal if you like. The LAN versions are in development/csv/gh-source/lookups. I tried to keep the upper/lower case the same as SQL
+# so sometimes you'll see a column with mixed types (we can change later).  The exception is t_pssm_projection_cred_grp; I
+# updated the hard-coded values in one column so they were comparable across datasets in R.  SQL Server is not case-sensitive
+# so those queries should run as expected, the only implication is if you load this table from LAN the R code will be wrong.
+# 3) tmp_tbl_age is oddly designed.  Historically, the analyst appended new data onto old data
+# but now we should be able to work with SO team to transfer one csv (possibly split across years) to the LAN.
+# For development, we currently append new years to historical data (one of the datasets contains duplicates); we write
+# the combined table to decimal along with tmp_tbl_age to get the queries to run.
 
 #source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
 #source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
@@ -181,6 +186,7 @@ t_pssm_projection_cred_grp <- tibble(
 
 
 combine_creds <- tibble(
+  id = 1:9,
   combined_cred = c(
     "3 - ADCT or ADIP",
     "3 - ADGR or UT",
@@ -323,8 +329,19 @@ if (length(missing) > 0) {
 
 na_vals = c("", " ", "(Unspecified)", NA)
 
+#remove after refactor
+#dbWriteTable(decimal_con, "tmp_tbl_age", tmp_tbl_age, overwrite = TRUE)
+#dbWriteTable(decimal_con, "tmp_tbl_age_append_new_years", tmp_tbl_age_append_new_years, overwrite = TRUE)
+#dbWriteTable(decimal_con, "stp_dacso_prgm_credential_lookup", stp_dacso_prgm_credential_lookup, overwrite = TRUE)
+#dbWriteTable(decimal_con, "combine_creds", combine_creds, overwrite = TRUE)
+#dbWriteTable(decimal_con, "credential_rank", credential_rank, overwrite = TRUE)
+#dbWriteTable(decimal_con, "tbl_age", tbl_age, overwrite = TRUE)
+#dbWriteTable(decimal_con, "t_pssm_projection_cred_grp", t_pssm_projection_cred_grp, overwrite = TRUE)
+#dbWriteTable(decimal_con, "AgeGroupLookup", age_group_lookup)
+
 # ---- Derive Age at Grad ----
 # PR Notes for this section:
+# replicates lines 69:87 (main branch)
 # 1) near the end of this section we create a new table from the t_dacso dataset.
 # The new table will be used later in the workflow; I think it is erronesouly
 # placed here in this section.
