@@ -51,11 +51,24 @@ decimal_con <- dbConnect(
 #source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
 #source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
 
+#dbExecute(
+#  decimal_con,
+#  SQL(glue::glue(
+#    'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
+#  ))
+#)
+
 t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
-) |>
-  select(-Age_At_Grad, -Grad_Status_Factoring_in_STP, -Has_STP_Credential) # remove after this refactor
+)
+
+#dbExecute(
+#  decimal_con,
+#  SQL(glue::glue(
+#    'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
+#  ))
+#)
 
 credential_non_dup <- dbReadTable(
   decimal_con,
@@ -80,6 +93,12 @@ tmp_tbl_age_append_new_years <- years |>
   ) |>
   distinct() # duplicates in this data
 
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')),
+#  tmp_tbl_age_append_new_years
+#)
+
 tmp_tbl_age <- read_csv(
   glue::glue(
     "{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"
@@ -92,6 +111,12 @@ tmp_tbl_age <- read_csv(
     COSC_GRAD_CREDENTIAL_DATE = as.Date(COSC_GRAD_CREDENTIAL_DATE)
   ) |>
   distinct() # no duplicates in this data, but just in case.
+
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')),
+#  tmp_tbl_age
+#)
 
 # lookups
 tbl_age <- tibble(
@@ -234,7 +259,7 @@ combine_creds <- tibble(
 )
 
 stp_dacso_prgm_credential_lookup <- tibble(
-  PRGM_Credential_Awarded = c(
+  PRGRM_Credential_Awarded = c(
     "ADGR",
     "ADIP",
     "CERT",
@@ -267,6 +292,12 @@ stp_dacso_prgm_credential_lookup <- tibble(
     "POST-DEGREE DIPLOMA",
     "BACHELORS DEGREE"
   )
+)
+dbWriteTable(
+  decimal_con,
+  "stp_dacso_prgm_credential_lookup",
+  stp_dacso_prgm_credential_lookup,
+  overwrite = TRUE
 )
 
 
@@ -340,13 +371,14 @@ na_vals = c("", " ", "(Unspecified)", NA)
 #dbWriteTable(decimal_con, "AgeGroupLookup", age_group_lookup)
 
 # ---- Derive Age at Grad ----
-# PR Notes for this section:
 # replicates lines 69:87 (main branch)
+# testing: t_dacso_data_part_1_tempselection vs output of query at line 87 (main branch)
+## Notes:
 # 1) near the end of this section we create a new table from the t_dacso dataset.
 # The new table will be used later in the workflow; I think it is erronesouly
-# placed here in this section.
-# 2) the next section of the script is a "Check" used for a manual decision:
-# It was used to pick representitive years from which to calculate the completers to near-completers ratio.
+# placed here in this section but perfect for testing the code in this section.
+# I believe it is a "Check" used for a manual decision: used to pick representitive years
+# from which to calculate the completers to near-completers ratio.
 # I suspect the analyst had other insight to draw upon when making this decsion.
 
 # combine all age data from previous and new years
@@ -397,7 +429,7 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   ) |>
   distinct() # just in case
 
-# this table should be moved out of this section (see notes above)
+# this table isn't really relevent to this section (see notes above)
 t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
   distinct(
     coci_stqu_id,
@@ -428,6 +460,12 @@ t_dacso_data_part_1_tempselection |>
   )
 
 # ---- Add PEN to Non-Dup table ----
+# replicates lines 90:101 (main branch)
+# testing: NA
+## Notes:
+#  1) (from main branch) "Move to earlier workflow - 02 series.
+#   This updates credential non-dup in current schema only".  We should
+# confirm this.
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
@@ -436,8 +474,10 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
-# PR Notes:
-# join t_dacso data with credential_non_dup,
+# replicates lines 90:101 (main branch)
+# testing:at end of section, compare dacso_matching_stp_credential_pen in R vs dacso_matching_stp_credential_pen in SQL
+# testing: at end of section, compare qry06 at line 124 (main) vs match_summary_table in R
+## Notes:
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
   inner_join(
@@ -469,10 +509,10 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   left_join(
     stp_dacso_prgm_credential_lookup |>
       select(
-        prgm_credential_awarded = PRGM_Credential_Awarded,
+        prgrm_credential_awarded = PRGRM_Credential_Awarded,
         stp_prgm_credential_awarded_name = STP_PRGM_Credential_Awarded_Name
       ),
-    by = c("prgm_credential_awarded" = "prgm_credential_awarded")
+    by = c("prgm_credential_awarded" = "prgrm_credential_awarded")
   )
 
 dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
@@ -496,46 +536,13 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
       "Yes", #align with SQL version which capitalizes this
       NA_character_
     ),
-    match_award_school_year = if_else(
-      # Extract digits from 'C_OutcXX' and compare against school year ranges
-      (coci_subm_cd == "C_Outc06" &
-        psi_award_school_year %in% c("2003/2004", "2004/2005")) |
-        (coci_subm_cd == "C_Outc07" &
-          psi_award_school_year %in% c("2004/2005", "2005/2006")) |
-        (coci_subm_cd == "C_Outc08" &
-          psi_award_school_year %in% c("2005/2006", "2006/2007")) |
-        (coci_subm_cd == "C_Outc09" &
-          psi_award_school_year %in% c("2006/2007", "2007/2008")) |
-        (coci_subm_cd == "C_Outc10" &
-          psi_award_school_year %in% c("2007/2008", "2008/2009")) |
-        (coci_subm_cd == "C_Outc11" &
-          psi_award_school_year %in% c("2008/2009", "2009/2010")) |
-        (coci_subm_cd == "C_Outc12" &
-          psi_award_school_year %in% c("2009/2010", "2010/2011")) |
-        (coci_subm_cd == "C_Outc13" &
-          psi_award_school_year %in% c("2010/2011", "2011/2012")) |
-        (coci_subm_cd == "C_Outc14" &
-          psi_award_school_year %in% c("2011/2012", "2012/2013")) |
-        (coci_subm_cd == "C_Outc15" &
-          psi_award_school_year %in% c("2012/2013", "2013/2014")) |
-        (coci_subm_cd == "C_Outc16" &
-          psi_award_school_year %in% c("2013/2014", "2014/2015")) |
-        (coci_subm_cd == "C_Outc17" &
-          psi_award_school_year %in% c("2014/2015", "2015/2016")) |
-        (coci_subm_cd == "C_Outc18" &
-          psi_award_school_year %in% c("2015/2016", "2016/2017")) |
-        (coci_subm_cd == "C_Outc19" &
-          psi_award_school_year %in% c("2016/2017", "2017/2018")) |
-        (coci_subm_cd == "C_Outc20" &
-          psi_award_school_year %in% c("2017/2018", "2018/2019")) |
-        (coci_subm_cd == "C_Outc21" &
-          psi_award_school_year %in% c("2018/2019", "2019/2020")) |
-        (coci_subm_cd == "C_Outc22" &
-          psi_award_school_year %in% c("2019/2020", "2020/2021")) |
-        (coci_subm_cd == "C_Outc23" &
-          psi_award_school_year %in% c("2020/2021", "2021/2022")),
-      "yes",
-      NA_character_
+    suffix = as.numeric(str_extract(coci_subm_cd, "\\d+$")),
+    base_year = 1997 + suffix,
+    psi_start_year = as.numeric(str_sub(psi_award_school_year, 1, 4)),
+    match_award_school_year = case_when(
+      psi_start_year == base_year ~ "yes",
+      psi_start_year == base_year + 1 ~ "yes",
+      TRUE ~ NA_character_
     ),
     match_inst = if_else(
       psi_code == coci_inst_cd |
@@ -550,7 +557,8 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
       "yes",
       NA_character_
     )
-  )
+  ) |>
+  select(-suffix, -base_year, -psi_start_year)
 
 match_summary_table <- dacso_matching_stp_credential_pen |>
   group_by(
