@@ -1291,8 +1291,11 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 
 # ----------------------- Gender by CIP4 Ratios -----------------------
 # replicates lines 281:324 (main branch)
-# testing: 1) run the code from here to to line 1422 (refactor branch).  Run the queries from line 281 to 324 (main branch).
+# testing:
+# 1) run the code from here to to line 1426 (refactor branch).  Run the queries from line 281 to 324 (main branch).
 # There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender and t_dacso_near_completers_ratio_by_gender.
+# 2) run the code from line 1426 to line 1558 (refactor branch).  Run the queries from line 329 to 374 (main branch).
+# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender_year and t_dacso_near_completers_ratio_by_gender_year.
 # Notes:
 # 1) See notes for above section, this code replicates queries linked to the same Excel workbook, different sheet.
 
@@ -1555,155 +1558,47 @@ t_dacso_near_completers_ratio_by_gender_year <-
   )
 
 
-# GOT TO HERE...
-# random query
-#dbGetQuery(decimal_con, qry99_Near_completes_factoring_in_STP_total)
+# GOT TO HERE...leaving for now but the TTRAIN flag is available if we want to include it.
 
 # ---- TTRAIN tables ----
 # This part is not completed  - see documentation
 # Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
-# BA Notes: What do we do with these?
-near_completes_total_by_cip4_ttrain <- t_dacso_data_part_1 |>
-  rename(age_at_grad = Age_At_Grad, lcip4_cred = LCIP4_CRED) |>
-  select(-age_group) |>
-  filter(
-    cosc_grad_status_lgds_cd_group == "3",
-    coci_subm_cd %in% c("C_Outc19", "C_Outc20")
-  ) |>
-  inner_join(
-    age_group_lookup,
-    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  ) |>
-  left_join(
-    credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) |>
-  summarise(
-    count = n(),
-    .by = c(
-      age_group,
-      prgm_credential_awarded_name,
-      lcip4_cred,
-      lcp4_cd,
-      lcp4_cip_4digits_name,
-      ttrain,
-      cosc_grad_status_lgds_cd_group
-    )
-  )
-
-near_completes_total_with_stp_by_cip4_ttrain <- t_dacso_data_part_1 |>
-  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
-  rename(age_at_grad = Age_At_Grad, lcip4_cred = LCIP4_CRED) |>
-  select(-age_group, -has_stp_credential) |>
-  inner_join(
-    t_dacso_data_part_1_tempselection |>
-      select(coci_stqu_id, has_stp_credential),
-    by = "coci_stqu_id"
-  ) |>
-  inner_join(
-    age_group_lookup,
-    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  ) |>
-  left_join(
-    credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) |>
-  filter(has_stp_credential == "Yes") |>
-  summarise(
-    count = n(),
-    .by = c(
-      age_group,
-      prgm_credential_awarded_name,
-      has_stp_credential,
-      lcip4_cred,
-      lcp4_cd,
-      lcp4_cip_4digits_name,
-      ttrain,
-      cosc_grad_status_lgds_cd_group
-    )
-  )
-
-# the grouping columns are not not included in the join - which side (.x or .y) should we
-# group on?
-t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain <- near_completes_total_by_cip4_ttrain |>
-  select(
-    age_group,
-    lcip4_cred,
-    lcp4_cd,
-    lcp4_cip_4digits_name,
-    ttrain,
-    cosc_grad_status_lgds_cd_group,
-    prgm_credential_awarded_name,
-    count
-  ) |>
-  inner_join(
-    t_pssm_projection_cred_grp,
-    by = join_by(prgm_credential_awarded_name == PSSM_Projection_Credential)
-  ) |>
-  left_join(
-    near_completes_total_with_stp_by_cip4_ttrain,
-    by = c("ttrain", "age_group", "prgm_credential_awarded_name", "lcip4_cred"),
-    suffix = c(".total", ".stp")
-  )
-
-t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain <- t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
-  summarise(
-    pssm_cred = paste0(
-      first(cosc_grad_status_lgds_cd_group.total),
-      " - ",
-      first(PSSM_Credential)
-    ),
-    count_total = sum(count.total, na.rm = TRUE),
-    near_completers_with_stp = sum(replace_na(count.stp, 0)),
-    near_completers_remaining = count_total - near_completers_with_stp,
-    .by = c(
-      PSSM_Credential,
-      age_group,
-      lcip4_cred,
-      lcp4_cd.total,
-      lcp4_cip_4digits_name.total,
-      cosc_grad_status_lgds_cd_group.total,
-      ttrain
-    )
-  )
-
-r_t <- t_dacso_near_completers_ratios_age_at_grad_cip4_ttrain
-s_t <- dbReadTable(
-  decimal_con,
-  "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"
-)
-
-
-# ---- HISTORICAL TTRAIN queries ----
-# note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
+#dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
+#dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
+#dbExecute(decimal_con, qry99_Near_completes_program_dist_count)
+#
+#dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
+#dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+#
+## ---- HISTORICAL TTRAIN queries ----
+## note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
 #dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
-#dbExecute(
-#  decimal_con,
-#  qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history
-#)
+#dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history)
 #dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history)
 #
 #dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-#dbExecute(
-#  decimal_con,
-#  "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN"
-#)
+#dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
 
 # ---- Clean Up ----
 # TODO: clean up this section
-dbExecute(decimal_con, "DROP TABLE stp_dacso_prgm_credential_lookup")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Age")
-dbExecute(decimal_con, "DROP TABLE tbl_Age")
-dbExecute(decimal_con, "DROP TABLE AgeGroupLookup")
-dbExecute(decimal_con, "DROP TABLE T_DACSO_DATA_Part_1_TempSelection")
-dbExecute(decimal_con, "DROP TABLE combine_creds")
-dbExecute(decimal_con, "DROP TABLE t_pssm_projection_cred_grp")
-dbExecute(decimal_con, "drop table nearcompleters_cip4_combinedcred")
-dbExecute(decimal_con, "drop table NearCompleters_CIP4_With_STP_CombinedCred")
-dbExecute(decimal_con, "drop table CompletersFactoringInSTP_CIP4_CombinedCred")
-dbExecute(decimal_con, "drop table Completers_CIP4_CombinedCred")
-
-# ---- Keep for program projections ----
-dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN")
-dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioAgeAtGradCIP4")
-dbExistsTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")
+tables_to_keep <- c(
+  "stp_enrolment",
+  "stp_credential",
+  "stp_enrolment_record_type",
+  "stp_credential_record_type",
+  "stp_enrolment_valid",
+  "age_group_lookup",
+  "credential_rank",
+  "credential",
+  "credential_non_dup",
+  "credential_sup_vars",
+  "tbl_credential_highest_rank",
+  "tbl_credential_delay_effect",
+  "outcome_credential",
+  "min_enrolment",
+  "t_dacso_near_completers_ratio_by_gender_year",
+  "t_dacso_near_completers_ratio_by_gender",
+  "t_dacso_nearcompleters_ratioageatgradcip4"
+)
+rm(list = setdiff(ls(), tables_to_keep))
+dbDisconnect(decimal_con)
