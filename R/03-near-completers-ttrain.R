@@ -611,6 +611,8 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   )
 
 # ---- Flag near-completers with earlier or later credential----
+# replicates lines 135:147  (main branch)
+# testing: at end of section, compare t_dacso_nearcompleters in R vs t_dacso_nearcompleters in SQL
 
 #identify "Near-Completers" and join their survey data with their credential records.
 nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
@@ -734,6 +736,12 @@ t_dacso_nearcompleters <- t_dacso_data_part_1 |>
   )
 
 # ---- Flag near-completers with multiple credentials----
+# replicates lines 150:204 (main branch)
+# testing: at end of section, compare t_dacso_data_part_1 in R vs t_dacso_data_part_1 in SQL.  This one table
+# should carry all of the flags we create in this section.
+# Notes: there is quite a bit we can do to condense this code. Leaving for now but noting that
+# the logic is similar to prior workflows; when faced with the problem of picking one label in a column
+# we often use a window-function approach, removing the need for intermediate vectors and multiple steps.
 
 # Update the main matching table with 'Multiple' and 'UseThis' flags
 nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
@@ -897,8 +905,10 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   )
 
 # ----- Check Near Completers Ratios -----
-# Note: the table tmp_tbl_Age in my schema had
-# duplicates.  Fixed (I think) but keep an eye on it.
+# replicates lines 207:211 (main branch)
+# testing: check each code chunk against each query on main branch.  Each SQL
+# query generates output in R.
+
 t_dacso_data_part_1_tempselection |>
   filter(
     !is.na(cosc_grad_status_lgds_cd_group),
@@ -977,17 +987,39 @@ t_dacso_data_part_1_tempselection |>
     coci_subm_cd,
     cosc_grad_status_lgds_cd_group,
     grad_status_factoring_in_stp,
-    name = "record_count"
+    name = "expr1"
   ) |>
   arrange(coci_subm_cd, cosc_grad_status_lgds_cd_group)
 
 
 # ----------------------- Transferred From Excel Sheet -----------------------
-# PR Notes:
-# 1) age_group_lookup colnames are set to lower case here to align with SQL queries
+
+# ----------------------- Age At Grad by CIP4 Ratios -----------------------
+# replicates lines 214:279 (main branch)
+# testing: 1) run the code from here to to line 1290 (refactor branch).  Run the queries from line 215 to 279 (main branch).
+# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioAgeAtGradCIP4 and t_dacso_nearcompleters_ratioageatgradcip4.
+# Notes:
+# 1) age_group_lookup colnames are set to lower case here to align with the SQL queries from here to the end of script.
 # 2) col H: we appear to be using different age groups from the original.  However,
-# there is code to handle this in 04-graduate-projections.R so we get to decide which way is "right"
+# there is code to handle this in 04-graduate-projections.R so we get to decide which way is "right" later.
+# 3) The section replicates queries linked to this Excel workbook: 2017-2018\Development\Graduate Model\Near Completers.
+# Each section of code is labeled with a reference to the sheet name and column of data - these values will not be identical (we used different years)
+# but should be similar.
+# 4) AgeGroupLookup columns in SQL follow a different naming convention.  I've changed the colnames here - I'm thinking we can remove them
+# when we figure this out.
 names(age_group_lookup) <- tolower(names(age_group_lookup)) # remove (or move) after refactor
+dbGetQuery(
+  decimal_con,
+  "EXEC sp_rename 'AgeGroupLookup.LowerBound', 'Lower_Bound', 'COLUMN';"
+)
+dbGetQuery(
+  decimal_con,
+  "EXEC sp_rename 'AgeGroupLookup.UpperBound', 'Upper_Bound', 'COLUMN';"
+)
+dbGetQuery(
+  decimal_con,
+  "EXEC sp_rename 'AgeGroupLookup.AgeGroup', 'Age_Group', 'COLUMN';"
+)
 
 #1 (col H in Excel sheet C_Outc12_13_14RatiosAgeGradCIP4)
 nearcompleters_cip4 <- t_dacso_data_part_1 |>
@@ -1038,7 +1070,6 @@ nearcompleters_cip4_combinedcred <- nearcompleters_cip4_combinedcred |>
   )
 
 #2 (col I in Excel sheet)
-
 nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
   filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
   select(
@@ -1102,9 +1133,7 @@ near_completers_cip4_with_stp_combined_cred <- near_completers_cip4_with_stp_com
     .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
-
 #3 (col K in Excel sheet)
-
 completers_factoring_in_stp_cip4 <- t_dacso_data_part_1 |>
   select(-age_group) |>
   filter(
@@ -1169,7 +1198,6 @@ completers_factoring_in_stp_cip4_combined_cred <- completers_factoring_in_stp_ci
     .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
-
 #4 (col M in Excel sheet)
 completers_cip4 <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
@@ -1184,7 +1212,6 @@ completers_cip4 <- t_dacso_data_part_1 |>
     age_group_lookup,
     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
   ) |>
-  # Relational linkage for credential hierarchy data
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
@@ -1238,7 +1265,7 @@ completers_cip4_combined_cred <- completers_cip4_combined_cred |>
     .by = c(age_group, lcip4_cred, lcp4_cd)
   )
 
-# ---- Make some ratios ----
+# Make final ratios ----
 t_dacso_nearcompleters_ratioageatgradcip4 <-
   nearcompleters_cip4_combinedcred |>
   left_join(
@@ -1262,9 +1289,15 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
   mutate(across(where(is.double), ~ na_if(., Inf))) |>
   mutate_all(function(x) ifelse(is.nan(x), NA, x))
 
+# ----------------------- Gender by CIP4 Ratios -----------------------
+# replicates lines 281:324 (main branch)
+# testing: 1) run the code from here to to line 1422 (refactor branch).  Run the queries from line 281 to 324 (main branch).
+# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender and t_dacso_near_completers_ratio_by_gender.
+# Notes:
+# 1) See notes for above section, this code replicates queries linked to the same Excel workbook, different sheet.
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
-#1: paste to col E
+# 1: paste to col E (C_Outc12_13_14RatiosByGender)
 near_completes_total_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1290,7 +1323,7 @@ near_completes_total_by_gender <- t_dacso_data_part_1 |>
     )
   )
 
-#2: paste to col F
+#2: paste to col F (C_Outc12_13_14RatiosByGender)
 near_completes_total_with_stp_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group, -has_stp_credential) |>
@@ -1323,7 +1356,7 @@ near_completes_total_with_stp_by_gender <- t_dacso_data_part_1 |>
   ) |>
   select(-has_stp_credential)
 
-#3: looks like paste to H (check)
+#3: looks like paste to H (C_Outc12_13_14RatiosByGender) (Need to check this)
 completers_agg_by_gender <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1356,7 +1389,8 @@ ratio.df = near_completes_total_by_gender |>
   left_join(completers_agg_by_gender) |>
   rename("gender" = "tpid_lgnd_cd")
 
-# we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
+# we want the adjusted ratio from column L (C_Outc12_13_14RatiosByGender)
+# (alternatively just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
   mutate(n_nc_stp = count - nc_with_early_or_late) |>
@@ -1388,10 +1422,8 @@ t_dacso_near_completers_ratio_by_gender <-
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) |>
   select(-ratio_adgt)
 
-# 4. Same as above (3.) but by year - to get historical
 
-# 4.1: paste to col E
-
+# 4.1: paste to col E (C_Outc12_13_14RatiosByGender)
 near_completes_total_by_gender_year <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1416,7 +1448,7 @@ near_completes_total_by_gender_year <- t_dacso_data_part_1 |>
   )
 
 
-# 4.2: paste to col F
+# 4.2: paste to col F (C_Outc12_13_14RatiosByGender)
 near_completes_total_with_stp_by_gender_year <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group, -has_stp_credential) |>
@@ -1450,7 +1482,7 @@ near_completes_total_with_stp_by_gender_year <- t_dacso_data_part_1 |>
   select(-has_stp_credential)
 
 
-# 4.3 get full ratio
+# 4.3 get full ratio (C_Outc12_13_14RatiosByGender)
 completers_agg_by_gender_age_year <- t_dacso_data_part_1 |>
   rename(age_at_grad = Age_At_Grad) |>
   select(-age_group) |>
@@ -1483,7 +1515,8 @@ ratio.df = near_completes_total_by_gender_year |>
   left_join(completers_agg_by_gender_age_year) |>
   rename("gender" = "tpid_lgnd_cd")
 
-# we want the adjusted ratio from column L (or just the normal ratio for nc for this year)
+# we want the adjusted ratio from column L (C_Outc12_13_14RatiosByGender)
+# (or just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
   mutate(n_nc_stp = count - nc_with_early_or_late) |>
