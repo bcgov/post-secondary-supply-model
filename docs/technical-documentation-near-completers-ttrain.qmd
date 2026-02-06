@@ -20,9 +20,10 @@ format:
 
 ## Overview
 
-This script computes the ratio of near completers to graduates by age group and credential.  Near completers who later received a credential according to the STP Credential file, or had an earlier credential are subtracted from the total of all near completers. 
+This script follows an established methodology for computing success ratios of "Near-Completers" relative to confirmed graduates, stratified by demographic age cohorts, gender and institutional credentials. The analytical framework utilizes student survey records from the `t_dacso_data_part_1` repository (DASCO survey data) in conjunction with administrative Student Transitions Project (STP) credential files to facilitate graduation status reclassification. By identifying individuals initially classified as non-graduates who subsequently attained provincial credentials or possessed prior administrative qualifications, the process derives a residual Near-Completer population used to refine provincial success metrics.
 
-Annual ratios are computed for all available years and an average taken of two or three representative years (chosen by investigation).  PSSM model 2023 used an average ratio of 2018-2019. 
+The process generates frequency distributions and ratios across several dimensions, resulting in the production of three primary output tables: `t_dacso_near_completers_ratio_by_gender_year`, `t_dacso_near_completers_ratio_by_gender`, and `t_dacso_nearcompleters_ratioageatgradcip4`. These outputs provide both longitudinal and cross-sectional frequency counts, with ratios computed annually or averaged across representative reporting cycles—such as the 2018–2019 baseline utilized in the PSSM 2023 model—to ensure statistical stability. The final data products represent a purified synthesis of survey observations and longitudinal administrative evidence, enabling high-fidelity reporting of student outcomes across disparate academic fields.
+
 
 ## Data Sources and Storage
 
