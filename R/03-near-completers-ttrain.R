@@ -51,24 +51,24 @@ decimal_con <- dbConnect(
 #source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
 #source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
 
-#dbExecute(
-#  decimal_con,
-#  SQL(glue::glue(
-#    'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
-#  ))
-#)
+dbExecute(
+  decimal_con,
+  SQL(glue::glue(
+    'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
+  ))
+) # remove after this refactor
 
 t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
 )
 
-#dbExecute(
-#  decimal_con,
-#  SQL(glue::glue(
-#    'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
-#  ))
-#)
+dbExecute(
+  decimal_con,
+  SQL(glue::glue(
+    'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
+  ))
+) # remove after this refactor
 
 credential_non_dup <- dbReadTable(
   decimal_con,
@@ -1021,11 +1021,10 @@ dbGetQuery(
   "EXEC sp_rename 'AgeGroupLookup.AgeGroup', 'Age_Group', 'COLUMN';"
 )
 
-#1 (col H in Excel sheet C_Outc12_13_14RatiosAgeGradCIP4)
-nearcompleters_cip4 <- t_dacso_data_part_1 |>
+
+base <- t_dacso_data_part_1 |>
   select(-age_group) |>
   filter(
-    cosc_grad_status_lgds_cd_group == "3",
     coci_subm_cd %in% c("C_Outc19", "C_Outc20")
   ) |>
   inner_join(
@@ -1036,237 +1035,63 @@ nearcompleters_cip4 <- t_dacso_data_part_1 |>
     credential_rank,
     by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
   ) |>
-  count(
-    age_group,
-    prgm_credential_awarded_name,
-    LCIP4_CRED,
-    lcp4_cd,
-    lcp4_cip_4digits_name,
-    name = "Count"
-  )
-
-nearcompleters_cip4_combinedcred <- nearcompleters_cip4 |>
   inner_join(
     combine_creds |>
       filter(use_in_pssm_2017_18 == "Yes"),
     by = "prgm_credential_awarded_name"
   ) |>
-  summarise(
-    CombinedCredCount = sum(Count, na.rm = TRUE),
-    .by = c(
-      age_group,
-      combined_cred_name,
-      LCIP4_CRED,
-      lcp4_cd,
-      lcp4_cip_4digits_name
+  mutate(
+    lcip4_cred = gsub("-\\s(0|1)\\s", "", LCIP4_CRED),
+    lcip4_cred_cleaned = if_else(
+      str_detect(lcip4_cred, "^1 - "),
+      str_replace(lcip4_cred, "^1 - ", "3 - "),
+      lcip4_cred
     )
   )
 
-nearcompleters_cip4_combinedcred <- nearcompleters_cip4_combinedcred |>
-  mutate(lcip4_cred = gsub("-\\s(0|1)\\s", "", LCIP4_CRED)) |>
-  summarise(
-    count = sum(CombinedCredCount, na.rm = TRUE),
-    .by = c(age_group, lcip4_cred, lcp4_cd)
+#1 (col H in Excel sheet C_Outc12_13_14RatiosAgeGradCIP4)
+nearcompleters_cip4_combinedcred <- base |>
+  filter(cosc_grad_status_lgds_cd_group == "3") |>
+  count(
+    age_group,
+    combined_cred_name,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    name = "count"
   )
 
 #2 (col I in Excel sheet)
-nearcompleters_cip4_with_stp_credential <- t_dacso_data_part_1 |>
-  filter(coci_subm_cd %in% c("C_Outc19", "C_Outc20")) |>
-  select(
-    coci_pen,
-    coci_stqu_id,
-    coci_subm_cd,
-    age_at_grad = Age_At_Grad,
-    prgm_credential_awarded_name,
-    has_stp_credential,
-    lcip4_cred = LCIP4_CRED,
-    lcp4_cd,
-    lcp4_cip_4digits_name
-  ) |>
-  inner_join(
-    age_group_lookup,
-    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  ) |>
+near_completers_cip4_with_stp_combined_cred <- base |>
+  filter(has_stp_credential == "Yes") |>
   inner_join(
     t_dacso_data_part_1_tempselection |> distinct(coci_stqu_id),
     by = "coci_stqu_id"
   ) |>
-  left_join(
-    credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) |>
-  filter(has_stp_credential == "Yes") |>
-  summarise(
-    count = n(),
-    .by = c(
-      age_group,
-      prgm_credential_awarded_name,
-      has_stp_credential,
-      lcip4_cred,
-      lcp4_cd,
-      lcp4_cip_4digits_name
-    )
-  ) |>
-  arrange(age_group, prgm_credential_awarded_name)
-
-near_completers_cip4_with_stp_combined_cred <- nearcompleters_cip4_with_stp_credential |>
-  inner_join(
-    combine_creds |> filter(use_in_pssm_2017_18 == "Yes"),
-    by = "prgm_credential_awarded_name"
-  ) |>
-  summarise(
-    combined_cred_count = sum(count, na.rm = TRUE),
-    .by = c(
-      age_group,
-      combined_cred_name,
-      lcip4_cred,
-      lcp4_cd,
-      lcp4_cip_4digits_name,
-      has_stp_credential
-    )
-  )
-
-near_completers_cip4_with_stp_combined_cred <- near_completers_cip4_with_stp_combined_cred |>
-  mutate(lcip4_cred = gsub("-\\s(0|1)\\s", "", lcip4_cred)) |>
-  summarise(
-    nc_with_earlier_or_later = sum(combined_cred_count, na.rm = TRUE),
-    .by = c(age_group, lcip4_cred, lcp4_cd)
-  )
+  count(age_group, lcip4_cred, lcp4_cd, name = "nc_with_earlier_or_later")
 
 #3 (col K in Excel sheet)
-completers_factoring_in_stp_cip4 <- t_dacso_data_part_1 |>
-  select(-age_group) |>
+completers_factoring_in_stp_cip4_combined_cred <- base |>
   filter(
     grad_status_factoring_in_stp == "1",
-    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
     Age_At_Grad >= 17,
     Age_At_Grad <= 64
   ) |>
-  inner_join(
-    age_group_lookup,
-    by = join_by(Age_At_Grad >= lower_bound, Age_At_Grad <= upper_bound)
-  ) |>
-  left_join(
-    credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) |>
-  summarise(
-    count = n(),
-    .by = c(
-      age_group,
-      prgm_credential_awarded_name,
-      LCIP4_CRED,
-      lcp4_cd,
-      lcp4_cip_4digits_name
-    )
-  )
-
-
-completers_factoring_in_stp_cip4 <- completers_factoring_in_stp_cip4 |>
-  mutate(
-    lcip4_cred_cleaned = if_else(
-      str_detect(LCIP4_CRED, "^1 - "),
-      str_replace(LCIP4_CRED, "^1 - ", "3 - "),
-      LCIP4_CRED
-    )
-  )
-
-completers_factoring_in_stp_cip4_combined_cred <- completers_factoring_in_stp_cip4 |>
-  inner_join(
-    combine_creds |> filter(use_in_pssm_2017_18 == "Yes"),
-    by = "prgm_credential_awarded_name"
-  ) |>
-  summarise(
-    combined_cred_count = sum(count, na.rm = TRUE),
-    .by = c(
-      age_group,
-      combined_cred_name,
-      lcip4_cred_cleaned,
-      lcp4_cd,
-      lcp4_cip_4digits_name
-    )
-  ) |>
-  mutate(
-    lcip4_cred = gsub(
-      "-\\s(0|1)\\s",
-      "",
-      lcip4_cred_cleaned
-    )
-  ) |>
-  summarise(
-    completers = sum(combined_cred_count, na.rm = TRUE),
-    .by = c(age_group, lcip4_cred, lcp4_cd)
-  )
+  count(age_group, lcip4_cred_cleaned, lcp4_cd, name = "completers") |>
+  rename(lcip4_cred = lcip4_cred_cleaned)
 
 #4 (col M in Excel sheet)
-completers_cip4 <- t_dacso_data_part_1 |>
-  rename(age_at_grad = Age_At_Grad) |>
-  select(-age_group) |>
+completers_cip4_combined_cred <- base |>
   filter(
     cosc_grad_status_lgds_cd_group == "1",
-    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
-    age_at_grad >= 17,
-    age_at_grad <= 64
+    Age_At_Grad >= 17,
+    Age_At_Grad <= 64
   ) |>
-  inner_join(
-    age_group_lookup,
-    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  ) |>
-  left_join(
-    credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
-  ) |>
-  summarise(
-    Expr1 = n(),
-    .by = c(
-      age_group,
-      prgm_credential_awarded_name,
-      lcp4_cd,
-      lcp4_cip_4digits_name,
-      LCIP4_CRED
-    )
-  )
-
-completers_cip4 <- completers_cip4 |>
-  mutate(
-    lcip4_cred_cleaned = if_else(
-      str_detect(LCIP4_CRED, "^1 - "),
-      str_replace(LCIP4_CRED, "^1 - ", "3 - "),
-      LCIP4_CRED
-    )
-  )
-
-completers_cip4_combined_cred <- completers_cip4 |>
-  inner_join(
-    combine_creds |> filter(use_in_pssm_2017_18 == "Yes"),
-    by = "prgm_credential_awarded_name"
-  ) |>
-  summarise(
-    combined_cred_count = sum(Expr1, na.rm = TRUE),
-    .by = c(
-      age_group,
-      combined_cred_name,
-      lcip4_cred_cleaned,
-      lcp4_cd,
-      lcp4_cip_4digits_name
-    )
-  )
-
-completers_cip4_combined_cred <- completers_cip4_combined_cred |>
-  mutate(
-    lcip4_cred = gsub(
-      "-\\s(0|1)\\s",
-      "",
-      lcip4_cred_cleaned
-    )
-  ) |>
-  summarise(
-    c_not_factoring_stp = sum(combined_cred_count, na.rm = TRUE),
-    .by = c(age_group, lcip4_cred, lcp4_cd)
-  )
+  count(age_group, lcip4_cred_cleaned, lcp4_cd, name = "c_not_factoring_stp") |>
+  rename(lcip4_cred = lcip4_cred_cleaned)
 
 # Make final ratios ----
-t_dacso_nearcompleters_ratioageatgradcip4 <-
+t_dacso_nearcompleters_ratioageatgradcip42 <-
   nearcompleters_cip4_combinedcred |>
   left_join(
     near_completers_cip4_with_stp_combined_cred,
