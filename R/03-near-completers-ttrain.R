@@ -1091,7 +1091,7 @@ completers_cip4_combined_cred <- base |>
   rename(lcip4_cred = lcip4_cred_cleaned)
 
 # Make final ratios ----
-t_dacso_nearcompleters_ratioageatgradcip42 <-
+t_dacso_nearcompleters_ratioageatgradcip4 <-
   nearcompleters_cip4_combinedcred |>
   left_join(
     near_completers_cip4_with_stp_combined_cred,
@@ -1237,7 +1237,7 @@ base <- t_dacso_data_part_1 |>
     by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
   )
 
-near_completes_total_by_gender_year2 <- base |>
+near_completes_total_by_gender_year <- base |>
   filter(
     cosc_grad_status_lgds_cd_group == "3"
   ) |>
@@ -1250,7 +1250,7 @@ near_completes_total_by_gender_year2 <- base |>
   )
 
 # 4.2: paste to col F (C_Outc12_13_14RatiosByGender)
-near_completes_total_with_stp_by_gender_year2 <- base |>
+near_completes_total_with_stp_by_gender_year <- base |>
   inner_join(
     t_dacso_data_part_1_tempselection |>
       select(coci_stqu_id, has_stp_credential),
@@ -1268,7 +1268,7 @@ near_completes_total_with_stp_by_gender_year2 <- base |>
   )
 
 # 4.3 get full ratio (C_Outc12_13_14RatiosByGender)
-completers_agg_by_gender_age_year2 <- base |>
+completers_agg_by_gender_age_year <- base |>
   filter(
     cosc_grad_status_lgds_cd_group == "1",
     age_at_grad >= 17,
@@ -1305,8 +1305,6 @@ ratio.df2 <- ratio.df |>
     .by = c(gender, age_group, prgm_credential_awarded_name)
   )
 
-# my question here - is this the right year to switch to?
-# in lookup table, DACSO data should be sent back by one
 t_dacso_near_completers_ratio_by_gender_year <-
   ratio.df |>
   left_join(ratio.df2) |>
