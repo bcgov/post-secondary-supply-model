@@ -128,11 +128,19 @@ df <- dbGetQuery(con, strSQL)
 
 ## Methodology Overview
 
-_Repeat for each major step/script in the module_
+### Data Normalization and Preprocessing
 
-### [Method 1 Title]
+The `population_projections` dataset is transformed from a wide administrative structure into a tidy long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable aggregated into population counts. The cohort is restricted to binary gender categories to maintain alignment with historical models, and administrative prefixes are converted into standardized age descriptors suitable for downstream join operations.
 
-#### Methods
+The primary enrollment and graduation datasets are subjected to rigorous temporal and schematic alignment to ensure referential integrity. Academic year strings are truncated to four-digit numeric integers, and variables are mapped to a unified nomenclature encompassing gender, age group, and counts. Redundant gender identifiers embedded within age strings are removed to prevent duplication errors during relational joins. Finally, the credential dataset is constrained to a fixed longitudinal window ($2006 \leq t \leq 2022$).
+
+### Enrollment and Graduation Projection Methodology
+
+Historical enrollment rates ($P$) are calculated as a percentage of the total provincial population. Normalized enrollment counts ($N$) are joined with population projections ($Pop$) and subsequently stratified by gender, age cohort, and academic year. The participation rate for each demographic segment is defined by $P = 100 \times (N / Pop)$, providing a longitudinal baseline of historical educational demand.
+
+Future participation rates are derived through linear regression analysis. The baseline data is stratified into discrete cohorts based on age and gender, after which a linear model is fit to the historical rates ($P$) against time ($YEAR$) using R function (`lm`). To generate the 12-year projection horizon, the model predicts enrollment rates for the initial five-year period ($2023–2027$). To prevent unrealistic long-term divergence inherent in linear extrapolation, the projected rate for the year $2027$ is held constant for the subsequent seven years ($2028–2034$), establishing a stabilized rate ceiling for the remainder of the forecast period.
+
+The final forecasted enrollment numbers ($N_{enrol\_forecasted}$) are calculated by reapplying the projected participation rates to the anticipated population counts. The forecasted rates are rejoined with demographic projection tables and scaled using the formula $N = Rate \times Pop \times 0.01$. This process converts abstract participation trends back into absolute student counts, which serve as the primary denominator for subsequent graduation and credential-specific supply calculations.
 
 #### Data Dictionary
 
