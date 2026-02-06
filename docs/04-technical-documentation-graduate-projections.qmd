@@ -1,0 +1,169 @@
+---
+title: "Graduate Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+The Graduate Projections analysis is a critical predictive component of the Post-Secondary Supply Model (PSSM). Analysis outcomes are the generation of longitudinal forecasts for student graduations and "near-completers" within the Province of British Columbia.
+
+Historical enrollment trends are synthesised with official population projections; the module employs a deterministic linear extrapolation methodology to project supply-side educational outputs over a 12-year horizon. These projections provide the evidence base required for labor market alignment categorized by age, gender, and credential type.
+
+## Data Sources and Storage
+
+### External Data Sources
+
+#### Population Projections (PEOPLE)
+
+Source: BC Stats / Province of British Columbia  
+Access Method: Direct SQL query via `dbReadTable` from the `decimal` database environment.
+
+- **Required Credentials:** Authenticated access to the `decimal` server via Windows Trusted Connection.
+- **Function calls:** `dbReadTable(decimal_con, "population_projections")`
+
+Description: This dataset provides annual population estimates and projections. The module normalizes "X-prefixed" age-group columns and filters for binary gender categories (Male/Female) to maintain consistency with historical reporting standards and model constraints.
+
+### Internal/Processed Data Sources
+
+#### Historical Enrollment (MinEnrolment)
+
+Source: Internal STOB/PSSM Data Warehouse (`decimal` database)  
+Access Method: SQL Query execution via `dbGetQuery`.
+
+- **Table Name:** `qry09c_MinEnrolment`
+- **Processing methodology:** Standardizes academic year strings to numeric integers and isolates age cohorts via regex-based string manipulation to facilitate join operations with demographic data.
+
+Description: Longitudinal enrollment data representing the historical baseline for provincial post-secondary participation.
+
+#### Credential Distribution Matrix
+
+Source: Provincial Administrative Records  
+Access Method: SQL Query (`Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs`)
+
+Description: A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.
+
+#### DACSO Near-Completer Ratios
+
+Source: Diploma, Associate Degree, and Certificate Student Outcomes (DACSO) 
+Access Method: `dbReadTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")`
+
+Description: Contains pre-calculated ratios used to estimate the volume of "Near Completers" relative to traditional graduates. This accounts for students who complete a significant portion of their program without a formal award, representing an additional supply stream.
+
+### Data Storage Structure
+
+This section needs work - some decisions on design are needed before finalziing.
+
+Final outputs and historical reconciliations are committed to the SQL SERVER database.
+
+```
+[BASE_FOLDER]/
+├── data/
+    ├── source/          # Processed intermediate files
+    └── raw/             # Raw input data
+        └── [subfolder]/ # [Description]
+└── outputs/
+    ├── tables/          # Final output tables  
+    └── visuals/         # Maps and visualizations
+```
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: [Note storage requirements]
+- External Data: [List any required external data]
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
+
+
+#### Authentication Setup
+
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
+```r
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+```
+
+## Methodology Overview
+
+_Repeat for each major step/script in the module_
+
+### [Method 1 Title]
+
+#### Methods
+
+#### Data Dictionary
+
+##### [Table 1 Name]
+
+
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+</ul>
+
+Key variables computed in this analysis:
+
+<ul class="list-variable-names">
+<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+</ul>
+
+ Variables not used in this analysis: 
+
+<ul class="list-variable-names">
+<li>AGE_AT_GRAD: NOT USED</li>
+<li>Age_Grad_Group: NOT USED</li>
+</ul>
+
+## Key Output Tables
+
+## Suggested Improvements
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
