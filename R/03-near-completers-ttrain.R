@@ -1117,9 +1117,9 @@ t_dacso_nearcompleters_ratioageatgradcip42 <-
 # ----------------------- Gender by CIP4 Ratios -----------------------
 # replicates lines 281:324 (main branch)
 # testing:
-# 1) run the code from here to to line 1426 (refactor branch).  Run the queries from line 281 to 324 (main branch).
+# 1) run the code from here to to line 1223 (refactor branch).  Run the queries from line 281 to 324 (main branch).
 # There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender and t_dacso_near_completers_ratio_by_gender.
-# 2) run the code from line 1426 to line 1558 (refactor branch).  Run the queries from line 329 to 374 (main branch).
+# 2) run the code from line 1227 to line 1327 (refactor branch).  Run the queries from line 329 to 374 (main branch).
 # There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender_year and t_dacso_near_completers_ratio_by_gender_year.
 # Notes:
 # 1) See notes for above section, this code replicates queries linked to the same Excel workbook, different sheet.
