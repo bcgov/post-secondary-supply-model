@@ -209,6 +209,8 @@ The following variables comprise the schema for the consolidated projection tabl
 
 ## Suggested Improvements
 
+Add in trades to Graduate Projections and project similar to APPSO.
+
 ## Additional Details
 
 _This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
