@@ -189,7 +189,7 @@ Calculated values resulting in mathematical infinity are recoded as `NA` to ensu
 
 #### Gender at Grad Ratios
 
-As with Age Ratios, this section outlines methodolgy originaly developed in this Excel workbook: 2017-2018\Development\Graduate Model\Near Completers. Bolded sub-section labels include a reference to the associated column in sheet C_Outc12_13_14RatiosByGender of the original workbook.
+As with Age Ratios, this section outlines methodolgy originaly developed in this Excel workbook: _2017-2018\Development\Graduate Model\Near Completers_. Bolded sub-section labels include a reference to the associated column in sheet _C\_Outc12\_13\_14RatiosByGender_ of the original workbook.
 
 ##### Primary Baseline Consolidation (`base`)
 A standardized baseline cohort is derived from the `t_dacso_data_part_1` dataset for Outcomes 19 and 20. Observations are restricted to respondents with valid gender identifiers (`tpid_lgnd_cd != '0'`) and are stratified into discrete age cohorts via a non-equi join with the `age_group_lookup` table. The resulting dataset is synchronized with the `credential_rank` hierarchy to ensure institutional program names are linked to recognized categorical metadata.
