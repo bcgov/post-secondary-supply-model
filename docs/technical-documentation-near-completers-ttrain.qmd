@@ -24,7 +24,6 @@ This script follows an established methodology for computing success ratios of "
 
 The process generates frequency distributions and ratios across several dimensions, resulting in the production of three primary output tables: `t_dacso_near_completers_ratio_by_gender_year`, `t_dacso_near_completers_ratio_by_gender`, and `t_dacso_nearcompleters_ratioageatgradcip4`. These outputs provide both longitudinal and cross-sectional frequency counts, with ratios computed annually or averaged across representative reporting cycles—such as the 2018–2019 baseline utilized in the PSSM 2023 model—to ensure statistical stability. The final data products represent a purified synthesis of survey observations and longitudinal administrative evidence, enabling high-fidelity reporting of student outcomes across disparate academic fields.
 
-
 ## Data Sources and Storage
 
 ### External Data Sources 
