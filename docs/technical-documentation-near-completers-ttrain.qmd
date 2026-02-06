@@ -265,6 +265,55 @@ A longitudinal variant of the Gender at Grad Ratios modifies the baseline aggreg
 
 ## Key Output Tables
 
+The following data objects represent the terminal outputs of the near-completer stratification and ratio calculation pipeline. These tables are taxonomically aligned with the PSSM 2017-18 framework and incorporate longitudinal administrative adjustments.
+
+### t_dacso_nearcompleters_ratioageatgradcip4
+This table establishes the province-wide success ratios stratified by age-group, 4-digit Classification of Instructional Programs (CIP-4) and normalized credential categories.
+
+<ul class="list-variable-names">
+  <li>age_group (String): The categorical age cohort.</li>
+  <li>combined_cred_name (String): The verified credential category under the PSSM 2017-18 regulatory framework.</li>
+  <li>lcip4_cred (String): The taxonomically normalized program and credential identifier, subjected to regex-based cleaning.</li>
+  <li>lcp4_cd (String): The primary 4-digit CIP classification code.</li>
+  <li>lcp4_cip_4digits_name (String): The standardized program classification nomenclature.</li>
+  <li>count (Numeric): The frequency of survey-reported Near-Completers.</li>
+  <li>nc_with_earlier_or_later (Numeric): The count of individuals promoted via provincial administrative verification.</li>
+  <li>completers (Numeric): The total graduate count factoring in administrative adjustments.</li>
+  <li>c_not_factoring_stp (Numeric): The baseline graduate count derived exclusively from survey reporting.</li>
+  <li>near_completers_stp_cred (Numeric): The net residual Near-Completer count.</li>
+  <li>ratio (Double): The primary success ratio utilizing STP-adjusted graduate counts.</li>
+  <li>ratio_not_factoring_stp (Double): The baseline success ratio utilizing survey-only graduate counts.</li>
+</ul>
+
+### t_dacso_near_completers_ratio_by_gender
+This table offers a cross-sectional aggregate of success ratios across the multi-year reporting period, providing a cumulative assessment of provincial performance.
+
+<ul class="list-variable-names">
+  <li>gender (String): The standardized gender identifier.</li>
+  <li>age_group (String): The categorical age cohort.</li>
+  <li>prgm_credential_awarded_name (String): The institutional nomenclature for the awarded credential.</li>
+  <li>count (Numeric): The cumulative frequency of survey-reported Near-Completers.</li>
+  <li>nc_with_early_or_late (Numeric): The cumulative count of administratively promoted graduates across all reporting cycles.</li>
+  <li>completers (Numeric): The cumulative count of survey-confirmed graduates.</li>
+  <li>n_nc_stp (Numeric): The net residual Near-Completer population within the aggregate cohort.</li>
+  <li>ratio (Double): The aggregate success ratio representing the cumulative multi-year period.</li>
+</ul>
+
+### t_dacso_near_completers_ratio_by_gender_year
+This table provides a longitudinal frequency distribution of success ratios, disaggregated by individual submission cycles and demographic indicators.
+
+<ul class="list-variable-names">
+  <li>coci_subm_cd (String): The administrative submission cycle identifier (e.g., "C_Outc19").</li>
+  <li>gender (String): The standardized gender identifier derived from the primary survey records.</li>
+  <li>age_group (String): The categorical age cohort mapped via the non-equi join protocol.</li>
+  <li>prgm_credential_awarded_name (String): The institutional nomenclature for the awarded credential.</li>
+  <li>count (Numeric): The frequency of respondents maintaining a survey-reported "Near-Completer" status.</li>
+  <li>nc_with_early_or_late (Numeric): The frequency of individuals promoted to "Graduate" status via administrative Student Transitions Project (STP) evidence.</li>
+  <li>completers (Numeric): The count of survey-confirmed graduates within the specified strata.</li>
+  <li>n_nc_stp (Numeric): The net residual Near-Completer count following deterministic administrative adjustments.</li>
+  <li>ratio (Double): The calculated success ratio, defined as the quotient of the residual population and confirmed graduates.</li>
+</ul>
+
 ## Suggested Improvements
 
 ## Additional Details
