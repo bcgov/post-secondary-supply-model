@@ -1,5 +1,5 @@
 ---
-title: "Module 03 - Technical Documentation"
+title: "Near Completers TTRAIN - Technical Documentation"
 format:
   html:
     toc: true
@@ -120,7 +120,6 @@ con <- dbConnect(odbc(),
 strSQL <- "SELECT * FROM <table>.<name>"
 df <- dbGetQuery(con, strSQL)
 ```
-
 
 ## Methodology Overview
 
