@@ -168,7 +168,6 @@ The supply forecast is finalized through the union of the primary graduate and n
 
 ##### [Table 1 Name]
 
-
 <ul class="list-variable-names">
 <li>STQU_ID (Integer): A unique identifier for each student.</li>
 <li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
@@ -191,6 +190,22 @@ Key variables computed in this analysis:
 </ul>
 
 ## Key Output Tables
+
+The final outputs of this module are persisted to the SQL environment as standardized tables. The primary table, `Graduate_Projections`, serves as the supply-side foundation for the Post-Secondary Supply Model, containing integrated forecasts for graduates, near-completers, and apprenticeships.
+
+### Data Dictionary: Graduate_Projections
+
+The following variables comprise the schema for the consolidated projection table:
+
+<ul class="list-variable-names">
+<li>PSSM_CRED (String): A standardized credential label incorporating supply-stream prefixes (e.g., "1 - BACH" for graduates or "3 - CERT" for near-completers).</li>
+<li>YEAR (String): The fiscal academic year formatted as a range (e.g., "2023/2024").</li>
+<li>AGE_GROUP (String): The demographic age cohort associated with the projection (e.g., "20 to 24").</li>
+<li>GRADUATES (Numeric): The count of forecasted individuals for the specific year, age, and credential strata.</li>
+<li>SURVEY (String): A categorical identifier denoting the data origin (e.g., "Credential_Projections_Transp" for academic supply or "APPSO" for apprenticeships).</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The original administrative award classification; primarily used for data lineage and validation.</li>
+<li>PSSM_CREDENTIAL (String): The cleaned credential category with prefixes removed - facilitates reporting.</li>
+</ul>
 
 ## Suggested Improvements
 
