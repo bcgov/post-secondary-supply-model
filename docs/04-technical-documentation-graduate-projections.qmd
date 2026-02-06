@@ -142,6 +142,19 @@ Future participation rates are derived through linear regression analysis. The b
 
 The final forecasted enrollment numbers ($N_{enrol\_forecasted}$) are calculated by reapplying the projected participation rates to the anticipated population counts. The forecasted rates are rejoined with demographic projection tables and scaled using the formula $N = Rate \times Pop \times 0.01$. This process converts abstract participation trends back into absolute student counts, which serve as the primary denominator for subsequent graduation and credential-specific supply calculations.
 
+##### Derivation of Weighted Graduation Ratios
+Historical graduation rates are determined by calculating annual graduate counts as a percentage of aggregate enrollment for each demographic cohort. A static `GRAD_RATE` is derived by calculating the weighted average of the 2021–2022 academic cycle. This coefficient represents the empirical probability of a student successfully attaining a credential within a given age and gender group, which is subsequently applied to the forecasted enrollment figures (`N_ENROL_FORECASTED`) to generate the absolute volume of anticipated graduates (`N_GRAD_FORECASTED`).
+
+##### Credential Distribution and Disaggregation
+The aggregate graduate forecast is further disaggregated into specific credential categories based on a biennial distribution matrix. Using the same 2021–2022 baseline, the proportion of graduates belonging to each `PSI_CREDENTIAL_CATEGORY` is calculated relative to the total cohort. This proportional weight ($P$) is then applied to the total forecasted graduate count yielding the final granular supply projection disaggregated by year, age, gender, and credential type.
+
+##### Inclusion of Near-Completers
+The "Near-Completer" population is estimated by applying credential-specific coefficients derived from the `T_DACSO_Near_Completers_RatioByGender` ratios (calculated in a previous analysis, see `03-near-completers-ttrain.R`) as follows.
+
+Demographic cohorts within the 35–64 age range are aggregated into a singular macro-cohort to ensure broader ratios are mapped back to the granular five-year age increments present in the primary graduate forecast. Primary graduate projections (`f_graduates`) are joined to the the normalized near completers ratio matrix. For each unique combination of gender, age group, and credential category, the forecasted graduate count is multiplied by the specific `RATIO` coefficient. This calculation, $N_{NC} = N_{Grad} \times Ratio$, quantifies the secondary supply stream of students who have completed significant program requirements without formal credential attainment. 
+
+
+
 #### Data Dictionary
 
 ##### [Table 1 Name]
