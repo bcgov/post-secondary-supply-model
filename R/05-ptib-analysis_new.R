@@ -353,29 +353,14 @@ qry_Private_Credentials_01e_Grads_Union <- qry_Private_Credentials_01a_Domestic 
   )
 
 ## ---- Sum of union query ----
-dbGetQuery(con, qry_Private_Credentials_01f_Grads)
-
 qry_Private_Credentials_01f_Grads <- qry_Private_Credentials_01e_Grads_Union %>%
   group_by(Year, Credential, LCIP_CD, Age_Group) %>%
   summarize(Grads = sum(Domestic))
 
-qry_Private_Credentials_01f_Grads <- as.data.frame(
-  qry_Private_Credentials_01f_Grads
-)
-
 ## ---- Summarize the Grads by Credential/Age ----
-dbGetQuery(con, qry_Private_Credentials_05i_Grads)
-
 qry_Private_Credentials_05i_Grads <- qry_Private_Credentials_01f_Grads %>%
   group_by(Year, Credential, Age_Group) %>%
   summarize(SumOfGrads = sum(Grads))
-
-qry_Private_Credentials_05i_Grads <- as.data.frame(
-  qry_Private_Credentials_05i_Grads
-)
-
-# note to self, the above is different between R and SQL for one value, but at the 12th digit
-#[4] 709.1449275362319  - 709.1449275362320
 
 ## ---- Delete PTIB rows from Graduate_Projections ----
 # dbExecute(con, qry_Private_Credentials_05i0_Grads_by_Year_Delete)
