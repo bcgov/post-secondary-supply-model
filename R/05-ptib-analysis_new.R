@@ -61,6 +61,7 @@ dbWriteTable(
   )),
   pssm_cred_grps
 )
+names(pssm_cred_grps) <- toupper(names(pssm_cred_grps))
 
 T_PTIB_Y1_to_Y10 <- read_csv(
   (glue::glue(
@@ -92,13 +93,25 @@ ptib_initial <- read_csv(
     "{lan}\\development\\csv\\gh-source\\testing\\05\\T_Private_Institutions_Credentials_Imported_2021-03.csv"
   ))
 )
+names(ptib_initial) <- c(
+  "year",
+  "credential",
+  "cip",
+  "age_group",
+  "immigration_status",
+  "sum_of_graduates",
+  "sum_of_enrolments",
+  "sum_of_total_enrolments"
+)
+raw_ptib_data <- ptib_initial
 
 dbWriteTable(
   con,
   SQL(glue::glue(
-    '"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"'
+    '"{my_schema}"."T_Private_Institutions_Credentials_Raw"'
   )),
-  ptib_initial
+  ptib_initial,
+  overwrite = TRUE
 )
 
 # other tables should be in the R environment from earlier analysis
@@ -220,7 +233,8 @@ dbGetQuery(con, qry_Private_Credentials_00b_Check_CIP_Length)
 # want zero rows
 T_Private_Institutions_Credentials %>%
   mutate(Expr1 = str_count(LCIP_CD)) %>%
-  filter(Expr1 < 7)
+  filter(Expr1 < 7) |>
+  select(LCIP_CD, Expr1)
 
 ## ---- Remove periods from CIPs ----
 dbGetQuery(con, qry_Private_Credentials_00c_Clean_CIP_Period)
