@@ -222,7 +222,6 @@ T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
   ) %>%
   select(-LCIP_NAME)
 
-
 ## ---- Update age groups ----
 T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
   mutate(Age_Group = str_replace_all(Age_Group, "-", " to "))
@@ -236,20 +235,9 @@ T_Private_Institutions_Credentials %>%
 T_Private_Institutions_Credentials_Clean <- T_Private_Institutions_Credentials
 
 ## ---- Age averages ----
-## not sure if this will be necessary if only one year in data???
-dbGetQuery(
-  con,
-  "ALTER TABLE T_Private_Institutions_Credentials
-                ALTER COLUMN intYear VARCHAR(255);"
-)
-
 # check relevant years to update queries below
-tbl(decimal_con, "T_Private_Institutions_Credentials") %>%
-  collect() %>%
+T_Private_Institutions_Credentials) %>%
   count(intYear)
-
-## !! update DATA years in below queries
-dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
 
 avg_summary <- T_Private_Institutions_Credentials_Clean %>%
   filter(is.na(Exclude)) %>%
