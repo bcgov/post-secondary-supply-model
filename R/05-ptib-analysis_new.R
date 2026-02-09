@@ -224,28 +224,15 @@ T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
 
 
 ## ---- Update age groups ----
-dbGetQuery(con, qry_Private_Credentials_00f_Recode_Age_Group)
-
 T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
   mutate(Age_Group = str_replace_all(Age_Group, "-", " to "))
 
 ## ---- Fix immigration status ----
-# Immigration_Status “#N/A” recoded to “(blank)”
-# none for 2019-20; instead there was “Unknown”
-# note to self, could have a query to recode in case #N/A appears again
+# make decision on how to recode (blank, Unknown or NA) - leaving for this run
 T_Private_Institutions_Credentials %>%
   count(Immigration_Status)
 
 ## ---- Copy to Clean table ----
-# Copied as T_Private_Institutions_Credentials_Clean
-# there may be duplicate CIPs after the cleaning but that is ok as next step sums and divides by 2 (the number of years) for the average
-dbExecute(
-  con,
-  "SELECT *
-                INTO T_Private_Institutions_Credentials_Clean
-                FROM T_Private_Institutions_Credentials;"
-)
-
 T_Private_Institutions_Credentials_Clean <- T_Private_Institutions_Credentials
 
 ## ---- Age averages ----
@@ -256,46 +243,45 @@ dbGetQuery(
                 ALTER COLUMN intYear VARCHAR(255);"
 )
 
-dbGetQuery(con, qry_Private_Credentials_00g_Avg)
+# check relevant years to update queries below
+tbl(decimal_con, "T_Private_Institutions_Credentials") %>%
+  collect() %>%
+  count(intYear)
 
-# I updated the above query as it didn't run as-is, but 2017, 2018, and Avg were all in the resulting table
-# I think table should actually ONLY result in table with just Avg; remove the 2017, 2018 individual rows
-dbGetQuery(
-  con,
-  "DELETE FROM T_Private_Institutions_Credentials
-                WHERE intYear <> 'Avg 2017 & 2018'"
-)
+## !! update DATA years in below queries
+dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
 
-## TBD if this is correct R version
-T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials_Clean %>%
+avg_summary <- T_Private_Institutions_Credentials_Clean %>%
   filter(is.na(Exclude)) %>%
+  group_by(Credential, LCIP_CD, Age_Group, Immigration_Status, Exclude) %>%
+  summarise(
+    Enrolment = sum(Enrolment, na.rm = TRUE) / 2,
+    Enrolled_Not_Graduated = sum(Enrolled_Not_Graduated, na.rm = TRUE) / 2,
+    Graduates = sum(Graduates, na.rm = TRUE) / 2,
+    .groups = "drop"
+  ) %>%
   mutate(intYear = "Avg 2021 & 2022") %>%
-  group_by(
+  select(
     intYear,
     Credential,
     LCIP_CD,
     Age_Group,
     Immigration_Status,
+    Enrolment,
+    Enrolled_Not_Graduated,
+    Graduates,
     Exclude
-  ) %>%
-  mutate(
-    Enrolment = sum(Enrolment) / 2,
-    Enrolled_Not_Graduated = sum(Enrolled_Not_Graduated) / 2,
-    Graduates = sum(Graduates) / 2
-  ) %>%
-  distinct() %>%
-  ungroup()
+  )
 
-T_Private_Institutions_Credentials <- as.data.frame(
-  T_Private_Institutions_Credentials
+T_Private_Institutions_Credentials <- bind_rows(
+  T_Private_Institutions_Credentials |> mutate(intYear = as.character(intYear)),
+  avg_summary
 )
 
 # Part 2 ----
 ## STOP !!! Update model year in queries ----
 
 ## ---- Count domestic grads ----
-dbGetQuery(con, qry_Private_Credentials_01a_Domestic)
-
 qry_Private_Credentials_01a_Domestic <- T_Private_Institutions_Credentials %>%
   filter(is.na(Exclude) & !is.na(Graduates)) %>%
   filter(Credential == "CERT" | Credential == "DIPL") %>%
@@ -315,15 +301,8 @@ qry_Private_Credentials_01a_Domestic <- T_Private_Institutions_Credentials %>%
   group_by(Year, Credential, LCIP_CD, Age_Group) %>%
   summarize(Domestic = sum(Grad_Val))
 
-qry_Private_Credentials_01a_Domestic <- as.data.frame(
-  qry_Private_Credentials_01a_Domestic
-)
 
 ## ---- Count domestic and international grads ----
-### note to self: this qry still has #N/A which was changed to (blank)
-### none this time, but could affect these queries ?
-dbGetQuery(con, qry_Private_Credentials_01b_Domestic_International)
-
 qry_Private_Credentials_01b_Domestic_International <- T_Private_Institutions_Credentials %>%
   filter(is.na(Exclude) & !is.na(Graduates)) %>%
   filter(
@@ -337,13 +316,7 @@ qry_Private_Credentials_01b_Domestic_International <- T_Private_Institutions_Cre
   group_by(Year, Credential, LCIP_CD, Age_Group) %>%
   summarize(Domestic_International = sum(Graduates))
 
-qry_Private_Credentials_01b_Domestic_International <- as.data.frame(
-  qry_Private_Credentials_01b_Domestic_International
-)
-
 ## ---- Compute percent of domestic and international grads that are domestic ----
-dbGetQuery(con, qry_Private_Credentials_01c_Percent_Domestic)
-
 qry_Private_Credentials_01c_Percent_Domestic <- qry_Private_Credentials_01a_Domestic %>%
   inner_join(
     qry_Private_Credentials_01b_Domestic_International,
@@ -357,15 +330,8 @@ qry_Private_Credentials_01c_Percent_Domestic <- qry_Private_Credentials_01a_Dome
     )
   )
 
-qry_Private_Credentials_01c_Percent_Domestic <- as.data.frame(
-  qry_Private_Credentials_01c_Percent_Domestic
-)
-
 ## ---- Compute unknown or blank immigration status ----
 ## computes Blank/Unknown immigration status records to include as domestic grads;
-## 2019-09-06 updated criteria to “(blank) Or Unknown”
-dbGetQuery(con, qry_Private_Credentials_01d_Grads_Blank)
-
 qry_Private_Credentials_01d_Grads_Blank <- T_Private_Institutions_Credentials %>%
   filter(
     Immigration_Status == "(blank)" |
@@ -378,13 +344,8 @@ qry_Private_Credentials_01d_Grads_Blank <- T_Private_Institutions_Credentials %>
   mutate(Graduates_Blank = Graduates * Percent_Domestic) %>%
   select(Year, Credential, LCIP_CD, Age_Group, Graduates_Blank)
 
-qry_Private_Credentials_01d_Grads_Blank <- as.data.frame(
-  qry_Private_Credentials_01d_Grads_Blank
-)
 
 ## ---- Join domestic and blank ----
-dbGetQuery(con, qry_Private_Credentials_01e_Grads_Union)
-
 qry_Private_Credentials_01e_Grads_Union <- qry_Private_Credentials_01a_Domestic %>%
   rbind(
     qry_Private_Credentials_01d_Grads_Blank %>%
