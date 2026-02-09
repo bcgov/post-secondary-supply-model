@@ -24,58 +24,17 @@ library(RODBC)
 library(arrow)
 library(tidyverse)
 library(odbc)
+library(DBI)
 
 # Setup ----
 ## ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
-source(glue::glue(
-  "{lan}/development/sql/gh-source/05-ptib-analysis/05-private-training-institutions-sql.R"
-))
-
-# TESTING ONLY: Read in last years data from access ----
-## connect to outcomes (access) database for PTIB credentials data
-connection <- config::get("connection")$outcomes_ptib
-acc_con <- odbcDriverConnect(connection)
-
-T_Private_Institutions_Credentials_Imported_2021_03 <- sqlQuery(
-  acc_con,
-  "SELECT * FROM [T_Private_Institutions_Credentials_Imported_2021-03];"
-)
-T_PTIB_Y1_to_Y10 <- sqlQuery(acc_con, "SELECT * FROM T_PTIB_Y1_to_Y10;")
-
-odbcClose(acc_con)
-
-## connect to outcomes (access) database for PSSM cohorts data
-connection <- config::get("connection")$outcomes_cohorts
-acc_con <- odbcDriverConnect(connection)
-
-T_PSSM_Credential_Grouping <- sqlQuery(
-  acc_con,
-  "SELECT * FROM T_PSSM_Credential_Grouping;"
-)
-
-odbcClose(acc_con)
-
-## connect to outcomes (access) database for Occ Projections
-connection <- config::get("connection")$outcomes_occ_proj
-acc_con <- odbcDriverConnect(connection)
-
-Graduate_Projections <- sqlQuery(acc_con, "SELECT * FROM Graduate_Projections;")
-Cohort_Program_Distributions_Static <- sqlQuery(
-  acc_con,
-  "SELECT * FROM Cohort_Program_Distributions_Static;"
-)
-Cohort_Program_Distributions_Projected <- sqlQuery(
-  acc_con,
-  "SELECT * FROM Cohort_Program_Distributions_Projected;"
-)
-
-odbcClose(acc_con)
+source("sql/05-ptib-analysis/05-private-training-institutions.R")
 
 
 ## ---- Connect to Decimal ----
 config <- config::get("decimal")
-db_schema <- config::get("myschema")
+db_schema <- config::get("dbschema")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -86,55 +45,111 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# TESTING ONLY: Write initial tables to Decimal ----
-## Save static versions of last cycle's data for testing
-dbWriteTable(
-  con,
-  "T_Private_Institutions_Credentials_Imported_2021-03",
-  T_Private_Institutions_Credentials_Imported_2021_03
+# ---- Data Requirements and SQL Definitons ----
+# PR Notes for this section:
+
+# lookups from LAN
+pssm_cred_grps <- read_csv(
+  (glue::glue(
+    "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PSSM_Credential_Grouping.csv"
+  ))
 )
 dbWriteTable(
   con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')),
-  T_PSSM_Credential_Grouping
+  SQL(glue::glue(
+    '"{my_schema}"."T_PSSM_Credential_Grouping"'
+  )),
+  pssm_cred_grps
 )
+
+T_PTIB_Y1_to_Y10 <- read_csv(
+  (glue::glue(
+    "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PTIB_Y1_to_Y10.csv"
+  ))
+)
+
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')),
   T_PTIB_Y1_to_Y10
 )
+
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- read_csv(
+  (glue::glue(
+    "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
+  ))
+)
+
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
+  INFOWARE_L_CIP_6DIGITS_CIP2016
+)
+
+# PTIB data
+ptib_initial <- read_csv(
+  (glue::glue(
+    "{lan}\\development\\csv\\gh-source\\testing\\05\\T_Private_Institutions_Credentials_Imported_2021-03.csv"
+  ))
+)
+
+dbWriteTable(
+  con,
+  SQL(glue::glue(
+    '"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"'
+  )),
+  ptib_initial
+)
+
+# other tables should be in the R environment from earlier analysis
+grad_proj <- dbReadTable(
+  con,
+  SQL(glue::glue('"{db_schema}"."Graduate_Projections"'))
+)
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
-  Graduate_Projections
+  grad_proj
 )
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')),
-  Cohort_Program_Distributions_Static
-)
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')),
-  Cohort_Program_Distributions_Projected
-)
-# Reference tables as the above will get edited
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."Graduate_Projections_Ref"')),
-  Graduate_Projections
+  grad_proj
 )
-dbWriteTable(
+
+cpd_proj <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_Ref"')),
-  Cohort_Program_Distributions_Static
+  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Projected"'))
 )
+
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected_Ref"')),
-  Cohort_Program_Distributions_Projected
+  cpd_proj
 )
 
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')),
+  cpd_proj
+)
+
+cpd_static <- dbReadTable(
+  con,
+  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Static"'))
+)
+
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')),
+  cpd_static
+)
+
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_Ref"')),
+  cpd_static
+)
 
 ## remove tables and use decimal versions for remainder of code
 rm(
@@ -149,51 +164,28 @@ rm(
 )
 
 # ---- Check Required Tables etc. ----
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"'))
-)
-dbExistsTable(
-  con,
-  SQL(glue::glue(
-    '"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021_03"'
-  ))
-)
-# dbExistsTable(con, SQL(glue::glue('"{my_schema}"."PTIB_Credentials"'))) # note to self, the above was renamed for this year
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"'))
-)
-dbExistsTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"'))
+
+# required tables in decimal or R environment (location TBD)
+required_tables <- c(
+  'T_PTIB_Y1_to_Y10',
+  'cpd_proj"',
+  'cpd_static',
+  'INFOWARE_L_CIP_6DIGITS_CIP2016',
+  'grad_proj',
+  'ptib_initial',
+  'pssm_cred_grps'
 )
 
-# ---- Load R versions ----
-pssm_cred_grps <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"'))
-)
-ptib_initial <- dbReadTable(
-  con,
-  SQL(glue::glue(
-    '"{my_schema}"."T_Private_Institutions_Credentials_Imported_2021-03"'
-  ))
-)
-grad_proj <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Graduate_Projections_Ref"'))
-)
-cpd_proj <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected_Ref"'))
-)
-cpd_static <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_Ref"'))
-)
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
+
+na_vals = c("", " ", "(Unspecified)", NA)
 
 # Part 1 ----
 # NOTE: Each step will be the SQL query first, followed up by R script version equivalents
