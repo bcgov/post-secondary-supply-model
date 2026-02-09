@@ -54,13 +54,6 @@ pssm_cred_grps <- read_csv(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PSSM_Credential_Grouping.csv"
   ))
 )
-dbWriteTable(
-  con,
-  SQL(glue::glue(
-    '"{my_schema}"."T_PSSM_Credential_Grouping"'
-  )),
-  pssm_cred_grps
-)
 names(pssm_cred_grps) <- toupper(names(pssm_cred_grps))
 
 T_PTIB_Y1_to_Y10 <- read_csv(
@@ -69,30 +62,20 @@ T_PTIB_Y1_to_Y10 <- read_csv(
   ))
 )
 
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')),
-  T_PTIB_Y1_to_Y10
-)
-
-INFOWARE_L_CIP_6DIGITS_CIP2016 <- read_csv(
+infoware <- read_csv(
   (glue::glue(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
   ))
 )
 
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
-  INFOWARE_L_CIP_6DIGITS_CIP2016
-)
-
 # PTIB data
 ptib_initial <- read_csv(
-  (glue::glue(
+  glue::glue(
     "{lan}\\development\\csv\\gh-source\\testing\\05\\T_Private_Institutions_Credentials_Imported_2021-03.csv"
-  ))
+  ),
+  col_types = "dccccccddd"
 )
+
 names(ptib_initial) <- c(
   "year",
   "credential",
@@ -119,61 +102,15 @@ grad_proj <- dbReadTable(
   con,
   SQL(glue::glue('"{db_schema}"."Graduate_Projections"'))
 )
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
-  grad_proj
-)
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Graduate_Projections_Ref"')),
-  grad_proj
-)
 
 cpd_proj <- dbReadTable(
   con,
   SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Projected"'))
 )
 
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected_Ref"')),
-  cpd_proj
-)
-
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"')),
-  cpd_proj
-)
-
 cpd_static <- dbReadTable(
   con,
   SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Static"'))
-)
-
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"')),
-  cpd_static
-)
-
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_Ref"')),
-  cpd_static
-)
-
-## remove tables and use decimal versions for remainder of code
-rm(
-  T_Private_Institutions_Credentials_Imported_2021_03,
-  T_PSSM_Credential_Grouping,
-  T_PTIB_Y1_to_Y10
-)
-rm(
-  Graduate_Projections,
-  Cohort_Program_Distributions_Static,
-  Cohort_Program_Distributions_Projected
 )
 
 # ---- Check Required Tables etc. ----
@@ -205,8 +142,6 @@ na_vals = c("", " ", "(Unspecified)", NA)
 ### note to self, write final datasets to decimal if R script versions are eventually used instead
 
 ## ---- Add PSSM_Credential to PTIB data ----
-dbGetQuery(con, qry_Private_Credentials_00a_Append)
-
 T_Private_Institutions_Credentials <- pssm_cred_grps %>%
   select("PRGM_CREDENTIAL_AWARDED_NAME", "PSSM_CREDENTIAL") %>%
   filter(!is.na(PSSM_CREDENTIAL)) %>%
@@ -223,13 +158,15 @@ T_Private_Institutions_Credentials <- pssm_cred_grps %>%
     Graduates = sum_of_graduates,
     Enrolled_Not_Graduated = sum_of_enrolments,
     Enrolment = sum_of_total_enrolments
+  ) |>
+  mutate(
+    Graduates = as.numeric(Graduates),
+    Enrolled_Not_Graduated = as.numeric(Enrolled_Not_Graduated),
+    Enrolment = as.numeric(Enrolment)
   )
 
-## ---- Check CIP length ----
-### note to self, there was a comment column added here, but nothing to it, removed it (no apparent issues atm)
-### note - nothing happens, prints to console
-dbGetQuery(con, qry_Private_Credentials_00b_Check_CIP_Length)
 
+## ---- Check CIP length ----
 # want zero rows
 T_Private_Institutions_Credentials %>%
   mutate(Expr1 = str_count(LCIP_CD)) %>%
@@ -237,18 +174,26 @@ T_Private_Institutions_Credentials %>%
   select(LCIP_CD, Expr1)
 
 ## ---- Remove periods from CIPs ----
-dbGetQuery(con, qry_Private_Credentials_00c_Clean_CIP_Period)
-
 T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
+  mutate(
+    LCIP_CD = sapply(LCIP_CD, function(x) {
+      parts <- str_split(x, "\\.", simplify = TRUE)
+      prefix <- str_pad(parts[1], width = 2, side = "left", pad = "0")
+      suffix <- str_pad(parts[2], width = 4, side = "right", pad = "0")
+      return(paste0(prefix, ".", suffix))
+    })
+  ) |>
   mutate(LCIP_CD = str_replace_all(LCIP_CD, "\\.", ""))
 
-## ---- Check CIPs against infoware 6digit CIPs ----
-### note - nothing happens, prints to console
-dbGetQuery(con, qry_Private_Credentials_00d_Check_CIPs)
+T_Private_Institutions_Credentials %>%
+  mutate(Expr1 = str_count(LCIP_CD)) %>%
+  filter(Expr1 < 6) |>
+  select(LCIP_CD, Expr1)
 
-# import infoware table
-infoware <- tbl(con, "INFOWARE_L_CIP_6DIGITS_CIP2016") %>% collect()
-### note to self, R version not the same as sql yet - needs work
+
+## ---- Check CIPs against infoware 6digit CIPs ----
+### I think the SQL versions don't account for some CIPS with leading or trailing 0's
+## R version handles this
 
 # want zero rows
 T_Private_Institutions_Credentials %>%
@@ -259,64 +204,24 @@ T_Private_Institutions_Credentials %>%
   ) %>%
   filter(is.na(exists))
 
+
 ## ---- Update Exclude column ----
 # Excluded not for credit and ESL programs and unclassified 99.9999 manually with “Exclude=1”
-# Added SQL code to update these exclusions automatically
-dbGetQuery(
-  con,
-  "ALTER TABLE T_Private_Institutions_Credentials 
-                ADD  
-                Exclude VARCHAR(255),
-                LCIP_NAME VARCHAR(255)"
-)
-
-dbGetQuery(
-  con,
-  "UPDATE T_Private_Institutions_Credentials 
-           SET
-            T_Private_Institutions_Credentials.LCIP_NAME = INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_NAME
-           FROM T_Private_Institutions_Credentials INNER JOIN INFOWARE_L_CIP_6DIGITS_CIP2016
-           ON T_Private_Institutions_Credentials.LCIP_CD = INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_CD"
-)
-
-dbExecute(
-  con,
-  "UPDATE T_Private_Institutions_Credentials 
-           SET T_Private_Institutions_Credentials.Exclude = 1
-           WHERE (((T_Private_Institutions_Credentials.LCIP_NAME) ='English as a second language') OR
-          ((T_Private_Institutions_Credentials.LCIP_NAME) LIKE '%not for credit%') OR
-          ((T_Private_Institutions_Credentials.LCIP_CD)='999999') );"
-)
-
-dbGetQuery(
-  con,
-  "ALTER TABLE T_Private_Institutions_Credentials
-                DROP COLUMN LCIP_NAME;"
-)
-
-# R code version
-# get not for credit CIPs from infoware
-find_nfc_cips <- infoware %>%
-  filter(grepl("not for credit", LCIP_NAME)) %>%
-  select(LCIP_CD) %>%
-  distinct()
-# get ESL programs from infoware
-find_esl_cips <- infoware %>%
-  filter(LCIP_NAME == "English as a second language") %>%
-  select(LCIP_CD) %>%
-  distinct()
-
-# add Exclude flag
 T_Private_Institutions_Credentials <- T_Private_Institutions_Credentials %>%
+  left_join(
+    infoware %>% select(LCIP_CD, LCIP_NAME),
+    by = "LCIP_CD"
+  ) %>%
   mutate(
     Exclude = case_when(
-      LCIP_CD %in% find_nfc_cips$LCIP_CD ~ '1', ## exclude not for credit
-      LCIP_CD %in% find_esl_cips$LCIP_CD ~ '1', ## exclude esl
-      LCIP_CD == "999999" ~ '1'
+      LCIP_NAME == "English as a second language" ~ "1",
+      str_detect(LCIP_NAME, "(?i)not for credit") ~ "1", # Case-insensitive LIKE
+      LCIP_CD == "99999" ~ "1",
+      TRUE ~ NA_character_
     )
-  ) ## exclude undeclared/unclassified
+  ) %>%
+  select(-LCIP_NAME)
 
-rm(find_nfc_cips, find_esl_cips)
 
 ## ---- Update age groups ----
 dbGetQuery(con, qry_Private_Credentials_00f_Recode_Age_Group)
