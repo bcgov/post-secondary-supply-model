@@ -239,24 +239,29 @@ Key variables computed in this analysis:
 <li>Age_Grad_Group: NOT USED</li>
 </ul>
 
-
 ### STP Credential Data Processing: (01c-credential-analysis.R)
 
 #### Descriptive Methods
+The credential preprocessing pipeline begins with...
+
 
 **Data Linkage and Integrity**
 
-Validated awards (`RecordStatus == 0`) are synchronized with the most recent enrolment metadata to establish a high-fidelity baseline. The pipeline utilizes a two-tiered join:
+**1. `credential_supvars_enrolment` table:**
 
-* Linked via `ENCRYPTED_TRUE_PEN` (Max `PSI_SCHOOL_YEAR`).
-* Fallback via composite `PSI_CODE`/`PSI_STUDENT_NUMBER` for records lacking a PEN.
+Records for credentials associated with a valid (non-null) award date and whose `RecordStatus == 0` are synchronized with the most recent enrolment metadata to establish a high-fidelity baseline cohort (`credential_supvars_enrolment`) enriched with the most recent available enrolment metadata. The pipeline utilizes a two-tiered join:
 
-**Demographic Recovery and Standardization**
-A hierarchical backfilling protocol resolves missing attributes using longitudinal evidentiary lookups:
+* For students with a valid `ENCRYPTED_TRUE_PEN`, the script isolates the most recent enrolment record (determined by the maximum `PSI_SCHOOL_YEAR`). This cohort represents the highest-confidence matches.
+* For records lacking a valid `ENCRYPTED_TRUE_PEN`, the script utilizes a composite identifier (`PSI_CODE` and `PSI_STUDENT_NUMBER`). It similarliy isolates the most recent enrolment record.
 
-* A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and master `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact.
-* Prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
-* Dates are cast to formal objects; legacy placeholders (e.g., "1900-01-01") and "(Unspecified)" strings are recoded to `NA`.
+**2. `credential_supvars` table:**
+
+A second high-fidelity baseline cohort is created by linking credential records with foundational student metadata from STP Enrolment dataset. Validated birthdates, gender markers, and visa statuses are incorporated and formal date objects (CREDENTIAL_AWARD_DATE_D), are typecast and recoded where necessary.
+
+Records categorized as "Developmental," "Short Certificate," or "Other/None" are tagged with a DropCredCategory = "Yes" indicator. By utilizing a left_join back to the record type table, the script preserves the full data lineage while programmatically isolating these records for targeted exclusion in final reporting.
+
+**Missing Gender Attribute**
+A hierarchical backfilling protocol resolves missing gender attributes using using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
 
 **Derived Variables and Filtering**
 The script generates analytical markers and applies exclusion protocols:
