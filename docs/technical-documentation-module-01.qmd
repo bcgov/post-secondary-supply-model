@@ -29,7 +29,7 @@ Script 01c executes attribute enrichment and final analysis of the credential da
 
 Script 01d executes the final consolidation of the enrolment baseline. A high-fidelity "Entry Cohort" is created by isolating the earliest valid record for each student within a reporting cycle. Conflicting identity markers are reconciled by prioritizing the student’s initial institutional contact.  Stratified stochastic imputation fills in gaps in missing gender and age values, leveraging empirical population weights to maintain statistical variance. Ages are incremented across the student’s academic history to ensure longitudinal consistency for downstream analysis and forecasting.
 
-## Data Sources and Storage
+## Data Sources and Storage (Not completed)
 
 ### External Data Sources
 
@@ -58,71 +58,50 @@ Access Method: [Describe how to access the data]
 Description: [Brief description of the processed data]
 
 
-### Data Storage Structure
-
-All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
-
 ## Technical Specifications
 
 ### Dependencies and Environment Requirements
 
 #### System Requirements
 
-- Network Access: [List required network resources]
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
 - Storage: [Note storage requirements]
-- Memory: [Note memory requirements]
 - External Data: [List any required external data]
 
 #### R Package Dependencies
 
 The following R packages are required for this module:
 
-- [List core data processing packages]
-- [List spatial analysis packages]
-- [List visualization/statistics packages]
-- [List file management packages]
-
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
 
 
 #### Authentication Setup
 
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
 ```r
-# Example: API key configuration
-[package]::set_api_key('YOUR_API_KEY', install = TRUE)
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
 ```
-
-### Global Constants and Configuration
-
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
-
-#### Data Processing and Filtering
-
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
-
-
-#### File Path Configuration
-
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
-
-[Add other relevant settings as needed]
 
 
 ## Methodology Overview
