@@ -1,5 +1,6 @@
 ---
-title: "Module 01 - Technical Documentation"
+title: "STP Credental and Enrolment Preprocessing and Analysis"
+subtitle: "Technical Documentation"
 format:
   html:
     toc: true
@@ -132,18 +133,28 @@ Global constants and configuration settings are centralized in a configuration f
 
 ### STP Enrolment Data Pre-processing 
 
-#### Source Code: (01a-enrolment-preprocessing.R)
-The analytical pipeline initiates with the transformation of raw administrative records into a standardized dataset for longitudinal analysis. Initial processing involves temporal normalization via a century-prefix logic, where legacy two-digit year formats are converted into four-digit ISO 8601 standards to ensure chronological consistency across the PSI_BIRTHDATE and PSI_MIN_START_DATE fields.
+Source Script: 01a-enrolment-preprocessing.R
 
-Conflicting birthdates are resolved through a hierarchical tie-breaker routine to establish a consistent "single source of truth" for each student identifier. The script applies an evidentiary priority sequence:
+#### Descriptive Methods
 
-Temporal Authority: Prioritizes the date matching the most recent "Last Seen" administrative record.
+Raw administrative records are preocessed into a standardized dataset for longitudinal analysis. 
 
-Frequency: If no temporal match is found, the date with the highest frequency of occurrence (the mode) is selected.
+Date formatted data are programmatically corrected for truncated dates via a custom function, where legacy two-digit year formats are converted into four-digit ISO 8601 standards to ensure chronological consistency across the date-type fields. Records where the year component is less than 24 are assigned a "20" prefix (e.g., "10-01-01" becomes "2010-01-01").  Records with year values of 24 or greater are assigned a "19" prefix (e.g., "85-05-15" becomes "1985-05-15"). 
 
-A multi-tiered validation logic is used to assign discrete status codes (0–8) to each record, enabling the systematic filtering of non-standard entries such as developmental or continuing education courses. Finally, the script executes a partitioned sequencing operation to identify the is_first_enrol and is_min_enrol flags, ensuring each student is represented by a logically consistent chronological record across the reporting period.
+**Birthdate Resolution**
 
-**STP Enrolment Records**
+Conflicting birthdates are resolved through a hierarchical priority sequence to establish a consistent "single source of truth" for each student:
+
+- If only one distinct date exists, it is automatically accepted as the correct birthdate.
+- If a conflict exists, the student’s LastSeenBirthdate is used, treating the most recently observed date as the correct birthdate.
+- If the "Last Seen Birthdate" is inconclusive or non-existent script the most frequently seen birthdate across the student's entire history is used.
+- If frequency is equal, the script defaults to the earliest chronological birthdate.
+
+
+**Enrolment Record Classification**
+
+A multi-tiered classification logic is used to assign status codes (0–8) to each record, enabling the systematic filtering of records into categories such as developmental or continuing education courses. Each record is assigned one of the status codes:
+
 
 ::: {.table-condensed}
 | Status Code | Label | Primary Logic / Criteria |
@@ -158,6 +169,9 @@ A multi-tiered validation logic is used to assign discrete status codes (0–8) 
 | **8** | **Certification** | Recommendation for Certification (defined in code comments). |
 :::
 
+Each student's "first" and "minimum" enrolment events are identified establishing markers used in downstream analysis.
+
+The main enrolment data is subset into a "valid" baseline contaiining only records with RecordStatus == 0; developmental, administrative, and out-of-province entries are discarded.  Only core identifiers and key temporal markers are retained.  The population is further partitioned into two cohorts, those with a unique `ENCRYPTED_TRUE_PEN` and those without.  For records lacking a PEN, the script utilizes the institutional composite key (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  Flags are created for the absolute first record in their history (`is_first_enrol`) and the first record within each distinct academic year (`is_min_enrol`) and integrated back into the `stp_enrolment_record_type` table (see data dictionary, below)
 
 #### Data Dictionary
 
