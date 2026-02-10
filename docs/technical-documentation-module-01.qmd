@@ -20,11 +20,17 @@ format:
 
 ## Overview
 
-01a: performs automated data ingestion and preprocessing for student enrolment records within a SQL database environment. It acts as a data-cleansing pipeline that standardizes raw administrative records into a "clean" format suitable for longitudinal analysis.
+Script 01a executes the automated ingestion and high-fidelity preprocessing of the Student Transition Program (STP) enrolment dataset. It functions as the primary data-cleansing routine, transorming administrative records into a standardized longitudinal format. The pipeline specifically addresses temporal inconsistencies through and resolves conflicting birthdate entries across historical records.
+
+The script further implements a multi-tiered classification logic to evaluate record validity based on student identifiers, program types, and credential categories. By filtering out developmental, skills-based, and continuing education records, the script generates a refined Record Type Table and a validated enrolment dataset. These outputs include binary flags for first-time and annual minimum enrolment sequences, providing the necessary foundational architecture for downstream transition analysis.
 
 01b: manages the ingestion and cleansing of credential records by normalizing award dates and assigning status-based classifications to filter out non-academic or developmental achievements. It specifically synchronizes credential data with previously processed enrolment records to maintain consistency in how skills-based and developmental records are identified across the dataset.
 
+01c: Executes a multi-dimensional ranking and temporal reconciliation of student awards to identify primary academic achievements. Through the application of a "Delay Award Effect" windowing logic, the script distinguishes between substantive hierarchical progression and concurrent secondary awards, establishing a definitive longitudinal record of educational attainment.
+
 01d: script implements a rigorous data-cleansing framework to identify and isolate first-time enrolment events within the Student Transition Project (STP) dataset. By integrating complex identity-resolution logic and stratified proportional imputation, it resolves discrepancies in student gender and age across multiple reporting periods, ultimately generating a standardized suite of supplemental variables for downstream institutional reporting.
+
+In most cases, identity discrepancies are handled for two distinct cohorts: those with valid Encrypted PENs and those identified by a "Student Number + PSI Code" combination. 
 
 ## Data Sources and Storage
 
@@ -127,15 +133,15 @@ Global constants and configuration settings are centralized in a configuration f
 ### STP Enrolment Data Pre-processing 
 
 #### Source Code: (01a-enrolment-preprocessing.R)
+The analytical pipeline initiates with the transformation of raw administrative records into a standardized dataset for longitudinal analysis. Initial processing involves temporal normalization via a century-prefix logic, where legacy two-digit year formats are converted into four-digit ISO 8601 standards to ensure chronological consistency across the PSI_BIRTHDATE and PSI_MIN_START_DATE fields.
 
-Raw administrative records for STP Enrolment data are transformed into a standardized dataset for longitudinal analysis. Initial processing involves temporal normalization, where legacy two-digit year formats are converted into four-digit ISO standards to ensure chronological consistency.
+Conflicting birthdates are resolved through a hierarchical tie-breaker routine to establish a consistent "single source of truth" for each student identifier. The script applies an evidentiary priority sequence:
 
-Conflicting birthdates are resolved through a hierarchical tie-breaker routine to establish a consistent "single source of truth" for each student. The script applies the following priority sequence:
+Temporal Authority: Prioritizes the date matching the most recent "Last Seen" administrative record.
 
-- Temporal Authority: Prioritizes the date matching the most recent "Last Seen" administrative record.
-- Frequency: If no temporal match is found, the date with the highest frequency of occurrence (the mode) is selected.
+Frequency: If no temporal match is found, the date with the highest frequency of occurrence (the mode) is selected.
 
-A multi-tiered validation logic is used to assign status codes to each record, allowing for the systematic filtering of non-standard entries such as developmental or continuing education courses. Finally, identity discrepancies are resolved through concatenated deduplication and sequencing techniques, which ensure that each student is represented by a single, logically consistent record across the reporting period.
+A multi-tiered validation logic is used to assign discrete status codes (0–8) to each record, enabling the systematic filtering of non-standard entries such as developmental or continuing education courses. Finally, the script executes a partitioned sequencing operation to identify the is_first_enrol and is_min_enrol flags, ensuring each student is represented by a logically consistent chronological record across the reporting period.
 
 **STP Enrolment Records**
 
@@ -189,8 +195,10 @@ Key variables used in this analysis, calculated varaiables are in bold font.
 ### STP Credential Data Pre-processing
 
 #### Source Code: 01b-credential-preprocessing.R
+The credential preprocessing pipeline begins with a temporal normalization routine, utilizing a century-prefix function to reconcile legacy two-digit year strings into four-digit ISO 8601 formats. Following standardization, the script incorporates a cross-referential validation routine that synchronizes awarded credentials with previously validated enrolment statuses via the "Skills Match" reference set.
 
-01b: The methodology centers on a cross-referential validation logic that aligns credential records with validated enrolment statuses. A critical initial phase involves temporal normalization, where a custom transformation function reconciles legacy two-digit year strings into four-digit ISO dates by applying a century-prefix logic (assigning years 00-25 to the 21st century and 26-99 to the 20th). Following this standardization, the script implements a lookup-driven classification system. It generates a reference set from enrolment data to identify "Skills Based" achievements and applies specialized exclusion rules for Developmental CIP codes, allowing for specific program-level exceptions (e.g., professional certificates or specialized technical training). This process ensures that only substantive academic credentials are coded as "Good," while administrative outliers—such as missing student identifiers or recommendations for certification—are systematically flagged for exclusion or targeted analysis. 
+Data integrity is maintained through a hierarchical classification system. The script adjudicates record validity by applying status codes based on the PSI_CREDENTIAL_CATEGORY and a robust exclusion logic that flags developmental CIP codes, missing identifiers, or "Recommendations for Certification." Specific program-level exceptions are applied to preserve specialized technical certificates that would otherwise meet exclusion criteria, resulting in a refined table (Status 0–8) ready for analysis.
+
 
 STP Credential Records:
 
@@ -231,17 +239,88 @@ Key variables computed in this analysis:
 <li>Age_Grad_Group: NOT USED</li>
 </ul>
 
-### STP Credential Data Processing
 
-#### Source Code: (01c-credential-analysis.R)
+### STP Credential Data Processing: (01c-credential-analysis.R)
 
 #### Descriptive Methods
 
-To standardize gender and birthdate attributes, a student’s most recent [valid?] enrolment record across the entire enrolment history is used to backfill enrolment records. For the remaining "Unknown" or missing entries, the proportional distribution of known genders within specific credential categories is used as probability weights to impute values. 
+Validated awards are linked with longitudinal enrolment history by a dual-identifier join strategy and temporal filtering to establish a high-fidelity achievement baseline.
 
-A longitudinal hierarchy is used to identify a student’s "primary" academic achievement. Each record for a student to flag the Highest Credential by Rank (e.g., prioritizing a Doctorate over a Diploma) and the Highest Credential by Date. This allows the analysis to distinguish between a student's most advanced achievement and their most recent one.
+The pipeline isolates "Good" records (`RecordStatus == 0`) with valid award dates. Credentials are synchronized with the most recent enrolment metadata via a two-tiered join:
 
-01c: Temporal "Delay Effect" Reconciliation: To account for non-linear graduation paths, the script calculates a Delay Award Effect. This reconciles credentials earned shortly after a student’s highest-ranked degree. By applying a time-sensitive windowing logic—ranging from 18 months for certificates to 36 months for advanced diplomas—the script determines if a secondary award should be collapsed into the student's primary graduation window or treated as a separate educational event.
+* Primary Join: Linked via `ENCRYPTED_TRUE_PEN`, restricted to the student's maximum `PSI_SCHOOL_YEAR`.
+* Secondary Join: Linked via composite `PSI_CODE` and `PSI_STUDENT_NUMBER` to capture records lacking a valid PEN.
+
+Linked records are enriched with cleaned birthdates, gender, and visa status from the master enrolment set. Administrative placeholders are recoded (e.g., "1900-01-01") to `NA` to ensure the integrity of age-stratified calculations.
+
+Binary flags are appended to the credential metadata to facilitate reporting-specific filters:
+
+* `DropCredCategory`: Flags developmental, short-duration, or non-specific awards (e.g., "Short Certificate").
+* `DropPartialYear`: Flags awards dated post-September 2023 to isolate complete academic cycles from partial reporting periods.
+
+To resolve null or "Unknown" gender values, the script implements a hierarchical backfilling strategy across two distinct administrative sources. For each pass, records are prioritized based on the most recent institutional contact, determined by the maximum PSI_SCHOOL_YEAR and PSI_ENROLMENT_SEQUENCE.
+
+- Pass 1 (Credential-Enrolment Synchronization): Attempts to recover gender markers from the credential_supvars_enrolment table. This pass currently utilizes a PEN-based evidentiary match to align with legacy SQL environments.
+- Pass 2 (Master Enrolment Lookup): Targets remaining missing values by querying the master stp_enrolment dataset. This pass employs a dual-cohort resolution strategy, utilizing ENCRYPTED_TRUE_PEN for primary matches and a composite PSI_STUDENT_NUMBER/PSI_CODE key for records lacking a valid PEN.
+
+Birthdate attributes are standardized through a similar hierarchical lookup, reconciling cleaned birthdate data from the enrolment processing phase with the credential records.
+
+- Evidentiary Priority: The pipeline prioritizes matches found via the ENCRYPTED_TRUE_PEN, falling back to the student identifier/institution composite key where necessary.
+- Administrative "Last Seen" Logic: In instances where primary cleaned birthdates are unavailable, the script utilizes the LAST_SEEN_BIRTHDATE attribute as the final temporal authority.
+
+All birthdate strings are cast to formal Date objects (psi_birthdate_cleaned_D). Placeholders such as "(Unspecified)" or empty strings are recoded to NA to ensure analytical consistency.  Demographic metadata back to the primary stp_credential dataset. Only records with a RecordStatus of 0 are retained.  Observations flagged during the DropCredCategory or DropPartialYear procedures are removed.
+
+AGE_AT_GRAD is determined by measuring the temporal interval between the cleaned birthdateand the award date. This integer value is subsequently mapped to discrete age categories.
+
+To align achievement data with administrative school years, a conditional transformation is applied to the award dates. Using a September 1st threshold (the standard academic "cutoff"), the script derives PSI_AWARD_SCHOOL_YEAR. Awards dated prior to September (months 1–8) are attributed to the previous calendar year's cycle, ensuring consistent annual grouping of graduates.
+
+Another demographic recovery pass is executed by pulling validated gender markers from the master enrolment set and coalescing them with existing records to minimize data gaps. To ensure longitudinal consistency at the student level, the script performs a deduplication routine:
+
+  - Record Integrity: Groups by student identifiers, program metadata, and award date to isolate unique achievements via slice_max on the record ID.
+  - Longitudinal Persistence: Within each student group, a "most recent evidence" rule is applied, where the psi_gender_cleaned value from the final chronological record is propagated back across all previous records for that individual.
+
+**Missing Gender**
+The script utilizes stratified stochastic imputation to resolve residual missing gender values. This method ensures the final dataset maintains the statistical distribution of the known population, preventing the bias inherent in simple mode substitution.  The pipeline calculates observed gender ratios within each PSI_CREDENTIAL_CATEGORY, which are transformed into a probability mass function ($n / \sum n$) and stored as category-specific weights. The script executes a weighted random draw for null entries. For each missing record, a value is sampled from the category’s known distribution. This "weighted coin flip" ensures the imputed data mirrors the demographic profile of the specific credential cohort.
+
+**Rank Assignment**
+The pipeline first integrates a standardized credential_rank reference table, assigning a numerical RANK to each record based on its PSI_CREDENTIAL_CATEGORY (e.g., Doctorate > Master’s > Diploma). To maintain identity resolution across the dataset, records are partitioned into two cohorts for processing:
+
+- PEN Cohort: Students identified via a valid ENCRYPTED_TRUE_PEN.
+- Student Number Cohort: Students identified via the PSI_CODE and PSI_STUDENT_NUMBER composite key.
+
+Within each student partition, the script executes a window-function sorting routine to assign binary "Highest" flags:
+
+- Highest Credential by Date: Determined by sorting records in descending order by CREDENTIAL_AWARD_DATE_D. In instances where multiple awards share a date, the RANK value serves as the secondary tie-breaker. The first chronological record in this sequence is flagged "Yes."
+- Highest Credential by Rank: Determined by sorting records in ascending order by RANK (where lower values represent higher prestige). CREDENTIAL_AWARD_DATE_D serves as the secondary tie-breaker, prioritizing the most recent achievement within the same rank. The top-ranked record is flagged "Yes."
+
+**Missing Age At Grad**
+Missing AGE_AT_GRAD values are recovered through stratified stochastic imputation routine, leveraging empirical population distributions to populate gaps while maintaining the statistical variance of the graduate cohort.  Probability weights are derived from a reference set of students flagged as HIGHEST_CRED_BY_DATE == "Yes". Age distributions are stratified by Credential Category and Gender, creating a discrete probability mass function for each demographic strata.  Missing values are resolved through a weighted random draw using a fixed seed (`set.seed(42)`) for reproducibility: For each missing record, an age is sampled based on the probability weights of its specific category-gender strata.  If a strata lacks an observed distribution, the script applies a default uniform sampling range (Ages 19–54).
+
+**VISA Status**
+The script executes a hierarchical fallback protocol to synchronize student VISA Status markers between credential records and enrolment metadata. Attribute recovery is performed via a two-stage join to the credential_supvars_enrolment lookup table:
+
+- Tier 1 (Specific): A six-column composite match (identifiers, institution, and program-specific metadata) to ensure program-level accuracy.
+- Tier 2 (Broad): A four-column fallback (identifiers and school year) to capture status for records with inconsistent program descriptions.
+
+The final status is assigned back to the main dataset, prioritizing Tier 1 over Tier 2 results. To resolve potential row duplication from many-to-many joins, ties are broken by choosing the maximum unique record ID.
+
+**Delay Award Effect**
+Delay award effect occurs when secondary credentials are awarded shortly after a student’s primary, highest-ranked degree. This procedure aligns longitudinal achievements with the most representative educational exit point.
+
+A CONCATENATED_ID is generated to unify student records, prioritizing the ENCRYPTED_TRUE_PEN followed by a composite institutional key. The pipeline then isolates a baseline dataset containing only records flagged as a student's peak academic achievement (HIGHEST_CRED_BY_RANK == "Yes").
+
+Valid secondary "delayed" awards occurring after the primary achievement are determined by category-specific thresholds:
+
+- Permanent Retention: Apprenticeships, Bachelors, and Professional degrees.
+- 36-Month Window: Advanced Diplomas and Certificates.
+- 30-Month Window: Masters Degrees and Graduate/Post-Degree Diplomas.
+- 18-Month Window: Associate Degrees and basic Certificates.
+
+For students with qualifying secondary awards, the script selects the most recent occurrence to establish a final CREDENTIAL_AWARD_DATE. These values are integrated back into the main dataset ensuring that student records reflect either their original graduation date or their reconciled "delayed" exit point.
+
+**Research University Flag adn Outcomes Credential Standardization**
+The final processing phase applies institutional and categorical identifiers to standardize records for sector-level reporting. A binary flag, RESEARCH_UNIVERSITY, is assigned to records originating from research-intensive institutions (SFU, UBC, UNBC, UVic, RRU). PSI_CREDENTIAL_CATEGORY is standardized to ensure collapses disparate institutional titles into consistent categories required for provincial performance metrics.
+
 
 #### Data Dictionary
 
