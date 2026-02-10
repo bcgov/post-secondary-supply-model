@@ -214,7 +214,7 @@ STP Credential Records:
 :::
 
 
-#### Data Dictionary
+#### Data Dictionary (Not Completed)
 
 ##### [Table 1 Name]
 
@@ -242,19 +242,17 @@ Key variables computed in this analysis:
 ### STP Credential Data Processing: (01c-credential-analysis.R)
 
 #### Descriptive Methods
-The credential preprocessing pipeline begins with...
-
 
 **Data Linkage and Integrity**
 
-**1. `credential_supvars_enrolment` table:**
+_Credential Supvars Enrolment Table_
 
 Records for credentials associated with a valid (non-null) award date and whose `RecordStatus == 0` are synchronized with the most recent enrolment metadata to establish a high-fidelity baseline cohort (`credential_supvars_enrolment`) enriched with the most recent available enrolment metadata. The pipeline utilizes a two-tiered join:
 
 * For students with a valid `ENCRYPTED_TRUE_PEN`, the script isolates the most recent enrolment record (determined by the maximum `PSI_SCHOOL_YEAR`). This cohort represents the highest-confidence matches.
 * For records lacking a valid `ENCRYPTED_TRUE_PEN`, the script utilizes a composite identifier (`PSI_CODE` and `PSI_STUDENT_NUMBER`). It similarliy isolates the most recent enrolment record.
 
-**2. `credential_supvars` table:**
+_Credential Supvars Table_
 
 A second high-fidelity baseline cohort is created by linking credential records with foundational student metadata from STP Enrolment dataset. Validated birthdates, gender markers, and visa statuses are incorporated and formal date objects (CREDENTIAL_AWARD_DATE_D), are typecast and recoded where necessary.
 
@@ -326,33 +324,7 @@ For students with qualifying secondary awards, the script selects the most recen
 The final processing phase applies institutional and categorical identifiers to standardize records for sector-level reporting. A binary flag, RESEARCH_UNIVERSITY, is assigned to records originating from research-intensive institutions (SFU, UBC, UNBC, UVic, RRU). PSI_CREDENTIAL_CATEGORY is standardized to ensure collapses disparate institutional titles into consistent categories required for provincial performance metrics.
 
 
-#### Data Dictionary
-
-##### [Table 1 Name]
-
-
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
-
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
-
-#### Data Dictionary
+#### Data Dictionary (Not Completed)
 
 ##### [Table 1 Name]
 
@@ -389,6 +361,31 @@ Where a single student is associated with multiple conflicting gender or birthda
 To standardize gender markers, values are first extracted from the STP Credential dataset to backfill enrolment records. For the remaining "Unknown" or missing entries, proportional imputation is performed; the observed frequency distribution of known gender labels within the first-time enrolment cohort is used as statistical weights to impute the missing population.
 
 To address missing birthdates, a stratified proportional imputation based on gender-specific age distributions is employed. Following the assignment of a baseline age to a student's first enrolment record, subsequent enrolment records for the same student are updated through chronological increments (Current Year - Baseline Year), maintaining longitudinal consistency across the student's entire academic history.
+
+#### Data Dictionary (Not Completed)
+
+##### [Table 1 Name]
+
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+</ul>
+
+Key variables computed in this analysis:
+
+<ul class="list-variable-names">
+<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+</ul>
+
+ Variables not used in this analysis: 
+
+<ul class="list-variable-names">
+<li>AGE_AT_GRAD: NOT USED</li>
+<li>Age_Grad_Group: NOT USED</li>
+</ul>
 
 ## Key Output Tables
 
