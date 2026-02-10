@@ -260,11 +260,10 @@ A second high-fidelity baseline cohort is created by linking credential records 
 
 Records categorized as "Developmental," "Short Certificate," or "Other/None" are tagged with a DropCredCategory = "Yes" indicator. By utilizing a left_join back to the record type table, the script preserves the full data lineage while programmatically isolating these records for targeted exclusion in final reporting.
 
-**Missing Gender Attribute**
+**Missing Gender Recovery**
 A hierarchical backfilling protocol resolves missing gender attributes using using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
 
-**Birthdate Reconciliation**
-
+**Birthdate Recovery**
 The script attempts to recover cleaned birthdates using a prioritized hierarchy: first by primary student identifier (`ENCRYPTED_TRUE_PEN`), and subsequently by institutional composite keys (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  In instances where primary cleaned dates are absent, the script utilizes the `LAST_SEEN_BIRTHDATE` attribute from the STP Enrollment data sets as a final administrative authority.  
 
 Enrichment markers—including cleaned gender, birthdates, and standardized award dates—are merged back into the core credential table.  Filters are applied to the credential table to retain only records meeting three critical integrity criteria:
@@ -273,25 +272,19 @@ Enrichment markers—including cleaned gender, birthdates, and standardized awar
 - Exclusion of non-standard or developmental awards (`DropCredCategory` == NA).
 - Exclusion of incomplete reporting cycles (`DropPartialYear` == NA).
 
-**Derived Variables and Filtering**
-The script generates analytical markers and applies exclusion protocols:
+**Age At Graduation and Academic School Year**
+Age-at-graduation and academic school year markers are derived and aligned with standard institutional reporting cycles
 
-* `AGE_AT_GRAD` is calculated as the integer interval between birth and award dates, then mapped to discrete indices in the `age_group_lookup`.
-* `DropCredCategory` flags developmental or short-duration awards.
-* `DropPartialYear` isolates complete academic cycles by flagging awards post-September 2023.
+Student's age at the time of credential is calculated by measuring the interval between the standardized birthdate and the formal award date.  The integer age is grouped into discrete reporting cohorts, categorizing individual ages into standardized demographic groups (e.g., 18–24, 25–29).
 
-**Academic Year Normalization**
-To synchronize achievement data with administrative reporting cycles, award dates are normalized using a September 1st threshold:
-* Awards occurring in months 1–8 are attributed to the previous calendar year's cycle.
-* This conditional transformation ensures consistent annual grouping of graduates within the `PSI_AWARD_SCHOOL_YEAR` variable.
+A fiscal PSI_AWARD_SCHOOL_YEAR is derived based on the month of award issuance, ensuring consistency with the provincial academic calendar. A standard September 1st "cutoff." is used; awards issued between January and August (months 1–8) are attributed to the previous calendar year’s cycle (e.g., an award in June 2023 is grouped within the 2022/2023 school year).  Data are standardized into "YYYY/YYYY" format. 
 
-**Attribute Persistence and Deduplication**
-A final demographic recovery pass and deduplication routine are executed to ensure longitudinal consistency:
-* Groups by student identifiers, program metadata, and award date to isolate unique achievements via `slice_max` on the record ID.
-* Applies a "most recent evidence" rule where the `psi_gender_cleaned` value from the final chronological record is propagated back across all prior records for that individual.
+A final gender recovery pass and deduplication routine are executed; missing values are recovered by performing a secondary lookup against the main enrolment table.  A singular, unique record with ID is isolated representing each academic achievement.
 
-**Missing Gender**
-The script utilizes stratified stochastic imputation to resolve residual missing gender values. This method ensures the final dataset maintains the statistical distribution of the known population, preventing the bias inherent in simple mode substitution.  The pipeline calculates observed gender ratios within each PSI_CREDENTIAL_CATEGORY, which are transformed into a probability mass function ($n / \sum n$) and stored as category-specific weights. The script executes a weighted random draw for null entries. For each missing record, a value is sampled from the category’s known distribution. This "weighted coin flip" ensures the imputed data mirrors the demographic profile of the specific credential cohort.
+**Imputation of Missing Genders**
+Stratified stochastic imputation is performed to resolve residual missing gender values. This method ensures the final dataset maintains the statistical distribution of the known population, preventing the bias inherent in simple mode substitution.  
+
+An empirical baseline is established by calculating observed gender ratios within the population.  The credential dataset is grouped by PSI_CREDENTIAL_CATEGORY, calculating the specific frequency and corresponding probability ($n / \sum n$) of each gender marker within those cohorts.  These distributions are aggregated into a reference list of weights and categories, effectively creating a specific "probability profile" for every award type (e.g., the gender distribution for Engineering Diplomas may differ from that of Nursing Certificates).  These distributions provide required weights in a random draw, used to reconcile null entries. This "weighted coin flip" ensures the imputed data mirrors the demographic profile of the specific credential cohort.
 
 **Rank Assignment**
 The pipeline first integrates a standardized credential_rank reference table, assigning a numerical RANK to each record based on its PSI_CREDENTIAL_CATEGORY (e.g., Doctorate > Master’s > Diploma). To maintain identity resolution across the dataset, records are partitioned into two cohorts for processing:
