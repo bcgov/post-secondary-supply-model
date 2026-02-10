@@ -263,6 +263,16 @@ Records categorized as "Developmental," "Short Certificate," or "Other/None" are
 **Missing Gender Attribute**
 A hierarchical backfilling protocol resolves missing gender attributes using using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
 
+**Birthdate Reconciliation**
+
+The script attempts to recover cleaned birthdates using a prioritized hierarchy: first by primary student identifier (`ENCRYPTED_TRUE_PEN`), and subsequently by institutional composite keys (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  In instances where primary cleaned dates are absent, the script utilizes the `LAST_SEEN_BIRTHDATE` attribute from the STP Enrollment data sets as a final administrative authority.  
+
+Enrichment markers—including cleaned gender, birthdates, and standardized award dates—are merged back into the core credential table.  Filters are applied to the credential table to retain only records meeting three critical integrity criteria:
+
+- A valid administrative record status (`RecordStatus` == 0).
+- Exclusion of non-standard or developmental awards (`DropCredCategory` == NA).
+- Exclusion of incomplete reporting cycles (`DropPartialYear` == NA).
+
 **Derived Variables and Filtering**
 The script generates analytical markers and applies exclusion protocols:
 
