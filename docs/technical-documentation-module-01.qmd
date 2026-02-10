@@ -244,40 +244,36 @@ Key variables computed in this analysis:
 
 #### Descriptive Methods
 
-Validated awards are linked with longitudinal enrolment history by a dual-identifier join strategy and temporal filtering to establish a high-fidelity achievement baseline.
+**Data Linkage and Integrity**
 
-The pipeline isolates "Good" records (`RecordStatus == 0`) with valid award dates. Credentials are synchronized with the most recent enrolment metadata via a two-tiered join:
+Validated awards (`RecordStatus == 0`) are synchronized with the most recent enrolment metadata to establish a high-fidelity baseline. The pipeline utilizes a two-tiered join:
 
-* Primary Join: Linked via `ENCRYPTED_TRUE_PEN`, restricted to the student's maximum `PSI_SCHOOL_YEAR`.
-* Secondary Join: Linked via composite `PSI_CODE` and `PSI_STUDENT_NUMBER` to capture records lacking a valid PEN.
+* Linked via `ENCRYPTED_TRUE_PEN` (Max `PSI_SCHOOL_YEAR`).
+* Fallback via composite `PSI_CODE`/`PSI_STUDENT_NUMBER` for records lacking a PEN.
 
-Linked records are enriched with cleaned birthdates, gender, and visa status from the master enrolment set. Administrative placeholders are recoded (e.g., "1900-01-01") to `NA` to ensure the integrity of age-stratified calculations.
+**Demographic Recovery and Standardization**
+A hierarchical backfilling protocol resolves missing attributes using longitudinal evidentiary lookups:
 
-Binary flags are appended to the credential metadata to facilitate reporting-specific filters:
+* A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and master `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact.
+* Prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
+* Dates are cast to formal objects; legacy placeholders (e.g., "1900-01-01") and "(Unspecified)" strings are recoded to `NA`.
 
-* `DropCredCategory`: Flags developmental, short-duration, or non-specific awards (e.g., "Short Certificate").
-* `DropPartialYear`: Flags awards dated post-September 2023 to isolate complete academic cycles from partial reporting periods.
+**Derived Variables and Filtering**
+The script generates analytical markers and applies exclusion protocols:
 
-To resolve null or "Unknown" gender values, the script implements a hierarchical backfilling strategy across two distinct administrative sources. For each pass, records are prioritized based on the most recent institutional contact, determined by the maximum PSI_SCHOOL_YEAR and PSI_ENROLMENT_SEQUENCE.
+* `AGE_AT_GRAD` is calculated as the integer interval between birth and award dates, then mapped to discrete indices in the `age_group_lookup`.
+* `DropCredCategory` flags developmental or short-duration awards.
+* `DropPartialYear` isolates complete academic cycles by flagging awards post-September 2023.
 
-- Pass 1 (Credential-Enrolment Synchronization): Attempts to recover gender markers from the credential_supvars_enrolment table. This pass currently utilizes a PEN-based evidentiary match to align with legacy SQL environments.
-- Pass 2 (Master Enrolment Lookup): Targets remaining missing values by querying the master stp_enrolment dataset. This pass employs a dual-cohort resolution strategy, utilizing ENCRYPTED_TRUE_PEN for primary matches and a composite PSI_STUDENT_NUMBER/PSI_CODE key for records lacking a valid PEN.
+**Academic Year Normalization**
+To synchronize achievement data with administrative reporting cycles, award dates are normalized using a September 1st threshold:
+* Awards occurring in months 1–8 are attributed to the previous calendar year's cycle.
+* This conditional transformation ensures consistent annual grouping of graduates within the `PSI_AWARD_SCHOOL_YEAR` variable.
 
-Birthdate attributes are standardized through a similar hierarchical lookup, reconciling cleaned birthdate data from the enrolment processing phase with the credential records.
-
-- Evidentiary Priority: The pipeline prioritizes matches found via the ENCRYPTED_TRUE_PEN, falling back to the student identifier/institution composite key where necessary.
-- Administrative "Last Seen" Logic: In instances where primary cleaned birthdates are unavailable, the script utilizes the LAST_SEEN_BIRTHDATE attribute as the final temporal authority.
-
-All birthdate strings are cast to formal Date objects (psi_birthdate_cleaned_D). Placeholders such as "(Unspecified)" or empty strings are recoded to NA to ensure analytical consistency.  Demographic metadata back to the primary stp_credential dataset. Only records with a RecordStatus of 0 are retained.  Observations flagged during the DropCredCategory or DropPartialYear procedures are removed.
-
-AGE_AT_GRAD is determined by measuring the temporal interval between the cleaned birthdateand the award date. This integer value is subsequently mapped to discrete age categories.
-
-To align achievement data with administrative school years, a conditional transformation is applied to the award dates. Using a September 1st threshold (the standard academic "cutoff"), the script derives PSI_AWARD_SCHOOL_YEAR. Awards dated prior to September (months 1–8) are attributed to the previous calendar year's cycle, ensuring consistent annual grouping of graduates.
-
-Another demographic recovery pass is executed by pulling validated gender markers from the master enrolment set and coalescing them with existing records to minimize data gaps. To ensure longitudinal consistency at the student level, the script performs a deduplication routine:
-
-  - Record Integrity: Groups by student identifiers, program metadata, and award date to isolate unique achievements via slice_max on the record ID.
-  - Longitudinal Persistence: Within each student group, a "most recent evidence" rule is applied, where the psi_gender_cleaned value from the final chronological record is propagated back across all previous records for that individual.
+**Attribute Persistence and Deduplication**
+A final demographic recovery pass and deduplication routine are executed to ensure longitudinal consistency:
+* Groups by student identifiers, program metadata, and award date to isolate unique achievements via `slice_max` on the record ID.
+* Applies a "most recent evidence" rule where the `psi_gender_cleaned` value from the final chronological record is propagated back across all prior records for that individual.
 
 **Missing Gender**
 The script utilizes stratified stochastic imputation to resolve residual missing gender values. This method ensures the final dataset maintains the statistical distribution of the known population, preventing the bias inherent in simple mode substitution.  The pipeline calculates observed gender ratios within each PSI_CREDENTIAL_CATEGORY, which are transformed into a probability mass function ($n / \sum n$) and stored as category-specific weights. The script executes a weighted random draw for null entries. For each missing record, a value is sampled from the category’s known distribution. This "weighted coin flip" ensures the imputed data mirrors the demographic profile of the specific credential cohort.
