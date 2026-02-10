@@ -29,7 +29,7 @@ Script 01c executes attribute enrichment and final analysis of the credential da
 
 Script 01d executes the final consolidation of the enrolment baseline. A high-fidelity "Entry Cohort" is created by isolating the earliest valid record for each student within a reporting cycle. Conflicting identity markers are reconciled by prioritizing the student’s initial institutional contact.  Stratified stochastic imputation fills in gaps in missing gender and age values, leveraging empirical population weights to maintain statistical variance. Ages are incremented across the student’s academic history to ensure longitudinal consistency for downstream analysis and forecasting.
 
-Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partition data by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling.
+Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partition data by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling. *Missing: final aggregations of enrolment data in this script (they are not yet done)
 
 ## Data Sources and Storage (Not completed)
 
@@ -337,7 +337,7 @@ Following the assignment of a baseline age to a student's first enrolment record
 
 **Final Distributions for Enrolment Forecasting**
 
-These distibutions have not been translated into R yet.
+These distibutions have not been translated into R yet and will probably be done in 01e.
 
 
 #### Data Dictionary (Not Completed)
@@ -357,6 +357,7 @@ Records are partitioned into discrete analytical strata through the application 
 - Subsets are generated that isolate domestic students and differentiate between institutional types, specifically controlling for Research Universities and DACSO outcome reporting mandates.
 - Standardized summary tables are produced that cross-tabulate annual award frequencies by PSI_AWARD_SCHOOL_YEAR_DELAYED, gender, and four-digit CIP codes. These outputs reconcile original award timelines with the previously established "delayed award" logic, providing the granular data lineage required for provincial longitudinal transition modeling.
 
+*Missing: final aggregations of enrolment data in this script (they are not yet done)
 
 ## Key Output Tables
 
