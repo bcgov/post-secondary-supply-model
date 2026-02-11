@@ -29,7 +29,9 @@ Script 01c executes attribute enrichment and final analysis of the credential da
 
 Script 01d executes the final consolidation of the enrolment baseline. A high-fidelity "Entry Cohort" is created by isolating the earliest valid record for each student within a reporting cycle. Conflicting identity markers are reconciled by prioritizing the student’s initial institutional contact.  Stratified stochastic imputation fills in gaps in missing gender and age values, leveraging empirical population weights to maintain statistical variance. Ages are incremented across the student’s academic history to ensure longitudinal consistency for downstream analysis and forecasting.
 
-Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partition data by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling. *Missing: final aggregations of enrolment data in this script (they are not yet done)
+Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partitioned by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling. 
+
+Standardized frequency distributions are generated from the `min_enrolment` baseline, quantifying student entry points across stratified academic and socio-demographic cohorts. The data is partitioned by residency, credential category, and disciplinary cluster to isolate specific cohorts for longitudinal provincial modeling.
 
 ## Data Sources and Storage (Not completed)
 
@@ -357,9 +359,41 @@ Records are partitioned into discrete analytical strata through the application 
 - Subsets are generated that isolate domestic students and differentiate between institutional types, specifically controlling for Research Universities and DACSO outcome reporting mandates.
 - Standardized summary tables are produced that cross-tabulate annual award frequencies by PSI_AWARD_SCHOOL_YEAR_DELAYED, gender, and four-digit CIP codes. These outputs reconcile original award timelines with the previously established "delayed award" logic, providing the granular data lineage required for provincial longitudinal transition modeling.
 
-*Missing: final aggregations of enrolment data in this script (they are not yet done)
+
+**Enrolment Distribution for Forecasting**
+
+Several standardized frequency distributions are generated from individual student-level records within the min_enrolment baseline dataset. Discrete, stratified cohorts are aggregated to quantify enrolment metrics across school years, academic credential categories, and socio-demographic dimensions. Standardized age groups are defined via a relational join with the age_group_lookup table.
+
+The resulting matrices provide granular frequency counts stratified by residency status (specifically Domestic), academic year, age group, and gender. Furthermore, these distributions facilitate cross-institutional field-of-study comparisons through the application of Classification of Instructional Programs (CIP) codes.
 
 ## Key Output Tables
+
+##### Table: qry09c_MinEnrolment_by_Credential_and_CIP_Code
+
+<ul class="list-variable-names">
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
+<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
+
+##### Table: qry09c_MinEnrolment_Domestic
+
+<ul class="list-variable-names">
+<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>AgeGroup (String): Age of student in the given school year, mapped to discrete a grouping (e.g. "20-24").</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
+
+##### Table: qry09c_MinEnrolment
+
+<ul class="list-variable-names">
+<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>Groups (String): A concatenated demographic identifier, representing Age Group and Gender of a student.</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
 
 ## Suggested Improvements
 
