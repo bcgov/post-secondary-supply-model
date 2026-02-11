@@ -39,28 +39,35 @@ Standardized frequency distributions are generated from the `min_enrolment` base
 
 #### [External Data Source Name]
 
-Source: [Data provider or organization]  
-Access Method: [Describe how data is accessed, e.g., API, direct download, R package]
+#### STP_Credential Data
+Source: Retrieved from Secure Database
+Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
 
-  - [List any required credentials, API keys, or setup steps]
-  - Function calls: [Relevant function or method]
+  - Requirements: Standardized database credentials; kept in config.yml file
+  - Function calls: `dbExceute()` or `dbGetQuery()`
 
-Description: [Brief description of the data, coverage, and structure]
+Description: This dataset contains raw academic award records including student identifiers (ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER), institutional markers (PSI_CODE), and academic variables such as award dates and Classification of Instructional Programs (CIP) codes. Coverage spans the provincial post-secondary system.
 
-<!-- Repeat the above callout for each external data source -->
+#### STP_Enrolment Data
+Source: Retrieved from Secure Database
+Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
 
-### Internal/Processed Data Sources
+  - Requirements: Standardized database credentials; kept in config.yml file
+  - Function calls: `dbExecute()` or `dbGetQuery()`
 
-#### [Internal Data Product Name]
+Description: The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
 
-Source: [Describe how/where the data is generated or stored]  
-Access Method: [Describe how to access the data]
+### Internal/Processed Data Sources (Not completed)
 
-  - File location: [Path or variable]
-  - Processing methodology: [Link to documentation or code if available]
+#### STP_Enrolment_Valid (Processed Baseline)
+Source: Generated within the pipeline scripts.  
+Access Method: <mark>(TBD)</mark>
+Description: A high-fidelity, standardized version of the enrolment dataset featuring unique student-level identifiers (CONCATENATED_ID) and longitudinal flags for initial and annual registration milestones, isolated from developmental and skills-based records.
 
-Description: [Brief description of the processed data]
-
+#### Credential_Supvars (Enriched Achievement Baseline)
+Source: Generated within the pipeline scripts.  
+Access Method: <mark>(TBD)</mark>
+Description: This data product represents the peak educational attainment for each student. It contains enriched markers for age at graduation, academic rank, and reconciled award dates, serving as the primary input for provincial transition modeling and frequency distribution matrices.
 
 ## Technical Specifications
 
@@ -70,8 +77,8 @@ Description: [Brief description of the processed data]
 
 - Network Access: Secure LAN
 - Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
+- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
+- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
 
 #### R Package Dependencies
 
