@@ -291,24 +291,48 @@ dbWriteTable(
 )
 
 # ---- Read Required Data from decimal ----
+# needed only to run SQL versions
+assert_that(
+  dbExistsTable(
+    decimal_con,
+    SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
+  ),
+  msg = glue::glue(
+    "You will need to import t_dacso_data_part_1 to your schema before continuing."
+  )
+)
+# needed only to run SQL versions
+assert_that(
+  dbExistsTable(
+    decimal_con,
+    SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+  ),
+  msg = glue::glue(
+    "You will need to import Credential_Non_Dup to your schema before continuing."
+  )
+)
+# needed only to run SQL versions
+# running 03 script adds extra columns so I need to drop them each time I test.
 dbExecute(
   decimal_con,
   SQL(glue::glue(
     'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
   ))
-) # remove after this refactor - running 03 script adds extra columns so I need to drop them each time I test.
-
-t_dacso_data_part_1 <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
 )
 
+# needed only to run SQL versions
+# running 03 script adds extra columns so I need to drop them each time I test.
 dbExecute(
   decimal_con,
   SQL(glue::glue(
     'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
   ))
-) # remove after this refactor - running 03 script adds extra columns so I need to drop them each time I test
+)
+
+t_dacso_data_part_1 <- dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
+)
 
 credential_non_dup <- dbReadTable(
   decimal_con,
