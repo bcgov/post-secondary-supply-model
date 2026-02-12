@@ -141,9 +141,9 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
-# replicates lines 90:101 (main branch)
-# testing:at end of section, compare dacso_matching_stp_credential_pen in R vs dacso_matching_stp_credential_pen in SQL
-# testing: at end of section, compare qry06 at line 124 (main) vs match_summary_table in R
+# replicates lines 102:133 (main branch)
+# testing: 1) at end of section, compare dacso_matching_stp_credential_pen in R vs dacso_matching_stp_credential_pen in SQL
+#          2) compare match_summary_table in R to output from qry06 at line 124 (main) vs
 ## Notes:
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
@@ -407,7 +407,7 @@ t_dacso_nearcompleters <- t_dacso_data_part_1 |>
 # testing: at end of section, compare t_dacso_data_part_1 in R vs t_dacso_data_part_1 in SQL.  This one table
 # should carry all of the flags we create in this section.
 # Notes: there is quite a bit we can do to condense this code. Leaving for now but noting that
-# the logic is similar to prior workflows; when faced with the problem of picking one label in a column
+# the logic is similar to prior workflows; when faced with the problem of picking one representitive attibute (e.g binary has_muliple_credentials) for a student
 # we often use a window-function approach, removing the need for intermediate vectors and multiple steps.
 
 # Update the main matching table with 'Multiple' and 'UseThis' flags
@@ -503,9 +503,10 @@ t_dacso_nearcompleters <- t_dacso_nearcompleters |>
     -stp_credential_awarded_after_dacso_update
   )
 
-# off by a small handful here in "t_dacso_nearcompleters.stp_credential_awarded_before_dacso" before column
-#  (I there where there were multiple awards in a single year)
-#dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)
+# I have no idea what these comments about.  Leaving in case I have an epiphany later.
+# off by a small handful here in "t_dacso_nearcompleters.stp_credential_awarded_before_dacso" before column?
+#  (I there where there were multiple awards in a single year)?
+#dbExecute(decimal_con, qry_NearCompleters_MultiCdtls_Cleaning_Step13)?
 
 # Update the primary matching table with the finalized 'UseThisRecord' flag
 dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
@@ -573,8 +574,8 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
 
 # ----- Check Near Completers Ratios -----
 # replicates lines 207:211 (main branch)
-# testing: check each code chunk against each query on main branch.  Each SQL
-# query generates output in R.
+# testing: Each SQL query generates a table output in the R console.
+#   Compare against the accompanying R verion (which also produces a table at console)
 
 t_dacso_data_part_1_tempselection |>
   filter(
@@ -663,8 +664,9 @@ t_dacso_data_part_1_tempselection |>
 
 # ----------------------- Age At Grad by CIP4 Ratios -----------------------
 # replicates lines 214:279 (main branch)
-# testing: 1) run the code from here to to line 1115 (refactor branch).  Run the queries from line 215 to 279 (main branch).
-# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioAgeAtGradCIP4 and t_dacso_nearcompleters_ratioageatgradcip4.
+# testing: 1) run the code from here to to end of line ~784
+# Compare T_DACSO_Near_Completers_RatioAgeAtGradCIP4 (on decimal) to t_dacso_nearcompleters_ratioageatgradcip4 (R version)
+
 # Notes:
 # 1) age_group_lookup colnames are set to lower case here to align with the SQL queries from here to the end of script.
 # 2) col H: we appear to be using different age groups from the original.  However,
@@ -783,13 +785,10 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 
 # ----------------------- Gender by CIP4 Ratios -----------------------
 # replicates lines 281:324 (main branch)
-# testing:
-# 1) run the code from here to to line 1223 (refactor branch).  Run the queries from line 281 to 324 (main branch).
-# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender and t_dacso_near_completers_ratio_by_gender.
-# 2) run the code from line 1227 to line 1327 (refactor branch).  Run the queries from line 329 to 374 (main branch).
-# There will be two comparable tables in your R environment:  T_DACSO_Near_Completers_RatioByGender_year and t_dacso_near_completers_ratio_by_gender_year.
+# testing: 1) run the code from here to to end of this section (line ~890)
+# Compare T_DACSO_Near_Completers_RatioByGender (on decimal) to t_dacso_near_completers_ratio_by_gender. (R version)
 # Notes:
-# 1) See notes for above section, this code replicates queries linked to the same Excel workbook, different sheet.
+# 1) See notes on age ratios, this code replicates queries linked to the same Excel workbook, different sheet.
 
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 base <- t_dacso_data_part_1 |>
@@ -889,6 +888,12 @@ t_dacso_near_completers_ratio_by_gender <-
   mutate_all(function(x) ifelse(is.nan(x), NA, x)) |>
   select(-ratio_adgt)
 
+#--------- Age by Gender and Year Ratios ----------
+# replicates lines 326:376 (main branch)
+# testing: 1) run the code from here to to end of this section (line ~980)
+# Compare T_DACSO_Near_Completers_RatioByGender_year  (on decimal) to t_dacso_near_completers_ratio_by_gender_year. (R version)
+# Notes:
+# 1) See notes on age ratios, this code replicates queries linked to the same Excel workbook, different sheet.
 
 # 4.1: paste to col E (C_Outc12_13_14RatiosByGender)
 base <- t_dacso_data_part_1 |>
