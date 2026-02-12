@@ -22,13 +22,9 @@
 # Notes: Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019) and documentation reveal different #'s
 # of output years.  Used 12 for PSSM2023.
 # Script handles only Male and Female
-
 library(tidyverse)
-library(RODBC)
-library(config)
-library(DBI)
 
-# these should be in the R environment
+# these should now be in the R environment
 required_tables <- c(
   "population_projections",
   "min_enrolments",
@@ -97,15 +93,6 @@ p_enrolments <- min_enrolments %>%
   inner_join(population_projections, by = join_by(GENDER, AGE_GROUP, YEAR)) %>% # removes Gender Diverse
   mutate(P = 100 * N / POP)
 
-p_enrolments %>%
-  mutate(P = round(P, 2)) %>%
-  pivot_wider(
-    id_cols = c(GENDER, AGE_GROUP),
-    values_from = P,
-    names_from = YEAR
-  ) %>%
-  View()
-
 ## Forecasted Enrolment Rate ----
 # workbook forecasting done for 12 years
 f_enrolments <- p_enrolments |>
@@ -139,13 +126,6 @@ f_enrolments_t <- data.frame(f_enrolments) %>%
 f_enrolments_t <- f_enrolments_t %>%
   inner_join(population_projections, by = join_by(YEAR, AGE_GROUP, GENDER)) %>%
   mutate(N_ENROL_FORECASTED = RATE * POP * .01)
-
-f_enrolments_t %>%
-  pivot_wider(
-    id_cols = c(AGE_GROUP, GENDER),
-    values_from = N_ENROL_FORECASTED,
-    names_from = YEAR
-  )
 
 # HISTORICAL - Pop/Enrolments ----
 # grab historical data and append
@@ -246,40 +226,6 @@ historical_forecasted_grad_creds <-
       mutate(TYPE = 'F. GRADS by Cred')
   )
 
-# PLOT INTERLUDE ----
-# get things on same ish scale
-library(ggplot2)
-min_ns <- historical_forecasted_enrolments %>%
-  bind_rows(pop_projections_for_compare) %>%
-  bind_rows(historical_forecasted_grads) %>%
-  bind_rows(historical_forecasted_grad_creds) %>%
-  mutate(
-    GROUP = case_when(
-      TYPE == 'POPULATION' ~ TYPE,
-      TRUE ~ str_sub(TYPE, start = 4)
-    )
-  ) %>%
-  group_by(YEAR, GROUP) %>%
-  mutate(n = sum(N)) %>%
-  ungroup() %>%
-  group_by(GROUP) %>%
-  mutate(min_n = min(n)) %>%
-  ungroup() %>%
-  distinct(GROUP, TYPE, min_n)
-
-historical_forecasted_enrolments %>%
-  bind_rows(pop_projections_for_compare) %>%
-  bind_rows(historical_forecasted_grads) %>%
-  #bind_rows(historical_forecasted_grad_creds) %>%
-  left_join(min_ns, by = 'TYPE') %>%
-  group_by(YEAR, GROUP) %>%
-  summarize(n = sum(N), min_n = min(min_n)) %>% # View()
-  mutate(
-    n = n / min_n
-  ) %>%
-  ggplot(aes(x = YEAR, y = n, color = GROUP)) +
-  geom_line(linewidth = 1) +
-  geom_vline(aes(xintercept = 2023))
 
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
@@ -361,15 +307,6 @@ historical_forecasted_grad_ncs <-
       select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
       mutate(TYPE = 'F. NCs')
   )
-
-# PLOT ----
-f_graduates_nc %>%
-  bind_rows(f_graduates_nc_historical) %>%
-  group_by(YEAR) %>%
-  summarize(n = sum(N)) %>%
-  ggplot(aes(x = YEAR, y = n)) +
-  geom_line() +
-  geom_point()
 
 # make pssm cred label
 f_graduates <- f_graduates %>%
@@ -497,43 +434,6 @@ hf_grad_nc_creds_agg <- hf_grad_creds %>%
   mutate(SURVEY = 'Credential_Projections_Transp') %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
-
-# PLOT comparison ----
-# get things on same ish scale
-library(ggplot2)
-min_ns <- historical_forecasted_enrolments %>%
-  bind_rows(pop_projections_for_compare) %>%
-  bind_rows(historical_forecasted_grads) %>%
-  bind_rows(historical_forecasted_grad_creds) %>%
-  bind_rows(historical_forecasted_grad_ncs) %>%
-  mutate(
-    GROUP = case_when(
-      TYPE == 'POPULATION' ~ TYPE,
-      TRUE ~ str_sub(TYPE, start = 4)
-    )
-  ) %>%
-  group_by(YEAR, GROUP) %>%
-  mutate(n = sum(N)) %>%
-  ungroup() %>%
-  group_by(GROUP) %>%
-  mutate(min_n = min(n)) %>%
-  ungroup() %>%
-  distinct(GROUP, TYPE, min_n)
-
-historical_forecasted_enrolments %>%
-  bind_rows(pop_projections_for_compare) %>%
-  #bind_rows(historical_forecasted_grads) %>%
-  bind_rows(historical_forecasted_grad_creds) %>%
-  bind_rows(historical_forecasted_grad_ncs) %>%
-  left_join(min_ns, by = 'TYPE') %>%
-  group_by(YEAR, GROUP) %>%
-  summarize(n = sum(N), min_n = min(min_n)) %>% # View()
-  mutate(
-    n = n / min_n
-  ) %>%
-  ggplot(aes(x = YEAR, y = n, color = GROUP)) +
-  geom_line(linewidth = 1) +
-  geom_vline(aes(xintercept = 2023))
 
 
 # ---- Graduate Projections for Apprenticeship ----
