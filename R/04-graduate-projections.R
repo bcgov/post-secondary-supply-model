@@ -27,37 +27,8 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
-library(assertthat)
 
-# ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-
-# Note: SQL repeated in sql/01.  Delete one copy after merging 2023 run.
-source("./sql/04-graduate-projections/04-graduate-projections-sql.R")
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
-
-# ---- Read data from decimal  ----
-population_projections <- dbReadTable(decimal_con, "population_projections")
-min_enrolments <- dbGetQuery(decimal_con, "SELECT * FROM qry09c_MinEnrolment")
-credentials <- dbGetQuery(
-  decimal_con,
-  "SELECT * FROM Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"
-)
-
-# these should now be in the R environment
+# these should be in the R environment
 required_tables <- c(
   "population_projections",
   "min_enrolments",
