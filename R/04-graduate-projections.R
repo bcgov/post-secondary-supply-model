@@ -40,8 +40,7 @@ if (length(missing) > 0) {
   ))
 }
 
-na_vals = c("", " ", "(Unspecified)", NA)
-
+na_vals <- c("", " ", "(Unspecified)", NA)
 
 # ---- Tidy data for calculations  ----
 population_projections <- population_projections %>%
@@ -127,25 +126,6 @@ f_enrolments_t <- f_enrolments_t %>%
   inner_join(population_projections, by = join_by(YEAR, AGE_GROUP, GENDER)) %>%
   mutate(N_ENROL_FORECASTED = RATE * POP * .01)
 
-# HISTORICAL - Pop/Enrolments ----
-# grab historical data and append
-historical_forecasted_enrolments <- tibble(
-  p_enrolments %>%
-    select(YEAR, AGE_GROUP, GENDER, N = N) %>%
-    mutate(TYPE = 'H. ENROLMENT') %>%
-    bind_rows(
-      f_enrolments_t %>%
-        select(YEAR, AGE_GROUP, GENDER, N = N_ENROL_FORECASTED) %>%
-        mutate(TYPE = 'F. ENROLMENT')
-    )
-)
-
-pop_projections_for_compare <- population_projections %>%
-  mutate(N = POP) %>%
-  select(YEAR, AGE_GROUP, GENDER, N) %>%
-  mutate(TYPE = 'POPULATION') %>%
-  filter(YEAR < 2035)
-
 # ---- Forecasted Graduates ----
 ## Graduation Rates (annual, as a percentage of enrolment) ----
 annual_grad_rate <- credentials %>%
@@ -177,17 +157,6 @@ f_graduates_t <- f_enrolments_t %>%
 f_graduates_t <- f_graduates_t %>%
   select(YEAR, AGE_GROUP, GENDER, N_GRAD_FORECASTED)
 
-
-# HISTORICAL - grads ----
-historical_forecasted_grads <- annual_grad_rate %>%
-  select(YEAR, AGE_GROUP, GENDER, N = N_GRADS) %>%
-  mutate(TYPE = 'H. GRADS') %>%
-  bind_rows(
-    f_graduates_t %>%
-      select(YEAR, AGE_GROUP, GENDER, N = N_GRAD_FORECASTED) %>%
-      mutate(TYPE = 'F. GRADS')
-  )
-
 ## 2-yr average distribution of graduates by credential ----
 avg_2_yr_credentials <- credentials %>%
   filter(YEAR %in% 2021:2022, GENDER != 'Gender Diverse') %>%
@@ -214,18 +183,6 @@ f_graduates <- f_graduates_t %>%
     N = sum(N_GRAD_FORECASTED),
     .by = c(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER)
   )
-
-## HISTORICAL - combined GRAD CRED ----
-historical_forecasted_grad_creds <-
-  credentials %>%
-  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
-  mutate(TYPE = 'H. GRADS by Cred') %>%
-  bind_rows(
-    f_graduates %>%
-      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
-      mutate(TYPE = 'F. GRADS by Cred')
-  )
-
 
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
@@ -261,52 +218,6 @@ f_graduates_nc <- f_graduates %>%
   inner_join(T_DACSO_Near_Completers_RatioByGender) %>%
   mutate(N = N * RATIO) %>%
   select(-RATIO)
-
-# HISTORICAL - near-completers ----
-# note that near-completer data (right now) only goes back 5 years to 2019
-# will want to make sure that comparisons only go that far back
-# could in theory go farther, just easier right now to stay at 2019
-# preprocess nc data before joining with graduates
-T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(
-  decimal_con,
-  "T_DACSO_Near_Completers_RatioByGender_year"
-) %>%
-  janitor::clean_names("all_caps") %>%
-  mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
-  select(YEAR, PSI_CREDENTIAL_CATEGORY, AGE_GROUP, GENDER, N_NC_STP) %>%
-  mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
-
-# recode age groups 35-44, 45-54, 55-64  => 35 to 64
-T_DACSO_Near_Completers_RatioByGender_year <- f_graduates %>%
-  distinct(AGE_GROUP) %>%
-  rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
-  mutate(
-    AGE_GROUP = if_else(
-      AGE_GROUP_RECODE %in% c("35 to 44", "45 to 54", "55 to 64"),
-      "35 to 64",
-      AGE_GROUP_RECODE
-    )
-  ) %>%
-  full_join(
-    T_DACSO_Near_Completers_RatioByGender_year,
-    relationship = "many-to-many"
-  ) %>%
-  select(-AGE_GROUP) %>%
-  rename("AGE_GROUP" = "AGE_GROUP_RECODE")
-
-f_graduates_nc_historical <- T_DACSO_Near_Completers_RatioByGender_year %>%
-  select(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER, N = N_NC_STP) %>%
-  filter(YEAR < 2023)
-
-historical_forecasted_grad_ncs <-
-  f_graduates_nc_historical %>%
-  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
-  mutate(TYPE = 'H. NCs') %>%
-  bind_rows(
-    f_graduates_nc %>%
-      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
-      mutate(TYPE = 'F. NCs')
-  )
 
 # make pssm cred label
 f_graduates <- f_graduates %>%
@@ -368,6 +279,140 @@ f_graduates_agg <- f_graduates %>%
   mutate(SURVEY = 'Credential_Projections_Transp') %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
+
+
+# ---- Graduate Projections for Apprenticeship ----
+APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
+
+appso_2_yr_avg <- APPSO_Graduates %>%
+  mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
+  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
+  summarize(N = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
+  filter(YEAR %in% c('2022', '2023')) %>%
+  summarize(
+    GRADUATES = sum(N / 2, na.rm = TRUE),
+    .by = c(PSSM_CRED, AGE_GROUP)
+  ) %>%
+  mutate(YEAR = "2023/2024") %>%
+  mutate(SURVEY = 'APPSO') %>%
+  mutate(PSI_CREDENTIAL_CATEGORY = "NA") %>%
+  filter(!is.na(AGE_GROUP)) %>%
+  filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
+
+# All grad data, forecast
+f_graduates_agg <- f_graduates_agg %>%
+  rbind(appso_2_yr_avg) %>%
+  mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED))
+
+# fix APPSO forward projection to go to the end
+# done in 06 - not needed here
+# f_graduates_agg <- f_graduates_agg %>%
+#   ungroup() %>%
+#   arrange(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>%
+#   complete(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>%
+#   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
+#   fill(GRADUATES)
+
+# SAVE TO SQL DATABASE ----
+dbWriteTable(
+  decimal_con,
+  name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
+  f_graduates_agg,
+  overwrite = TRUE
+)
+
+
+# ---- Graduate Projections for Trades ----
+# TODO: add in trades to Graduate Projections (above) and project same as APPSO.
+TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
+
+# Historical Outputs ----
+
+# HISTORICAL - Pop/Enrolments ----
+# grab historical data and append
+historical_forecasted_enrolments <- tibble(
+  p_enrolments %>%
+    select(YEAR, AGE_GROUP, GENDER, N = N) %>%
+    mutate(TYPE = 'H. ENROLMENT') %>%
+    bind_rows(
+      f_enrolments_t %>%
+        select(YEAR, AGE_GROUP, GENDER, N = N_ENROL_FORECASTED) %>%
+        mutate(TYPE = 'F. ENROLMENT')
+    )
+)
+
+pop_projections_for_compare <- population_projections %>%
+  mutate(N = POP) %>%
+  select(YEAR, AGE_GROUP, GENDER, N) %>%
+  mutate(TYPE = 'POPULATION') %>%
+  filter(YEAR < 2035)
+
+# HISTORICAL - grads ----
+historical_forecasted_grads <- annual_grad_rate %>%
+  select(YEAR, AGE_GROUP, GENDER, N = N_GRADS) %>%
+  mutate(TYPE = 'H. GRADS') %>%
+  bind_rows(
+    f_graduates_t %>%
+      select(YEAR, AGE_GROUP, GENDER, N = N_GRAD_FORECASTED) %>%
+      mutate(TYPE = 'F. GRADS')
+  )
+
+## HISTORICAL - combined GRAD CRED ----
+historical_forecasted_grad_creds <-
+  credentials %>%
+  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
+  mutate(TYPE = 'H. GRADS by Cred') %>%
+  bind_rows(
+    f_graduates %>%
+      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
+      mutate(TYPE = 'F. GRADS by Cred')
+  )
+
+# HISTORICAL - near-completers ----
+# note that near-completer data (right now) only goes back 5 years to 2019
+# will want to make sure that comparisons only go that far back
+# could in theory go farther, just easier right now to stay at 2019
+# preprocess nc data before joining with graduates
+T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(
+  decimal_con,
+  "T_DACSO_Near_Completers_RatioByGender_year"
+) %>%
+  janitor::clean_names("all_caps") %>%
+  mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
+  select(YEAR, PSI_CREDENTIAL_CATEGORY, AGE_GROUP, GENDER, N_NC_STP) %>%
+  mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
+
+# recode age groups 35-44, 45-54, 55-64  => 35 to 64
+T_DACSO_Near_Completers_RatioByGender_year <- f_graduates %>%
+  distinct(AGE_GROUP) %>%
+  rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
+  mutate(
+    AGE_GROUP = if_else(
+      AGE_GROUP_RECODE %in% c("35 to 44", "45 to 54", "55 to 64"),
+      "35 to 64",
+      AGE_GROUP_RECODE
+    )
+  ) %>%
+  full_join(
+    T_DACSO_Near_Completers_RatioByGender_year,
+    relationship = "many-to-many"
+  ) %>%
+  select(-AGE_GROUP) %>%
+  rename("AGE_GROUP" = "AGE_GROUP_RECODE")
+
+f_graduates_nc_historical <- T_DACSO_Near_Completers_RatioByGender_year %>%
+  select(PSI_CREDENTIAL_CATEGORY, YEAR, AGE_GROUP, GENDER, N = N_NC_STP) %>%
+  filter(YEAR < 2023)
+
+historical_forecasted_grad_ncs <-
+  f_graduates_nc_historical %>%
+  select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
+  mutate(TYPE = 'H. NCs') %>%
+  bind_rows(
+    f_graduates_nc %>%
+      select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
+      mutate(TYPE = 'F. NCs')
+  )
 
 # HISTORICAL - Update PSSM CRED LABEL for GRADS/NCs ----
 hf_grad_creds <- historical_forecasted_grad_creds %>%
@@ -435,39 +480,6 @@ hf_grad_nc_creds_agg <- hf_grad_creds %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
 
-
-# ---- Graduate Projections for Apprenticeship ----
-APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
-
-appso_2_yr_avg <- APPSO_Graduates %>%
-  mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
-  rename("N" = "EXPR1", "PSSM_CRED" = "PSSM_CREDENTIAL") %>%
-  summarize(N = sum(N, na.rm = TRUE), .by = c(YEAR, PSSM_CRED, AGE_GROUP)) %>%
-  filter(YEAR %in% c('2022', '2023')) %>%
-  summarize(
-    GRADUATES = sum(N / 2, na.rm = TRUE),
-    .by = c(PSSM_CRED, AGE_GROUP)
-  ) %>%
-  mutate(YEAR = "2023/2024") %>%
-  mutate(SURVEY = 'APPSO') %>%
-  mutate(PSI_CREDENTIAL_CATEGORY = "NA") %>%
-  filter(!is.na(AGE_GROUP)) %>%
-  filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
-
-# All grad data, forecast
-f_graduates_agg <- f_graduates_agg %>%
-  rbind(appso_2_yr_avg) %>%
-  mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED))
-
-# fix APPSO forward projection to go to the end
-# done in 06 - not needed here
-# f_graduates_agg <- f_graduates_agg %>%
-#   ungroup() %>%
-#   arrange(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>%
-#   complete(PSSM_CREDENTIAL, AGE_GROUP, YEAR) %>%
-#   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
-#   fill(GRADUATES)
-
 # HISTORICAL - APPSO ----
 appso_historical <- APPSO_Graduates %>%
   mutate(YEAR = as.numeric(str_replace(SUBM_CD, "C_Outc", "20"))) %>%
@@ -521,14 +533,6 @@ hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>%
 #   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
 #   fill(GRADUATES)
 
-# SAVE TO SQL DATABASE ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
-  f_graduates_agg,
-  overwrite = TRUE
-)
-
 # SAVE Historical ----
 dbWriteTable(
   decimal_con,
@@ -538,7 +542,3 @@ dbWriteTable(
   hf_grad_nc_appso_agg,
   overwrite = TRUE
 )
-
-# ---- Graduate Projections for Trades ----
-# TODO: add in trades to Graduate Projections (above) and project same as APPSO.
-TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")

@@ -128,7 +128,7 @@ df <- dbGetQuery(con, strSQL)
 
 The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable for aggregation into population counts by age group. The cohort is restricted to binary gender categories to maintain alignment with historical models, and administrative prefixes are converted into standardized age descriptors suitable for downstream join operations.
 
-The primary enrollment and graduate credential distributions used in this analysis were generated in prior analysis (`01-stp-credential-analysis.R` and `01-stp-enrolment-analysis.R`).  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. The credential dataset is constrained to a fixed longitudinal window ($2006 \leq t \leq 2022$).
+The primary enrollment and graduate credential distributions used in this analysis were generated in prior analysis (`01c-stp-credential-analysis.R` , `01d-stp-enrolment-analysis.R` and `01e-stp-distributions.R`).  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. The credential dataset is constrained to a fixed longitudinal window ($2006 \leq t \leq 2022$).
 
 ### Enrollment and Graduation Projection Methodology
 
