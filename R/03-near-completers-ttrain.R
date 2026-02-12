@@ -10,331 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-library(tidyverse)
-library(DBI)
-library(odbc)
-library(config)
-
-# ---- Configure LAN and file paths ----
-#PR Notes for this section:
-
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-
-# ---- Connection to database ----
-#PR Notes for this section:
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
 # ---- Data Requirements and SQL Definitons ----
-# PR Notes for this section:
-# 1) several key tables were made in earlier scripts that I assume will be
-# written back to decimal for intermediate storage (between script processes).  For the PR, you may need
-# to bring them in from the master schema into your schema before running this code.  You'll need the following key
-# tables in decimal: STP_Credential, t_dacso_data_part_1,credential_non_dup
-# 2) additionally, for the PR only, you'll need a few lookup tables in decimal.  They are on the LAN but I hard-coded
-# them here so you can write them to decimal if you like. The LAN versions are in development/csv/gh-source/lookups. I tried to keep the upper/lower case the same as SQL
-# so sometimes you'll see a column with mixed types (we can change later).  The exception is t_pssm_projection_cred_grp; I
-# updated the hard-coded values in one column so they were comparable across datasets in R.  SQL Server is not case-sensitive
-# so those queries should run as expected, the only implication is if you load this table from LAN the R code will be wrong.
-# 3) tmp_tbl_age is oddly designed.  Historically, the analyst appended new data onto old data
-# but now we should be able to work with SO team to transfer one csv (possibly split across years) to the LAN.
-# For development, we currently append new years to historical data (one of the datasets contains duplicates); we write
-# the combined table to decimal along with tmp_tbl_age to get the queries to run.
-
-#source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
-#source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
-
-dbExecute(
-  decimal_con,
-  SQL(glue::glue(
-    'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
-  ))
-) # remove after this refactor
-
-t_dacso_data_part_1 <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
-)
-
-dbExecute(
-  decimal_con,
-  SQL(glue::glue(
-    'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
-  ))
-) # remove after this refactor
-
-credential_non_dup <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
-)
-
-stp_credential <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
-)
-
-years <- 2018:2023
-
-tmp_tbl_age_append_new_years <- years |>
-  purrr::map_dfr(
-    ~ {
-      file_path <- glue::glue(
-        "{lan}/data/student-outcomes/csv/so-provision/qry_make_tmp_table_Age_step1_{.x}.csv"
-      )
-      read_csv(file_path, col_types = "dcdcd")
-    }
-  ) |>
-  distinct() # duplicates in this data
-
-#dbWriteTable(
-#  decimal_con,
-#  SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')),
-#  tmp_tbl_age_append_new_years
-#)
-
-tmp_tbl_age <- read_csv(
-  glue::glue(
-    "{lan}/development/csv/gh-source/testing/03/tmp_tbl_Age.csv"
-  ),
-  col_types = "dccccdd"
-) |>
-  mutate(
-    TPID_DATE_OF_BIRTH = as.Date(TPID_DATE_OF_BIRTH),
-    COSC_ENRL_END_DATE = as.Date(COSC_ENRL_END_DATE),
-    COSC_GRAD_CREDENTIAL_DATE = as.Date(COSC_GRAD_CREDENTIAL_DATE)
-  ) |>
-  distinct() # no duplicates in this data, but just in case.
-
-#dbWriteTable(
-#  decimal_con,
-#  SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')),
-#  tmp_tbl_age
-#)
-
-# lookups
-tbl_age <- tibble(
-  Age = 0:150
-) |>
-  mutate(
-    Age_Group = case_when(
-      Age >= 15 & Age <= 16 ~ 1,
-      Age >= 17 & Age <= 19 ~ 2,
-      Age >= 20 & Age <= 24 ~ 3,
-      Age >= 25 & Age <= 29 ~ 4,
-      Age >= 30 & Age <= 34 ~ 5,
-      Age >= 35 & Age <= 44 ~ 6,
-      Age >= 45 & Age <= 54 ~ 7,
-      Age >= 55 & Age <= 64 ~ 8,
-      Age >= 65 & Age < 90 ~ 9,
-      Age >= 90 ~ NA_real_,
-      TRUE ~ NA_real_ # For Age < 15
-    )
-  )
-
-t_pssm_projection_cred_grp <- tibble(
-  PSSM_Projection_Credential = c(
-    "Advanced Certificate",
-    "Associate Degree",
-    "Advanced Diploma",
-    "Bachelors Degree",
-    "Certificate",
-    "Diploma",
-    "Doctorate",
-    "Graduate Certificate",
-    "Masters Degree",
-    "Post-Degree Certificate",
-    "Post-Degree Diploma",
-    "First Professional Degree",
-    "Graduate Diploma",
-    "Apprappr",
-    "Apprcert"
-  ),
-  PSSM_Credential = c(
-    "ADCT or ADIP",
-    "ADGR or UT",
-    "ADCT or ADIP",
-    "BACH",
-    "CERT",
-    "DIPL",
-    "DOCT",
-    "GRCT or GRDP",
-    "MAST",
-    "PDCT or PDDP",
-    "PDCT or PDDP",
-    "PDEG",
-    "GRCT or GRDP",
-    "APPRAPPR",
-    "APPRCERT"
-  ),
-  PSSM_Credential_Name = c(
-    "Advanced certificate/diploma",
-    "Associate degree/University transfer",
-    "Advanced certificate/diploma",
-    "Baccalaureate degree",
-    "Certificate",
-    "Diploma",
-    "Doctorate",
-    "Graduate certificate/diploma",
-    "Master's degree",
-    "Post-Degree certificate/diploma",
-    "Post-Degree certificate/diploma",
-    "First professional degree",
-    "Graduate certificate/diploma",
-    "Apprenticeship",
-    "Apprenticeship certificate"
-  ),
-  COSC_GRAD_STATUS_LGDS_CD = c(
-    1,
-    1,
-    1,
-    NA,
-    1,
-    1,
-    NA,
-    NA,
-    NA,
-    1,
-    1,
-    NA,
-    NA,
-    NA,
-    NA
-  )
-)
-
-
-combine_creds <- tibble(
-  id = 1:9,
-  combined_cred = c(
-    "3 - ADCT or ADIP",
-    "3 - ADGR or UT",
-    "3 - CERT",
-    "3 - DIPL",
-    "3 - PDDP",
-    "3 - ADGR or UT",
-    "3 - PDCT",
-    "3 - PDCT or PDDP",
-    "3 - PDCT or PDDP"
-  ),
-  prgm_credential_awarded_name = c(
-    "Advanced Diploma",
-    "Associate Degree",
-    "Certificate",
-    "Diploma",
-    "Post-degree Diploma",
-    "University Transfer",
-    "Post-degree Certificate",
-    "Post-degree Diploma",
-    "Post-degree Certificate"
-  ),
-  combined_cred_name = c(
-    "Advanced Certificate/Advanced Diploma",
-    "Associate Degree/University Transfer",
-    "Certificate",
-    "Diploma",
-    "Post-degree Diploma",
-    "Associate Degree/University Transfer",
-    "Post-degree Certificate",
-    "Post-degree Certificate/Post-degree Diploma",
-    "Post-degree Certificate/Post-degree Diploma"
-  ),
-  use_in_pssm_2017_18 = c(
-    "Yes",
-    "Yes",
-    "Yes",
-    "Yes",
-    NA,
-    "Yes",
-    NA,
-    "Yes",
-    "Yes"
-  )
-)
-
-stp_dacso_prgm_credential_lookup <- tibble(
-  PRGRM_Credential_Awarded = c(
-    "ADGR",
-    "ADIP",
-    "CERT",
-    "DIPL",
-    "NONE",
-    "OTHR",
-    "PDCT",
-    "PDDP",
-    "UT"
-  ),
-  PRGM_Credential_Awarded_Name = c(
-    "Associate Degree",
-    "Advanced Diploma",
-    "Certificate",
-    "Diploma",
-    "No credential",
-    "Other credential",
-    "Post-Degree Certificate",
-    "Post-Degree Diploma",
-    "University Transfer"
-  ),
-  STP_PRGM_Credential_Awarded_Name = c(
-    "ASSOCIATE DEGREE",
-    "ADVANCED DIPLOMA",
-    "CERTIFICATE",
-    "DIPLOMA",
-    "None- credential code not in STP",
-    "Other credential",
-    "POST-DEGREE CERTIFICATE",
-    "POST-DEGREE DIPLOMA",
-    "BACHELORS DEGREE"
-  )
-)
-dbWriteTable(
-  decimal_con,
-  "stp_dacso_prgm_credential_lookup",
-  stp_dacso_prgm_credential_lookup,
-  overwrite = TRUE
-)
-
-
-age_group_lookup <- tibble(
-  Age_Index = 1:9,
-  Age_Group = c(
-    "15 to 16",
-    "17 to 19",
-    "20 to 24",
-    "25 to 29",
-    "30 to 34",
-    "35 to 44",
-    "45 to 54",
-    "55 to 64",
-    "65 to 89"
-  ),
-  Lower_Bound = c(15, 17, 20, 25, 30, 35, 45, 55, 65),
-  Upper_Bound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
-)
-
-credential_rank <- tribble(
-  ~PSI_CREDENTIAL_CATEGORY    , ~RANK ,
-  "ADVANCED CERTIFICATE"      ,    10 ,
-  "ADVANCED DIPLOMA"          ,     9 ,
-  "APPRENTICESHIP"            ,    14 ,
-  "ASSOCIATE DEGREE"          ,    11 ,
-  "BACHELORS DEGREE"          ,     8 ,
-  "CERTIFICATE"               ,    13 ,
-  "DIPLOMA"                   ,    12 ,
-  "DOCTORATE"                 ,     1 ,
-  "FIRST PROFESSIONAL DEGREE" ,     7 ,
-  "GRADUATE CERTIFICATE"      ,     4 ,
-  "GRADUATE DIPLOMA"          ,     3 ,
-  "MASTERS DEGREE"            ,     2 ,
-  "POST-DEGREE CERTIFICATE"   ,     6 ,
-  "POST-DEGREE DIPLOMA"       ,     5
-)
+# See load-near-completers-ttrain.R for notes on this section.
 
 # these should now be in the R environment
 required_tables <- c(
@@ -359,16 +36,6 @@ if (length(missing) > 0) {
 }
 
 na_vals = c("", " ", "(Unspecified)", NA)
-
-#remove after refactor
-#dbWriteTable(decimal_con, "tmp_tbl_age", tmp_tbl_age, overwrite = TRUE)
-#dbWriteTable(decimal_con, "tmp_tbl_age_append_new_years", tmp_tbl_age_append_new_years, overwrite = TRUE)
-#dbWriteTable(decimal_con, "stp_dacso_prgm_credential_lookup", stp_dacso_prgm_credential_lookup, overwrite = TRUE)
-#dbWriteTable(decimal_con, "combine_creds", combine_creds, overwrite = TRUE)
-#dbWriteTable(decimal_con, "credential_rank", credential_rank, overwrite = TRUE)
-#dbWriteTable(decimal_con, "tbl_age", tbl_age, overwrite = TRUE)
-#dbWriteTable(decimal_con, "t_pssm_projection_cred_grp", t_pssm_projection_cred_grp, overwrite = TRUE)
-#dbWriteTable(decimal_con, "AgeGroupLookup", age_group_lookup)
 
 # ---- Derive Age at Grad ----
 # replicates lines 69:87 (main branch)
@@ -1150,7 +817,7 @@ near_completes_total_by_gender <- base |>
     tpid_lgnd_cd,
     age_group,
     prgm_credential_awarded_name,
-    name = "count"
+    name = "Count"
   )
 
 #2: paste to col F (C_Outc12_13_14RatiosByGender)
@@ -1193,7 +860,7 @@ ratio.df = near_completes_total_by_gender |>
 # (alternatively just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
-  mutate(n_nc_stp = count - nc_with_early_or_late) |>
+  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
 ratio.df2 <- ratio.df |>
@@ -1246,7 +913,7 @@ near_completes_total_by_gender_year <- base |>
     tpid_lgnd_cd,
     age_group,
     prgm_credential_awarded_name,
-    name = "count"
+    name = "Count"
   )
 
 # 4.2: paste to col F (C_Outc12_13_14RatiosByGender)
@@ -1291,7 +958,7 @@ ratio.df = near_completes_total_by_gender_year |>
 # (or just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
-  mutate(n_nc_stp = count - nc_with_early_or_late) |>
+  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
 ratio.df2 <- ratio.df |>
