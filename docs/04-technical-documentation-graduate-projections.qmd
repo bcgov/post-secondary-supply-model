@@ -42,20 +42,18 @@ Description: This dataset provides annual population estimates and projections. 
 
 #### Historical Enrollment (MinEnrolment)
 
+**Table Name:** `qry09c_MinEnrolment`
 Source: Internal STOB/PSSM Data Warehouse (`decimal` database)  
-Access Method: SQL Query execution via `dbGetQuery`.
+Access Method: SQL Query execution via `dbGetQuery`
 
-- **Table Name:** `qry09c_MinEnrolment`
-- **Processing methodology:** Standardizes academic year strings to numeric integers and isolates age cohorts via regex-based string manipulation to facilitate join operations with demographic data.
-
-Description: Longitudinal enrollment data representing the historical baseline for provincial post-secondary participation.
+Description: Longitudinal enrollment data representing the historical baseline for provincial post-secondary participation.  Generated in 01e-stp-distributions.R from STP Enrolment data.
 
 #### Credential Distribution Matrix
 
 Source: Provincial Administrative Records  
 Access Method: SQL Query (`Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs`)
 
-Description: A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.
+Description: A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.  Generated in 01e-stp-distributions.R from STP Credential data.
 
 #### DACSO Near-Completer Ratios
 
@@ -64,7 +62,7 @@ Access Method: `dbReadTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender"
 
 Description: Contains pre-calculated ratios used to estimate the volume of "Near Completers" relative to traditional graduates. This accounts for students who complete a significant portion of their program without a formal award, representing an additional supply stream.
 
-### Data Storage Structure
+### Data Storage Structure (Inomplete)
 
 This section needs work - some decisions on design are needed before finalziing.
 
@@ -89,8 +87,6 @@ Final outputs and historical reconciliations are committed to the SQL SERVER dat
 
 - Network Access: Secure LAN
 - Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
 
 #### R Package Dependencies
 
@@ -162,9 +158,7 @@ Data from the Apprenticeship Student Outcomes (APPSO) survey is used to integrat
 
 The supply forecast is finalized through the union of the primary graduate and near-completer dataset (`f_graduates_agg`) with the processed APPSO baseline. During this integration, a standardized `PSSM_CREDENTIAL` variable is generated removing the reference to near completers (i.e "1 - " and "3 - " are removed from the credential labels).
 
-
-
-#### Data Dictionary
+#### Data Dictionary (Incomplete)
 
 ##### [Table 1 Name]
 
