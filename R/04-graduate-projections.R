@@ -10,15 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script contains code to calculate graduation projection forecasts for the post-secondary supply model.
-# At a high-level, the methodology is as follows:
-#   1. Use estimates of population and population projections to calculate enrollment rates by age and gender
-#   2. Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years
-#   3. Forecasted enrolment rates are applied to the project population by age and gender to derive forecasted enrollment
-#   4.  A 2 year average graduation rate (calculated as a percentage of enrollment by age group/gender) is multiplied by
-#   forecasted enrollments to derive forecasted graduates.
-#   5.  forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential
-
 # Notes: Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019) and documentation reveal different #'s
 # of output years.  Used 12 for PSSM2023.
 # Script handles only Male and Female
