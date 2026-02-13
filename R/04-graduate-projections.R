@@ -10,9 +10,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# Notes: Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019) and documentation reveal different #'s
-# of output years.  Used 12 for PSSM2023.
-# Script handles only Male and Female
+# PR NOTES
+# This script was run in much the same format last year (2023).  The SQL had been tanslated so the only review to do rn is
+# check age groups, credentials etc. for QA as now we are merging many of our data analysis into the Graduate Projections.
+# This original model only ran to line ~340 or so.  I don't know that we need to run the historical part but I've kept it
+# in case.
+
+# we need to check the different attributes for alignment across datasets.
+# 1) Year:
+#   - which years do we have complete data for?
+#   - Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019)
+#   and documentation reveal different #'s of output years.  Used 12 for PSSM2023.
+#   - The APPSO graduates are supposed to be projected in 06-program-projections.R (this script only produces distributions for 2023/2024)
+# 2) Gender
+#   - How are the different data analysis scripts handling gender?
+#   - This script handles only Male and Female
+# 3) Credential
+#   - How are the different data analysis scripts handling credentials?
+#   - There are differences in which credentials have been reported in the final output.  Many appear to be
+#   data qualtiy problems that are explainable (and thus fixable).  Here is what I've found
+#       - We are missing PTIB data
+#       - 3-CERT, 3_DIPL, 3-ADCT or ADIP and 3 -ADCT or ADIP are all missing data for age groups 35-44, 45-54, 55-64.
+#       - 3 -ADCT or ADIP numbers are a little off but not by much.  This is not obvious to me why.
+# 4) Age Groups
+#   - How are the different data analysis scripts handling age groups?
+#   - We need to get a handle on standardizing what the lookups are are doing with age groups, there is significant misalignment.
+
 library(tidyverse)
 
 # these should now be in the R environment
@@ -317,7 +340,8 @@ dbWriteTable(
 # TODO: add in trades to Graduate Projections (above) and project same as APPSO.
 TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
 
-# Historical Outputs ----
+# ----------  Historical Outputs ----------
+# This is new work introduced last year.  It was not part of the original model; I don't know if we need to keep it.
 
 # HISTORICAL - Pop/Enrolments ----
 # grab historical data and append
