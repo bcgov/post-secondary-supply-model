@@ -23,6 +23,7 @@ format:
 As a critical predictive component of the Post-Secondary Supply Model (PSSM), the Graduate Projections analysis generates longitudinal forecasts for student graduations and "near-completers" within British Columbia; accordingly, the script `04-graduate-projections.R` provides the computational framework necessary to calculate these specific graduation projection outputs.
 
 At a high-level, the methodology is as follows:
+
   1. Use estimates of population and population projections to calculate enrollment rates by age and gender
   2. Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years
   3. Forecasted enrolment rates are applied to the project population by age and gender to derive forecasted enrollment
