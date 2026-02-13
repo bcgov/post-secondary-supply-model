@@ -11,30 +11,32 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # PR NOTES
-# This script was run in much the same format last year (2023).  The SQL had been tanslated so the only review to do rn is
-# check age groups, credentials etc. for QA as now we are merging many of our data analysis into the Graduate Projections.
-# This original model only ran to line ~340 or so.  I don't know that we need to run the historical part but I've kept it
+# 1) This script was run in much the same format last time (PSSM 2023, fall 2024).  The SQL was tanslated in 2024 so the review should be focused on
+# checking age groups, credentials and other attributes that will make up the stratum in final Graduates Distributions (output).
+# 2) We are merging many of our data aggregations (those created in 01e and 03) into these Graduate Projections and so alignment of those labels is important.
+# 3) This original model only ran to line ~340 or so.  I don't know that we need to run the historical part but I've kept it
 # in case.
 
-# we need to check the different attributes for alignment across datasets.
+# We need to check the different attributes for alignment across datasets.
 # 1) Year:
-#   - which years do we have complete data for?
+#   - Which years do we have complete data for?
 #   - Development\Graduate Model\Enrollment & Graduation Projections 2019-2020 PEOPLE 2020.xlsm (2019)
 #   and documentation reveal different #'s of output years.  Used 12 for PSSM2023.
-#   - The APPSO graduates are supposed to be projected in 06-program-projections.R (this script only produces distributions for 2023/2024)
+#   - It is noted that the APPSO graduates are projected in 06-program-projections.R (this script only produces distributions for 2023/2024).
+#   I find this awkward from a design perspective.
 # 2) Gender
 #   - How are the different data analysis scripts handling gender?
 #   - This script handles only Male and Female
 # 3) Credential
 #   - How are the different data analysis scripts handling credentials?
 #   - There are differences in which credentials have been reported in the final output.  Many appear to be
-#   data qualtiy problems that are explainable (and thus fixable).  Here is what I've found
-#       - We are missing PTIB data
+#   data alignment problems that are explainable (and so fixable).  Here is what I've found
+#       - We are missing PTIB data at this point in the pipeline.
 #       - 3-CERT, 3_DIPL, 3-ADCT or ADIP and 3 -ADCT or ADIP are all missing data for age groups 35-44, 45-54, 55-64.
 #       - 3 -ADCT or ADIP numbers are a little off but not by much.  This is not obvious to me why.
 # 4) Age Groups
-#   - How are the different data analysis scripts handling age groups?
-#   - We need to get a handle on standardizing what the lookups are are doing with age groups, there is significant misalignment.
+#   - We need to standardize the age and age group lookups as there is significant misalignment across data analysis scripts. Unless that is
+# intentional, which I doubt.
 
 library(tidyverse)
 
