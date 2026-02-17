@@ -91,6 +91,7 @@ infoware <- read_csv(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
   ))
 )
+
 # ---- Read LAN data ----
 ## Lookups
 pssm_cred_grps <- read_csv(

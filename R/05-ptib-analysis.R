@@ -35,12 +35,15 @@ names(ptib_initial) <- c(
 )
 raw_ptib_data
 
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- infoware
+ptib_initial <- data
+raw_ptib_data <- data
 # ---- Check Required Tables etc. ----
 
 # required tables in decimal or R environment (location TBD)
 required_tables <- c(
   'T_PTIB_Y1_to_Y10',
-  'cpd_proj"',
+  'cpd_proj',
   'cpd_static',
   'INFOWARE_L_CIP_6DIGITS_CIP2016',
   'grad_proj',
@@ -64,6 +67,7 @@ na_vals = c("", " ", "(Unspecified)", NA)
 ### note to self, write final datasets to decimal if R script versions are eventually used instead
 
 ## ---- Add PSSM_Credential to PTIB data ----
+# Note: this join filters out the "Other" - I think this is what we want, but this wasn't done in the original SQL version
 T_Private_Institutions_Credentials <- pssm_cred_grps %>%
   select("PRGM_CREDENTIAL_AWARDED_NAME", "PSSM_CREDENTIAL") %>%
   filter(!is.na(PSSM_CREDENTIAL)) %>%
@@ -189,27 +193,22 @@ T_Private_Institutions_Credentials <- bind_rows(
 )
 
 # Part 2 ----
-## STOP !!! Update model year in queries ----
+#
 
 ## ---- Count domestic grads ----
-qry_Private_Credentials_01a_Domestic <- T_Private_Institutions_Credentials %>%
-  filter(is.na(Exclude) & !is.na(Graduates)) %>%
-  filter(Credential == "CERT" | Credential == "DIPL") %>%
+qry_Private_Credentials_01a_Domestic2 <- T_Private_Institutions_Credentials %>%
+  filter(
+    is.na(Exclude),
+    !is.na(Graduates),
+    Credential %in% c("CERT", "DIPL")
+  ) %>%
+  group_by(Credential, LCIP_CD, Age_Group) %>%
+  summarize(
+    Domestic = sum(Graduates[Immigration_Status == "Domestic"], na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   mutate(Year = "2023/2024") %>%
-  select(
-    Year,
-    Credential,
-    LCIP_CD,
-    Age_Group,
-    Graduates,
-    Immigration_Status
-  ) %>%
-  mutate(
-    Grad_Val = case_when(Immigration_Status == "Domestic" ~ Graduates, TRUE ~ 0)
-  ) %>%
-  select(-Graduates, -Immigration_Status) %>%
-  group_by(Year, Credential, LCIP_CD, Age_Group) %>%
-  summarize(Domestic = sum(Grad_Val))
+  select(Year, Credential, LCIP_CD, Age_Group, Domestic)
 
 
 ## ---- Count domestic and international grads ----
@@ -244,8 +243,9 @@ qry_Private_Credentials_01c_Percent_Domestic <- qry_Private_Credentials_01a_Dome
 ## computes Blank/Unknown immigration status records to include as domestic grads;
 qry_Private_Credentials_01d_Grads_Blank <- T_Private_Institutions_Credentials %>%
   filter(
-    Immigration_Status == "(blank)" |
-      Immigration_Status == "Unknown" & is.na(Exclude)
+    (Immigration_Status == "(blank)" |
+      Immigration_Status == "Unknown"),
+    is.na(Exclude)
   ) %>%
   inner_join(
     qry_Private_Credentials_01c_Percent_Domestic,
@@ -265,63 +265,50 @@ qry_Private_Credentials_01e_Grads_Union <- qry_Private_Credentials_01a_Domestic 
 ## ---- Sum of union query ----
 qry_Private_Credentials_01f_Grads <- qry_Private_Credentials_01e_Grads_Union %>%
   group_by(Year, Credential, LCIP_CD, Age_Group) %>%
-  summarize(Grads = sum(Domestic))
+  summarize(Grads = sum(Domestic, na.rm = TRUE), .groups = "drop")
 
 ## ---- Summarize the Grads by Credential/Age ----
 qry_Private_Credentials_05i_Grads <- qry_Private_Credentials_01f_Grads %>%
   group_by(Year, Credential, Age_Group) %>%
-  summarize(SumOfGrads = sum(Grads))
+  summarize(SumOfGrads = sum(Grads, na.rm = TRUE), .groups = "drop")
 
-## ---- Delete PTIB rows from Graduate_Projections ----
-# dbExecute(con, qry_Private_Credentials_05i0_Grads_by_Year_Delete)
-#
-# Graduate_Projections <- dbReadTable(con, SQL(glue::glue('"{my_schema}"."Graduate_Projections"')))
-#
-# Graduate_Projections <- Graduate_Projections %>%
-#   filter(Survey!="PTIB")
-
-## ---- Update Graduate_Projections ----
-## adds grads for all years to Graduate_Projections
-dbGetQuery(con, qry_Private_Credentials_05i1_Grads_by_Year)
-
-T_PTIB_Y1_to_Y10 <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"'))
-)
-
-Graduate_Projections_PTIB <- qry_Private_Credentials_05i_Grads %>%
+qry_Private_Credentials_05i1_Grads_by_Year <- qry_Private_Credentials_05i_Grads %>%
   inner_join(
     T_PTIB_Y1_to_Y10,
     by = c("Year" = "Y1"),
     relationship = "many-to-many"
   ) %>%
-  mutate(Survey = "PTIB") %>%
-  #mutate(PSSM_Credential = NA) %>%
-  mutate(PSSM_CRED = paste0("P - ", Credential)) %>%
-  select(-Credential) %>%
+  mutate(
+    Survey = "PTIB",
+    PSSM_CRED = paste0("P - ", Credential)
+  ) %>%
   select(
     Survey,
     PSSM_CRED,
     Age_Group,
     Year = Y1_TO_Y10,
     Graduates = SumOfGrads
-  ) %>%
-  arrange(PSSM_CRED, Age_Group)
-
-# Graduate_Projections <- Graduate_Projections %>%
-#   rbind(Graduate_Projections_PTIB)
+  )
 
 ## ---- Delete excess age groups ----
-## ADDED 2024 Replacement for manually deleting excess age groups
 ## Looks like, blanks, unknowns, 16 or less and 65+ were not in final table
-dbGetQuery(con, qry_Private_Credentials_05i2_Delete_AgeGrps)
-
-Graduate_Projections_PTIB <- Graduate_Projections_PTIB %>%
+qry_Private_Credentials_05i1_Grads_by_Year <- qry_Private_Credentials_05i1_Grads_by_Year %>%
   filter((Survey == "PTIB" & Age_Group != "Unknown") | Survey != "PTIB") %>%
   filter((Survey == "PTIB" & Age_Group != "(blank)") | Survey != "PTIB") %>%
   filter((Survey == "PTIB" & Age_Group != "16 or less") | Survey != "PTIB") %>%
   filter((Survey == "PTIB" & Age_Group != "65+") | Survey != "PTIB")
 
+Graduate_Projections_PTIB <- qry_Private_Credentials_05i1_Grads_by_Year
+
+## ---- Use to add PTIB rows to Graduate_Projections ----
+# this replicates the workflow in Access - leaving here for the moment,
+# but this shouldn't be required anymore.
+
+# Graduate_Projections <- Graduate_Projections %>%
+#   filter(Survey!="PTIB")
+
+# Graduate_Projections <- Graduate_Projections %>%
+#   rbind(Graduate_Projections_PTIB)
 
 # Part 3 ----
 
