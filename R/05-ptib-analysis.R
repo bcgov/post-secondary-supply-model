@@ -20,62 +20,9 @@
 #
 # ******************************************************************************
 
-library(RODBC)
-library(arrow)
 library(tidyverse)
-library(odbc)
-library(DBI)
-
-# Setup ----
-## ---- Configure LAN Paths and DB Connection -----
-lan <- config::get("lan")
-source("sql/05-ptib-analysis/05-private-training-institutions.R")
-
-
-## ---- Connect to Decimal ----
-config <- config::get("decimal")
-db_schema <- config::get("dbschema")
-my_schema <- config::get("myschema")
-
-con <- dbConnect(
-  odbc(),
-  Driver = config$driver,
-  Server = config$server,
-  Database = config$database,
-  Trusted_Connection = "True"
-)
 
 # ---- Data Requirements and SQL Definitons ----
-# PR Notes for this section:
-
-# lookups from LAN
-pssm_cred_grps <- read_csv(
-  (glue::glue(
-    "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PSSM_Credential_Grouping.csv"
-  ))
-)
-names(pssm_cred_grps) <- toupper(names(pssm_cred_grps))
-
-T_PTIB_Y1_to_Y10 <- read_csv(
-  (glue::glue(
-    "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PTIB_Y1_to_Y10.csv"
-  ))
-)
-
-infoware <- read_csv(
-  (glue::glue(
-    "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
-  ))
-)
-
-# PTIB data
-ptib_initial <- read_csv(
-  glue::glue(
-    "{lan}\\development\\csv\\gh-source\\testing\\05\\T_Private_Institutions_Credentials_Imported_2021-03.csv"
-  ),
-  col_types = "dccccccddd"
-)
-
 names(ptib_initial) <- c(
   "year",
   "credential",
@@ -86,32 +33,7 @@ names(ptib_initial) <- c(
   "sum_of_enrolments",
   "sum_of_total_enrolments"
 )
-raw_ptib_data <- ptib_initial
-
-dbWriteTable(
-  con,
-  SQL(glue::glue(
-    '"{my_schema}"."T_Private_Institutions_Credentials_Raw"'
-  )),
-  ptib_initial,
-  overwrite = TRUE
-)
-
-# other tables should be in the R environment from earlier analysis
-grad_proj <- dbReadTable(
-  con,
-  SQL(glue::glue('"{db_schema}"."Graduate_Projections"'))
-)
-
-cpd_proj <- dbReadTable(
-  con,
-  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Projected"'))
-)
-
-cpd_static <- dbReadTable(
-  con,
-  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Static"'))
-)
+raw_ptib_data
 
 # ---- Check Required Tables etc. ----
 
@@ -236,7 +158,7 @@ T_Private_Institutions_Credentials_Clean <- T_Private_Institutions_Credentials
 
 ## ---- Age averages ----
 # check relevant years to update queries below
-T_Private_Institutions_Credentials) %>%
+T_Private_Institutions_Credentials %>%
   count(intYear)
 
 avg_summary <- T_Private_Institutions_Credentials_Clean %>%
