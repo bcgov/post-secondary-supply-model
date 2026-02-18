@@ -48,7 +48,7 @@ Access Method:
 
 Description: 
 
-### Data Storage Structure
+### Data Storage Structure (Incomplete)
 
 This section needs work - some decisions on design are needed before finalziing.
 
@@ -135,9 +135,6 @@ Analytical summaries are projected forward 10 years to achieve standardized repo
 
 * An inner join with the `T_PTIB_Y1_to_Y10` reference table utilizes a many-to-many relationship to project the 2023/2024 cycle across a ten-year horizon (through 2034/2035). Administrative metadata, including survey identifiers and standardized credential prefixes, are appended.
 *  a logical filter suppresses demographic outliers, including "Unknown," "(blank)," "16 or less," and "65+" age classifications. This ensures the final output adheres to provincial reporting criteria.
-
-
-
 
 #### Data Dictionary
 
