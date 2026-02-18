@@ -112,9 +112,30 @@ df <- dbGetQuery(con, strSQL)
 
 ## Methodology Overview
 
-### [Step 1]
+##### Data Integration and Standardization
 
-### [Step 2]
+Raw PTIB survey data are read from Excel into R; the resulting schema is constrained to essential reporting dimensions including temporal identifiers (year), demographic cohorts (age group), and 6-digit LCIP codes.   The following initial data cleaning is performed:
+
+- Credentials are strictly kept to Credential and Diploma only; blanks and other erroneous credetential records are removed.
+- LCIP formats are aligned with provincial standards;  uniform six-digit identifiers are reconstructed via string-padding and decimal suppression to prevent erroneous type-handling of leading or trailing zeroes. These identifiers undergo referential integrity validation against a main CIP registry lookup. 
+- Eligibility is refined by systematically excluding "English as a Second Language," "not-for-credit," and unclassified (99.9999) programs to ensure taxonomic alignment with reporting mandates.
+- Age-range delimiters are standardized to a formal "to" convention. 
+
+##### Longitudinal Averaging
+
+To stabilize longitudinal trends, a biennial mean is derived from the 2021 and 2022 reporting cycles. Metrics for enrollment, non-graduated registrants, and graduates are aggregated by demographic (Age Group) and programmatic (LCIP) dimensions and subsequently bisected (i.e. averaged). For the 2023/2024 reporting sequence, the primary dataset is redefined by this synthetic "Average" cohort, which serves as the base dataset for subsequent proportional attribution.
+
+##### Proportional Attribution
+
+Graduate counts are reconciled using a probabilistic attribution model to address unspecified immigration status. A domestic-to-international ratio is calculated within the known cohort (isolated to verified "Domestic" and "International" statuses). This weighting factor is then applied via an inner join to records categorized as "Unknown" or "(blank)." The resulting apportioned estimates are unified with verified domestic counts through a set-based operation (rbind), producing a finalized SumOfGrads metric stratified by credential and age group. (<mark> verify</mark>)
+
+##### Temporal Expansion
+
+Analytical summaries are projected forward 10 years to achieve standardized reporting formats for longitudinal forecasting:
+
+* An inner join with the `T_PTIB_Y1_to_Y10` reference table utilizes a many-to-many relationship to project the 2023/2024 cycle across a ten-year horizon (through 2034/2035). Administrative metadata, including survey identifiers and standardized credential prefixes, are appended.
+*  a logical filter suppresses demographic outliers, including "Unknown," "(blank)," "16 or less," and "65+" age classifications. This ensures the final output adheres to provincial reporting criteria.
+
 
 
 

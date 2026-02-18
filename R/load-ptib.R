@@ -14,7 +14,6 @@
 # Load PTIB enrolment data from staging area in LAN project folder, to decimal.
 # Raw data is in excel so some cleaning req'd to handle cip code conversion issues
 # ******************************************************************************
-library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
@@ -73,7 +72,7 @@ cleaned_data <- raw_data %>%
   )
 
 # ---- Aggregate data ----
-data <- cleaned_data %>%
+ptib_data <- cleaned_data %>%
   group_by(year, credential, cip3, age_group, immigration_status) %>%
   summarize(
     sum_of_graduates = sum(graduates, na.rm = TRUE),
@@ -82,8 +81,6 @@ data <- cleaned_data %>%
     .groups = "drop"
   ) %>%
   rename(cip = cip3)
-
-T_Private_Institutions_Credentials_Raw <- data
 
 # ---- Read Outcomes Data ----
 infoware <- read_csv(
@@ -146,7 +143,7 @@ dbWriteTable(
 dbWriteTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')),
-  T_Private_Institutions_Credentials_Raw,
+  ptib_data,
   overwrite = TRUE
 )
 
