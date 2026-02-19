@@ -50,62 +50,65 @@ decimal_con <- dbConnect(
 source("./sql/06-program-projections/06-program-projections.R")
 
 if (regular_run == T | ptib_run == T) {
+  # I think we can probably load all lookups, regardless, and move this conditional to
+  # later in the script, to where the projected/static distributions are cleared.
+
   # ---- Lookups  ----
-  T_Cohort_Program_Distributions_Y2_to_Y12 <-
+  t_cohort_program_distributions_y2_to_y12 <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/T_Cohort_Program_Distributions_Y2_to_Y12.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  T_APPR_Y2_to_Y10 <-
+  t_appr_y2_to_y10 <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/T_APPR_Y2_to_Y10.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  tbl_Age_Groups_Near_Completers <-
+  tbl_age_groups_near_completers <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/tbl_Age_Groups_Near_Completers.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  tbl_Age_Groups <-
+  tbl_age_groups <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/07/tbl_Age_Groups.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  T_PSSM_Projection_Cred_Grp <-
+  t_pssm_projection_cred_grp <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/T_PSSM_Projection_Cred_Grp.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  T_Weights_STP <-
+  t_weights_stp <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/T_Weights_STP.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  AgeGroupLookup <-
+  agegrouplookup <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/lookups/06/AgeGroupLookup.csv"
@@ -113,150 +116,210 @@ if (regular_run == T | ptib_run == T) {
       col_types = cols(.default = col_guess())
     )
 
-  # ---- Read from Student Outcomes ----
-  INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"'))
-  )
-  INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"'))
-  )
-
   # ---- Rollover data ----
-  # TODO make schema instead
-  Cohort_Program_Distributions_Projected <-
+  # make schema instead
+  cohort_program_distributions_projected <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Projected.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  Cohort_Program_Distributions_Static <-
+  cohort_program_distributions_static <-
     readr::read_csv(
       glue::glue(
         "{lan}/development/csv/gh-source/rollover/06/Cohort_Program_Distributions_Static.csv"
       ),
       col_types = cols(.default = col_guess())
-    ) %>%
+    ) |>
     janitor::clean_names(case = "all_caps")
 
-  # ---- Write to decimal ----
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
-    AgeGroupLookup,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
-    tbl_Age_Groups_Near_Completers,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
-    tbl_Age_Groups,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue(
-      '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
-    )),
-    T_Cohort_Program_Distributions_Y2_to_Y12,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
-    T_APPR_Y2_to_Y10,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),
-    INFOWARE_L_CIP_4DIGITS_CIP2016,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
-    INFOWARE_L_CIP_6DIGITS_CIP2016,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
-    T_PSSM_Projection_Cred_Grp,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
-    T_Weights_STP,
-    overwrite = TRUE
-  )
+  ## ---- Write to decimal ----
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
+  #  agegrouplookup,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
+  #  tbl_age_groups_near_completers,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
+  #  tbl_age_groups,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue(
+  #    '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
+  #  )),
+  #  t_cohort_program_distributions_y2_to_y12,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
+  #  t_appr_y2_to_y10,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
+  #  t_pssm_projection_cred_grp,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
+  #  t_weights_stp,
+  #  overwrite = TRUE
+  #)
+  #
 
   # ---- Build tbl_Program_Projection_Input ----
-  tbl_Program_Projection_Input <- dbGetQuery(
+
+  tbl_credential_highest_rank <- dbReadTable(
     decimal_con,
-    qry_Build_Program_Projection_Input
+    SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"'))
   )
-  dbWriteTable(
+
+  credential_non_dup <- dbReadTable(
     decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')),
-    tbl_Program_Projection_Input,
-    overwrite = TRUE
+    SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
   )
+
+  tbl_program_projection_input2 <- tbl_credential_highest_rank |>
+    select(
+      id,
+      AGE_GROUP_AT_GRAD,
+      PSI_CREDENTIAL_CATEGORY,
+      PSI_AWARD_SCHOOL_YEAR_DELAYED,
+      PSI_VISA_STATUS,
+      RESEARCH_UNIVERSITY,
+      OUTCOMES_CRED
+    ) |>
+    inner_join(
+      agegrouplookup |> select(AgeIndex, AgeGroup),
+      by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")
+    ) |>
+    inner_join(
+      credential_non_dup |>
+        select(id, FINAL_CIP_CODE_4, FINAL_CIP_CLUSTER_CODE),
+      by = "id"
+    ) |>
+    filter(
+      FINAL_CIP_CLUSTER_CODE != "09",
+      FINAL_CIP_CLUSTER_CODE != "10",
+      PSI_CREDENTIAL_CATEGORY != 'Apprenticeship',
+      (
+        # Block 1: Domestic and Research University
+        (PSI_VISA_STATUS == "Domestic" &
+          RESEARCH_UNIVERSITY == 1 &
+          OUTCOMES_CRED != "DACSO") |
+
+          # Block 2: Unknown Status and Research University
+          (is.na(PSI_VISA_STATUS) &
+            RESEARCH_UNIVERSITY == 1 &
+            OUTCOMES_CRED != "DACSO") |
+
+          # Block 3: Domestic and Unknown University
+          (PSI_VISA_STATUS == "Domestic" &
+            is.na(RESEARCH_UNIVERSITY)) |
+
+          # Block 4: Unknown Status and Unknown University
+          (is.na(PSI_VISA_STATUS) &
+            is.na(RESEARCH_UNIVERSITY))
+      )
+    ) |>
+    summarise(
+      Expr1 = first(paste0(PSI_CREDENTIAL_CATEGORY, AgeGroup)),
+      Count = n(),
+      .by = c(
+        "AgeGroup",
+        "PSI_CREDENTIAL_CATEGORY",
+        "PSI_AWARD_SCHOOL_YEAR_DELAYED",
+        "FINAL_CIP_CODE_4"
+      )
+    )
+
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')),
+  #  tbl_program_projection_input,
+  #  overwrite = TRUE
+  #)
 
   # ---- Rollover ----
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue(
-      '"{my_schema}"."Cohort_Program_Distributions_Static"'
-    )),
-    Cohort_Program_Distributions_Static,
-    overwrite = TRUE
-  )
-  dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-  )
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
-  )
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-  )
+  # this whole section is hacky - we are essentially defining a schema in the db.
+  # starting with a fresh schema (no rows).  But we don't clear them if we are doing the QI run
+  # because we want to keep the projected/static distributions in there, as they are not being updated in the QI run.
 
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue(
-      '"{my_schema}"."Cohort_Program_Distributions_Projected"'
-    )),
-    Cohort_Program_Distributions_Projected,
-    overwrite = TRUE
-  )
-  dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-  )
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
-  )
-  dbGetQuery(
-    decimal_con,
-    "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-  )
+  # The R version is
+  cohort_program_distributions_static <- cohort_program_distributions_static |>
+    filter(FALSE) |>
+    mutate(
+      LCIP2_CRED = as.character(LCIP2_CRED),
+      TTRAIN = as.character(TTRAIN),
+      GRAD_STATUS = as.character(GRAD_STATUS)
+    )
+  cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+    filter(FALSE) |>
+    mutate(
+      LCIP2_CRED = as.character(LCIP2_CRED),
+      TTRAIN = as.character(TTRAIN),
+      GRAD_STATUS = as.character(GRAD_STATUS)
+    )
+
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue(
+  #    '"{my_schema}"."Cohort_Program_Distributions_Static"'
+  #  )),
+  #  cohort_program_distributions_static,
+  #  overwrite = TRUE
+  #)
+  #dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  #)
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
+  #)
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  #)
+  #
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue(
+  #    '"{my_schema}"."Cohort_Program_Distributions_Projected"'
+  #  )),
+  #  cohort_program_distributions_projected,
+  #  overwrite = TRUE
+  #)
+  #dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  #)
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
+  #)
+  #dbGetQuery(
+  #  decimal_con,
+  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  #)
 
   # check that only required survey years are in T_Cohorts_Recoded
   stopifnot(exprs = {
@@ -269,31 +332,40 @@ if (regular_run == T | ptib_run == T) {
 }
 
 
-if (qi_run == T) {
-  # ---- Read from Student Outcomes ----
-  INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016_raw"'))
+# ---- Student Outcomes Lookups ----
+infoware_l_cip_4digits_cip2016 <- readr::read_csv(
+  glue::glue(
+    "{lan}/development/csv/infoware/INFOWARE_L_CIP_4DIGITS_CIP2016.csv"
+  ),
+  col_types = cols(
+    .default = col_guess()
+  ),
+  locale = locale(
+    encoding = "latin1"
   )
-  INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_raw"'))
+)
+infoware_l_cip_6digits_cip2016 <- readr::read_csv(
+  glue::glue(
+    "{lan}/development/csv/infoware/INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
+  ),
+  col_types = cols(.default = col_guess()),
+  locale = locale(
+    encoding = "latin1"
   )
-  # ---- Write to decimal ----
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),
-    INFOWARE_L_CIP_4DIGITS_CIP2016,
-    overwrite = TRUE
-  )
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
-    INFOWARE_L_CIP_6DIGITS_CIP2016,
-    overwrite = TRUE
-  )
-}
+)
 
+#dbWriteTable(
+#  decimal_con,
+#  name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')),
+#  infoware_l_cip_4digits_cip2016,
+#  overwrite = TRUE
+#)
+#dbWriteTable(
+#  decimal_con,
+#  name = SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
+#  infoware_l_cip_6digits_cip2016,
+#  overwrite = TRUE
+#)
 
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
