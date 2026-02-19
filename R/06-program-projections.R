@@ -82,28 +82,86 @@ na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- survey == "PTIB" (Static and Projected) ----
 if (ptib_run == TRUE) {
-  cohort_program_distributions_projected <- qry_private_credentials_06d1_cohort_dist
-  cohort_program_distributions_static <- qry_private_credentials_06d1_cohort_dist
+  cohort_program_distributions_projected <- rbind(
+    cohort_program_distributions_projected,
+    qry_private_credentials_06d1_cohort_dist
+  )
+  cohort_program_distributions_static <- rbind(
+    cohort_program_distributions_static,
+    qry_private_credentials_06d1_cohort_dist
+  )
 }
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
 # Add near completers to projected and static distribution datasets
-dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Projected)
-dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Static)
-dbExecute(decimal_con, qry_13a_Near_completers)
-dbExecute(decimal_con, qry_13b_Near_Completers_Total)
-dbExecute(decimal_con, qry_13c_Near_Completers_Program_Dist)
-dbExecute(
-  decimal_con,
-  qry_13d_Append_Near_Completers_Program_Dist_Projected_TTRAIN
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(PSSM_CRED, "^3 - "))
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(PSSM_CRED, "^3 - "))
+
+qry_13a_near_completers <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    COSC_GRAD_STATUS_LGDS_CD_GROUP,
+    TTRAIN,
+    LCIP4_CRED,
+    AGE_GROUP
+  ) |>
+  summarise(
+    COUNT = sum(NEAR_COMPLETERS_STP_CREDENTIALS, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    LCIP2_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      str_sub(LCP4_CD, 1, 2),
+      TTRAIN,
+      PSSM_CREDENTIAL,
+      sep = " - "
+    )
+  )
+
+qry_13c_near_completers_program_dist <- qry_13a_near_completers |>
+  group_by(PSSM_CRED, AGE_GROUP) |>
+  mutate(TOTALS = sum(COUNT, na.rm = TRUE)) |>
+  ungroup() |>
+  mutate(
+    PERCENT = if_else(TOTALS == 0, 0, as.numeric(COUNT) / as.numeric(TOTALS))
+  )
+
+final_near_completers_mapped <- qry_13c_near_completers_program_dist |>
+  inner_join(
+    tbl_age_groups_near_completers,
+    by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION)
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_qry_13d",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS = COSC_GRAD_STATUS_LGDS_CD_GROUP,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION, # Renamed via lookup
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL = TOTALS,
+    PERCENT
+  )
+
+cohort_program_distributions_projected <- bind_rows(
+  cohort_program_distributions_projected,
+  final_near_completers_mapped
 )
-dbExecute(
-  decimal_con,
-  qry_13d_Append_Near_Completers_Program_Dist_Static_TTRAIN
+
+cohort_program_distributions_static <- bind_rows(
+  cohort_program_distributions_static,
+  final_near_completers_mapped
 )
-dbExecute(decimal_con, "drop table qry_13a_Near_completers")
-dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
-dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
+
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
 # Add program cohorts to static distribution datasets

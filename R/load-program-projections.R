@@ -215,7 +215,8 @@ if (regular_run == T | ptib_run == T) {
       SQL(glue::glue(
         '"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"'
       ))
-    )
+    ) |>
+    janitor::clean_names(case = "all_caps")
 
   t_cohorts_recoded <- dbReadTable(
     decimal_con,
@@ -299,49 +300,49 @@ if (regular_run == T | ptib_run == T) {
       GRAD_STATUS = as.character(GRAD_STATUS)
     )
 
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue(
-  #    '"{my_schema}"."Cohort_Program_Distributions_Static"'
-  #  )),
-  #  cohort_program_distributions_static,
-  #  overwrite = TRUE
-  #)
-  #dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-  #)
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
-  #)
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-  #)
+  # dbWriteTable(
+  #   decimal_con,
+  #   name = SQL(glue::glue(
+  #     '"{my_schema}"."Cohort_Program_Distributions_Static"'
+  #   )),
+  #   cohort_program_distributions_static,
+  #   overwrite = TRUE
+  # )
+  # dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  # )
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
+  # )
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  # )
   #
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue(
-  #    '"{my_schema}"."Cohort_Program_Distributions_Projected"'
-  #  )),
-  #  cohort_program_distributions_projected,
-  #  overwrite = TRUE
-  #)
-  #dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-  #)
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
-  #)
-  #dbGetQuery(
-  #  decimal_con,
-  #  "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-  #)
+  # dbWriteTable(
+  #   decimal_con,
+  #   name = SQL(glue::glue(
+  #     '"{my_schema}"."Cohort_Program_Distributions_Projected"'
+  #   )),
+  #   cohort_program_distributions_projected,
+  #   overwrite = TRUE
+  # )
+  # dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  # )
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
+  # )
+  # dbGetQuery(
+  #   decimal_con,
+  #   "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  # )
 
   # check that only required survey years are in T_Cohorts_Recoded
   stopifnot(exprs = {
@@ -366,6 +367,7 @@ infoware_l_cip_4digits_cip2016 <- readr::read_csv(
     encoding = "latin1"
   )
 )
+
 infoware_l_cip_6digits_cip2016 <- readr::read_csv(
   glue::glue(
     "{lan}/development/csv/infoware/INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
