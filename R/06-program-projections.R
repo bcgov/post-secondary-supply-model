@@ -40,7 +40,6 @@
 library(assertthat)
 library(tidyverse)
 
-
 # List of required tables for Derived Tables, Rollovers, and Lookups
 required_tables <- c(
   # actually used in load script
@@ -68,10 +67,7 @@ required_tables <- c(
   "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
   "t_cohorts_recoded"
 )
-
-required_tables <- c(
-  "T_Cohorts_Recoded"
-)
+names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_credential"
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
@@ -86,21 +82,8 @@ na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- survey == "PTIB" (Static and Projected) ----
 if (ptib_run == TRUE) {
-  dbExecute(
-    decimal_con,
-    "INSERT INTO Cohort_Program_Distributions_Projected
-            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
-  )
-  dbExecute(
-    decimal_con,
-    "INSERT INTO Cohort_Program_Distributions_Static
-            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
-  )
-  dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
+  cohort_program_distributions_projected <- qry_private_credentials_06d1_cohort_dist
+  cohort_program_distributions_static <- qry_private_credentials_06d1_cohort_dist
 }
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
