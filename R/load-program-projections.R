@@ -136,55 +136,7 @@ if (regular_run == T | ptib_run == T) {
     ) |>
     janitor::clean_names(case = "all_caps")
 
-  ## ---- Write to decimal ----
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
-  #  agegrouplookup,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
-  #  tbl_age_groups_near_completers,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
-  #  tbl_age_groups,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue(
-  #    '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
-  #  )),
-  #  t_cohort_program_distributions_y2_to_y12,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
-  #  t_appr_y2_to_y10,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
-  #  t_pssm_projection_cred_grp,
-  #  overwrite = TRUE
-  #)
-  #dbWriteTable(
-  #  decimal_con,
-  #  name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
-  #  t_weights_stp,
-  #  overwrite = TRUE
-  #)
-  #
-
   # ---- Build tbl_Program_Projection_Input ----
-
   tbl_credential_highest_rank <- dbReadTable(
     decimal_con,
     SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"'))
@@ -195,7 +147,7 @@ if (regular_run == T | ptib_run == T) {
     SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
   )
 
-  tbl_program_projection_input2 <- tbl_credential_highest_rank |>
+  tbl_program_projection_input <- tbl_credential_highest_rank |>
     select(
       id,
       AGE_GROUP_AT_GRAD,
@@ -248,6 +200,76 @@ if (regular_run == T | ptib_run == T) {
         "FINAL_CIP_CODE_4"
       )
     )
+
+  qry_private_credentials_06d1_cohort_dist <-
+    dbReadTable(
+      decimal_con,
+      SQL(glue::glue(
+        '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"'
+      ))
+    )
+
+  dacso_near_completers_ratios_age_at_grad_cip4_ttrain <-
+    dbReadTable(
+      decimal_con,
+      SQL(glue::glue(
+        '"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"'
+      ))
+    )
+
+  t_cohorts_recoded <- dbReadTable(
+    decimal_con,
+    SQL(glue::glue(
+      '"{my_schema}"."T_Cohorts_Recoded"'
+    ))
+  )
+
+  ## ---- Write to decimal ----
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
+  #  agegrouplookup,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
+  #  tbl_age_groups_near_completers,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
+  #  tbl_age_groups,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue(
+  #    '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
+  #  )),
+  #  t_cohort_program_distributions_y2_to_y12,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
+  #  t_appr_y2_to_y10,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
+  #  t_pssm_projection_cred_grp,
+  #  overwrite = TRUE
+  #)
+  #dbWriteTable(
+  #  decimal_con,
+  #  name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
+  #  t_weights_stp,
+  #  overwrite = TRUE
+  #)
+  #
 
   #dbWriteTable(
   #  decimal_con,

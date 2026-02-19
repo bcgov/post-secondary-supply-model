@@ -37,68 +37,52 @@
 #        keep eyes open for impacts of this.
 #        04-graduate-projections: remove space in final table name, add survey column and populate
 
-library(tidyverse)
-library(RODBC)
-library(config)
-library(DBI)
-
-# ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-
-source("./sql/06-program-projections/06-program-projections.R")
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
-# ---- Check for required data tables ----
-# Load necessary libraries
-library(DBI)
-library(glue)
 library(assertthat)
+library(tidyverse)
+
 
 # List of required tables for Derived Tables, Rollovers, and Lookups
 required_tables <- c(
-  # Derived tables
-  "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN",
-  "tbl_Program_Projection_Input",
-  "T_Cohorts_Recoded",
+  # actually used in load script
+  "tbl_credential_highest_rank",
+  "credential_non_dup",
 
   # Rollovers from last run
-  "Cohort_Program_Distributions_Projected",
-  "Cohort_Program_Distributions_Static",
+  "cohort_program_distributions_projected",
+  "cohort_program_distributions_static",
 
   # Lookups
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "T_PSSM_Projection_Cred_Grp",
-  "T_Weights_STP",
-  "tbl_Age_Groups_Near_Completers",
+  "agegrouplookup",
+  "infoware_l_cip_4digits_cip2016",
+  "infoware_l_cip_6digits_cip2016",
+  "t_appr_y2_to_y10",
+  "t_cohort_program_distributions_y2_to_y12",
+  "t_pssm_projection_cred_grp",
+  "t_weights_stp",
+  "tbl_age_groups",
+  "tbl_age_groups_near_completers",
 
-  # Note table
-  "T_Cohort_Program_Distributions_Y2_to_Y12"
+  # Derived tables
+  "tbl_program_projection_input",
+  "qry_private_credentials_06d1_cohort_dist",
+  "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
+  "t_cohorts_recoded"
 )
 
-# Check for required data tables in the database
-for (table_name in required_tables) {
-  # Build SQL statement
-  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+required_tables <- c(
+  "T_Cohorts_Recoded"
+)
 
-  # Assert that the table exists in the database
-  assert_that(
-    dbExistsTable(decimal_con, full_table_name),
-    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
-  )
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
 }
 
+na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- survey == "PTIB" (Static and Projected) ----
 if (ptib_run == TRUE) {
