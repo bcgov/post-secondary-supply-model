@@ -350,6 +350,7 @@ qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06b_Cohort_D
     GRAD_STATUS,
     TTRAIN
   ) |>
+  filter(Age_Group != "16 or less", Age_Group != "65+") |>
   janitor::clean_names(case = "all_caps")
 
 # update static and projected cohort distributions
