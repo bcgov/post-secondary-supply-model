@@ -67,7 +67,7 @@ required_tables <- c(
   "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
   "t_cohorts_recoded"
 )
-names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_credential"
+names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_CREDENTIAL"
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
@@ -141,8 +141,8 @@ final_near_completers_mapped <- qry_13c_near_completers_program_dist |>
     PSSM_CREDENTIAL,
     PSSM_CRED,
     LCP4_CD,
-    GRAD_STATUS = COSC_GRAD_STATUS_LGDS_CD_GROUP,
-    TTRAIN,
+    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD_GROUP),
+    TTRAIN = as.character(TTRAIN),
     LCIP4_CRED,
     LCIP2_CRED,
     AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION, # Renamed via lookup
@@ -165,8 +165,14 @@ cohort_program_distributions_static <- bind_rows(
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
 # Add program cohorts to static distribution datasets
-# Note: many lcip2 creds are NULL for BACH
-dbGetQuery(decimal_con, Q012a_Check_Total_for_Invalid_CIPs)
+# check NULL lcip2 codes - in the past many have been NULL for BACH
+tbl_program_projection_input |>
+  anti_join(
+    infoware_l_cip_4digits_cip2016,
+    by = join_by(FINAL_CIP_CODE_4 == LCP4_CD)
+  ) |>
+  distinct(FINAL_CIP_CODE_4, Count)
+
 dbExecute(decimal_con, Q012b_Weight_Cohort_Dist)
 dbExecute(decimal_con, Q012c_Weighted_Cohort_Dist)
 dbExecute(decimal_con, Q012c1_Weighted_Cohort_Dist_TTRAIN)
