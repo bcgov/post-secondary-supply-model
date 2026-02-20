@@ -230,12 +230,6 @@ qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
     .groups = "drop"
   )
 
-
-# dbExecute(decimal_con, Q012c1_Weighted_Cohort_Dist_TTRAIN)
-# dbExecute(decimal_con, Q012c2_Weighted_Cohort_Dist)
-# dbExecute(decimal_con, Q012c3_Weighted_Cohort_Dist_Total)
-# dbExecute(decimal_con, Q012c4_Weighted_Cohort_Distribution_Projected) # why create this?
-
 qry_012c4_dist_projected <- t_cohorts_recoded |>
   inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
   filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
@@ -266,70 +260,101 @@ qry_012c4_dist_projected <- t_cohorts_recoded |>
 
 
 qry_012c5_weighted_cohort_dist_ttrain <- qry_012c_weighted_cohort_dist |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD = FINAL_CIP_CODE_4,
+    COSC_GRAD_STATUS_LGDS_CD,
+    AgeGroup,
+    Count
+  ) |>
   left_join(
-    qry_012c4_dist_projected,
+    qry_012c4_dist_projected |>
+      select(
+        TTRAIN,
+        AGE_GROUP,
+        GRAD_STATUS,
+        LCP4_CD,
+        PSSM_CREDENTIAL,
+        PERCENTAGE
+      ),
     by = join_by(
       AgeGroup == AGE_GROUP,
       COSC_GRAD_STATUS_LGDS_CD == GRAD_STATUS,
-      FINAL_CIP_CODE_4 == LCP4_CD,
+      LCP4_CD == LCP4_CD,
       PSSM_CREDENTIAL == PSSM_CREDENTIAL
     )
   ) |>
   mutate(
-    COUNT_DISTRIBUTED = if_else(is.na(PERCENTAGE), Count, Count * PERCENTAGE)
+    COUNT_DISTRIBUTED = if_else(is.na(PERCENTAGE), Count, Count * PERCENTAGE),
+    LCIP4_CRED = paste0(
+      ifelse(
+        is.na(COSC_GRAD_STATUS_LGDS_CD),
+        "",
+        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+      ),
+      LCP4_CD,
+      " - ",
+      ifelse(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
+      PSSM_CREDENTIAL
+    ),
+    LCIP2_CRED = paste0(
+      ifelse(
+        is.na(COSC_GRAD_STATUS_LGDS_CD),
+        "",
+        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+      ),
+      str_sub(LCP4_CD, 1, 2),
+      " - ",
+      ifelse(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
+      PSSM_CREDENTIAL
+    )
   )
 
 qry_012d_weighted_cohort_dist_total <- qry_012c_weighted_cohort_dist |>
   group_by(PSSM_CREDENTIAL, PSSM_CRED, AgeGroup) |>
   summarise(TOTALS_PROJECTED = sum(Count, na.rm = TRUE), .groups = "drop")
 
-#dbExecute(decimal_con, Q012e_Weighted_Cohort_Distribution)
 
 final_q012e_insert <- qry_012c5_weighted_cohort_dist_ttrain |>
   inner_join(
     qry_012d_weighted_cohort_dist_total,
-    by = join_by(AgeGroup, PSSM_CRED.x == PSSM_CRED, PSSM_CREDENTIAL)
+    by = join_by(AgeGroup, PSSM_CRED, PSSM_CREDENTIAL)
   ) |>
-  transmute(
+  mutate(
     SURVEY = "Program_Projections_2023-2024_Q012e",
-    PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED.x, # Resolved from .x during the join
-    LCP4_CD = FINAL_CIP_CODE_4,
+    PROJECTION_YEAR = "2023/2024",
     GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD),
     TTRAIN = as.character(TTRAIN),
-    LCIP4_CRED,
-    LCIP2_CRED,
-    AGE_GROUP = AgeGroup,
-    YEAR = "2023/2024",
-    COUNT,
-    TOTAL = TOTALS_PROJECTED,
     PERCENT = if_else(
-      TOTAL == 0,
+      TOTALS_PROJECTED == 0,
       0,
-      as.numeric(COUNT) / as.numeric(TOTAL)
+      as.numeric(COUNT_DISTRIBUTED) / as.numeric(TOTALS_PROJECTED)
     )
-  )
+  ) |>
+  rename(
+    AGEGROUP = AgeGroup,
+    TOTALS = TOTALS_PROJECTED
+  ) |>
+  select(-Count, -PERCENTAGE, -GRAD_STATUS)
+
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q012e$")) |>
-  bind_rows(final_q012e_insert)
+  bind_rows(
+    final_q012e_insert |>
+      rename(
+        YEAR = PROJECTION_YEAR,
+        TOTAL = TOTALS,
+        COUNT = COUNT_DISTRIBUTED,
+        AGE_GROUP = AGEGROUP,
+        GRAD_STATUS = COSC_GRAD_STATUS_LGDS_CD
+      ) |>
+      mutate(
+        GRAD_STATUS = as.character(GRAD_STATUS)
+      )
+  )
 
-
-# GOT TO HERE - the final_q012e_insert table looks correct, except for several " - 0 - " and " - 1 - " are in the
-# SQL version but not the R version.  NEED TO CHECK THIS OUT.
-# also  check PROJECTION_YEAR, COUNT_DISTRIBUTED, TOTALS
-
-dbExecute(decimal_con, "drop table Q012b_Weight_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c1_Weighted_Cohort_Dist_TTRAIN")
-dbExecute(decimal_con, "drop table Q012c2_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c3_Weighted_Cohort_Dist_Total")
-dbExecute(
-  decimal_con,
-  "drop table Q012c4_Weighted_Cohort_Distribution_Projected"
-)
-dbExecute(decimal_con, "drop table Q012c5_Weighted_Cohort_Dist_TTRAIN")
-dbExecute(decimal_con, "drop table Q012d_Weighted_Cohort_Dist_Total")
 
 # survey == 'Program_Projections_2023-2024_Q013e' (Static) ----
 # Add masters and doctorates to static distribution datasets
