@@ -1,0 +1,172 @@
+---
+title: "Program Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+## Data Sources and Storage
+
+### External Data Sources 
+
+#### STP Credential Data
+
+Source: Provided from Ministry of Post-Secondary Education and Future Skills [?]
+Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
+Description: STP Credential years searched: 2002/03 - 2022/23
+
+### Internal/Processed Data Sources
+
+#### credential_non_dup
+
+Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
+Description: STP Credential years searched: 2002/03 - 2022/23
+
+#### t_dacso_data_part_1
+
+Source and Access Method: Contact Student Outcomes Team
+Description: 
+- Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
+- Credentials: Diploma, Associate Degree, and Certificate 
+- Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
+
+#### tmp_tbl_age 
+
+Source and Access Method: Contact Student Outcomes Team
+Description: 
+
+- longitudinal master-lookup of birthdates and survey exit dates. Used to derive the age filters (such as the 17–64 range) we in aggregated tables.
+- Historically, new data was appended to prior model run's data.  For 2026, we can request the full range required, SQL queries saved on the LAN for convenience.
+
+### Data Storage Structure
+
+Where data is housed in internal storage locations, it is stored in a hierarchical folder structure accessible via read_csv().
+
+```
+[BASE_FOLDER]/
+├── data/
+    ├── student-outcomes/  
+    └── csv/            
+        └── so-provision/ # provided by Student Outcomes
+├── development/
+    ├── csv/  
+    └── gh-source/ # temporary storage for lookups and etc.         
+
+└── outputs/
+    ├── tables/          # Final output tables  
+    └── visuals/         # Maps and visualizations
+```
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: [Note storage requirements]
+- External Data: [List any required external data]
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
+
+
+#### Authentication Setup
+
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
+```r
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+```
+
+## Methodology Overview
+
+The analytical protocols delineated herein facilitate the high-fidelity redistribution of the 2023/2024 program projection datasets, adhering to the evidence-based standards required for regulatory registry maintenance and scientific reporting.
+
+##### Near-Completer Projections (Q013 Series)
+
+Near-completer ratios (sourced from `dacso_near_completers_ratios_age_at_grad_cip4_ttrain`) were subjected to categorical aggregation across seven distinct dimensions—incorporating credential types, graduate status groupings, and 4-digit CIP codes—to establish a baseline frequency count. Subsequent to this initial consolidation, a window-function architecture established the reference population denominator at the intersection of the PSSM_CRED and AGE_GROUP identifiers, thereby facilitating the derivation of the relative density attribute:
+
+$Percent= Total/Count$
+
+This ensures that the resulting relative frequencies remain stable across the granular training durations. Age-group identifiers are remapped to standardized reporting groups and the generation of composite keys — specifically LCIP2_CRED, which incorporates status, truncated CIP codes, training duration, and credentials — before the finalized 13-column dataset was appended to both the projected and static administrative repositories.
+
+##### Projection Redistribution Cycle (Q012 Series)
+
+Primary inputs from `tbl_program_projection_input` and longitudinal weights from `t_weights_stp` are synthesized to derive preliminary weighted sums, filtering to exclude non-relevant credentials (Apprenticeships and Graduate Programs) and non-positive weight values. Simultaneously, a secondary analysis of the T_Cohorts_Recoded longitudinal repository established historical training duration coefficients, where cohort-specific historical denominators were utilized to calculate the ratios required for proportional enrollment expansion. To maintain internal consistency, an isolated denominator calculation phase established invariant reference totals at the PSSM_CRED and AgeGroup levels, ensuring that categorical percentage sums within any given cohort equal exactly 1.0.
+
+The synthesis was finalized through the proportional expansion of weighted projections via a left join with the historical distribution matrix, followed by the generation of composite identifiers employing nested conditional logic for null-suppression of status and training attributes. The administrative reconciliation was achieved through a purge-and-replace strategy, wherein legacy records associated with the Q012e identifier were removed from the cohort_program_distributions_static repository via the filter function prior to the insertion of the reconciled 13-column dataset.
+
+#### Data Dictionary 
+
+##### tbl_age
+
+<ul class="list-variable-names">
+<li>Age (Integer): </li>
+<li>Age_Group (Integer): </li>
+</ul>
+
+##### t_pssm_projection_cred_grp
+
+<ul class="list-variable-names">
+<li>PSSM_Projection_Credential (String): </li>
+<li>PSSM_Credential (String): </li>
+<li>PSSM_Credential_Name (String): </li>
+<li>COSC_GRAD_STATUS_LGDS_CD (Integer): </li>
+</ul>
+
+
+## Key Output Tables
+
+The following data objects represent the terminal outputs of the program projection pipeline. 
+
+##### tablname
+
+Success ratios stratified by age-group, 4-digit Classification of Instructional Programs (CIP-4) and normalized credential categories.
+
+<ul class="list-variable-names">
+  <li>age_group (String): The categorical age cohort.</li>
+  <li>combined_cred_name (String): Description</li>
+</ul>
+
+## Suggested Improvements
+
+## Additional Details
