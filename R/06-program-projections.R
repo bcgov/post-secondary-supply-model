@@ -99,7 +99,7 @@ cohort_program_distributions_projected <- cohort_program_distributions_projected
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(PSSM_CRED, "^3 - "))
 
-qry_13a_near_completers <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
+final_near_completers_mapped <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
   group_by(
     PSSM_CREDENTIAL,
     PSSM_CRED,
@@ -113,25 +113,9 @@ qry_13a_near_completers <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain 
     COUNT = sum(NEAR_COMPLETERS_STP_CREDENTIALS, na.rm = TRUE),
     .groups = "drop"
   ) |>
-  mutate(
-    LCIP2_CRED = paste(
-      COSC_GRAD_STATUS_LGDS_CD_GROUP,
-      str_sub(LCP4_CD, 1, 2),
-      TTRAIN,
-      PSSM_CREDENTIAL,
-      sep = " - "
-    )
-  )
-
-qry_13c_near_completers_program_dist <- qry_13a_near_completers |>
   group_by(PSSM_CRED, AGE_GROUP) |>
   mutate(TOTALS = sum(COUNT, na.rm = TRUE)) |>
   ungroup() |>
-  mutate(
-    PERCENT = if_else(TOTALS == 0, 0, as.numeric(COUNT) / as.numeric(TOTALS))
-  )
-
-final_near_completers_mapped <- qry_13c_near_completers_program_dist |>
   inner_join(
     tbl_age_groups_near_completers,
     by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION)
@@ -144,12 +128,18 @@ final_near_completers_mapped <- qry_13c_near_completers_program_dist |>
     GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD_GROUP),
     TTRAIN = as.character(TTRAIN),
     LCIP4_CRED,
-    LCIP2_CRED,
-    AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION, # Renamed via lookup
+    LCIP2_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      str_sub(LCP4_CD, 1, 2),
+      TTRAIN,
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION,
     YEAR = "2023/2024",
     COUNT,
     TOTAL = TOTALS,
-    PERCENT
+    PERCENT = if_else(TOTALS == 0, 0, as.numeric(COUNT) / as.numeric(TOTALS))
   )
 
 cohort_program_distributions_projected <- bind_rows(
@@ -174,7 +164,22 @@ tbl_program_projection_input |>
   ) |>
   distinct(FINAL_CIP_CODE_4, Count)
 
-qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
+# ---- Stage I: Historical Distribution Matrix (qry_012c4) ----
+# Derives TTRAIN coefficients used to distribute projected volumes.
+qry_dist_ratios <- t_cohorts_recoded |>
+  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
+  filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
+  group_by(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL) |>
+  mutate(TOTALS_HIST = sum(WEIGHT, na.rm = TRUE)) |>
+  group_by(TTRAIN, .add = TRUE) |>
+  summarise(
+    RATIO = sum(WEIGHT, na.rm = TRUE) / first(TOTALS_HIST),
+    .groups = "drop"
+  )
+
+# ---- Stage II: Primary Weighted Projection (qry_012c) ----
+# Consolidates weighted counts and generates status-based credential keys.
+qry_weighted_projection <- t_pssm_projection_cred_grp |>
   inner_join(
     tbl_program_projection_input,
     by = join_by(PSSM_PROJECTION_CREDENTIAL == PSI_CREDENTIAL_CATEGORY)
@@ -194,7 +199,7 @@ qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
     COSC_GRAD_STATUS_LGDS_CD,
     FINAL_CIP_CODE_4,
     AgeGroup,
-    # Generating the complex keys within the group_by to stay concise
+    # Primary join key for the final denominator
     PSSM_CRED = paste0(
       ifelse(
         is.na(COSC_GRAD_STATUS_LGDS_CD),
@@ -202,7 +207,41 @@ qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
         paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
       ),
       PSSM_CREDENTIAL
-    ),
+    )
+  ) |>
+  summarise(Count = sum(Count * WEIGHT, na.rm = TRUE), .groups = "drop")
+
+# ---- Stage III: Denominator Calculation (qry_012d) ----
+# Establishes the 'TOTAL' volume for the PSSM_CRED + AgeGroup bucket.
+qry_projected_totals <- qry_weighted_projection |>
+  group_by(PSSM_CREDENTIAL, PSSM_CRED, AgeGroup) |>
+  summarise(TOTAL_FOR_PERCENT = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# ---- Stage IV: Redistribution and Final Attribute Mapping (Q012e) ----
+# Synthesizes all components into the 13-column administrative structure.
+final_insert_data <- qry_weighted_projection |>
+  # Distribute across TTRAIN cohorts
+  left_join(
+    qry_dist_ratios,
+    by = join_by(
+      PSSM_CREDENTIAL,
+      FINAL_CIP_CODE_4 == LCP4_CD,
+      COSC_GRAD_STATUS_LGDS_CD == GRAD_STATUS,
+      AgeGroup == AGE_GROUP_LABEL
+    )
+  ) |>
+  # Join with higher-level totals for PERCENT calculation
+  inner_join(
+    qry_projected_totals,
+    by = join_by(PSSM_CREDENTIAL, PSSM_CRED, AgeGroup)
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q012e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD = FINAL_CIP_CODE_4,
+    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD),
+    TTRAIN = as.character(TTRAIN),
     LCIP4_CRED = paste0(
       ifelse(
         is.na(COSC_GRAD_STATUS_LGDS_CD),
@@ -211,6 +250,7 @@ qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
       ),
       FINAL_CIP_CODE_4,
       " - ",
+      ifelse(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
       PSSM_CREDENTIAL
     ),
     LCIP2_CRED = paste0(
@@ -221,139 +261,20 @@ qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
       ),
       str_sub(FINAL_CIP_CODE_4, 1, 2),
       " - ",
-      PSSM_CREDENTIAL
-    )
-  ) |>
-  summarise(
-    # This sum correctly handles the weighting across all records in the group
-    Count = sum(Count * WEIGHT, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-qry_012c4_dist_projected <- t_cohorts_recoded |>
-  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
-  filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
-  group_by(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL) |>
-  mutate(TOTALS = sum(WEIGHT, na.rm = TRUE)) |>
-  group_by(
-    PSSM_CREDENTIAL,
-    LCP4_CD,
-    GRAD_STATUS,
-    TTRAIN,
-    AGE_GROUP = AGE_GROUP_LABEL,
-    TOTALS
-  ) |>
-  summarise(
-    COUNT = sum(WEIGHT, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(
-    SURVEY = "Program_Projections_2023-2024_Q015e",
-    PROJECTION_YEAR = "2023/2024",
-    PERCENTAGE = if_else(
-      TOTALS == 0,
-      0,
-      as.numeric(COUNT) / as.numeric(TOTALS)
-    ),
-    PSSM_CRED = PSSM_CREDENTIAL
-  )
-
-
-qry_012c5_weighted_cohort_dist_ttrain <- qry_012c_weighted_cohort_dist |>
-  select(
-    PSSM_CREDENTIAL,
-    PSSM_CRED,
-    LCP4_CD = FINAL_CIP_CODE_4,
-    COSC_GRAD_STATUS_LGDS_CD,
-    AgeGroup,
-    Count
-  ) |>
-  left_join(
-    qry_012c4_dist_projected |>
-      select(
-        TTRAIN,
-        AGE_GROUP,
-        GRAD_STATUS,
-        LCP4_CD,
-        PSSM_CREDENTIAL,
-        PERCENTAGE
-      ),
-    by = join_by(
-      AgeGroup == AGE_GROUP,
-      COSC_GRAD_STATUS_LGDS_CD == GRAD_STATUS,
-      LCP4_CD == LCP4_CD,
-      PSSM_CREDENTIAL == PSSM_CREDENTIAL
-    )
-  ) |>
-  mutate(
-    COUNT_DISTRIBUTED = if_else(is.na(PERCENTAGE), Count, Count * PERCENTAGE),
-    LCIP4_CRED = paste0(
-      ifelse(
-        is.na(COSC_GRAD_STATUS_LGDS_CD),
-        "",
-        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
-      ),
-      LCP4_CD,
-      " - ",
       ifelse(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
       PSSM_CREDENTIAL
     ),
-    LCIP2_CRED = paste0(
-      ifelse(
-        is.na(COSC_GRAD_STATUS_LGDS_CD),
-        "",
-        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
-      ),
-      str_sub(LCP4_CD, 1, 2),
-      " - ",
-      ifelse(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
-      PSSM_CREDENTIAL
-    )
+    AGE_GROUP = AgeGroup,
+    YEAR = "2023/2024",
+    COUNT = if_else(is.na(RATIO), Count, Count * RATIO),
+    TOTAL = TOTAL_FOR_PERCENT,
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
   )
 
-qry_012d_weighted_cohort_dist_total <- qry_012c_weighted_cohort_dist |>
-  group_by(PSSM_CREDENTIAL, PSSM_CRED, AgeGroup) |>
-  summarise(TOTALS_PROJECTED = sum(Count, na.rm = TRUE), .groups = "drop")
-
-
-final_q012e_insert <- qry_012c5_weighted_cohort_dist_ttrain |>
-  inner_join(
-    qry_012d_weighted_cohort_dist_total,
-    by = join_by(AgeGroup, PSSM_CRED, PSSM_CREDENTIAL)
-  ) |>
-  mutate(
-    SURVEY = "Program_Projections_2023-2024_Q012e",
-    PROJECTION_YEAR = "2023/2024",
-    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD),
-    TTRAIN = as.character(TTRAIN),
-    PERCENT = if_else(
-      TOTALS_PROJECTED == 0,
-      0,
-      as.numeric(COUNT_DISTRIBUTED) / as.numeric(TOTALS_PROJECTED)
-    )
-  ) |>
-  rename(
-    AGEGROUP = AgeGroup,
-    TOTALS = TOTALS_PROJECTED
-  ) |>
-  select(-Count, -PERCENTAGE, -GRAD_STATUS)
-
-
+# ---- Stage V: Registry Update ----
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q012e$")) |>
-  bind_rows(
-    final_q012e_insert |>
-      rename(
-        YEAR = PROJECTION_YEAR,
-        TOTAL = TOTALS,
-        COUNT = COUNT_DISTRIBUTED,
-        AGE_GROUP = AGEGROUP,
-        GRAD_STATUS = COSC_GRAD_STATUS_LGDS_CD
-      ) |>
-      mutate(
-        GRAD_STATUS = as.character(GRAD_STATUS)
-      )
-  )
+  bind_rows(final_insert_data)
 
 
 # survey == 'Program_Projections_2023-2024_Q013e' (Static) ----

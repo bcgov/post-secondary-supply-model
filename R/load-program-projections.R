@@ -47,7 +47,7 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-source("./sql/06-program-projections/06-program-projections.R")
+#source("./sql/06-program-projections/06-program-projections.R")
 
 if (regular_run == T | ptib_run == T) {
   # I think we can probably load all lookups, regardless, and move this conditional to
@@ -98,9 +98,9 @@ if (regular_run == T | ptib_run == T) {
       col_types = cols(.default = col_guess())
     ) |>
     janitor::clean_names(case = "all_caps") |>
-    mutate(PSSM_PROJECTION_CREDENTIAL = str_to_title(PSSM_PROJECTION_CREDENTIAL))
-
-
+    mutate(
+      PSSM_PROJECTION_CREDENTIAL = str_to_title(PSSM_PROJECTION_CREDENTIAL)
+    )
 
   t_weights_stp <-
     readr::read_csv(
@@ -113,15 +113,7 @@ if (regular_run == T | ptib_run == T) {
 
   agegrouplookup <-
     readr::read_csv(
-      glue::glue(  t_pssm_projection_cred_grp <-
-    readr::read_csv(
       glue::glue(
-        "{lan}/development/csv/gh-source/lookups/06/T_PSSM_Projection_Cred_Grp.csv"
-      ),
-      col_types = cols(.default = col_guess())
-    ) |>
-    mutate(PSSM_PROJECTION_CREDENTIAL = str_to_title(PSSM_PROJECTION_CREDENTIAL)) |>
-    janitor::clean_names(case = "all_caps")
         "{lan}/development/csv/gh-source/lookups/06/AgeGroupLookup.csv"
       ),
       col_types = cols(.default = col_guess())
@@ -237,57 +229,57 @@ if (regular_run == T | ptib_run == T) {
   )
 
   ## ---- Write to decimal ----
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
-#     agegrouplookup,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
-#     tbl_age_groups_near_completers,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
-#     tbl_age_groups,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue(
-#       '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
-#     )),
-#     t_cohort_program_distributions_y2_to_y12,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
-#     t_appr_y2_to_y10,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
-#     t_pssm_projection_cred_grp,
-#     overwrite = TRUE
-#   )
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
-#     t_weights_stp,
-#     overwrite = TRUE
-#   )
-# 
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')),
-#     tbl_program_projection_input,
-#     overwrite = TRUE
-#   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
+  #     agegrouplookup,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Near_Completers"')),
+  #     tbl_age_groups_near_completers,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
+  #     tbl_age_groups,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue(
+  #       '"{my_schema}"."T_Cohort_Program_Distributions_Y2_to_Y12"'
+  #     )),
+  #     t_cohort_program_distributions_y2_to_y12,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."T_APPR_Y2_to_Y10"')),
+  #     t_appr_y2_to_y10,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projection_Cred_Grp"')),
+  #     t_pssm_projection_cred_grp,
+  #     overwrite = TRUE
+  #   )
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),
+  #     t_weights_stp,
+  #     overwrite = TRUE
+  #   )
+  #
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')),
+  #     tbl_program_projection_input,
+  #     overwrite = TRUE
+  #   )
 
   # ---- Rollover ----
   # this whole section is hacky - we are essentially defining a schema in the db.
@@ -310,57 +302,53 @@ if (regular_run == T | ptib_run == T) {
       GRAD_STATUS = as.character(GRAD_STATUS)
     )
 
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue(
-#       '"{my_schema}"."Cohort_Program_Distributions_Static"'
-#     )),
-#     cohort_program_distributions_static,
-#     overwrite = TRUE
-#   )
-#   dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-#   )
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
-#   )
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-#   )
-# 
-#   dbWriteTable(
-#     decimal_con,
-#     name = SQL(glue::glue(
-#       '"{my_schema}"."Cohort_Program_Distributions_Projected"'
-#     )),
-#     cohort_program_distributions_projected,
-#     overwrite = TRUE
-#   )
-#   dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
-#   )
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
-#   )
-#   dbGetQuery(
-#     decimal_con,
-#     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
-#   )
-# 
-#   # check that only required survey years are in T_Cohorts_Recoded
-#   stopifnot(exprs = {
-#     dbGetQuery(
-      decimal_con,
-      "select distinct survey_year from T_Cohorts_Recoded"
-    )$survey_year ==
-      c(2019:2023)
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue(
+  #       '"{my_schema}"."Cohort_Program_Distributions_Static"'
+  #     )),
+  #     cohort_program_distributions_static,
+  #     overwrite = TRUE
+  #   )
+  #   dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Static")
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  #   )
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN TTRAIN NVARCHAR(50)"
+  #   )
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Static ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  #   )
+  #
+  #   dbWriteTable(
+  #     decimal_con,
+  #     name = SQL(glue::glue(
+  #       '"{my_schema}"."Cohort_Program_Distributions_Projected"'
+  #     )),
+  #     cohort_program_distributions_projected,
+  #     overwrite = TRUE
+  #   )
+  #   dbGetQuery(decimal_con, "delete from Cohort_Program_Distributions_Projected")
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN LCIP2_CRED NVARCHAR(50)"
+  #   )
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN TTRAIN NVARCHAR(50)"
+  #   )
+  #   dbGetQuery(
+  #     decimal_con,
+  #     "ALTER TABLE Cohort_Program_Distributions_Projected ALTER COLUMN GRAD_STATUS NVARCHAR(50)"
+  #   )
+  #
+  #   # check that only required survey years are in T_Cohorts_Recoded
+  stopifnot(exprs = {
+    t_cohorts_recoded |> distinct(SURVEY_YEAR) |> pull() == c(2019:2023)
   })
 }
 
