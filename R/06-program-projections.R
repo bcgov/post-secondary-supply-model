@@ -165,6 +165,7 @@ cohort_program_distributions_static <- bind_rows(
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
 # Add program cohorts to static distribution datasets
+
 # check NULL lcip2 codes - in the past many have been NULL for BACH
 tbl_program_projection_input |>
   anti_join(
@@ -173,16 +174,151 @@ tbl_program_projection_input |>
   ) |>
   distinct(FINAL_CIP_CODE_4, Count)
 
-dbExecute(decimal_con, Q012b_Weight_Cohort_Dist)
-dbExecute(decimal_con, Q012c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q012c1_Weighted_Cohort_Dist_TTRAIN)
-dbExecute(decimal_con, Q012c2_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q012c3_Weighted_Cohort_Dist_Total)
-dbExecute(decimal_con, Q012c4_Weighted_Cohort_Distribution_Projected) # why create this?
-dbExecute(decimal_con, Q012c5_Weighted_Cohort_Dist_TTRAIN)
-dbExecute(decimal_con, Q012d_Weighted_Cohort_Dist_Total)
-dbExecute(decimal_con, Q012e_Delete_Weighted_Cohort_Distribution)
-dbExecute(decimal_con, Q012e_Weighted_Cohort_Distribution)
+qry_012c_weighted_cohort_dist <- t_pssm_projection_cred_grp |>
+  inner_join(
+    tbl_program_projection_input,
+    by = join_by(PSSM_PROJECTION_CREDENTIAL == PSI_CREDENTIAL_CATEGORY)
+  ) |>
+  inner_join(
+    t_weights_stp,
+    by = join_by(PSI_AWARD_SCHOOL_YEAR_DELAYED == YEAR_CODE)
+  ) |>
+  filter(
+    MODEL == "2023-2024",
+    !PSSM_CREDENTIAL %in%
+      c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT'),
+    WEIGHT > 0
+  ) |>
+  group_by(
+    PSSM_CREDENTIAL,
+    COSC_GRAD_STATUS_LGDS_CD,
+    FINAL_CIP_CODE_4,
+    AgeGroup,
+    # Generating the complex keys within the group_by to stay concise
+    PSSM_CRED = paste0(
+      ifelse(
+        is.na(COSC_GRAD_STATUS_LGDS_CD),
+        "",
+        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+      ),
+      PSSM_CREDENTIAL
+    ),
+    LCIP4_CRED = paste0(
+      ifelse(
+        is.na(COSC_GRAD_STATUS_LGDS_CD),
+        "",
+        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+      ),
+      FINAL_CIP_CODE_4,
+      " - ",
+      PSSM_CREDENTIAL
+    ),
+    LCIP2_CRED = paste0(
+      ifelse(
+        is.na(COSC_GRAD_STATUS_LGDS_CD),
+        "",
+        paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+      ),
+      str_sub(FINAL_CIP_CODE_4, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  summarise(
+    # This sum correctly handles the weighting across all records in the group
+    Count = sum(Count * WEIGHT, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+# dbExecute(decimal_con, Q012c1_Weighted_Cohort_Dist_TTRAIN)
+# dbExecute(decimal_con, Q012c2_Weighted_Cohort_Dist)
+# dbExecute(decimal_con, Q012c3_Weighted_Cohort_Dist_Total)
+# dbExecute(decimal_con, Q012c4_Weighted_Cohort_Distribution_Projected) # why create this?
+
+qry_012c4_dist_projected <- t_cohorts_recoded |>
+  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
+  filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
+  group_by(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL) |>
+  mutate(TOTALS = sum(WEIGHT, na.rm = TRUE)) |>
+  group_by(
+    PSSM_CREDENTIAL,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    AGE_GROUP = AGE_GROUP_LABEL,
+    TOTALS
+  ) |>
+  summarise(
+    COUNT = sum(WEIGHT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    SURVEY = "Program_Projections_2023-2024_Q015e",
+    PROJECTION_YEAR = "2023/2024",
+    PERCENTAGE = if_else(
+      TOTALS == 0,
+      0,
+      as.numeric(COUNT) / as.numeric(TOTALS)
+    ),
+    PSSM_CRED = PSSM_CREDENTIAL
+  )
+
+
+qry_012c5_weighted_cohort_dist_ttrain <- qry_012c_weighted_cohort_dist |>
+  left_join(
+    qry_012c4_dist_projected,
+    by = join_by(
+      AgeGroup == AGE_GROUP,
+      COSC_GRAD_STATUS_LGDS_CD == GRAD_STATUS,
+      FINAL_CIP_CODE_4 == LCP4_CD,
+      PSSM_CREDENTIAL == PSSM_CREDENTIAL
+    )
+  ) |>
+  mutate(
+    COUNT_DISTRIBUTED = if_else(is.na(PERCENTAGE), Count, Count * PERCENTAGE)
+  )
+
+qry_012d_weighted_cohort_dist_total <- qry_012c_weighted_cohort_dist |>
+  group_by(PSSM_CREDENTIAL, PSSM_CRED, AgeGroup) |>
+  summarise(TOTALS_PROJECTED = sum(Count, na.rm = TRUE), .groups = "drop")
+
+#dbExecute(decimal_con, Q012e_Weighted_Cohort_Distribution)
+
+final_q012e_insert <- qry_012c5_weighted_cohort_dist_ttrain |>
+  inner_join(
+    qry_012d_weighted_cohort_dist_total,
+    by = join_by(AgeGroup, PSSM_CRED.x == PSSM_CRED, PSSM_CREDENTIAL)
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q012e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED.x, # Resolved from .x during the join
+    LCP4_CD = FINAL_CIP_CODE_4,
+    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD),
+    TTRAIN = as.character(TTRAIN),
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP = AgeGroup,
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL = TOTALS_PROJECTED,
+    PERCENT = if_else(
+      TOTAL == 0,
+      0,
+      as.numeric(COUNT) / as.numeric(TOTAL)
+    )
+  )
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q012e$")) |>
+  bind_rows(final_q012e_insert)
+
+
+# GOT TO HERE - the final_q012e_insert table looks correct, except for several " - 0 - " and " - 1 - " are in the
+# SQL version but not the R version.  NEED TO CHECK THIS OUT.
+# also  check PROJECTION_YEAR, COUNT_DISTRIBUTED, TOTALS
+
 dbExecute(decimal_con, "drop table Q012b_Weight_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q012c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q012c1_Weighted_Cohort_Dist_TTRAIN")

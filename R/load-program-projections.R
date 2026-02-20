@@ -97,7 +97,10 @@ if (regular_run == T | ptib_run == T) {
       ),
       col_types = cols(.default = col_guess())
     ) |>
-    janitor::clean_names(case = "all_caps")
+    janitor::clean_names(case = "all_caps") |>
+    mutate(PSSM_PROJECTION_CREDENTIAL = str_to_title(PSSM_PROJECTION_CREDENTIAL))
+
+
 
   t_weights_stp <-
     readr::read_csv(
@@ -110,7 +113,15 @@ if (regular_run == T | ptib_run == T) {
 
   agegrouplookup <-
     readr::read_csv(
+      glue::glue(  t_pssm_projection_cred_grp <-
+    readr::read_csv(
       glue::glue(
+        "{lan}/development/csv/gh-source/lookups/06/T_PSSM_Projection_Cred_Grp.csv"
+      ),
+      col_types = cols(.default = col_guess())
+    ) |>
+    mutate(PSSM_PROJECTION_CREDENTIAL = str_to_title(PSSM_PROJECTION_CREDENTIAL)) |>
+    janitor::clean_names(case = "all_caps")
         "{lan}/development/csv/gh-source/lookups/06/AgeGroupLookup.csv"
       ),
       col_types = cols(.default = col_guess())
