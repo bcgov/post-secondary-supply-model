@@ -37,7 +37,6 @@
 #        keep eyes open for impacts of this.
 #        04-graduate-projections: remove space in final table name, add survey column and populate
 
-library(assertthat)
 library(tidyverse)
 
 # List of required tables for Derived Tables, Rollovers, and Lookups
@@ -271,7 +270,6 @@ final_insert_data <- qry_weighted_projection |>
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
   )
 
-# ---- Stage V: Registry Update ----
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q012e$")) |>
   bind_rows(final_insert_data)
@@ -281,38 +279,151 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
 # Add masters and doctorates to static distribution datasets
 # Note: lcip4_cd showing as 2D for masters and doct - cluster.
 # (same in prior model runs)
-dbExecute(decimal_con, qry_12_LCP4_LCIPPC_Recode_9999)
-dbGetQuery(decimal_con, Q013a_Check_PDEG_CLP_07_Only_CIP_22)
-dbExecute(decimal_con, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others)
-dbExecute(decimal_con, Q013c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q013d_Weighted_Cohort_Dist_Total)
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q013e'"
-) # Added
-dbExecute(decimal_con, Q013e_Weighted_Cohort_Distribution)
-dbExecute(decimal_con, "drop table Q013b_Weight_Cohort_Dist_MAST_DOCT_Others")
-dbExecute(decimal_con, "drop table Q013c_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q013d_Weighted_Cohort_Dist_Total")
+
+qry_12_lcp4_lcippc_recode_9999 <- infoware_l_cip_6digits_cip2016 |>
+  mutate(
+    LCIP_LCIPPC_CD = if_else(LCIP_LCP4_CD == "9999", "99", LCIP_LCIPPC_CD)
+  ) |>
+  distinct(LCIP_LCP4_CD, LCIP_LCIPPC_CD)
+
+q013e_weighted_cohort_distribution <- t_pssm_projection_cred_grp |>
+  filter(PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')) |>
+  inner_join(
+    tbl_program_projection_input,
+    by = join_by(PSSM_PROJECTION_CREDENTIAL == PSI_CREDENTIAL_CATEGORY)
+  ) |>
+  inner_join(
+    t_weights_stp |> filter(MODEL == '2023-2024'),
+    by = join_by(PSI_AWARD_SCHOOL_YEAR_DELAYED == YEAR_CODE)
+  ) |>
+  inner_join(
+    qry_12_lcp4_lcippc_recode_9999,
+    by = join_by(FINAL_CIP_CODE_4 == LCIP_LCP4_CD)
+  ) |>
+  filter(WEIGHT > 0) |>
+  mutate(
+    # Centralized referential key generation
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIP_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      LCIP_LCIPPC_CD,
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  summarise(
+    COUNT = sum(Count * WEIGHT, na.rm = TRUE), # Aggregated weighted volume
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      LCIP_LCIPPC_CD,
+      LCIP_CRED_TMP,
+      AgeGroup
+    )
+  ) |>
+  mutate(
+    TOTAL = sum(COUNT, na.rm = TRUE), # Hierarchical total via window function
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
+    .by = c(PSSM_CRED_TMP, AgeGroup)
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q013e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = LCIP_LCIPPC_CD,
+    LCIP4_CRED = LCIP_CRED_TMP,
+    AGE_GROUP = AgeGroup,
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q013e$")) |>
+  bind_rows(q013e_weighted_cohort_distribution)
 
 # survey == 'Program_Projections_2023-2024_Q014e' (Static and Projected) ----
 # adds apprenticeships to static and projected datasets
-dbExecute(decimal_con, Q014b_Weighted_Cohort_Dist_APPR)
-dbExecute(decimal_con, Q014c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q014d_Weighted_Cohort_Dist_Total)
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'"
-) # Added
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'"
-) # Added
-dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Projected)
-dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Static)
+
+q014b_weighted_cohort_dist_appr <- t_cohorts_recoded |>
+  inner_join(
+    tbl_age_groups,
+    by = join_by(AGE_GROUP == AGE_GROUP)
+  ) |>
+  filter(
+    PSSM_CREDENTIAL %in% c('APPRAPPR', 'APPRCERT'),
+    WEIGHT > 0
+  ) |>
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CREDENTIAL,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP = AGE_GROUP_LABEL,
+    WEIGHT
+  ) |>
+  summarise(
+    COUNTS = n(),
+    WEIGHTED = n() * WEIGHT,
+    .groups = "drop"
+  ) |>
+  distinct()
+
+# ---- Stage II: Multi-Level Aggregation (q014c & q014d) ----
+q014c_weighted_cohort_dist <- q014b_weighted_cohort_dist_appr |>
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP
+  ) |>
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+q014d_weighted_cohort_dist_total <- q014b_weighted_cohort_dist_appr |>
+  group_by(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) |>
+  summarise(TOTALS = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# ---- Stage III: Terminal Synthesis and Registry Integration (q014e) ----
+q014e_weighted_cohort_distribution <- q014c_weighted_cohort_dist |>
+  inner_join(
+    q014d_weighted_cohort_dist_total,
+    by = join_by(PSSM_CRED, AGE_GROUP, PSSM_CREDENTIAL)
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q014e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL = TOTALS,
+    PERCENT = if_else(TOTALS == 0, 0, as.numeric(COUNT) / as.numeric(TOTALS))
+  )
+
+# Longitudinal Registry Synchronization
+# Note: Purge-and-replace strategy for specific survey identifier Q014e
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "Q014e$")) |>
+  bind_rows(q014e_weighted_cohort_distribution)
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q014e$")) |>
+  bind_rows(q014e_weighted_cohort_distribution)
+
+
 dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
 dbExecute(decimal_con, "drop table Q014c_Weighted_Cohort_Dist")
 dbExecute(decimal_con, "drop table Q014d_Weighted_Cohort_Dist_Total")
