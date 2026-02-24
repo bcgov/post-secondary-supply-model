@@ -609,30 +609,107 @@ cohort_program_distributions_projected <- cohort_program_distributions_projected
 
 # survey == 'Program_Projections_2023-2024_qry12c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential IN ('GRCT or GRDP','PDEG','MAST','DOCT')
-dbExecute(decimal_con, qry_12a_Program_Dist_Count)
-dbExecute(decimal_con, qry_12b_Program_Dist_Total)
-dbExecute(decimal_con, qry_12c_Program_Dist_Distribution)
-dbExecute(decimal_con, "DROP TABLE qry_12a_Program_Dist_Count")
-dbExecute(decimal_con, "DROP TABLE qry_12b_Program_Dist_Total")
-dbExecute(decimal_con, "drop table qry_12_LCP4_LCIPPC_Recode_9999")
-dbExecute(decimal_con, "drop table T_Predict_CIP_CRED_AGE_Flipped")
+
+q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
+  inner_join(
+    t_pssm_projection_cred_grp,
+    by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
+  ) |>
+  inner_join(
+    qry_12_lcp4_lcippc_recode_9999,
+    by = join_by(CIP == LCIP_LCP4_CD)
+  ) |>
+  # Stage II: Categorical Restriction Protocol
+  filter(
+    PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
+  ) |>
+  # Stage III: Concatenation Logic and Derived Attribute Generation
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIPPC_CD_TMP = LCIP_LCIPPC_CD,
+    LCIPPC_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      LCIP_LCIPPC_CD,
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  # Stage IV: Aggregation and Hierarchical Denominator Derivation
+  # Executes the primary summation (Q12a) and windowed total calculation (Q12b)
+  summarise(
+    COUNT_VAL = sum(Count, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      LCIPPC_CD_TMP,
+      LCIPPC_CRED_TMP,
+      AGE,
+      Year
+    )
+  ) |>
+  mutate(
+    TOTAL_VAL = sum(COUNT_VAL, na.rm = TRUE),
+    PERCENT_VAL = if_else(
+      TOTAL_VAL == 0,
+      0,
+      as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
+    ),
+    .by = c(PSSM_CRED_TMP, AGE, Year)
+  ) |>
+  # Stage V: Alignment with Administrative Schema (Cohort_Program_Distributions_Projected)
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_qry12c",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = LCIPPC_CD_TMP,
+    LCIP4_CRED = LCIPPC_CRED_TMP,
+    AGE_GROUP = AGE,
+    YEAR = Year,
+    COUNT = COUNT_VAL,
+    TOTAL = TOTAL_VAL,
+    PERCENT = PERCENT_VAL
+  )
+
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "qry12c$")) |>
+  bind_rows(q12c_program_dist_distribution)
+
 
 # check for combinations produced in static that were missed in the projected
-dbGetQuery(decimal_con, qry_12d_Check_Missing)
+cohort_program_distributions_static |>
+  filter(!AGE_GROUP %in% c('15 to 16', '65 to 89')) |>
+  anti_join(
+    cohort_program_distributions_projected,
+    by = join_by(
+      YEAR,
+      AGE_GROUP,
+      LCP4_CD,
+      PSSM_CRED,
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT
+  )
+
 
 # ---- Clean Up ----
-# Lookups
-dbExecute(decimal_con, "drop table AgeGroupLookup")
-dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
-dbExecute(decimal_con, "drop table tbl_Age_Groups")
-dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
-dbExecute(decimal_con, "drop table T_APPR_Y2_to_Y10")
-dbExecute(decimal_con, "drop table T_PSSM_Projection_Cred_Grp")
-dbExecute(decimal_con, "drop table T_Weights_STP")
+tables_to_keep <- c(
+  "cohort_program_distributions_projected",
+  "cohort_program_distributions_static",
+  "graduate_projections",
+  "tbl_program_projection_input"
+)
 
-# Keep for next workflow
-dbExistsTable(decimal_con, "Cohort_Program_Distributions_Projected")
-dbExistsTable(decimal_con, "Cohort_Program_Distributions_Static")
-
-# Keep in DB
-dbExistsTable(decimal_con, "tbl_Program_Projection_Input")
+rm(list = setdiff(ls(), tables_to_keep))
