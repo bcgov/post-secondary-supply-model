@@ -536,11 +536,76 @@ cohort_program_distributions_projected <- cohort_program_distributions_projected
       str_starts(PSSM_CRED, "P -")
   )
 
-dbExecute(decimal_con, qry_10a_Program_Dist_Count)
-dbExecute(decimal_con, qry_10b_Program_Dist_Total)
-dbExecute(decimal_con, qry_10c_Program_Dist_Distribution)
-dbExecute(decimal_con, "DROP TABLE qry_10a_Program_Dist_Count")
-dbExecute(decimal_con, "DROP TABLE qry_10b_Program_Dist_Total")
+qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
+  # Stage I: Referential Integration
+  inner_join(
+    t_pssm_projection_cred_grp,
+    by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
+  ) |>
+  # Restrictive filtering pursuant to categorical exclusion protocols
+  filter(
+    !PSSM_CREDENTIAL %in%
+      c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
+  ) |>
+  # Stage II: Derived Attribute Generation (Concatenation Logic)
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIP4_CRED_TMP = paste0(STATUS_PREFIX, CIP, " - ", PSSM_CREDENTIAL),
+    LCIP2_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      str_sub(CIP, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  # Stage III: Granular Aggregation (Replacing qry_10a)
+  summarise(
+    COUNT_VAL = sum(Count, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      CIP,
+      LCIP4_CRED_TMP,
+      LCIP2_CRED_TMP,
+      AGE,
+      Year
+    )
+  ) |>
+  # Stage IV: Window-Based Denominator and Percent Calculation (Replacing qry_10b & 10c)
+  mutate(
+    TOTAL_VAL = sum(COUNT_VAL, na.rm = TRUE),
+    PERCENT_VAL = if_else(
+      TOTAL_VAL == 0,
+      0,
+      as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
+    ),
+    .by = c(PSSM_CRED_TMP, AGE, Year)
+  ) |>
+  # Stage V: Terminal Schema Mapping
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_qry10c",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = CIP,
+    LCIP4_CRED = LCIP4_CRED_TMP,
+    LCIP2_CRED = LCIP2_CRED_TMP,
+    AGE_GROUP = AGE,
+    YEAR = Year,
+    COUNT = COUNT_VAL,
+    TOTAL = TOTAL_VAL,
+    PERCENT = PERCENT_VAL
+  )
+
+# Longitudinal Repository Reconciliation
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "qry10c$")) |>
+  bind_rows(qry_10c_program_dist_distribution)
+
 
 # survey == 'Program_Projections_2023-2024_qry12c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential IN ('GRCT or GRDP','PDEG','MAST','DOCT')
