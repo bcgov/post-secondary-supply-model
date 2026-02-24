@@ -381,30 +381,83 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q014e$")) |>
   bind_rows(q014e_weighted_cohort_distribution)
 
-## GOT TO HERE
-
+# --- move this to graduate_projections.R, I think ---
 # expands static appr in graduate projections - holding counts constant
-dbExecute(decimal_con, Q014f_APPSO_Grads_Y2_to_Y10)
+s_t <- dbReadTable(decimal_con, "Graduate_Projections")
+
+new_projections <- graduate_projections |>
+  filter(SURVEY == "APPSO") |>
+  inner_join(
+    t_appr_y2_to_y10,
+    by = join_by(YEAR == Y1)
+  ) |>
+  transmute(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10,
+    GRADUATES
+  )
+
+graduate_projections <- graduate_projections |>
+  bind_rows(new_projections)
 
 # survey == 'Program_Projections_2023-2024_Q015e21' (Static and Projected) ----
 # expands apprenticeships and near-completers to include 2020+12YR where
 #  survey == Program_Projections_2023-2024_qry_13d
 #  survey == Program_Projections_2023-2024_Q014e
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e21'"
-) # Run if you've been messing with iterations
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e22'"
-) # Run if you've been messing with iterations
-dbExecute(
-  decimal_con,
-  Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected
-)
-dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
+
+temporal_expansion_base <- cohort_program_distributions_static |>
+  inner_join(
+    t_cohort_program_distributions_y2_to_y12,
+    by = join_by(YEAR == Y1)
+  )
+
+q015e21_projected_expansion <- temporal_expansion_base |>
+  filter(
+    PSSM_CRED %in% c('APPRAPPR', 'APPRCERT') | str_starts(PSSM_CRED, "3 - ")
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q015e21",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10, # Re-indexing to the projection horizon
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+q015e22_static_expansion <- temporal_expansion_base |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q015e22",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10, # Re-indexing to the projection horizon
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "Q015e21$")) |>
+  bind_rows(q015e21_projected_expansion)
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q015e22$")) |>
+  bind_rows(q015e22_static_expansion)
 
 # Werner program ----
 # Program takes input_data and returns output_data (write to/read from LAN below)
