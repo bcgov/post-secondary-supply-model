@@ -418,7 +418,7 @@ graduate_projections <- graduate_projections |>
 
 temporal_expansion_base <- cohort_program_distributions_static |>
   inner_join(
-    t_cohort_program_distributions_y2_to_y12,
+    t_cohort_program_distributions_y2_to_y12 |> select(-ID),
     by = join_by(YEAR == Y1)
   )
 
@@ -459,6 +459,8 @@ q015e22_static_expansion <- temporal_expansion_base |>
     PERCENT
   )
 
+# note to self - let's take a closer look at what is happening here and make
+# sure it is explainable and makes sense.  
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "Q015e21$")) |>
   bind_rows(q015e21_projected_expansion)
