@@ -428,7 +428,7 @@ q015e21_projected_expansion <- temporal_expansion_base |>
     LCIP4_CRED,
     LCIP2_CRED,
     AGE_GROUP,
-    YEAR = Y2_TO_Y10, # Re-indexing to the projection horizon
+    YEAR = Y2_TO_Y10,
     COUNT,
     TOTAL,
     PERCENT
@@ -445,7 +445,7 @@ q015e22_static_expansion <- temporal_expansion_base |>
     LCIP4_CRED,
     LCIP2_CRED,
     AGE_GROUP,
-    YEAR = Y2_TO_Y10, # Re-indexing to the projection horizon
+    YEAR = Y2_TO_Y10,
     COUNT,
     TOTAL,
     PERCENT
@@ -460,11 +460,7 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
   bind_rows(q015e22_static_expansion)
 
 # Werner program ----
-# Program takes input_data and returns output_data (write to/read from LAN below)
-input_data <- dbGetQuery(
-  decimal_con,
-  "SELECT * FROM tbl_Program_Projection_Input"
-) %>%
+input_data <- tbl_program_projection_input %>%
   select(-Expr1) %>%
   complete(
     AgeGroup,
@@ -487,23 +483,22 @@ input_data <- dbGetQuery(
 
 write_csv(
   input_data,
-  glue::glue("{lan}/development/csv/gh-source/tmp/06/input-data.csv")
+  "./tmp/input-data.csv"
 )
 
 ## run Werner program ----
-source(glue::glue("{lan}/development/R/program projections.R"))
+source(glue::glue("./R/program projections.R"))
 
 output_data <- read_delim(
-  glue::glue("{lan}/development/csv/gh-source/tmp/06/output.csv"),
+  glue::glue("./tmp/output.csv"),
   delim = "\t",
   col_names = TRUE
 )
 names(output_data) <- paste0(2023:(2023 + 11), "/", 2024:(2024 + 11))
 
-T_Predict_CIP_CRED_AGE <- cbind(input_data, output_data)
+t_predict_cip_cred_age <- cbind(input_data, output_data)
 
-# pivot T_Predict_CIP_CRED_AGE from wide to long
-T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>%
+t_predict_cip_cred_age_flipped <- t_predict_cip_cred_age %>%
   pivot_longer(-c(CIP, CRED, AGE), names_to = "Year", values_to = "Count") %>%
   filter(
     Year %in%
@@ -523,18 +518,24 @@ T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>%
       )
   )
 
-dbWriteTable(
-  decimal_con,
-  "T_Predict_CIP_CRED_AGE_Flipped",
-  T_Predict_CIP_CRED_AGE_Flipped
-)
-dbGetQuery(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_2_Check)
+t_predict_cip_cred_age_flipped |>
+  summarise(
+    SUMOFCOUNT = sum(Count, na.rm = TRUE),
+    .by = Year
+  )
 
-dbExecute(decimal_con, qry_09_Delete_Selected_Static_Cohort_Dist_from_Projected)
 
 # survey == 'Program_Projections_2023-2024_qry10c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential NOT IN ('GRCT or GRDP','PDEG','MAST','DOCT')
 # (ALSO NOT IN ('APPRAPPR','APPRCERT') as these were done earlier)
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(
+    PSSM_CRED %in%
+      c('APPRAPPR', 'APPRCERT') |
+      str_starts(PSSM_CRED, "3 -") |
+      str_starts(PSSM_CRED, "P -")
+  )
+
 dbExecute(decimal_con, qry_10a_Program_Dist_Count)
 dbExecute(decimal_con, qry_10b_Program_Dist_Total)
 dbExecute(decimal_con, qry_10c_Program_Dist_Distribution)
