@@ -37,8 +37,6 @@
 #        keep eyes open for impacts of this.
 #        04-graduate-projections: remove space in final table name, add survey column and populate
 
-library(tidyverse)
-
 # List of required tables for Derived Tables, Rollovers, and Lookups
 required_tables <- c(
   # actually used in load script
@@ -460,7 +458,7 @@ q015e22_static_expansion <- temporal_expansion_base |>
   )
 
 # note to self - let's take a closer look at what is happening here and make
-# sure it is explainable and makes sense.  
+# sure it is explainable and makes sense.
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "Q015e21$")) |>
   bind_rows(q015e21_projected_expansion)

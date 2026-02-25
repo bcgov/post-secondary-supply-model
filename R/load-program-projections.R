@@ -31,7 +31,6 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
