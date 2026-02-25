@@ -48,8 +48,9 @@ decimal_con <- dbConnect(
 )
 
 if (regular_run == T | ptib_run == T) {
-  # I think we can probably load all lookups, regardless, and move this conditional to
-  # later in the script, to where the projected/static distributions are cleared.
+  # Check out whether it makes sense to re-load all lookups, regardless, and move this conditional to
+  # later in the script, to where the projected/static distributions are cleared.  The trade off being
+  # that the code is easier to read.
 
   # ---- Lookups  ----
   t_cohort_program_distributions_y2_to_y12 <-
