@@ -15,9 +15,10 @@
 # 1) several key tables were made in earlier scripts that I assume will be
 # written back to decimal for intermediate storage (between script processes).  For the PR, you may need
 # to bring them in from the master schema into your schema before running this code.  You'll need the following key
-# tables in decimal: STP_Credential, t_dacso_data_part_1,credential_non_dup
-# 2) additionally, for the PR only, you'll need a few lookup tables in decimal.  They are on the LAN but I hard-coded
-# them here so you can write them to decimal if you like. The LAN versions are in development/csv/gh-source/lookups. I tried to keep the upper/lower case the same as SQL
+# tables in decimal: STP_Credential, t_dacso_data_part_1, credential_non_dup, and credential_rank as it isn't in the
+# SQl load scripts.
+# 2) additionally, for the PR only, you'll need a few lookup tables in decimal.  They are on the LAN but some I hard-coded
+# here so you can write them to decimal if you like. The LAN versions are in development/csv/gh-source/lookups. I tried to keep the upper/lower case the same as SQL
 # so sometimes you'll see a column with mixed types (we can change later).  The exception is t_pssm_projection_cred_grp; I
 # updated the hard-coded values in one column so they were comparable across datasets in R.  SQL Server is not case-sensitive
 # so those queries should run as expected, the only implication is if you load this table from LAN the R code will be wrong.
@@ -46,17 +47,7 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-source("./sql/03-near-completers/near-completers-investigation-ttrain.R") # remove after development
-source("./sql/03-near-completers/dacso-near-completers.R") # remove after this refactor
-
 # ---- Read LAN data ----
-
-# I changed the column names from last model run
-# it doesn't affect the SQL versions as SQl is case-insensitive so in that sense it's okay to do for now
-# what I am concerned about is that I needed to change "-Degree" to "-degree" to align values across datasets.
-# I think this may have inadvertently dropped rows so we need to investigate this further.
-# Is this change the "correct" way, and how did it affect the numbers?
-
 stp_dacso_prgm_credential_lookup <-
   readr::read_csv(
     glue::glue(
@@ -92,8 +83,6 @@ combine_creds <-
     "use_in_pssm_2017_18"
   ))
 
-# same issue here - I changed "-Degree" to "-degree" to align values across datasets.
-# I think this may have inadvertently dropped rows so we need to investigate this further.
 t_pssm_projection_cred_grp <-
   readr::read_csv(
     glue::glue(
@@ -144,52 +133,17 @@ credential_rank <- tribble(
   "POST-DEGREE DIPLOMA"       ,     5
 )
 
-# these commented tables were the tables we used last model run.
-# neither version here match the version used in 2019 (see the 2017 Near Completers Access DB)
-# The sql has been translated correctly so we get the same ratios (R vs SQL),
-# but we need to investigate which age group tables are correct to use.
-# There is a correction in 04-graduate-projections which adjust
-# the age groups to align across the datasets so there may be no issue, I'm not sure.
-# but need someone's opinion on this.
-
-# tbl_Age <-
-#   readr::read_csv(
-#     glue::glue("{lan}/development/csv/gh-source/lookups/tbl_Age.csv"),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps") %>%
-#   mutate(AGE_GROUP = AGE_GROUP - 1) %>%
-#   mutate(AGE_GROUP = if_else(AGE %in% 35:64, 5, AGE_GROUP))
-
-# age_group_lookup <-
-#   readr::read_csv(
-#     glue::glue("{lan}/development/csv/gh-source/lookups/AgeGroupLookup.csv"),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps") %>%
-#   filter(AGE_INDEX %in% 2:5) %>%
-#   mutate(AGE_INDEX = AGE_INDEX - 1) %>%
-#   add_case(
-#     AGE_INDEX = 5,
-#     AGE_GROUP = "35 to 64",
-#     LOWER_BOUND = 35,
-#     UPPER_BOUND = 64
-#   )
-
-# lookups
 tbl_age <- tibble(
   Age = 0:150
 ) |>
   mutate(
     Age_Group = case_when(
-      Age >= 15 & Age <= 16 ~ 1,
-      Age >= 17 & Age <= 19 ~ 2,
-      Age >= 20 & Age <= 24 ~ 3,
-      Age >= 25 & Age <= 29 ~ 4,
-      Age >= 30 & Age <= 34 ~ 5,
-      Age >= 35 & Age <= 44 ~ 6,
-      Age >= 45 & Age <= 54 ~ 7,
-      Age >= 55 & Age <= 64 ~ 8,
+      Age >= 15 & Age <= 16 ~ 0,
+      Age >= 17 & Age <= 19 ~ 1,
+      Age >= 20 & Age <= 24 ~ 2,
+      Age >= 25 & Age <= 29 ~ 3,
+      Age >= 30 & Age <= 34 ~ 4,
+      Age >= 35 & Age <= 64 ~ 5,
       Age >= 65 & Age < 90 ~ 9,
       Age >= 90 ~ NA_real_,
       TRUE ~ NA_real_ # For Age < 15
@@ -197,21 +151,54 @@ tbl_age <- tibble(
   )
 
 age_group_lookup <- tibble(
-  Age_Index = 1:9,
+  Age_Index = 1:5,
   Age_Group = c(
-    "15 to 16",
     "17 to 19",
     "20 to 24",
     "25 to 29",
     "30 to 34",
-    "35 to 44",
-    "45 to 54",
-    "55 to 64",
-    "65 to 89"
+    "35 to 64"
   ),
-  Lower_Bound = c(15, 17, 20, 25, 30, 35, 45, 55, 65),
-  Upper_Bound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
+  Lower_Bound = c(17, 20, 25, 30, 35),
+  Upper_Bound = c(19, 24, 29, 34, 64)
 )
+
+# lookups
+#tbl_age <- tibble(
+#  Age = 0:150
+#) |>
+#  mutate(
+#    Age_Group = case_when(
+#      Age >= 15 & Age <= 16 ~ 1,
+#      Age >= 17 & Age <= 19 ~ 2,
+#      Age >= 20 & Age <= 24 ~ 3,
+#      Age >= 25 & Age <= 29 ~ 4,
+#      Age >= 30 & Age <= 34 ~ 5,
+#      Age >= 35 & Age <= 44 ~ 6,
+#      Age >= 45 & Age <= 54 ~ 7,
+#      Age >= 55 & Age <= 64 ~ 8,
+#      Age >= 65 & Age < 90 ~ 9,
+#      Age >= 90 ~ NA_real_,
+#      TRUE ~ NA_real_ # For Age < 15
+#    )
+#  )
+
+#age_group_lookup <- tibble(
+#  Age_Index = 1:9,
+#  Age_Group = c(
+#    "15 to 16",
+#    "17 to 19",
+#    "20 to 24",
+#    "25 to 29",
+#    "30 to 34",
+#    "35 to 44",
+#    "45 to 54",
+#    "55 to 64",
+#    "65 to 89"
+#  ),
+#  Lower_Bound = c(15, 17, 20, 25, 30, 35, 45, 55, 65),
+#  Upper_Bound = c(16, 19, 24, 29, 34, 44, 54, 64, 89)
+#)
 
 # ---- Rollover Tables ----
 tmp_tbl_age <- read_csv(
@@ -241,77 +228,56 @@ tmp_tbl_age_append_new_years <- years |>
   distinct() # duplicates in this data
 
 # ---- Write to decimal ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')),
-  value = tmp_tbl_age_append_new_years,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')),
-  value = tmp_tbl_age,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."tbl_Age"')),
-  value = tbl_age,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."combine_creds"')),
-  value = combine_creds,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')),
-  value = stp_dacso_prgm_credential_lookup,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')),
-  value = t_pssm_projection_cred_grp,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
-  age_group_lookup,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."CredentialRank"')),
-  credential_rank,
-  overwrite = TRUE
-)
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')),
+#   value = tmp_tbl_age_append_new_years,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')),
+#   value = tmp_tbl_age,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."tbl_Age"')),
+#   value = tbl_age,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."combine_creds"')),
+#   value = combine_creds,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')),
+#   value = stp_dacso_prgm_credential_lookup,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')),
+#   value = t_pssm_projection_cred_grp,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
+#   age_group_lookup,
+#   overwrite = TRUE
+# )
+# dbWriteTable(
+#   decimal_con,
+#   name = SQL(glue::glue('"{my_schema}"."CredentialRank"')),
+#   credential_rank,
+#   overwrite = TRUE
+# )
 
 # ---- Read Required Data from decimal ----
-# needed only to run SQL versions
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
-  ),
-  msg = glue::glue(
-    "You will need to import t_dacso_data_part_1 to your schema before continuing."
-  )
-)
-# needed only to run SQL versions
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
-  ),
-  msg = glue::glue(
-    "You will need to import Credential_Non_Dup to your schema before continuing."
-  )
-)
-# needed only to run SQL versions
 # running 03 script adds extra columns so I need to drop them each time I test.
 dbExecute(
   decimal_con,
@@ -319,9 +285,6 @@ dbExecute(
     'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
   ))
 )
-
-# needed only to run SQL versions
-# running 03 script adds extra columns so I need to drop them each time I test.
 dbExecute(
   decimal_con,
   SQL(glue::glue(
@@ -333,19 +296,43 @@ t_dacso_data_part_1 <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1"'))
 )
-
 credential_non_dup <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
 )
-
 stp_credential <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."STP_Credential"'))
 )
 
-
 # ---- Clean up and disconnect ----
 dbDisconnect(decimal_con)
 gc()
-# rm(list = ls())
+
+# Notes:
+
+# stp_dacso_prgm_credential_lookup
+# SQL version has Post-degree Certificate and Post-degree Diploma
+# R version has Post-Degree Certificate and Post-Degree Diploma
+# Implications: I think this may have inadvertently dropped rows.
+# Is this change the "correct" way, and how did it affect the numbers?
+
+# t_pssm_projection_cred_grp
+# SQL version PSSM_PROJECTION_CREDENTIAL values are allcaps
+#   and has Post-degree Certificate and Post-degree Diploma
+# R version PSSM_PROJECTION_CREDENTIAL values are title case
+#   and has Post-Degree Certificate and Post-Degree Diploma
+
+# credential_rank - not in the SQL load scripts, so pull in from other schema.
+
+# tbl_age and age_group_lookup
+# these were the tables we used last model run.
+# The commented ones are others I found that I thought made sense.
+# neither version here match the version used in 2019, though. (see the 2017 Near Completers Access DB)
+# The sql has been translated correctly so we get the same ratios (R vs SQL),
+# but we need to investigate which age group tables are correct to use.
+# There is a correction in 04-graduate-projections which adjusts, too.
+
+# tmp_tbl_age:
+# SQL version may not load TPID_DATE_OF_BIRTH, COSC_ENRL_END_DATE, COSC_GRAD_CREDENTIAL_DATE
+# as date types.
