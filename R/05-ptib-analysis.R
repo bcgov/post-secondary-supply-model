@@ -350,7 +350,6 @@ qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06b_Cohort_D
     GRAD_STATUS,
     TTRAIN
   ) |>
-  filter(Age_Group != "16 or less", Age_Group != "65+") |>
   janitor::clean_names(case = "all_caps")
 
 # update static and projected cohort distributions
@@ -380,3 +379,10 @@ cpd_static <- cpd_static |>
   filter((SURVEY == "PTIB" & AGE_GROUP != "65+") | SURVEY != "PTIB")
 
 # Clean up ----
+tables_to_keep <- c(
+  "cpd_static",
+  "cpd_proj",
+  "qry_Private_Credentials_06d1_Cohort_Dist",
+  "qry_Private_Credentials_05i1_Grads_by_Year",
+  "Graduate_Projections_PTIB"
+)
