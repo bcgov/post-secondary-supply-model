@@ -233,55 +233,6 @@ names(tmp_tbl_age_append_new_years) <- tolower(names(
   tmp_tbl_age_append_new_years
 ))
 
-# ---- Write to decimal ----
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age_AppendNewYears"')),
-#   value = tmp_tbl_age_append_new_years,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."tmp_tbl_Age"')),
-#   value = tmp_tbl_age,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."tbl_Age"')),
-#   value = tbl_age,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."combine_creds"')),
-#   value = combine_creds,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."stp_dacso_prgm_credential_lookup"')),
-#   value = stp_dacso_prgm_credential_lookup,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."t_pssm_projection_cred_grp"')),
-#   value = t_pssm_projection_cred_grp,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."AgeGroupLookup"')),
-#   age_group_lookup,
-#   overwrite = TRUE
-# )
-# dbWriteTable(
-#   decimal_con,
-#   name = SQL(glue::glue('"{my_schema}"."CredentialRank"')),
-#   credential_rank,
-#   overwrite = TRUE
-# )
 
 # ---- Read Required Data from decimal ----
 # running 03 script adds extra columns so I need to drop them each time I test.
