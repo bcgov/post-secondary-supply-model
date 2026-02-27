@@ -16,6 +16,7 @@
 # these should now be in the R environment
 required_tables <- c(
   "t_dacso_data_part_1",
+  "stp_credential",
   "credential_non_dup",
   "age_group_lookup",
   "stp_dacso_prgm_credential_lookup",
@@ -47,35 +48,35 @@ na_vals = c("", " ", "(Unspecified)", NA)
 # combine all age data from previous and new years
 tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
   select(
-    COSC_STQU_ID = COCI_STQU_ID,
-    COSC_SUBM_CD = COCI_SUBM_CD,
-    TPID_DATE_OF_BIRTH = BTHDT,
-    COSC_ENRL_END_DATE = ENDDT,
-    COCI_AGE_AT_SURVEY
+    cosc_stqu_id = coci_stqu_id,
+    cosc_subm_cd = coci_subm_cd,
+    tpid_date_of_birth = bthdt,
+    cosc_enrl_end_date = enddt,
+    coci_age_at_survey = coci_age_at_survey
   ) |>
   mutate(
-    TPID_DATE_OF_BIRTH = lubridate::ym(TPID_DATE_OF_BIRTH, quiet = TRUE), # implicitly convert "bad" dates to NA
-    COSC_ENRL_END_DATE = lubridate::ym(COSC_ENRL_END_DATE, quiet = TRUE), # implicitly convert "bad" dates to NA
-    COSC_GRAD_CREDENTIAL_DATE = NA_character_,
-    AGE_AT_GRAD = NA_real_
+    tpid_date_of_birth = lubridate::ym(tpid_date_of_birth, quiet = TRUE), # implicitly convert "bad" dates to NA
+    cosc_enrl_end_date = lubridate::ym(cosc_enrl_end_date, quiet = TRUE), # implicitly convert "bad" dates to NA
+    cosc_grad_credential_date = NA_character_,
+    age_at_grad = NA_real_
   )
 
 tmp_tbl_age <- tmp_tbl_age |>
   rbind(tmp_tbl_age_append_new_years) |>
-  select(-AGE_AT_GRAD) |>
+  select(-age_at_grad) |>
   distinct() # just in case
 
 # derive age at grad variable
 tmp_tbl_age <- tmp_tbl_age |>
   mutate(
-    ref_date = coalesce(COSC_GRAD_CREDENTIAL_DATE, COSC_ENRL_END_DATE),
-    year_diff = year(ref_date) - year(TPID_DATE_OF_BIRTH),
+    ref_date = coalesce(cosc_grad_credential_date, cosc_enrl_end_date),
+    year_diff = year(ref_date) - year(tpid_date_of_birth),
     birthday_ref_year = make_date(
       year(ref_date),
-      month(TPID_DATE_OF_BIRTH),
-      day(TPID_DATE_OF_BIRTH)
+      month(tpid_date_of_birth),
+      day(tpid_date_of_birth)
     ),
-    AGE_AT_GRAD = if_else(
+    age_at_grad = if_else(
       ref_date < birthday_ref_year,
       year_diff - 1,
       year_diff
@@ -87,13 +88,12 @@ tmp_tbl_age <- tmp_tbl_age |>
 t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   inner_join(
     tmp_tbl_age |>
-      select(COSC_STQU_ID, AGE_AT_GRAD),
-    by = c("COCI_STQU_ID" = "COSC_STQU_ID")
+      select(cosc_stqu_id, age_at_grad),
+    by = c("coci_stqu_id" = "cosc_stqu_id")
   ) |>
   distinct() # just in case
 
 # this table isn't really relevent to this section
-names(t_dacso_data_part_1) <- tolower(names(t_dacso_data_part_1))
 t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
   distinct(
     coci_stqu_id,
@@ -270,33 +270,35 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
         is.na(match_cip_code_4) &
         match_award_school_year == "yes" &
         match_inst == "yes" ~ "yes",
+
       TRUE ~ NA_character_
     )
   )
 
 # ---- Flag near-completers with earlier or later credential----
 # replicates lines 135:147  (main branch)
-# testing: compare t_dacso_nearcompleters in R vs t_dacso_nearcompleters in SQL
+# testing: at end of section, compare t_dacso_nearcompleters in R vs t_dacso_nearcompleters in SQL
 
-nearcompleters_in_stp_credential_step1b <- t_dacso_data_part_1 |>
-  # 1. Direct attribute isolation and cohort filtering
+#identify "Near-Completers" and join their survey data with their credential records.
+nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
   select(
     coci_stqu_id,
     coci_subm_cd,
     age_at_grad,
+    prgm_credential_awarded,
+    prgm_credential_awarded_name,
+    pssm_credential,
+    pssm_credential_name,
     lcp4_cd,
-    cosc_grad_status_lgds_cd_group,
-    dacso_prgm_credential_awarded = prgm_credential_awarded,
-    dacso_prgm_credential_awarded_name = prgm_credential_awarded_name,
-    dacso_pssm_credential = pssm_credential,
-    dacso_pssm_credential_name = pssm_credential_name
+    cosc_grad_status_lgds_cd_group
   ) |>
+  # 1. Filter for specific outcome codes, age range, and status '3'
   filter(
-    str_detect(coci_subm_cd, "0[7-9]|1[0-9]|2[0-3]"),
-    between(age_at_grad, 17, 64),
+    coci_subm_cd %in% paste0("C_Outc", sprintf("%02d", 7:23)),
+    age_at_grad >= 17,
+    age_at_grad <= 64,
     cosc_grad_status_lgds_cd_group == "3"
   ) |>
-  # 2. Synchronized Join with pre-labeled administrative attributes
   inner_join(
     dacso_matching_stp_credential_pen |>
       select(
@@ -305,7 +307,11 @@ nearcompleters_in_stp_credential_step1b <- t_dacso_data_part_1 |>
         coci_pen,
         coci_inst_cd,
         psi_code,
+        prgm_credential_awarded,
+        prgm_credential_awarded_name,
         stp_prgm_credential_awarded_name,
+        pssm_credential,
+        pssm_credential_name,
         psi_credential_category,
         outcomes_cred,
         final_cip_code_4,
@@ -316,38 +322,51 @@ nearcompleters_in_stp_credential_step1b <- t_dacso_data_part_1 |>
         match_all_4_flag,
         match_credential,
         match_cip_code_4,
-        match_cip_code_2,
-        prgm_credential_awarded_stp = prgm_credential_awarded,
-        prgm_credential_awarded_name_stp = prgm_credential_awarded_name,
-        pssm_credential_stp = pssm_credential,
-        pssm_credential_name_stp = pssm_credential_name
+        match_cip_code_2
       ),
-    by = "coci_stqu_id"
+    by = "coci_stqu_id",
+    suffix = c("_dacso", "_stp") # Handles duplicate column names automatically
   ) |>
-  # 3. Deterministic Temporal Reclassification (1998 Offset)
+  rename(
+    dacso_prgm_credential_awarded = prgm_credential_awarded_dacso,
+    dacso_prgm_credential_awarded_name = prgm_credential_awarded_name_dacso,
+    dacso_pssm_credential = pssm_credential_dacso,
+    dacso_pssm_credential_name = pssm_credential_name_dacso
+  )
+
+
+# Logic: The max 'Before' award year is always (Survey Value + 1998)
+# e.g., Outcome 07 + 1998 = 2005. Any award <= 2005 is 'Before'.
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
   mutate(
-    .s_val = as.numeric(str_extract(coci_subm_cd, "\\d+")),
-    .a_yr = as.numeric(str_sub(psi_award_school_year, 1, 4)),
+    survey_val = as.numeric(str_extract(coci_subm_cd, "\\d+")),
+    award_year_start = as.numeric(str_sub(psi_award_school_year, 1, 4)),
     stp_credential_awarded_before_dacso = if_else(
-      .a_yr <= (.s_val + 1998),
+      award_year_start <= (survey_val + 1998),
       "Yes",
       NA_character_
-    ),
+    )
+  ) |>
+  select(-survey_val, -award_year_start)
+
+nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  mutate(
     stp_credential_awarded_after_dacso = if_else(
       is.na(stp_credential_awarded_before_dacso),
       "Yes",
       NA_character_
     )
-  ) |>
-  select(-.s_val, -.a_yr)
+  )
 
 
 t_dacso_nearcompleters <- t_dacso_data_part_1 |>
+  # 1. Filter for the core population
   filter(
     cosc_grad_status_lgds_cd_group == "3",
     age_at_grad >= 17,
     age_at_grad <= 64
   ) |>
+  # 2. Join with the full credential list (this creates multiple rows temporarily)
   left_join(
     nearcompleters_in_stp_credential_step1 |>
       select(
@@ -386,8 +405,7 @@ t_dacso_nearcompleters <- t_dacso_data_part_1 |>
 # testing: at end of section, compare t_dacso_data_part_1 in R vs t_dacso_data_part_1 in SQL.  This one table
 # should carry all of the flags we create in this section.
 # Notes: there is quite a bit we can do to condense this code. Leaving for now but noting that
-# the logic is similar to prior workflows; when faced with the problem of picking one representitive attibute (e.g binary has_muliple_credentials) for a student
-# we often use a window-function approach, removing the need for intermediate vectors and multiple steps.
+# the logic is similar to prior workflows
 
 # Update the main matching table with 'Multiple' and 'UseThis' flags
 nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
@@ -636,7 +654,11 @@ t_dacso_data_part_1_tempselection |>
     grad_status_factoring_in_stp,
     name = "expr1"
   ) |>
-  arrange(coci_subm_cd, cosc_grad_status_lgds_cd_group)
+  arrange(
+    coci_subm_cd,
+    cosc_grad_status_lgds_cd_group,
+    grad_status_factoring_in_stp
+  )
 
 
 # ----------------------- Transferred From Excel Sheet -----------------------
@@ -655,20 +677,8 @@ t_dacso_data_part_1_tempselection |>
 # but should be similar.
 # 4) AgeGroupLookup columns in SQL follow a different naming convention.  I've changed the colnames here - I'm thinking we can remove them
 # when we figure this out.
-names(age_group_lookup) <- tolower(names(age_group_lookup)) # remove (or move) after refactor
-dbGetQuery(
-  decimal_con,
-  "EXEC sp_rename 'AgeGroupLookup.LowerBound', 'Lower_Bound', 'COLUMN';"
-)
-dbGetQuery(
-  decimal_con,
-  "EXEC sp_rename 'AgeGroupLookup.UpperBound', 'Upper_Bound', 'COLUMN';"
-)
-dbGetQuery(
-  decimal_con,
-  "EXEC sp_rename 'AgeGroupLookup.AgeGroup', 'Age_Group', 'COLUMN';"
-)
-
+names(age_group_lookup) <- tolower(names(age_group_lookup)) # move to load script
+names(credential_rank) <- tolower(names(credential_rank))
 
 base <- t_dacso_data_part_1 |>
   select(-age_group) |>
@@ -677,11 +687,11 @@ base <- t_dacso_data_part_1 |>
   ) |>
   inner_join(
     age_group_lookup,
-    by = join_by(Age_At_Grad >= lower_bound, Age_At_Grad <= upper_bound)
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
   ) |>
   left_join(
     credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
   ) |>
   inner_join(
     combine_creds |>
@@ -689,7 +699,7 @@ base <- t_dacso_data_part_1 |>
     by = "prgm_credential_awarded_name"
   ) |>
   mutate(
-    lcip4_cred = gsub("-\\s(0|1)\\s", "", LCIP4_CRED),
+    lcip4_cred = gsub("-\\s(0|1)\\s", "", lcip4_cred),
     lcip4_cred_cleaned = if_else(
       str_detect(lcip4_cred, "^1 - "),
       str_replace(lcip4_cred, "^1 - ", "3 - "),
@@ -702,10 +712,8 @@ nearcompleters_cip4_combinedcred <- base |>
   filter(cosc_grad_status_lgds_cd_group == "3") |>
   count(
     age_group,
-    combined_cred_name,
     lcip4_cred,
     lcp4_cd,
-    lcp4_cip_4digits_name,
     name = "count"
   )
 
@@ -722,8 +730,8 @@ near_completers_cip4_with_stp_combined_cred <- base |>
 completers_factoring_in_stp_cip4_combined_cred <- base |>
   filter(
     grad_status_factoring_in_stp == "1",
-    Age_At_Grad >= 17,
-    Age_At_Grad <= 64
+    age_at_grad >= 17,
+    age_at_grad <= 64
   ) |>
   count(age_group, lcip4_cred_cleaned, lcp4_cd, name = "completers") |>
   rename(lcip4_cred = lcip4_cred_cleaned)
@@ -732,8 +740,8 @@ completers_factoring_in_stp_cip4_combined_cred <- base |>
 completers_cip4_combined_cred <- base |>
   filter(
     cosc_grad_status_lgds_cd_group == "1",
-    Age_At_Grad >= 17,
-    Age_At_Grad <= 64
+    age_at_grad >= 17,
+    age_at_grad <= 64
   ) |>
   count(age_group, lcip4_cred_cleaned, lcp4_cd, name = "c_not_factoring_stp") |>
   rename(lcip4_cred = lcip4_cred_cleaned)
@@ -772,7 +780,7 @@ t_dacso_nearcompleters_ratioageatgradcip4 <-
 # Queries are for Excel: C_Outc12_13_14RatiosByGender
 base <- t_dacso_data_part_1 |>
   select(-age_group, -has_stp_credential) |>
-  rename(age_at_grad = Age_At_Grad) |>
+  #rename(age_at_grad = Age_At_Grad) |>
   filter(
     coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
     tpid_lgnd_cd != "0"
@@ -783,7 +791,7 @@ base <- t_dacso_data_part_1 |>
   ) |>
   left_join(
     credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
   )
 
 # 1: paste to col E (C_Outc12_13_14RatiosByGender)
@@ -795,7 +803,7 @@ near_completes_total_by_gender <- base |>
     tpid_lgnd_cd,
     age_group,
     prgm_credential_awarded_name,
-    name = "Count"
+    name = "count"
   )
 
 #2: paste to col F (C_Outc12_13_14RatiosByGender)
@@ -876,7 +884,6 @@ t_dacso_near_completers_ratio_by_gender <-
 
 # 4.1: paste to col E (C_Outc12_13_14RatiosByGender)
 base <- t_dacso_data_part_1 |>
-  rename(age_at_grad = Age_At_Grad) |>
   select(-age_group, -has_stp_credential) |>
   filter(tpid_lgnd_cd != "0") |>
   inner_join(
@@ -885,7 +892,7 @@ base <- t_dacso_data_part_1 |>
   ) |>
   left_join(
     credential_rank,
-    by = c("prgm_credential_awarded_name" = "PSI_CREDENTIAL_CATEGORY")
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
   )
 
 near_completes_total_by_gender_year <- base |>

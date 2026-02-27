@@ -36,6 +36,7 @@ library(DBI)
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
+db_schema <- config::get("dbschema")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -214,6 +215,7 @@ tmp_tbl_age <- read_csv(
   ) |>
   distinct() # no duplicates in this data, but just in case.
 
+names(tmp_tbl_age) <- tolower(names(tmp_tbl_age))
 years <- 2018:2023
 
 tmp_tbl_age_append_new_years <- years |>
@@ -226,6 +228,10 @@ tmp_tbl_age_append_new_years <- years |>
     }
   ) |>
   distinct() # duplicates in this data
+
+names(tmp_tbl_age_append_new_years) <- tolower(names(
+  tmp_tbl_age_append_new_years
+))
 
 # ---- Write to decimal ----
 # dbWriteTable(
