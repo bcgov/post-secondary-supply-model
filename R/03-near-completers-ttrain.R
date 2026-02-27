@@ -39,14 +39,10 @@ na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
 # replicates lines 69:87 (main branch)
-# testing: t_dacso_data_part_1_tempselection vs output of query at line 87 (main branch)
-## Notes:
-# 1) near the end of this section we create a new table from the t_dacso dataset.
-# The new table will be used later in the workflow; I think it is erronesouly
-# placed here in this section but perfect for testing the code in this section.
-# I believe it is a "Check" used for a manual decision: used to pick representitive years
+# testing: t_dacso_data_part_1_tempselection in SQL vs R
+#          output of query at line 87 (main branch) vs line 116 (R version)
+# Notes: re. the output at line 116 this is a "Check" used to pick representitive years
 # from which to calculate the completers to near-completers ratio.
-# I suspect the analyst had other insight to draw upon when making this decsion.
 
 # combine all age data from previous and new years
 tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
@@ -61,12 +57,12 @@ tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
     TPID_DATE_OF_BIRTH = lubridate::ym(TPID_DATE_OF_BIRTH, quiet = TRUE), # implicitly convert "bad" dates to NA
     COSC_ENRL_END_DATE = lubridate::ym(COSC_ENRL_END_DATE, quiet = TRUE), # implicitly convert "bad" dates to NA
     COSC_GRAD_CREDENTIAL_DATE = NA_character_,
-    Age_At_Grad = NA_real_ # remove after this refactor
+    AGE_AT_GRAD = NA_real_
   )
 
 tmp_tbl_age <- tmp_tbl_age |>
   rbind(tmp_tbl_age_append_new_years) |>
-  select(-Age_At_Grad) |> # remove after this refactor
+  select(-AGE_AT_GRAD) |>
   distinct() # just in case
 
 # derive age at grad variable
@@ -91,18 +87,19 @@ tmp_tbl_age <- tmp_tbl_age |>
 t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   inner_join(
     tmp_tbl_age |>
-      select(COSC_STQU_ID, Age_At_Grad = AGE_AT_GRAD),
-    by = c("coci_stqu_id" = "COSC_STQU_ID")
+      select(COSC_STQU_ID, AGE_AT_GRAD),
+    by = c("COCI_STQU_ID" = "COSC_STQU_ID")
   ) |>
   distinct() # just in case
 
-# this table isn't really relevent to this section (see notes above)
+# this table isn't really relevent to this section
+names(t_dacso_data_part_1) <- tolower(names(t_dacso_data_part_1))
 t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
   distinct(
     coci_stqu_id,
     coci_subm_cd,
     coci_age_at_survey,
-    age_at_grad = Age_At_Grad,
+    age_at_grad,
     cosc_grad_status_lgds_cd_group,
     prgm_credential_awarded,
     prgm_credential_awarded_name,
@@ -128,11 +125,12 @@ t_dacso_data_part_1_tempselection |>
 
 # ---- Add PEN to Non-Dup table ----
 # replicates lines 90:101 (main branch)
-# testing: NA
-## Notes:
-#  1) (from main branch) "Move to earlier workflow - 02 series.
-#   This updates credential non-dup in current schema only".  We should
-# confirm this.
+# testing: compare credential_non_dup in SQL to R
+# Notes:
+#  There's a note from main branch script that says -  "Move to earlier workflow - 02 series.
+#  This updates credential non-dup in current schema only".  We should
+#  confirm that we only need the psi_pen in the current R environment.
+names(credential_non_dup) <- tolower(names(credential_non_dup))
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
@@ -141,8 +139,8 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- DACSO Matching STP Credential ----
-# replicates lines 102:133 (main branch)
-# testing: 1) at end of section, compare dacso_matching_stp_credential_pen in R vs dacso_matching_stp_credential_pen in SQL
+# replicates lines 104:133 (main branch)
+# testing: 1) compare dacso_matching_stp_credential_pen in R vs dacso_matching_stp_credential_pen in SQL
 #          2) compare match_summary_table in R to output from qry06 at line 124 (main) vs
 ## Notes:
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
@@ -165,19 +163,23 @@ dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
     psi_credential_category,
     outcomes_cred,
     lcp4_cd,
-    final_cip_code_4 = FINAL_CIP_CODE_4,
+    final_cip_code_4,
     coci_subm_cd,
     psi_award_school_year,
     cosc_grad_status_lgds_cd_group
   )
 
-# Stage 2: Join with Lookup table to populate stp_prgm_credential_awarded_name
+# populate stp_prgm_credential_awarded_name
+names(stp_dacso_prgm_credential_lookup) <- tolower(names(
+  stp_dacso_prgm_credential_lookup
+))
+
 dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
   left_join(
     stp_dacso_prgm_credential_lookup |>
       select(
-        prgrm_credential_awarded = PRGRM_Credential_Awarded,
-        stp_prgm_credential_awarded_name = STP_PRGM_Credential_Awarded_Name
+        prgrm_credential_awarded,
+        stp_prgm_credential_awarded_name
       ),
     by = c("prgm_credential_awarded" = "prgrm_credential_awarded")
   )
@@ -261,46 +263,40 @@ dacso_matching_stp_credential_pen <- dacso_matching_stp_credential_pen |>
       "yes",
       NA_character_
     ),
-
-    # Step 2: Determine final match status based on Step 1 OR the CIP-2 fallback
     final_consider_a_match = case_when(
       match_all_4_flag == "yes" ~ "yes",
-
-      # Fallback: CIP-4 is missing, but CIP-2 and everything else matches
       match_credential == "yes" &
         match_cip_code_2 == "Yes" &
         is.na(match_cip_code_4) &
         match_award_school_year == "yes" &
         match_inst == "yes" ~ "yes",
-
       TRUE ~ NA_character_
     )
   )
 
 # ---- Flag near-completers with earlier or later credential----
 # replicates lines 135:147  (main branch)
-# testing: at end of section, compare t_dacso_nearcompleters in R vs t_dacso_nearcompleters in SQL
+# testing: compare t_dacso_nearcompleters in R vs t_dacso_nearcompleters in SQL
 
-#identify "Near-Completers" and join their survey data with their credential records.
-nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
+nearcompleters_in_stp_credential_step1b <- t_dacso_data_part_1 |>
+  # 1. Direct attribute isolation and cohort filtering
   select(
     coci_stqu_id,
     coci_subm_cd,
-    Age_At_Grad,
-    prgm_credential_awarded,
-    prgm_credential_awarded_name,
-    pssm_credential,
-    pssm_credential_name,
+    age_at_grad,
     lcp4_cd,
-    cosc_grad_status_lgds_cd_group
+    cosc_grad_status_lgds_cd_group,
+    dacso_prgm_credential_awarded = prgm_credential_awarded,
+    dacso_prgm_credential_awarded_name = prgm_credential_awarded_name,
+    dacso_pssm_credential = pssm_credential,
+    dacso_pssm_credential_name = pssm_credential_name
   ) |>
-  # 1. Filter for specific outcome codes, age range, and status '3'
   filter(
-    coci_subm_cd %in% paste0("C_Outc", sprintf("%02d", 7:23)),
-    Age_At_Grad >= 17,
-    Age_At_Grad <= 64,
+    str_detect(coci_subm_cd, "0[7-9]|1[0-9]|2[0-3]"),
+    between(age_at_grad, 17, 64),
     cosc_grad_status_lgds_cd_group == "3"
   ) |>
+  # 2. Synchronized Join with pre-labeled administrative attributes
   inner_join(
     dacso_matching_stp_credential_pen |>
       select(
@@ -309,11 +305,7 @@ nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
         coci_pen,
         coci_inst_cd,
         psi_code,
-        prgm_credential_awarded,
-        prgm_credential_awarded_name,
         stp_prgm_credential_awarded_name,
-        pssm_credential,
-        pssm_credential_name,
         psi_credential_category,
         outcomes_cred,
         final_cip_code_4,
@@ -324,51 +316,38 @@ nearcompleters_in_stp_credential_step1 <- t_dacso_data_part_1 |>
         match_all_4_flag,
         match_credential,
         match_cip_code_4,
-        match_cip_code_2
+        match_cip_code_2,
+        prgm_credential_awarded_stp = prgm_credential_awarded,
+        prgm_credential_awarded_name_stp = prgm_credential_awarded_name,
+        pssm_credential_stp = pssm_credential,
+        pssm_credential_name_stp = pssm_credential_name
       ),
-    by = "coci_stqu_id",
-    suffix = c("_dacso", "_stp") # Handles duplicate column names automatically
+    by = "coci_stqu_id"
   ) |>
-  rename(
-    dacso_prgm_credential_awarded = prgm_credential_awarded_dacso,
-    dacso_prgm_credential_awarded_name = prgm_credential_awarded_name_dacso,
-    dacso_pssm_credential = pssm_credential_dacso,
-    dacso_pssm_credential_name = pssm_credential_name_dacso
-  )
-
-
-# Logic: The max 'Before' award year is always (Survey Value + 1998)
-# e.g., Outcome 07 + 1998 = 2005. Any award <= 2005 is 'Before'.
-nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
+  # 3. Deterministic Temporal Reclassification (1998 Offset)
   mutate(
-    survey_val = as.numeric(str_extract(coci_subm_cd, "\\d+")),
-    award_year_start = as.numeric(str_sub(psi_award_school_year, 1, 4)),
+    .s_val = as.numeric(str_extract(coci_subm_cd, "\\d+")),
+    .a_yr = as.numeric(str_sub(psi_award_school_year, 1, 4)),
     stp_credential_awarded_before_dacso = if_else(
-      award_year_start <= (survey_val + 1998),
+      .a_yr <= (.s_val + 1998),
       "Yes",
       NA_character_
-    )
-  ) |>
-  select(-survey_val, -award_year_start)
-
-nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1 |>
-  mutate(
+    ),
     stp_credential_awarded_after_dacso = if_else(
       is.na(stp_credential_awarded_before_dacso),
       "Yes",
       NA_character_
     )
-  )
+  ) |>
+  select(-.s_val, -.a_yr)
 
 
 t_dacso_nearcompleters <- t_dacso_data_part_1 |>
-  # 1. Filter for the core population
   filter(
     cosc_grad_status_lgds_cd_group == "3",
-    Age_At_Grad >= 17,
-    Age_At_Grad <= 64
+    age_at_grad >= 17,
+    age_at_grad <= 64
   ) |>
-  # 2. Join with the full credential list (this creates multiple rows temporarily)
   left_join(
     nearcompleters_in_stp_credential_step1 |>
       select(
@@ -381,7 +360,7 @@ t_dacso_nearcompleters <- t_dacso_data_part_1 |>
   group_by(across(c(
     coci_stqu_id,
     coci_subm_cd,
-    Age_At_Grad,
+    age_at_grad,
     cosc_grad_status_lgds_cd_group,
     prgm_credential_awarded,
     prgm_credential_awarded_name,
