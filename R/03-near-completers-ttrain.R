@@ -679,6 +679,7 @@ t_dacso_data_part_1_tempselection |>
 # when we figure this out.
 names(age_group_lookup) <- tolower(names(age_group_lookup)) # move to load script
 names(credential_rank) <- tolower(names(credential_rank))
+names(t_dacso_data_part_1) <- tolower(names(t_dacso_data_part_1))
 
 base <- t_dacso_data_part_1 |>
   select(-age_group) |>
@@ -846,7 +847,7 @@ ratio.df = near_completes_total_by_gender |>
 # (alternatively just the normal ratio for nc for this year)
 ratio.df <- ratio.df |>
   mutate(across(where(is.numeric), ~ replace_na(., 0))) |>
-  mutate(n_nc_stp = Count - nc_with_early_or_late) |>
+  mutate(n_nc_stp = count - nc_with_early_or_late) |>
   mutate(ratio = n_nc_stp / completers)
 
 ratio.df2 <- ratio.df |>
@@ -884,7 +885,7 @@ t_dacso_near_completers_ratio_by_gender <-
 
 # 4.1: paste to col E (C_Outc12_13_14RatiosByGender)
 base <- t_dacso_data_part_1 |>
-  select(-age_group, -has_stp_credential) |>
+  select(-age_group) |>
   filter(tpid_lgnd_cd != "0") |>
   inner_join(
     age_group_lookup,
@@ -909,6 +910,8 @@ near_completes_total_by_gender_year <- base |>
 
 # 4.2: paste to col F (C_Outc12_13_14RatiosByGender)
 near_completes_total_with_stp_by_gender_year <- base |>
+  # This inner join only brings in has_stp_credentials - it has no other purpose
+  # If we leave has_stp_credentials in base, there is no need for this.
   inner_join(
     t_dacso_data_part_1_tempselection |>
       select(coci_stqu_id, has_stp_credential),
