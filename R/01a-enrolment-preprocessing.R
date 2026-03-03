@@ -334,7 +334,6 @@ birthdate_cleaning_summary <- stp_enrolment |>
     !PSI_BIRTHDATE %in% c("", " ", "(Unspecified)"),
     !ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
   ) |>
-  group_by(ENCRYPTED_TRUE_PEN) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
   summarize(
     NBirthdateRecords = n(),
