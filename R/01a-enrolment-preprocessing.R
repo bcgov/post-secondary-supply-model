@@ -113,9 +113,9 @@ stp_enrolment <- stp_enrolment |>
 # original SQl used patterns %Continuing Education and %Continuing Studies
 invalid_pen <- c("", " ", "(Unspecified)")
 cips <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
-ce_pattern <- "Continuing Education|Continuing Studies|Audit|^CE "
+ce_pattern <- "Continuing Education$|Continuing Studies$|Audit|^Ce "
 
-stp_enrolment_record_type <- stp_enrolment |>
+stp_enrolment_record_type_base <- stp_enrolment |>
   select(
     ID,
     ENCRYPTED_TRUE_PEN,
@@ -136,7 +136,7 @@ stp_enrolment_record_type <- stp_enrolment |>
   mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
 
-stp_enrolment_record_type <- stp_enrolment_record_type |>
+stp_enrolment_record_type <- stp_enrolment_record_type_base |>
   mutate(
     RecordStatus = case_when(
       # Record Status 1: qry02a to qry02c
@@ -168,35 +168,85 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
             "Community, Corporate & International Development") |
           (PSI_CODE == "NIC" & CIP2 %in% cips)) ~ 6,
 
-      # Record Status 7: qry03k
+      # DEFAULT: Fallback for all other records
+      TRUE ~ NA
+    )
+  )
+
+# Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
+# find more skills based courses that were excluded (set to RecordStatus 6) but actually need to be kept
+# (s.b. RecordStatus 0).  The manual investigation result were recorded column "Keep".  We did not do this manual work so I'm
+# leaving the scaffolding in case it gets done later.
+# The affected queries are: qry03g, 03g_b, 03g_c, 03g_c2, 03_d, 03h, 03i, 03i2, 03j
+
+tmp_tbl_skills_based_courses <- stp_enrolment_record_type_base |>
+  inner_join(
+    stp_enrolment_record_type |> filter(RecordStatus == 6) |> select(ID),
+    by = "ID"
+  ) |>
+  distinct(
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    CIP2,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_STUDY_LEVEL,
+    PSI_CONTINUING_EDUCATION_COURSE_ONLY
+  ) |>
+  mutate(KEEP = as.character(NA)) # Initializing KEEP as NULL/NA
+
+# this needs to be here
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  mutate(
+    RecordStatus = case_when(
+      !is.na(RecordStatus) ~ RecordStatus,
+
+      PSI_CODE == 'SEL' &
+        PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+          'Community, Corporate & International Development' ~ 6,
+
+      TRUE ~ NA
+    )
+  )
+
+# this also needs to be here to align with queries.  Could there
+# be a less complicated version of this workflow?
+ids_to_flag_6 <- stp_enrolment_record_type_base |>
+  inner_join(
+    stp_enrolment_record_type |> filter(is.na(RecordStatus)) |> select(ID),
+    by = "ID"
+  ) |>
+  semi_join(
+    tmp_tbl_skills_based_courses |> filter(is.na(KEEP)),
+    by = c(
+      "PSI_CODE",
+      "PSI_PROGRAM_CODE",
+      "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+      "CIP2",
+      "PSI_CREDENTIAL_CATEGORY",
+      "PSI_STUDY_LEVEL"
+    )
+  ) |>
+  pull(ID)
+
+
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  mutate(
+    RecordStatus = case_when(
+      !is.na(RecordStatus) ~ RecordStatus,
+
+      ID %in% ids_to_flag_6 ~ 6,
+
       PSI_CONTINUING_EDUCATION_COURSE_ONLY == "Not Skills Crs Only" &
         CIP2 %in% cips ~ 7, # qry 03k and qry03l series
 
-      # Record Status 3: qry04a to qry04b
       PSI_ENTRY_STATUS == "No Transition" ~ 3,
 
-      # Record Status 5: qry06a to
       ATTENDING_PSI_OUTSIDE_BC == "Y" ~ 5,
 
-      # DEFAULT: Fallback for all other records
       TRUE ~ 0
     )
-  ) |>
-  select(ID, RecordStatus)
-
-# Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
-# find more skills based courses and/or keep some that were excluded.  The manual
-# investigation resulted in a table with a column "keep".  This was used to further
-# refine the record status (affcting only record status 0 and 6).
-# The affected queries are: qry03g, 03g_b, 03g_c, 03g_c2, 03_d, 03h, 03i, 03i2, 03j
-# for now, pull the final enrolement record type table from decimal to keep
-# coding.
-
-sql <- glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment_Record_Type]")
-stp_enrolment_record_type <- dbGetQuery(con, sql) |>
-  select(ID, RecordStatus) # we may need to change the column names later
-
-## ------------------------------------------------------------------------------------------------
+  )
 
 ## ------------------------------------------------------------------------------------------------
 
