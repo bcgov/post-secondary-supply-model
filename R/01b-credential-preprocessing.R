@@ -11,12 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# Workflow #2
-# Credential Preprocessing
-# Description:
-# Relies on STP_Credential, STP_Enrolment_Record_Type, STP_Enrolment_Valid, STP_Enrolment data tables
-# Creates tables _____ which are used in subsequent workflows
-
 library(tidyverse)
 library(odbc)
 library(DBI)
@@ -149,23 +143,25 @@ stp_credential_record_type <- stp_credential |>
       # --- Record Type 2 ---
       PSI_CREDENTIAL_LEVEL == "Developmental" ~ 2,
 
-      # --- Record Type 6---
+      # --- Record Type 6 ---
       is_skills_match == TRUE ~ 6,
 
-      # --- Status 7: Developmental CIPs (With "Keep" Exceptions) ---
-      # there may be more exceptions to add - in previous years some manual checks were done.
-      (CIP2 %in% dev_cips) &
-        !((PSI_CODE == "UVIC" &
-          PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-            "PROF SPEC CERTIFICATE IN MIDDLE YEARS LANG AND LITERACY") |
-          (PSI_CODE == "NIC" &
-            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Aquaculture Technician 1") |
-          (PSI_CODE == "NIC" &
-            PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Coastal Forest Resource") |
-          (PSI_CODE == "NIC" &
-            PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
-              "Underground Mining Essentials")) ~ 7,
-      # --- Status 8: Recommendation for Certification
+      # --- Record Type 7 ---
+      # SQL version skipped qry03g2 which filters specific PSI_CODE and PSI_CREDENTIAL_PROGRAM_DESCRIPTION combinations.
+      # Commenting the code out here to maintain alignment but also becuase we need more clarification.
+      # There may also be more exceptions to add - in previous years some manual checks were done, too.
+      (CIP2 %in% dev_cips) ~ 7, # &
+      #!((PSI_CODE == "UVIC" &
+      #  PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+      #    "PROF SPEC CERTIFICATE IN MIDDLE YEARS LANG AND LITERACY") |
+      #  (PSI_CODE == "NIC" &
+      #    PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Aquaculture Technician 1") |
+      #  (PSI_CODE == "NIC" &
+      #    PSI_CREDENTIAL_PROGRAM_DESCRIPTION == "Coastal Forest Resource") |
+      #  (PSI_CODE == "NIC" &
+      #    PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
+      #      "Underground Mining Essentials")) ~ 7,
+      # --- Record Type 8 ---
       PSI_CREDENTIAL_CATEGORY == "Recommendation For Certification" ~ 8,
 
       # Default: leave other records as NA (or 0) for now
