@@ -174,8 +174,8 @@ stp_enrolment_record_type <- stp_enrolment_record_type_base |>
   )
 
 # Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
-# find more skills based courses that were excluded (set to RecordStatus 6) but actually need to be kept
-# (s.b. RecordStatus 0).  The manual investigation result were recorded column "Keep".  We did not do this manual work so I'm
+# find more skills based courses that were inadvertently excluded (s.b. RecordStatus 0) in the above work.
+# The manual investigation result were recorded column "Keep".  We did not do this manual work so I'm
 # leaving the scaffolding in case it gets done later.
 # The affected queries are: qry03g, 03g_b, 03g_c, 03g_c2, 03_d, 03h, 03i, 03i2, 03j
 
@@ -247,6 +247,9 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
       TRUE ~ 0
     )
   )
+
+stp_enrolment_record_type <- stp_enrolment_record_type |>
+  select(ID, RecordStatus)
 
 ## ------------------------------------------------------------------------------------------------
 
