@@ -28,7 +28,7 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# These should be in the R environment already.  If not, toggle.
+## These should be in the R environment already.  If not, toggle.
 #stp_enrolment <- dbReadTable(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
@@ -46,10 +46,10 @@ con <- dbConnect(
 #  con,
 #  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
 #)
-#stp_enrolment_valid <- dbReadTable(
-#  con,
-#  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
-#)
+stp_enrolment_valid <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
+)
 
 # Define lookup tables
 outcome_credential <- tibble(
@@ -177,19 +177,19 @@ latest_enrolment_epen <- stp_enrolment_valid |>
 
 cred_supvars_enrol_epen <- latest_enrolment_epen |>
   inner_join(
-    credential,
+    credential |> select(ENCRYPTED_TRUE_PEN, RecordStatus),
     by = c("ENCRYPTED_TRUE_PEN"),
     relationship = "many-to-many"
   ) |>
   select(
-    EnrolmentID = ID.x,
+    EnrolmentID = ID,
     ENCRYPTED_TRUE_PEN,
     PSI_MIN_START_DATE,
     CredentialRecordStatus = RecordStatus,
     PSI_STUDENT_POSTAL_CODE_CURRENT,
-    PSI_SCHOOL_YEAR = PSI_SCHOOL_YEAR.x,
-    PSI_CODE = PSI_CODE.x,
-    PSI_STUDENT_NUMBER = PSI_STUDENT_NUMBER.x,
+    PSI_SCHOOL_YEAR = PSI_SCHOOL_YEAR,
+    PSI_CODE = PSI_CODE,
+    PSI_STUDENT_NUMBER = PSI_STUDENT_NUMBER,
     PSI_ENROLMENT_SEQUENCE
   ) |>
   distinct()
@@ -219,17 +219,17 @@ latest_enrolment_no_epen <- stp_enrolment_valid |>
 
 cred_supvars_enrol_no_pen <- latest_enrolment_no_epen |>
   inner_join(
-    credential,
+    credential |> select(PSI_CODE, PSI_STUDENT_NUMBER, RecordStatus),
     by = c("PSI_CODE", "PSI_STUDENT_NUMBER"),
     relationship = "many-to-many"
   ) |>
   select(
-    EnrolmentID = ID.x,
-    ENCRYPTED_TRUE_PEN = ENCRYPTED_TRUE_PEN.x,
+    EnrolmentID = ID,
+    ENCRYPTED_TRUE_PEN = ENCRYPTED_TRUE_PEN,
     PSI_MIN_START_DATE,
     CredentialRecordStatus = RecordStatus,
     PSI_STUDENT_POSTAL_CODE_CURRENT,
-    PSI_SCHOOL_YEAR = PSI_SCHOOL_YEAR.x,
+    PSI_SCHOOL_YEAR = PSI_SCHOOL_YEAR,
     PSI_CODE = PSI_CODE,
     PSI_STUDENT_NUMBER = PSI_STUDENT_NUMBER,
     PSI_ENROLMENT_SEQUENCE
