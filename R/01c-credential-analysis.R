@@ -288,6 +288,7 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
     )
   )
 
+
 # ---- 02 Developmental Records ----
 # add a drop credential flag, presumably for later use
 stp_credential_record_type <-
@@ -307,6 +308,17 @@ stp_credential_record_type <-
       select(ID, DropCredCategory)),
     by = "ID"
   )
+
+# slight correction needed to align with SQL - maybe a better place for this
+credential_supvars_enrolment <- credential_supvars_enrolment |>
+  mutate(
+    psi_birthdate_cleaned = if_else(
+      psi_birthdate_cleaned == "",
+      NA,
+      psi_birthdate_cleaned
+    )
+  )
+
 
 # ---- 03 Miscellaneous ----
 stp_credential_record_type <-
