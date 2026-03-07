@@ -32,8 +32,8 @@ con <- dbConnect(
 stp_enrolment <- dbGetQuery(
   con,
   glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
-) |>
-  select(-psi_birthdate_cleaned)
+)
+#|> select(-psi_birthdate_cleaned)
 
 ## -----------------------------------------------------------------------------------------------
 
@@ -52,8 +52,7 @@ stp_enrolment |>
 stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
 
-stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
-
+# stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
 
 # -------------------------------------------------------------------------------------------------
 
@@ -326,31 +325,34 @@ stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
 ## ------------------------------------- Clean Birthdates -----------------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 ## qry01 to qry11
+## Notes: Look out for different NA or non-valid types as this can alter the behaviour of
+## min, max, first.
 
 # qry01 to qry08
 birthdate_cleaning_summary <- stp_enrolment |>
   select(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE, LAST_SEEN_BIRTHDATE) |>
   filter(
-    !PSI_BIRTHDATE %in% c("", " ", "(Unspecified)"),
-    !ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)")
+    !PSI_BIRTHDATE %in% c("", " ", "(Unspecified)", NA_Date_, NA_character_),
+    !ENCRYPTED_TRUE_PEN %in%
+      c("", " ", "(Unspecified)", NA_Date_, NA_character_)
   ) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_BIRTHDATE) |>
   summarize(
     NBirthdateRecords = n(),
-    LastSeenBirthdate = first(LAST_SEEN_BIRTHDATE), #should only be one "last seen" per student
+    LastSeenBirthdate = first(LAST_SEEN_BIRTHDATE, na_rm = TRUE), # should only be one "last seen" per student; I've had issues with this na_rm so check it.
     .groups = "drop_last"
   ) |>
   summarize(
     DistinctBirthdates = n(), # Useful for auditing
-    MinPSIBirthdate = min(PSI_BIRTHDATE),
-    MaxPSIBirthdate = max(PSI_BIRTHDATE),
+    MinPSIBirthdate = min(PSI_BIRTHDATE, na.rm = TRUE),
+    MaxPSIBirthdate = max(PSI_BIRTHDATE, na.rm = TRUE),
     NumMinBirthdateRecords = NBirthdateRecords[
-      PSI_BIRTHDATE == min(PSI_BIRTHDATE)
+      PSI_BIRTHDATE == min(PSI_BIRTHDATE, na.rm = TRUE)
     ][1],
     NumMaxBirthdateRecords = NBirthdateRecords[
-      PSI_BIRTHDATE == max(PSI_BIRTHDATE)
+      PSI_BIRTHDATE == max(PSI_BIRTHDATE, na.rm = TRUE)
     ][1],
-    LastSeenBirthdate = first(LastSeenBirthdate)
+    LastSeenBirthdate = first(LastSeenBirthdate, na_rm = TRUE)
   ) |>
   ungroup()
 
@@ -361,11 +363,11 @@ birthdate_update <- birthdate_cleaning_summary |>
       # If they only have one date, use it
       MinPSIBirthdate == MaxPSIBirthdate ~ MinPSIBirthdate,
 
-      # Tie-breaker 1: Match the "Last Seen" date
+      # If the max birthdate matches the "Last Seen" date, use that one
       MaxPSIBirthdate == LastSeenBirthdate ~ MaxPSIBirthdate,
       #MinPSIBirthdate == LastSeenBirthdate ~ MinPSIBirthdate, # old logic didn't include this
 
-      # Tie-breaker 2: Use the date that appears most frequently
+      # Otherwise use the date that appears most frequently
       NumMaxBirthdateRecords > NumMinBirthdateRecords ~ MaxPSIBirthdate,
       NumMaxBirthdateRecords < NumMinBirthdateRecords ~ MinPSIBirthdate,
 
