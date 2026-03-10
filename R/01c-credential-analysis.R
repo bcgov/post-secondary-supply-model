@@ -288,6 +288,16 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
     )
   )
 
+# slight correction needed to align with SQL
+credential_supvars_enrolment <- credential_supvars_enrolment |>
+  mutate(
+    psi_birthdate_cleaned = if_else(
+      psi_birthdate_cleaned == "",
+      NA_character_,
+      psi_birthdate_cleaned
+    )
+  )
+
 
 # ---- 02 Developmental Records ----
 # add a drop credential flag, presumably for later use
@@ -307,16 +317,6 @@ stp_credential_record_type <-
       mutate(DropCredCategory = "Yes") |>
       select(ID, DropCredCategory)),
     by = "ID"
-  )
-
-# slight correction needed to align with SQL - maybe a better place for this
-credential_supvars_enrolment <- credential_supvars_enrolment |>
-  mutate(
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned == "",
-      NA,
-      psi_birthdate_cleaned
-    )
   )
 
 
@@ -474,21 +474,9 @@ credential_supvars <- credential_supvars |>
 
 # ---- 04 Birthdate cleaning (last seen birthdate) ----
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
+# note: a handful out but I think the R version is handling the coalesce correctly.
+# we're only adding LAST_SEEN_BIRTHDATE for valid epens. Can we add for invalid EPENS?
 na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
-
-credential_supvars_enrolment <- credential_supvars_enrolment |>
-  left_join(
-    stp_enrolment |> select(ID, LAST_SEEN_BIRTHDATE),
-    by = c("EnrolmentID" = "ID")
-  )
-
-# check if LAST_SEEN_BIRTHDATE can be included when table is created
-credential_supvars <- credential_supvars |>
-  left_join(
-    credential_supvars_enrolment |>
-      distinct(ENCRYPTED_TRUE_PEN, LAST_SEEN_BIRTHDATE),
-    by = "ENCRYPTED_TRUE_PEN"
-  )
 
 credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   select(
@@ -523,6 +511,7 @@ credential_supvars <- credential_supvars |>
   ) |>
   left_join(
     credential_supvars_birthdate_clean |>
+      filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
       distinct(
         PSI_STUDENT_NUMBER,
         PSI_CODE,
@@ -537,8 +526,21 @@ credential_supvars <- credential_supvars |>
     psi_birthdate_cleaned = coalesce(bd_pen, bd_stu),
     psi_birthdate_cleaned_D = coalesce(bd_pen_d, bd_stu_d),
   ) |>
-  select(-bd_pen, -bd_pen_d, -bd_stu, -bd_stu_d) # a small handful of dates found in R version that were NA in SQL version
+  select(-bd_pen, -bd_pen_d, -bd_stu, -bd_stu_d)
 
+
+credential_supvars_enrolment <- credential_supvars_enrolment |>
+  left_join(
+    stp_enrolment |> select(ID, LAST_SEEN_BIRTHDATE),
+    by = c("EnrolmentID" = "ID")
+  )
+
+credential_supvars <- credential_supvars |>
+  left_join(
+    credential_supvars_enrolment |>
+      distinct(ENCRYPTED_TRUE_PEN, LAST_SEEN_BIRTHDATE),
+    by = "ENCRYPTED_TRUE_PEN"
+  )
 
 credential_supvars <- credential_supvars |>
   mutate(
@@ -653,7 +655,8 @@ credential_non_dup <- credential |>
     CREDENTIAL_AWARD_DATE_D
   ) |>
   slice_max(ID, n = 1, with_ties = FALSE) |>
-  ungroup()
+  ungroup() |>
+  select(-DropCredCategory, -DropPartialYear, -PSI_FULL_NAME)
 
 credential_non_dup <- credential_non_dup |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
@@ -724,8 +727,9 @@ rm(
 
 # ---- 08 Credential Ranking ----
 # The R version produces similar results to SQL.  Some differences noted
-# in how SQL and R handle tie-breaking.  This introduced some discrepency
-# at the row-level.  Should have minimal impact on overall results.
+# in how SQL and R handle tie-breaking leads to different row flags (HIGHEST_CRED_BY_DATE/RANK)
+# for a handful of records, in almost all cases this is because two credentials of same rank are assigned on the same date
+# This will hopefully have minimal impact on overall results.
 
 base_data <- credential_non_dup |>
   left_join(credential_rank, by = c("PSI_CREDENTIAL_CATEGORY"))
@@ -739,12 +743,16 @@ pen_group <- base_data |>
     CREDENTIAL_AWARD_DATE_D,
     RANK
   ) |>
-  filter(!(ENCRYPTED_TRUE_PEN %in% na_vals)) |>
+  filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
   group_by(ENCRYPTED_TRUE_PEN) |>
   arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
-  mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
+  mutate(
+    HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", NA_character_)
+  ) |>
   arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
-  mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
+  mutate(
+    HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", NA_character_)
+  ) |>
   ungroup()
 
 stud_num_group <- base_data |>
@@ -759,13 +767,17 @@ stud_num_group <- base_data |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
   group_by(PSI_CODE, PSI_STUDENT_NUMBER) |>
   arrange(desc(CREDENTIAL_AWARD_DATE_D), RANK) |>
-  mutate(HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", "No")) |>
+  mutate(
+    HIGHEST_CRED_BY_DATE = if_else(row_number() == 1, "Yes", NA_character_)
+  ) |>
   arrange(RANK, desc(CREDENTIAL_AWARD_DATE_D)) |>
-  mutate(HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", "No")) |>
+  mutate(
+    HIGHEST_CRED_BY_RANK = if_else(row_number() == 1, "Yes", NA_character_)
+  ) |>
   ungroup()
 
 credential_ranking <- bind_rows(pen_group, stud_num_group)
-credential_non_dup <- credential_non_dup |>
+credential_non_dup2 <- credential_non_dup |>
   left_join(
     credential_ranking,
     by = join_by(
