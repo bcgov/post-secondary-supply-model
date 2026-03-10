@@ -777,7 +777,8 @@ stud_num_group <- base_data |>
   ungroup()
 
 credential_ranking <- bind_rows(pen_group, stud_num_group)
-credential_non_dup2 <- credential_non_dup |>
+
+credential_non_dup <- credential_non_dup |>
   left_join(
     credential_ranking,
     by = join_by(
