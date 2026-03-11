@@ -883,7 +883,6 @@ cols_specific <- c(
   "PSI_SCHOOL_YEAR"
 )
 
-# The 4-column broad fallback match
 cols_broad <- c(
   "ENCRYPTED_TRUE_PEN",
   "PSI_CODE",
@@ -891,8 +890,8 @@ cols_broad <- c(
   "PSI_SCHOOL_YEAR"
 )
 
-# !! this introduced duplicates so chose "first" match on PSI_VISA_STATUS!!
-credential_non_dup <- credential_non_dup |>
+visa_map <- credential_non_dup |>
+  select(ID, all_of(cols_specific)) |>
   # Attempt 1: Perfect Match (6 columns)
   left_join(
     credential_supvars_enrolment |>
@@ -907,20 +906,27 @@ credential_non_dup <- credential_non_dup |>
       distinct(),
     relationship = "many-to-many"
   ) |>
-  # Apply Hierarchy: Original -> Perfect Match -> Broad Match
+  # Apply Hierarchy: Perfect Match -> Broad Match
   mutate(PSI_VISA_STATUS = coalesce(VISA_SPECIFIC, VISA_BROAD)) |>
   select(-VISA_SPECIFIC, -VISA_BROAD) |>
   distinct()
 
-credential_non_dup <- credential_non_dup |>
-  slice_max(PSI_VISA_STATUS, n = 1, by = ID, with_ties = FALSE)
-
+visa_map <- visa_map |>
+  group_by(ID) |>
+  slice_sample(n = 1) # randomly choose a VISA STATUS in the event of multiples.
 
 credential_supvars <- credential_supvars |>
   left_join(
-    credential_non_dup |> select(ID, PSI_VISA_STATUS),
+    visa_map |> select(ID, PSI_VISA_STATUS),
     by = "ID"
   )
+
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    visa_map |> select(ID, PSI_VISA_STATUS),
+    by = "ID"
+  )
+
 
 # ---- 13 Delay Date and highest rank----
 
