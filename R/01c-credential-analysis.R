@@ -674,7 +674,6 @@ credential <- credential |>
     by = "ID"
   )
 
-
 # ---- Impute Missing Gender ----
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
 # It calculates the existing gender distribution for each credential category and then
@@ -928,84 +927,46 @@ credential_non_dup <- credential_non_dup |>
   )
 
 
-# ---- 13 Delay Date and highest rank----
-
+# ---- 13 Delay Date and Highest rank----
 credential_non_dup <- credential_non_dup |>
   mutate(
-    CONCATENATED_ID = case_when(
-      !ENCRYPTED_TRUE_PEN %in% na_vals ~ ENCRYPTED_TRUE_PEN,
-      !PSI_CODE %in% na_vals & !PSI_STUDENT_NUMBER %in% na_vals ~ glue::glue(
-        "{PSI_STUDENT_NUMBER}{PSI_CODE}"
-      ),
-      TRUE ~ NA
+    CONCATENATED_ID = if_else(
+      !ENCRYPTED_TRUE_PEN %in% na_vals,
+      ENCRYPTED_TRUE_PEN,
+      paste0(PSI_STUDENT_NUMBER, PSI_CODE)
     )
   )
 
 tbl_credential_highest_rank <- credential_non_dup |>
-  distinct(
-    ID,
-    PSI_BIRTHDATE_CLEANED = psi_birthdate_cleaned,
-    psi_gender_cleaned,
-    ENCRYPTED_TRUE_PEN,
-    PSI_STUDENT_NUMBER,
-    PSI_SCHOOL_YEAR,
-    PSI_CODE,
-    CREDENTIAL_AWARD_DATE,
-    RecordStatus,
-    PSI_PROGRAM_CODE,
-    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-    PSI_CREDENTIAL_CIP,
-    PSI_CREDENTIAL_LEVEL,
-    PSI_CREDENTIAL_CATEGORY,
-    PSI_AWARD_SCHOOL_YEAR,
-    CREDENTIAL_AWARD_DATE_D,
-    AGE_AT_GRAD,
-    AGE_GROUP_AT_GRAD,
-    PSI_BIRTHDATE_CLEANED_D = psi_birthdate_cleaned_D,
-    HIGHEST_CRED_BY_RANK,
-    CONCATENATED_ID
-  ) |>
-  inner_join(
-    credential_supvars |>
-      distinct(ID, PSI_VISA_STATUS),
-    by = "ID",
-    relationship = "many-to-many"
-  ) |>
   filter(HIGHEST_CRED_BY_RANK == "Yes")
 
-
-# Recreates qry18a and qry18b logic
-tbl_later_awarded <- credential_non_dup |>
-  distinct(
+tbl_credential_delay_effect <- credential_non_dup |>
+  select(
     LID = ID,
     CONCATENATED_ID,
     LATER_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
-    HIGHEST_CRED_BY_DATE,
     PSI_AWARD_SCHOOL_YEAR,
     PSI_CREDENTIAL_CATEGORY
   ) |>
   inner_join(credential_rank, by = "PSI_CREDENTIAL_CATEGORY") |>
   inner_join(
     tbl_credential_highest_rank |>
-      distinct(
+      select(
         HID = ID,
         HIGHEST_AWARD_DATE = CREDENTIAL_AWARD_DATE_D,
         CONCATENATED_ID
       ),
-    by = join_by("CONCATENATED_ID")
+    by = "CONCATENATED_ID",
+    relationship = "many-to-many"
   ) |>
   filter(LATER_AWARD_DATE > HIGHEST_AWARD_DATE)
 
-tbl_later_awarded <-
-  tbl_later_awarded |>
-  # MONTHS_DIFF is the number of month boundaries btwn LATER_AWARD_DATE and HIGHEST_AWARD_DATE
-  # this accuratley converts SQL DATEDIFF
+tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   mutate(
     MONTHS_DIFF = (year(LATER_AWARD_DATE) - year(HIGHEST_AWARD_DATE)) *
       12 +
-      (month(LATER_AWARD_DATE) - month(HIGHEST_AWARD_DATE))
-  ) |>
-  mutate(
+      (month(LATER_AWARD_DATE) - month(HIGHEST_AWARD_DATE)),
+    # Apply credential temporal thresholds
     keep = case_when(
       PSI_CREDENTIAL_CATEGORY %in%
         c(
@@ -1032,56 +993,24 @@ tbl_later_awarded <-
           "Post-Degree Certificate"
         ) &
         MONTHS_DIFF <= 18 ~ TRUE,
-
       TRUE ~ FALSE
     )
   ) |>
-  filter(keep) |>
-  select(
-    LID,
-    HID,
-    CONCATENATED_ID,
-    LATER_AWARD_DATE,
-    PSI_AWARD_SCHOOL_YEAR
-  )
+  filter(keep)
 
-# Recreates qry18c and qry18d logic combined
-tbl_credential_delay_effect <- tbl_later_awarded |>
-  group_by(CONCATENATED_ID) |>
-  slice_max(LATER_AWARD_DATE, n = 1, with_ties = TRUE) |>
-  slice_min(LID, n = 1, with_ties = FALSE) |>
-  ungroup() |>
+tbl_credential_delay_effect <- tbl_credential_delay_effect |>
+  # Isolate the latest award date per student
+  slice_max(LATER_AWARD_DATE, n = 1, with_ties = TRUE, by = CONCATENATED_ID) |>
+  slice_min(LID, n = 1, with_ties = FALSE, by = CONCATENATED_ID) |>
   select(
-    LID,
     HID,
-    CONCATENATED_ID,
     CREDENTIAL_AWARD_DATE_D_DELAYED = LATER_AWARD_DATE,
     PSI_AWARD_SCHOOL_YEAR_DELAYED = PSI_AWARD_SCHOOL_YEAR
   )
 
+
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
-  left_join(
-    tbl_credential_delay_effect |>
-      select(
-        HID,
-        CREDENTIAL_AWARD_DATE_D_DELAYED,
-        PSI_AWARD_SCHOOL_YEAR_DELAYED
-      ),
-    by = join_by(ID == HID)
-  )
-
-
-credential_non_dup <- credential_non_dup |>
-  left_join(
-    tbl_credential_highest_rank |>
-      select(
-        ID,
-        CREDENTIAL_AWARD_DATE_D_DELAYED,
-        PSI_AWARD_SCHOOL_YEAR_DELAYED
-      ),
-    by = "ID",
-    relationship = "many-to-many"
-  ) |>
+  left_join(tbl_credential_delay_effect, by = join_by(ID == HID)) |>
   mutate(
     CREDENTIAL_AWARD_DATE_D_DELAYED = coalesce(
       CREDENTIAL_AWARD_DATE_D_DELAYED,
@@ -1093,14 +1022,21 @@ credential_non_dup <- credential_non_dup |>
     )
   )
 
-tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    tbl_credential_highest_rank |>
+      select(
+        ID,
+        CREDENTIAL_AWARD_DATE_D_DELAYED,
+        PSI_AWARD_SCHOOL_YEAR_DELAYED
+      ),
+    by = "ID"
+  ) |>
   mutate(
     CREDENTIAL_AWARD_DATE_D_DELAYED = coalesce(
       CREDENTIAL_AWARD_DATE_D_DELAYED,
       CREDENTIAL_AWARD_DATE_D
-    )
-  ) |>
-  mutate(
+    ),
     PSI_AWARD_SCHOOL_YEAR_DELAYED = coalesce(
       PSI_AWARD_SCHOOL_YEAR_DELAYED,
       PSI_AWARD_SCHOOL_YEAR
