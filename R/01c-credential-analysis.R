@@ -794,15 +794,22 @@ credential_non_dup <- credential_non_dup |>
 # ---- 09 Age Gender Distributions ---
 age_weights <- credential_non_dup |>
   filter(
-    !is.na(AGE_AT_GRAD),
-    !(AGE_AT_GRAD %in% na_vals),
+    !is.na(AGE_GROUP_AT_GRAD),
     HIGHEST_CRED_BY_DATE == "Yes"
   ) |>
   count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD) |>
+  complete(
+    PSI_CREDENTIAL_CATEGORY,
+    psi_gender_cleaned,
+    AGE_AT_GRAD = full_seq(AGE_AT_GRAD, 1),
+    fill = list(n = 0)
+  ) |>
   group_by(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
-  mutate(prob = n / sum(n)) |>
+  mutate(grp_ttl = sum(n, na.rm = TRUE)) |>
+  mutate(prob = if_else(grp_ttl > 0, n / grp_ttl, 0)) |>
   summarise(
     ages = list(AGE_AT_GRAD),
+    counts = list(n),
     weights = list(prob),
     .groups = "drop"
   )
@@ -810,22 +817,34 @@ age_weights <- credential_non_dup |>
 set.seed(42)
 # verify that these results produce similar distributions, the differences in
 # sampling results may be considered insignificant
-imputed_student_ages <- credential_non_dup |>
-  filter(HIGHEST_CRED_BY_DATE == "Yes") |>
-  filter(AGE_AT_GRAD %in% na_vals) |>
-  select(ID, ENCRYPTED_TRUE_PEN, PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
+to_impute <- credential_non_dup |>
+  filter(
+    is.na(AGE_AT_GRAD),
+    HIGHEST_CRED_BY_DATE == "Yes"
+  ) |>
+  select(
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    PSI_CREDENTIAL_CATEGORY,
+    psi_gender_cleaned
+  ) |>
   left_join(
     age_weights,
     by = c("PSI_CREDENTIAL_CATEGORY", "psi_gender_cleaned")
-  ) |>
+  )
+
+imputed_student_ages <- to_impute |>
   mutate(
-    FINAL_AGE = case_when(
-      # If we have no matching distribution (e.g., a brand new category), fallback to random
-      is.null(ages) ~ sample(19:54, 1),
-      TRUE ~ as.numeric(map2(ages, weights, ~ sample(.x, size = 1, prob = .y)))
+    IMPUTED_AGE_AT_GRAD = case_when(
+      !is.null(ages) ~ as.numeric(map2(
+        ages,
+        weights,
+        ~ sample(.x, size = 1, prob = .y)
+      )),
+      TRUE ~ sample(19:54, 1)
     )
   ) |>
-  select(-ages, -weights)
+  select(-ages, -weights, -counts)
 
 credential_non_dup <- credential_non_dup |>
   left_join(
@@ -838,9 +857,12 @@ credential_non_dup <- credential_non_dup |>
     )
   ) |>
   mutate(
-    AGE_AT_GRAD = coalesce(as.numeric(AGE_AT_GRAD), FINAL_AGE)
+    AGE_AT_GRAD = coalesce(
+      as.numeric(AGE_AT_GRAD),
+      as.numeric(IMPUTED_AGE_AT_GRAD)
+    )
   ) |>
-  select(-FINAL_AGE)
+  select(-IMPUTED_AGE_AT_GRAD)
 
 credential_non_dup <- credential_non_dup |>
   left_join(
