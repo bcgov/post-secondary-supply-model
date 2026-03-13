@@ -671,15 +671,6 @@ credential_non_dup <- credential_non_dup |>
   mutate(psi_gender_cleaned = last(psi_gender_cleaned)) |>
   ungroup()
 
-# assign most recent gender to each student. I'm not sure why we are still needing to
-# assign genders here.  I wonder if there is a better approach such as make a master
-# list for each student with a single project-level id, bday, gender etc to use for the full 01 series (and beyond?).
-credential <- credential |>
-  select(-psi_gender_cleaned) |>
-  left_join(
-    credential_non_dup |> select(ID, psi_gender_cleaned),
-    by = "ID"
-  )
 
 # ---- Impute Missing Gender ----
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
