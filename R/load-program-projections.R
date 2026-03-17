@@ -190,6 +190,8 @@ if (regular_run == T | ptib_run == T) {
       ))
     )
 
+  names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_CREDENTIAL"
+
   dacso_near_completers_ratios_age_at_grad_cip4_ttrain <-
     dbReadTable(
       decimal_con,
