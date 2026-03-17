@@ -64,7 +64,6 @@ required_tables <- c(
   "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
   "t_cohorts_recoded"
 )
-names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_CREDENTIAL"
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
@@ -90,34 +89,47 @@ if (ptib_run == TRUE) {
 }
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
-# calculate frequencies of near completers by age group and CIP
+
+# aggregate counts of near completers by age, cip, grad status, ttrain, credential
+# row-level counts are in variable 'NEAR_COMPLETERS_STP_CREDENTIALS'
+
+# some remapping needed when using dbo version
+#dacso_near_completers_ratios_age_at_grad_cip4_ttrain<-
+#dacso_near_completers_ratios_age_at_grad_cip4_ttrain |> mutate(across(
+#    c(PSSM_CREDENTIAL,  PSSM_CRED, LCIP4_CRED),
+#    ~ gsub(" OR "," or ",.x)
+#  ))
+
 near_completers_totals <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
-  group_by(
-    PSSM_CREDENTIAL,
-    PSSM_CRED,
-    LCP4_CD,
-    COSC_GRAD_STATUS_LGDS_CD_GROUP,
-    TTRAIN,
-    LCIP4_CRED,
-    AGE_GROUP
-  ) |>
   summarise(
     COUNT = sum(NEAR_COMPLETERS_STP_CREDENTIALS, na.rm = TRUE),
-    .groups = "drop"
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      LCP4_CD,
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      TTRAIN,
+      LCIP4_CRED,
+      AGE_GROUP
+    )
   ) |>
-  group_by(PSSM_CRED, AGE_GROUP) |>
-  mutate(TOTAL = sum(COUNT, na.rm = TRUE)) |>
-  ungroup() |>
   mutate(
-    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
+    TOTAL = sum(COUNT, na.rm = TRUE),
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
+    .by = c(PSSM_CRED, AGE_GROUP)
   )
 
-# mapping age groups for near completers to match those used in (cohort program distributions?)
-near_completers_totals_ages <- near_completers_totals |>
+
+# mapping age groups for near completers to match those used in (?)
+near_completers_totals <- near_completers_totals |>
   inner_join(
     tbl_age_groups_near_completers,
-    by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION)
-  ) |>
+    by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION),
+    relationship = "many-to-many"
+  )
+
+# refactor dataset for insertion into static and projected distributions
+near_completers_totals <- near_completers_totals |>
   mutate(
     SURVEY = "Program_Projections_2023-2024_qry_13d",
     GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD_GROUP),
@@ -136,15 +148,16 @@ near_completers_totals_ages <- near_completers_totals |>
 # add to projected and static distributions
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(PSSM_CRED, "^3 - ")) |>
-  bind_rows(near_completers_totals_ages)
+  bind_rows(near_completers_totals)
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(PSSM_CRED, "^3 - ")) |>
-  bind_rows(near_completers_totals_ages)
+  bind_rows(near_completers_totals)
 
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
-# check NULL lcip2 codes - in the past many have been NULL for BACH
+
+# check for missing or extra lcip2 codes
 tbl_program_projection_input |>
   anti_join(
     infoware_l_cip_4digits_cip2016,
@@ -152,22 +165,23 @@ tbl_program_projection_input |>
   ) |>
   distinct(FINAL_CIP_CODE_4, Count)
 
-# distribution ratios for program cohorts
-qry_dist_ratios <- t_cohorts_recoded |>
+# create distribution ratios from program cohorts
+cohort_ratios <- t_cohorts_recoded |>
   filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
   inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
   summarise(
-    RATIO = sum(WEIGHT, na.rm = TRUE) /
+    TotalWeight = sum(WEIGHT, na.rm = TRUE) /
       sum(t_cohorts_recoded$WEIGHT[t_cohorts_recoded$WEIGHT > 0], na.rm = TRUE),
     .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL, TTRAIN)
   ) |>
   mutate(
-    RATIO = RATIO / sum(RATIO, na.rm = TRUE),
+    RATIO = TotalWeight / sum(TotalWeight, na.rm = TRUE),
     .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL)
-  )
+  ) |>
+  select(-TotalWeight)
 
-# weighted age, credential, grad status distributions for projected distribution
-age_credential_weighted <- t_pssm_projection_cred_grp |>
+# craete main dataset for weighting
+credential_cohorts <- t_pssm_projection_cred_grp |>
   filter(
     !PSSM_CREDENTIAL %in%
       c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
@@ -179,7 +193,10 @@ age_credential_weighted <- t_pssm_projection_cred_grp |>
   inner_join(
     t_weights_stp |> filter(MODEL == "2023-2024", WEIGHT > 0),
     by = join_by(PSI_AWARD_SCHOOL_YEAR_DELAYED == YEAR_CODE)
-  ) |>
+  )
+
+# calculate base weights
+credential_cohorts_weighted <- credential_cohorts |>
   summarise(
     WEIGHTED_BASE_COUNT = sum(Count * WEIGHT, na.rm = TRUE),
     .by = c(
@@ -190,9 +207,10 @@ age_credential_weighted <- t_pssm_projection_cred_grp |>
     )
   )
 
-age_credential_weighted_adjusted <- age_credential_weighted |>
+# apply adjustment ratio
+credential_cohorts_weighted_adjusted <- credential_cohorts_weighted |>
   left_join(
-    qry_dist_ratios,
+    cohort_ratios,
     by = join_by(
       PSSM_CREDENTIAL,
       FINAL_CIP_CODE_4 == LCP4_CD,
@@ -206,9 +224,12 @@ age_credential_weighted_adjusted <- age_credential_weighted |>
       WEIGHTED_BASE_COUNT,
       WEIGHTED_BASE_COUNT * RATIO
     )
-  )
+  ) |>
+  rename(AGE_GROUP = "AgeGroup") |>
+  select(-RATIO, -WEIGHTED_BASE_COUNT)
 
-age_credential_weighted_adjusted2 <- age_credential_weighted_adjusted |>
+# standarize weights by age and credential
+credential_cohorts_weighted_adjusted <- credential_cohorts_weighted_adjusted |>
   mutate(
     STATUS_PREFIX = if_else(
       is.na(COSC_GRAD_STATUS_LGDS_CD),
@@ -219,13 +240,14 @@ age_credential_weighted_adjusted2 <- age_credential_weighted_adjusted |>
   ) |>
   mutate(
     TOTAL = sum(COUNT, na.rm = TRUE),
-    .by = c(PSSM_CRED, AgeGroup)
+    .by = c(PSSM_CRED, AGE_GROUP)
   ) |>
   mutate(
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
   )
 
-final_insert_data <- age_credential_weighted_adjusted2 |>
+# apply standard formatting to align with other survey datasets
+final_credential_cohorts <- credential_cohorts_weighted_adjusted |>
   mutate(
     SURVEY = "Program_Projections_2023-2024_Q012e",
     LCP4_CD = FINAL_CIP_CODE_4,
@@ -245,23 +267,20 @@ final_insert_data <- age_credential_weighted_adjusted2 |>
       if_else(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
       PSSM_CREDENTIAL
     ),
-    AGE_GROUP = AgeGroup,
     YEAR = "2023/2024"
   ) |>
   select(
     -c(
       COSC_GRAD_STATUS_LGDS_CD,
       FINAL_CIP_CODE_4,
-      AgeGroup,
-      RATIO,
-      WEIGHTED_BASE_COUNT,
       STATUS_PREFIX
     )
   )
 
+#update static distibution with 2023 counts
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q012e$")) |>
-  bind_rows(final_insert_data)
+  bind_rows(final_credential_cohorts)
 
 
 # survey == 'Program_Projections_2023-2024_Q013e' (Static) ----
@@ -276,12 +295,13 @@ qry_12_lcp4_lcippc_recode_9999 <- infoware_l_cip_6digits_cip2016 |>
   distinct(LCIP_LCP4_CD, LCIP_LCIPPC_CD)
 
 
-# weighted age, credential, grad status distributions for projected distribution
-graduate_age_credential <- t_pssm_projection_cred_grp |>
-  filter(PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')) |>
+# craete main dataset for weighting
+graduate_credential_cohorts <-
+  tbl_program_projection_input |>
   inner_join(
-    tbl_program_projection_input,
-    by = join_by(PSSM_PROJECTION_CREDENTIAL == PSI_CREDENTIAL_CATEGORY)
+    t_pssm_projection_cred_grp |>
+      filter(PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')),
+    by = join_by(PSI_CREDENTIAL_CATEGORY == PSSM_PROJECTION_CREDENTIAL)
   ) |>
   inner_join(
     t_weights_stp |> filter(MODEL == '2023-2024', WEIGHT > 0),
@@ -306,8 +326,8 @@ graduate_age_credential <- t_pssm_projection_cred_grp |>
     )
   )
 
-# weight the distributions and calculate totals and percentages
-graduate_age_credential_weighted <- graduate_age_credential |>
+# calculate weights
+graduate_credential_cohorts <- graduate_credential_cohorts |>
   summarise(
     COUNT = sum(Count * WEIGHT, na.rm = TRUE), # Aggregated weighted volume
     .by = c(
@@ -325,7 +345,7 @@ graduate_age_credential_weighted <- graduate_age_credential |>
   )
 
 # create final dataset for insertion, mapping to cohort program distribution
-q013e_weighted_cohort_distribution2 <- graduate_age_credential_weighted |>
+final_graduate_credential_cohorts <- graduate_credential_cohorts |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_Q013e",
     PSSM_CREDENTIAL,
@@ -341,14 +361,17 @@ q013e_weighted_cohort_distribution2 <- graduate_age_credential_weighted |>
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q013e$")) |>
-  bind_rows(q013e_weighted_cohort_distribution)
+  bind_rows(final_graduate_credential_cohortsl)
 
 # survey == 'Program_Projections_2023-2024_Q014e' (Static and Projected) ----
-# adds apprenticeships to static and projected datasets
-q014e_weighted_cohort_distribution <- t_cohorts_recoded |>
+
+# create main apprenticeship dataset for re-weighting
+apprenticeship_credential <- t_cohorts_recoded |>
   inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
-  filter(PSSM_CREDENTIAL %in% c('APPRAPPR', 'APPRCERT'), WEIGHT > 0) |>
-  # Stage I & II: Granular weighted aggregation
+  filter(PSSM_CREDENTIAL %in% c('APPRAPPR', 'APPRCERT'), WEIGHT > 0)
+
+# reweight and normalize by age and credental
+apprenticeship_credential <- apprenticeship_credential |>
   summarise(
     COUNT = sum(WEIGHT, na.rm = TRUE),
     .by = c(
@@ -364,7 +387,10 @@ q014e_weighted_cohort_distribution <- t_cohorts_recoded |>
     TOTAL = sum(COUNT, na.rm = TRUE),
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
     .by = c(PSSM_CREDENTIAL, AGE_GROUP_LABEL)
-  ) |>
+  )
+
+# create final dataset for insertion, mapping to cohort program distribution
+final_apprenticeship_credential <- apprenticeship_credential |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_Q014e",
     PSSM_CREDENTIAL,
@@ -381,11 +407,11 @@ q014e_weighted_cohort_distribution <- t_cohorts_recoded |>
 
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "Q014e$")) |>
-  bind_rows(q014e_weighted_cohort_distribution)
+  bind_rows(final_apprenticeship_credential
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q014e$")) |>
-  bind_rows(q014e_weighted_cohort_distribution)
+  bind_rows(final_apprenticeship_credential)
 
 # --- move this to graduate_projections.R, I think ---
 # expands static appr in graduate projections - holding counts constant
@@ -395,7 +421,8 @@ new_projections <- graduate_projections |>
   filter(SURVEY == "APPSO") |>
   inner_join(
     t_appr_y2_to_y10,
-    by = join_by(YEAR == Y1)
+    by = join_by(YEAR == Y1), 
+    relationship = "many-to-many"
   ) |>
   transmute(
     SURVEY,
@@ -414,13 +441,16 @@ graduate_projections <- graduate_projections |>
 #  survey == Program_Projections_2023-2024_qry_13d
 #  survey == Program_Projections_2023-2024_Q014e
 
-temporal_expansion_base <- cohort_program_distributions_static |>
+# expand static distributions
+static_projected <- cohort_program_distributions_static |>
   inner_join(
     t_cohort_program_distributions_y2_to_y12 |> select(-ID),
-    by = join_by(YEAR == Y1)
+    by = join_by(YEAR == Y1), 
+    relationship = "many-to-many"
   )
 
-q015e21_projected_expansion <- temporal_expansion_base |>
+# only near completers and Apprenticeships
+static_projected_app_nc <- static_projected |>
   filter(
     PSSM_CRED %in% c('APPRAPPR', 'APPRCERT') | str_starts(PSSM_CRED, "3 - ")
   ) |>
@@ -440,7 +470,7 @@ q015e21_projected_expansion <- temporal_expansion_base |>
     PERCENT
   )
 
-q015e22_static_expansion <- temporal_expansion_base |>
+static_projected_no_app_nc <- static_projected |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_Q015e22",
     PSSM_CREDENTIAL,
@@ -457,35 +487,35 @@ q015e22_static_expansion <- temporal_expansion_base |>
     PERCENT
   )
 
-# note to self - let's take a closer look at what is happening here and make
-# sure it is explainable and makes sense.
+# move static nc and app to the projected distributions
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "Q015e21$")) |>
-  bind_rows(q015e21_projected_expansion)
+  bind_rows(static_projected_app_nc)
 
+# move static nc and app to the projected distributions
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q015e22$")) |>
-  bind_rows(q015e22_static_expansion)
+  bind_rows(static_projected_no_app_nc)
 
 # Werner program ----
-input_data <- tbl_program_projection_input %>%
-  select(-Expr1) %>%
+input_data <- tbl_program_projection_input |>
+  select(-Expr1) |>
   complete(
     AgeGroup,
     PSI_CREDENTIAL_CATEGORY,
     FINAL_CIP_CODE_4,
     PSI_AWARD_SCHOOL_YEAR_DELAYED,
     fill = list(Count = 0)
-  ) %>%
+  ) |>
   pivot_wider(
     names_from = "PSI_AWARD_SCHOOL_YEAR_DELAYED",
     values_from = "Count"
-  ) %>%
+  ) |>
   rename(
     "CIP" = "FINAL_CIP_CODE_4",
     "AGE" = "AgeGroup",
     "CRED" = "PSI_CREDENTIAL_CATEGORY"
-  ) %>%
+  ) |>
   select(CIP, CRED, AGE, 4:ncol(.)) %>%
   arrange(CIP, CRED, AGE)
 
@@ -544,18 +574,16 @@ cohort_program_distributions_projected <- cohort_program_distributions_projected
       str_starts(PSSM_CRED, "P -")
   )
 
-qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
-  # Stage I: Referential Integration
+# create main dataset for re-weighting
+credential_age_projections <- t_predict_cip_cred_age_flipped |>
   inner_join(
     t_pssm_projection_cred_grp,
     by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
   ) |>
-  # Restrictive filtering pursuant to categorical exclusion protocols
   filter(
     !PSSM_CREDENTIAL %in%
       c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
   ) |>
-  # Stage II: Derived Attribute Generation (Concatenation Logic)
   mutate(
     STATUS_PREFIX = if_else(
       is.na(COSC_GRAD_STATUS_LGDS_CD),
@@ -570,8 +598,10 @@ qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
       " - ",
       PSSM_CREDENTIAL
     )
-  ) |>
-  # Stage III: Granular Aggregation (Replacing qry_10a)
+  ) 
+
+  # calculated weighted sums and proportions
+  credential_age_projections <- credential_age_projections |>
   summarise(
     COUNT_VAL = sum(Count, na.rm = TRUE),
     .by = c(
@@ -584,7 +614,6 @@ qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
       Year
     )
   ) |>
-  # Stage IV: Window-Based Denominator and Percent Calculation (Replacing qry_10b & 10c)
   mutate(
     TOTAL_VAL = sum(COUNT_VAL, na.rm = TRUE),
     PERCENT_VAL = if_else(
@@ -593,8 +622,10 @@ qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
       as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
     ),
     .by = c(PSSM_CRED_TMP, AGE, Year)
-  ) |>
-  # Stage V: Terminal Schema Mapping
+  )
+
+# 
+credential_age_projections <- credential_age_projections |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_qry10c",
     PSSM_CREDENTIAL,
@@ -609,16 +640,15 @@ qry_10c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
     PERCENT = PERCENT_VAL
   )
 
-# Longitudinal Repository Reconciliation
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "qry10c$")) |>
-  bind_rows(qry_10c_program_dist_distribution)
+  bind_rows(credential_age_projections)
 
 
 # survey == 'Program_Projections_2023-2024_qry12c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential IN ('GRCT or GRDP','PDEG','MAST','DOCT')
-
-q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
+# create main grads dataset for weighting
+credential_age_projections_grads <- t_predict_cip_cred_age_flipped |>
   inner_join(
     t_pssm_projection_cred_grp,
     by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
@@ -627,11 +657,9 @@ q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
     qry_12_lcp4_lcippc_recode_9999,
     by = join_by(CIP == LCIP_LCP4_CD)
   ) |>
-  # Stage II: Categorical Restriction Protocol
   filter(
     PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
   ) |>
-  # Stage III: Concatenation Logic and Derived Attribute Generation
   mutate(
     STATUS_PREFIX = if_else(
       is.na(COSC_GRAD_STATUS_LGDS_CD),
@@ -646,9 +674,10 @@ q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
       " - ",
       PSSM_CREDENTIAL
     )
-  ) |>
-  # Stage IV: Aggregation and Hierarchical Denominator Derivation
-  # Executes the primary summation (Q12a) and windowed total calculation (Q12b)
+  ) 
+
+# calculated weighted sums and proportions
+credential_age_projections_grads <- credential_age_projections_grads |>
   summarise(
     COUNT_VAL = sum(Count, na.rm = TRUE),
     .by = c(
@@ -668,8 +697,9 @@ q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
       as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
     ),
     .by = c(PSSM_CRED_TMP, AGE, Year)
-  ) |>
-  # Stage V: Alignment with Administrative Schema (Cohort_Program_Distributions_Projected)
+  ) 
+
+credential_age_projections_grads <- credential_age_projections_grads |> 
   transmute(
     SURVEY = "Program_Projections_2023-2024_qry12c",
     PSSM_CREDENTIAL,
@@ -685,8 +715,7 @@ q12c_program_dist_distribution <- t_predict_cip_cred_age_flipped |>
 
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "qry12c$")) |>
-  bind_rows(q12c_program_dist_distribution)
-
+  bind_rows(credential_age_projections_grads)
 
 # check for combinations produced in static that were missed in the projected
 cohort_program_distributions_static |>
