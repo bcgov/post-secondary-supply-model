@@ -7,3 +7,4 @@ config.yml
 scratch/*
 *_log.txt
 tmp
+*.html
