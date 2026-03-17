@@ -119,21 +119,39 @@ df <- dbGetQuery(con, strSQL)
 
 ## Methodology Overview
 
-The analytical protocols delineated herein facilitate the high-fidelity redistribution of the 2023/2024 program projection datasets, adhering to the evidence-based standards required for regulatory registry maintenance and scientific reporting.
 
 ##### Near-Completer Projections (Q013 Series)
 
-Near-completer ratios (sourced from `dacso_near_completers_ratios_age_at_grad_cip4_ttrain`) were subjected to categorical aggregation across seven distinct dimensions—incorporating credential types, graduate status groupings, and 4-digit CIP codes—to establish a baseline frequency count. Subsequent to this initial consolidation, a window-function architecture established the reference population denominator at the intersection of the PSSM_CRED and AGE_GROUP identifiers, thereby facilitating the derivation of the relative density attribute:
+Near-completer ratios (sourced from `dacso_near_completers_ratios_age_at_grad_cip4_ttrain`) were aggregated across several dimensions: age-groups, credential types, graduate status, and 4-digit CIP codes to establish a baseline frequency count and percent. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable. Age-group identifiers are remapped to standardized reporting groups before the distributions were added to both the projected and static program distributions.
 
-$Percent= Total/Count$
+##### SO Survey Distributions Excluding Apprenticeship and Graduate Programs (Q012 Series)
+Graduate counts excluding Apprenticeship and Graduate Programs are redistributed through the a three-stage weighting and adjustment process. First, initial baseline volumes for the past 5 years are established by incorporating a year weight to historical graduate counts, expressed as $N_{base} = \sum (N \times W_{year}),  W_{year} \in 1..5$, with more recent years taking a higher weight then earlier ones. 
 
-This ensures that the resulting relative frequencies remain stable across the granular training durations. Age-group identifiers are remapped to standardized reporting groups and the generation of composite keys — specifically LCIP2_CRED, which incorporates status, truncated CIP codes, training duration, and credentials — before the finalized 13-column dataset was appended to both the projected and static administrative repositories.
+Within the survey cohorts, an adjustment factor ($R$) is calculated to account for TTRAIN students. These ratios are applied as a scalar multiplier to the baseline counts as $N_{adj} = N_{base} \times R$, noting that for the vast majority of distribtions, $R = 1$. 
 
-##### Projection Redistribution Cycle (Q012 Series)
+For each discrete stratum baseline counts are standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{adj}}{\sum N_{adj}}$.
 
-Primary inputs from `tbl_program_projection_input` and longitudinal weights from `t_weights_stp` are synthesized to derive preliminary weighted sums, filtering to exclude non-relevant credentials (Apprenticeships and Graduate Programs) and non-positive weight values. Simultaneously, a secondary analysis of the T_Cohorts_Recoded longitudinal repository established historical training duration coefficients, where cohort-specific historical denominators were utilized to calculate the ratios required for proportional enrollment expansion. To maintain internal consistency, an isolated denominator calculation phase established invariant reference totals at the PSSM_CRED and AgeGroup levels, ensuring that categorical percentage sums within any given cohort equal exactly 1.0.
+Standard formatting is applied before the distributions are added to (static only) program distributions. 
 
-The synthesis was finalized through the proportional expansion of weighted projections via a left join with the historical distribution matrix, followed by the generation of composite identifiers employing nested conditional logic for null-suppression of status and training attributes. The administrative reconciliation was achieved through a purge-and-replace strategy, wherein legacy records associated with the Q012e identifier were removed from the cohort_program_distributions_static repository via the filter function prior to the insertion of the reconciled 13-column dataset.
+##### SO Survey Distributions For Graduate Programs (Q013e Series)
+Graduate counts for Graduate Programs were aggregated across age-groups, credential types, graduate status, and 2-digit CIP codes to establish a baseline frequency count $N_{base}$ and percent $P_{base}$. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{base}}{\sum N_{base}}$. Standard formatting is applied before the distributions are added to (static only) program distribution. 
+
+##### SO Survey Distributions For Apprenticeships (Q014e Series)
+Previoiusly weighted Apprenticeships survey data were aggregated across age-groups, credential types, ttrain and 4-digit CIP codes to establish a baseline frequency count and percent. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{base}}{\sum N_{base}}$. Standard formatting is applied before the distributions are added to both static and projected program distributions. 
+
+##### Other steps to investigate
+Apprenticeship graduate projections for the current year, created in 04-graduate-projections.R, are expanded over 10 years.  This adds a 10 year projection for Apprenticeship Grads to the full Graduate Projection cohort.  (Possible better placement in workflow)
+Near Completer and Apprenticeship distributions are removed from the static programs to projected ones.
+
+##### Program Projections (Werner Program)
+This program generated projected distributions by CIP code, credential and age group. Historical counts of the highest ranking credential obtained for graduates from 2002/2003 to 2022/2023 were used to generate projected counts for the school years 2023/2024 to 2034/2035, inclusive.  Input and output datasets are combined into one output for further use.
+
+##### Projections Excluding Apprenticeship and Graduate Programs (qry_10c Series)
+Program projection output from the Werner program for all programs (excluding apprenticeship and graduate) are summarized by age, credential, cip and year $N$.  They are further standardized over age, credential and year.
+
+##### Projections Graduate Programs only (qry_12c Series)
+Program projection output from the Werner program for graduate credentials are summarized by age, credential, cip and year $N$.  They are further standardized over age, credential and year.
+
 
 #### Data Dictionary 
 
