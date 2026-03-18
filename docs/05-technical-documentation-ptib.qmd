@@ -20,33 +20,30 @@ format:
 
 ## Overview
 
-
 ## Data Sources and Storage
 
 ### External Data Sources
 
-#### Datasource 1
+#### PTIB 2021 and 2022 Enrolment Data
 
-Source:
-Access Method: 
-
-Description: 
-
-### Internal/Processed Data Sources
-
-#### Datasource 1
-
-Source:
-Access Method: 
+Source: Post-Secondary Training Institutions Branch
+Access Method: Secure LAN
 
 Description: 
 
-#### Datasource 2
+<ul class="list-variable-names">
+  <li>year (Double): Calendar year.</li>
+  <li>institution (String): The name of the private training institution.</li>
+  <li>program (String): The descriptive title of the specific program of study.</li>
+  <li>cip (String): The Classification of Instructional Programs (CIP) code for the program of study.</li>
+  <li>age_group (String): The standardized age range category for the student population.</li>
+  <li>credential (String): The type of qualification awarded (e.g., "Certification" or "Diploma").</li>
+  <li>immigration_status (String): The reported residency status of the student (e.g., "Domestic", "International").</li>
+  <li>graduates (Double): The count of students who successfully completed the program requirements.</li>
+  <li>enrolments_not_graduated (Double): The count of students currently enrolled or who left the program without graduating.</li>
+  <li>total_enrolments (Double): The aggregate count of all students registered in the program stratum.</li>
+</ul>
 
-Source:
-Access Method: 
-
-Description: 
 
 ### Data Storage Structure (Incomplete)
 
@@ -73,8 +70,8 @@ Final outputs and historical reconciliations are committed to the SQL SERVER dat
 
 - Network Access: Secure LAN
 - Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
+- Storage: Secure LAN
+- External Data: PTIB 2021 and 2022 Enrolment Data
 
 #### R Package Dependencies
 
@@ -84,6 +81,8 @@ The following R packages are required for this module:
 - `DBI` (to connect to database)
 - `odbc` (to connect to database)
 - `config` (to connect to database)
+- `readxl` (to read excel files)
+- `janitor` (to help with data cleaning)
 
 
 #### Authentication Setup
@@ -114,67 +113,72 @@ df <- dbGetQuery(con, strSQL)
 
 ##### Data Integration and Standardization
 
-Raw PTIB survey data are read from Excel into R; the resulting schema is constrained to essential reporting dimensions including temporal identifiers (year), demographic cohorts (age group), and 6-digit LCIP codes.   The following initial data cleaning is performed:
+Raw PTIB survey data are read from Excel into R from secure LAN storage; the data includes the following identifiers: year, age group, and 6-digit LCIP codes.  Metrics for enrollment, non-graduated registrants, and graduates are also included.
 
-- Credentials are strictly kept to Credential and Diploma only; blanks and other erroneous credetential records are removed.
-- LCIP formats are aligned with provincial standards;  uniform six-digit identifiers are reconstructed via string-padding and decimal suppression to prevent erroneous type-handling of leading or trailing zeroes. These identifiers undergo referential integrity validation against a main CIP registry lookup. 
+Some initial data cleaning is performed:
+
+- Credentials are filtered to include Credential and Diploma only; blanks and other erroneous credetential records are removed.
+- LCIP formats are aligned with provincial standards;  uniform six-digit identifiers are reconstructed via string-padding and decimal suppression to remove leading or trailing zeroes. These identifiers uare validated against a main CIP registry lookup. 
 - Eligibility is refined by systematically excluding "English as a Second Language," "not-for-credit," and unclassified (99.9999) programs to ensure taxonomic alignment with reporting mandates.
-- Age-range delimiters are standardized to a formal "to" convention. 
+- Age-range delimiters are standardized. 
 
 ##### Longitudinal Averaging
 
-To stabilize longitudinal trends, a biennial mean is derived from the 2021 and 2022 reporting cycles. Metrics for enrollment, non-graduated registrants, and graduates are aggregated by demographic (Age Group) and programmatic (LCIP) dimensions and subsequently bisected (i.e. averaged). For the 2023/2024 reporting sequence, the primary dataset is redefined by this synthetic "Average" cohort, which serves as the base dataset for subsequent proportional attribution.
+A two-year mean is calculated from the 2021 and 2022 reporting cycles. Enrollment count, non-graduated registrants, and count of graduates are aggregated by age group and program (6-digit CIP), and averaged over the two-year period. This dataset serves as the base dataset for subsequent proportional attribution.
 
-##### Proportional Attribution
+##### Graduate Count Estimation
 
-Graduate counts are reconciled using a probabilistic attribution model to address unspecified immigration status. A domestic-to-international ratio is calculated within the known cohort (isolated to verified "Domestic" and "International" statuses). This weighting factor is then applied via an inner join to records categorized as "Unknown" or "(blank)." The resulting apportioned estimates are unified with verified domestic counts through a set-based operation (rbind), producing a finalized SumOfGrads metric stratified by credential and age group. (<mark> verify</mark>)
+Total graduate counts are initially stratified by credential, CIP, and age group. To address the variance introduced by "unknown" or "blank" ($K_u$) status entries, a domestic participation rate ($R$) is calculated based on the ratio of total known domestic ($K_d$) and total including international ($K_{d+i}$) population within each stratum: $R = \frac{K_d}K_{d+i}$.
 
-##### Temporal Expansion
+This participation rate is applied the unknown cohort unsing proportional attributio, and an a estimated count of graduates is derived for stratum: $G = \sum(K_d + (K_u * R))$. 
+
+In instances where no known population exists within a specific stratum, the domestic participation rate is set to zero to maintain conservative estimation boundaries.
+
+##### Projection and Reporting
 
 Analytical summaries are projected forward 10 years to achieve standardized reporting formats for longitudinal forecasting:
 
-* An inner join with the `T_PTIB_Y1_to_Y10` reference table utilizes a many-to-many relationship to project the 2023/2024 cycle across a ten-year horizon (through 2034/2035). Administrative metadata, including survey identifiers and standardized credential prefixes, are appended.
-*  a logical filter suppresses demographic outliers, including "Unknown," "(blank)," "16 or less," and "65+" age classifications. This ensures the final output adheres to provincial reporting criteria.
+* Cross-sectional data are mapped to a longitudinal reference table to project distributions across a ten-year horizon.
+* Administrative metadata, including survey identifiers and standardized credential prefixes, are appended.
+* Demographic outliers including "Unknown," "(blank)," "16 or less," and "65+" age classifications are removed. 
+
+Count estimates summaries are generated for downstream analysis, for the following two stratum: 
+
+* Age and Credential
+* Age, 4-digit CIP and Credential
 
 #### Data Dictionary
-
-##### [Table 1 Name]
-
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
-
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
 
 ## Key Output Tables
 
 The final outputs of this module are persisted to the SQL environment as standardized tables. 
 
-### Data Dictionary:
-
-The following variables comprise the schema for the consolidated projection table:
+**qry_Private_Credentials_06d1_Cohort_Dist**:
 
 <ul class="list-variable-names">
-<li></li>
-<li></li>
-<li></li>
-<li></li>
-<li></li>
+  <li>SURVEY (String): The source survey identifier (e.g., "PTIB").</li>
+  <li>PSSM_CREDENTIAL (String): Standardized credential category used for PSSM reporting.</li>
+  <li>PSSM_CRED (String): Concatenated string identifier (e.g., "P - CERT") used for system-level classification.</li>
+  <li>LCP4_CD (String): The 4-digit Classification of Instructional Programs (CIP) code.</li>
+  <li>LCIP4_CRED (String): Grouping identifier combining the 4-digit CIP code and the credential type.</li>
+  <li>LCIP2_CRED (String): Broad-level grouping identifier combining the 2-digit CIP (Area of Study) and the credential.</li>
+  <li>AGE_GROUP (String): The standardized age range bracket of the student cohort.</li>
+  <li>YEAR (String): The reporting period or longitudinal horizon year (e.g., "2023/2024").</li>
+  <li>COUNT (Double): The specific number of records or estimated graduates within each credential, age group, LCP4_CD stratum.</li>
+  <li>TOTAL (Double): The aggregate denominator used for percentage calculations. Counts for each age group and credential stratum.</li>
+  <li>PERCENT (Double): The calculated proportion of the group represented by the count (COUNT / TOTAL).</li>
+  <li>GRAD_STATUS (String): A descriptor of the graduation outcome or immigration-based attribution status.</li>
+  <li>TTRAIN (String): Identifier for Teacher Training program alignment or specific provincial reporting flags.</li>
+</ul>
+
+**qry_Private_Credentials_05i1_Grads_by_Year**
+
+<ul class="list-variable-names">
+  <li>Survey (String): The administrative source identifier for the data collection (e.g., "PTIB").</li>
+  <li>PSSM_CRED (String): A concatenated identifier representing the PSSM-specific credential classification (e.g., "P - DIPL").</li>
+  <li>Age_Group (String): The standardized categorical age range of the graduate cohort.</li>
+  <li>Year (String): The academic reporting period.</li>
+  <li>Graduates (Double): The calculated total count of graduates, including those derived through proportional attribution.</li>
 </ul>
 
 ## Suggested Improvements
