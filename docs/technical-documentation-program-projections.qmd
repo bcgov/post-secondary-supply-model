@@ -20,27 +20,18 @@ format:
 
 ## Overview
 
-The 2023/2024–2034/2035 program projections are a synthesis of historical graduate data, survey distributions, and longitudinal modeling designed to forecast educational outcomes over a ten-year horizon. The primary objective of the analysis script `06-program-projections.R` is to establish stable relative frequencies across various educational strata and survey sources, including credential types, age demographics, and program classifications. This is achieved through a systematic process of aggregation and standardization, ensuring that baseline counts reflect the distribution of graduates across the provincial post-secondary landscape.
+The program projections analysis synthesize historical graduate data, survey distributions, and longitudinal modeling to forecast educational outcomes over a ten-year horizon. The `06-program-projections.R` script establishes stable relative frequencies across strata by aggregating and standardizing baseline counts to reflect the provincial post-secondary landscape.
 
-The analytical process begins with the `load-program-projections.R` script, which initializes the environment by loading the required historical and rollover datasets. Data is categorized into two primary tracks:
-*   **Projected Series:** Includes PTIB data and specific projection series for apprenticeships (Q014e), undergraduate/general programs (qry10c), graduate programs (qry12c), and near-completers (qry_13d).
-*   **Static Series:** Includes PTIB data and standardized distribution series for general programs (Q012e), graduate-level credentials (Q013e), apprenticeships (Q014e), and near-completers (qry_13d).
+The `load-program-projections.R` script ingests historical and rollover datasets, partitioning them into two primary tracks. The **Projected Series** includes PTIB data alongside specific projection series such as apprenticeships (Q014e), undergraduate/general programs (qry10c), graduate programs (qry12c), and near-completers (qry_13d). Concurrently, the **Static Series** incorporates PTIB data and standardized distribution series for general programs (Q012e), graduate-level credentials (Q013e), apprenticeships (Q014e), and near-completers (qry_13d).
 
-The analysis is undertaken in several streams:
-*   **Survey-Based Distributions:** Historical survey data for near-completers, apprenticeships, and general graduate cohorts are weighted and adjusted to account for specific student transitions and training statuses. This process applies temporal weighting to prioritize recent trends while maintaining a five-year baseline.
-*   **Predictive Modeling:** Long-term program projections utilize over two decades of historical achievement data. These models generate expected graduate volumes for the 2023/2024 through 2034/2035 cycles, segmented by highest credential attained.
-*   **Normalization and Integration:** Across all series, raw volumes are converted into standardized proportions. By calculating the quotient of specific program volumes against cohort aggregates, the framework ensures that projected distributions remain mathematically consistent when applied to both static and dynamic program registries.
+The methodological framework utilizes weighted historical cohorts to prioritize recent trends, while maintaining a five-year baseline. The model leverages twenty years of achievement data to generate a count of estimate graduate through the 2035/2036 cycle, segmented by the highest credential attained. 
 
-Standardized age groups (ranging from 17–19 to 55–64) are utilized to maintain demographic consistency. Temporal parameters are updated per model run to reflect the current cycle (Year 1: 2023/2024; Years 2+: 2024/2025–2035/2036).
-
+To ensure mathematical consistency across both static and dynamic program registries, raw volumes are converted into standardized proportions ($P = \frac{count}{total}$). Demographic consistency is maintained through the application of standardized age groups ranging from 17–19 to 55–64. Temporal parameters are updated per cycle to reflect the current transition from the Year 1 baseline (2023/2024) through the extended projection horizon (2024/2025–2035/2036).
 
 ## Data Sources and Storage
+<mark> INCOMLPETE </mark>
 
 ### Data Sources
-The framework generates both static and projected distributions derived from the following sources:
-*   **Apprenticeship and TTRAIN Distributions:** Sourced from program cohort summaries (`T_Cohorts_Recoded`) developed in prior workflows.
-*   **Near-Completer Distributions:** Derived from age and classification summaries of students in the DACSO program survey cohort.
-*   **Core Program Distributions:** Derived from unduplicated credential tables and highest-ranking credential data.
 
 ### External Data Sources 
 
@@ -50,7 +41,18 @@ Source: Provided from Ministry of Post-Secondary Education and Future Skills [?]
 Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
 Description: STP Credential years searched: 2002/03 - 2022/23
 
-### Internal/Processed Data Sources
+### Internal/Processed Data Sources 
+
+#### Apprenticeship and TTRAIN Distributions
+Sourced from program cohort summaries (`T_Cohorts_Recoded`) developed in prior workflows.
+
+#### Near-Completer Distributions
+
+Derived from age and classification summaries of students in the DACSO program survey cohort.
+
+#### Core Program Distributions
+Derived from unduplicated credential tables and highest-ranking credential data.
+
 
 #### credential_non_dup
 
@@ -73,8 +75,9 @@ Description:
 - longitudinal master-lookup of birthdates and survey exit dates. Used to derive the age filters (such as the 17–64 range) we in aggregated tables.
 - Historically, new data was appended to prior model run's data.  For 2026, we can request the full range required, SQL queries saved on the LAN for convenience.
 
-### Data Storage Structure
+#### Data Storage Structure
 
+<mark> INCOMLPETE </mark>
 Where data is housed in internal storage locations, it is stored in a hierarchical folder structure accessible via read_csv().
 
 ```
@@ -96,13 +99,6 @@ Where data is housed in internal storage locations, it is stored in a hierarchic
 
 ### Dependencies and Environment Requirements
 
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
-
 #### R Package Dependencies
 
 The following R packages are required for this module:
@@ -111,7 +107,6 @@ The following R packages are required for this module:
 - `DBI` (to connect to database)
 - `odbc` (to connect to database)
 - `config` (to connect to database)
-
 
 #### Authentication Setup
 
@@ -138,7 +133,6 @@ df <- dbGetQuery(con, strSQL)
 ```
 
 ## Methodology Overview
-
 
 ##### Near-Completer Projections (Q013 Series)
 
@@ -175,35 +169,41 @@ Program projection output from the Werner program for graduate credentials are s
 
 #### Data Dictionary 
 
-##### tbl_age
-
-<ul class="list-variable-names">
-<li>Age (Integer): </li>
-<li>Age_Group (Integer): </li>
-</ul>
-
-##### t_pssm_projection_cred_grp
-
-<ul class="list-variable-names">
-<li>PSSM_Projection_Credential (String): </li>
-<li>PSSM_Credential (String): </li>
-<li>PSSM_Credential_Name (String): </li>
-<li>COSC_GRAD_STATUS_LGDS_CD (Integer): </li>
-</ul>
-
-
 ## Key Output Tables
 
 The following data objects represent the terminal outputs of the program projection pipeline. 
 
-##### tablname
-
-Success ratios stratified by age-group, 4-digit Classification of Instructional Programs (CIP-4) and normalized credential categories.
+##### graduate_projections
 
 <ul class="list-variable-names">
-  <li>age_group (String): The categorical age cohort.</li>
-  <li>combined_cred_name (String): Description</li>
+  <li>PSSM_CRED (String): Primary administrative key for credential classification.</li>
+  <li>YEAR (String): The academic or year associated with the graduate count.</li>
+  <li>AGE_GROUP (String): Standardized age demographic interval.</li>
+  <li>GRADUATES (Double): The numeric volume (count) of graduates.</li>
+  <li>SURVEY (String): The originating survey source identifier (e.g., PTIB, Q014e).</li>
+  <li>PSI_CREDENTIAL_CATEGORY (String): The broad category of the post-secondary credential.</li>
+  <li>PSSM_CREDENTIAL (String): The specific credential title or rank.</li>
 </ul>
+
+
+##### cohort_program_distributions_projected/static
+
+<ul class="list-variable-names">
+  <li>SURVEY (String): The originating survey source identifier (e.g., PTIB, Q012e, Q014e).</li>
+  <li>PSSM_CREDENTIAL (String): The specific title or rank of the post-secondary credential.</li>
+  <li>PSSM_CRED (String): Primary administrative code for credential classification.</li>
+  <li>LCP4_CD (String): Four-digit classification code for the program.</li>
+  <li>GRAD_STATUS (String): Current status indicator for the graduate cohort.</li>
+  <li>TTRAIN (String): Target training indicator used for survey cohort adjustments.</li>
+  <li>LCIP4_CRED (String): Four-digit CIP code associated with the specific credential.</li>
+  <li>LCIP2_CRED (String): Two-digit CIP code used for higher-level program aggregation.</li>
+  <li>AGE_GROUP (String): Standardized age demographic interval.</li>
+  <li>YEAR (String): The academic or fiscal year associated with the observation.</li>
+  <li>COUNT (Double): The numeric volume of graduates within the specific stratum.</li>
+  <li>TOTAL (Double): The aggregate volume of graduates across the comparison cohort.</li>
+  <li>PERCENT (Double): The derived proportional distribution density for the cohort.</li>
+</ul>
+
 
 ## Suggested Improvements
 
