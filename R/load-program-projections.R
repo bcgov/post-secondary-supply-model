@@ -10,23 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ******************************************************************************
-# Load datasets required to run program projections step
-# Note: Rollover dataset originally contain these entries in SURVEY:
-# Projected
-#  - PTIB
-#  - Program_Projections_2019-2020_Q014e
-#  - Program_Projections_2019-2020_qry10c
-#  - Program_Projections_2019-2020_qry12c
-#  - Program_Projections_2019-2020_qry_13d
-# Static
-#  - PTIB
-#  - Program_Projections_2019-2020_Q012e
-#  - Program_Projections_2019-2020_Q013e
-#  - Program_Projections_2019-2020_Q014e
-#  - Program_Projections_2019-2020_qry_13d
-# ******************************************************************************
-
 library(tidyverse)
 library(RODBC)
 library(config)

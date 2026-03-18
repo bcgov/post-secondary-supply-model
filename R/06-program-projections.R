@@ -10,34 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script creates static and projected distributions from several sources.
-#  - Apprenticeship and TTRAIN distributions are derived from program cohort summaries
-#    built in workflow 2b (T_Cohorts_Recoded)
-#  - Near Completers distributions by age and CIP were summarized in workflow 3, the
-#    source data is those students in the DACSO program survey cohort, who (did or did not?)
-#    receive an earlier or later credential.
-#  - the remainder are derived from Credential Non Dup table and tblCredential_HighestRank
-#
-# At a high level, the script:
-#   Adds near completers to projected and static distribution data sets (Y1)
-#   Adds program cohorts to static distribution data sets (Y1)
-#   Adds masters and doctorates to static distribution data sets (Y1)
-#   Adds apprenticeships to static and projected data sets (Y1)
-#   Creates static distributions for apprenticeships and near-completers (Y2-12)
-#   Creates projected distributions for apprenticeships and near-completers (Y2-12), holding Y2-12 constant.
-#   Creates projected distributions all other credentials (Y2-Y12)
-#     - uses R program written by Werner and adapted by Ian
-#
-# Includes: generally age groups are 17-19, 20-24, 25-30, 30-34, 35-44, 45-54, 55-64
-# Year 1: 2019/2020
-# Year 2+: 2020/2021 - 2030/2031
-# Notes: Years need to be updated each model run.  Check we are projecting 12 years.  Also which age groupings
-# will we be using?
-# FIXME: lookups T_APPR_Y2_to_Y10 and T_Cohort_Program_Distributions_Y2_to_Y12 ID fields aren't sequential
-#        keep eyes open for impacts of this.
-#        04-graduate-projections: remove space in final table name, add survey column and populate
-
-# List of required tables for Derived Tables, Rollovers, and Lookups
 required_tables <- c(
   # actually used in load script
   "tbl_credential_highest_rank",
