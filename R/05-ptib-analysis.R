@@ -1,27 +1,14 @@
-# ******************************************************************************
-# Private Training Institutions Branch (PTIB)
+# Copyright 2026 Province of British Columbia
 #
-# Required Tables
-#   PTIB_Credentials
-#   T_PSSM_Credential_Grouping
-#   INFOWARE_L_CIP_6DIGITS_CIP2016
-#   Graduate_Projections
-#   Cohort_Program_Distributions_Projected
-#   Cohort_Program_Distributions_Static
-#   T_PTIB_Y1_to_Y10
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Part 1: Clean PTIB data
-# * Update age groups, CIPs
-# * Add and update exclude column
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# Part 2: Domestic graduates
-#
-# Part 3: Cohort distributions
-#
-# ******************************************************************************
-
-library(tidyverse)
-
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
 
 # ---- Check Required Tables etc. ----
 required_tables <- c(
