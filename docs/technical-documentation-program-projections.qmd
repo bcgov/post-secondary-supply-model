@@ -22,22 +22,25 @@ format:
 
 The 2023/2024–2034/2035 program projections are a synthesis of historical graduate data, survey distributions, and longitudinal modeling designed to forecast educational outcomes over a ten-year horizon. The primary objective of the analysis script `06-program-projections.R` is to establish stable relative frequencies across various educational strata and survey sources, including credential types, age demographics, and program classifications. This is achieved through a systematic process of aggregation and standardization, ensuring that baseline counts reflect the distribution of graduates across the provincial post-secondary landscape.
 
-The script generates both static and projected distributions derived from the following sources:
-*   **Apprenticeship and TTRAIN Distributions:** Sourced from program cohort summaries (T_Cohorts_Recoded) developed in prior workflows.
-*   **Near-Completer Distributions:** Derived from age and classification summaries of students in the DACSO program survey cohort.
-*   **Core Program Distributions:** Derived from unduplicated credential tables and highest-ranking credential data.
+The analytical process begins with the `load-program-projections.R` script, which initializes the environment by loading the required historical and rollover datasets. Data is categorized into two primary tracks:
+*   **Projected Series:** Includes PTIB data and specific projection series for apprenticeships (Q014e), undergraduate/general programs (qry10c), graduate programs (qry12c), and near-completers (qry_13d).
+*   **Static Series:** Includes PTIB data and standardized distribution series for general programs (Q012e), graduate-level credentials (Q013e), apprenticeships (Q014e), and near-completers (qry_13d).
 
-The methodology integrates several distinct analytical streams:
-
-*   **Survey-Based Distributions:** Historical survey data for near-completers, apprenticeships, and general graduate cohorts are weighted and adjusted to account for specific student transitions and training statuses. This process applies temporal weighting to prioritize recent trends while maintaining a robust five-year baseline.
+The analysis is undertaken in several streams:
+*   **Survey-Based Distributions:** Historical survey data for near-completers, apprenticeships, and general graduate cohorts are weighted and adjusted to account for specific student transitions and training statuses. This process applies temporal weighting to prioritize recent trends while maintaining a five-year baseline.
 *   **Predictive Modeling:** Long-term program projections utilize over two decades of historical achievement data. These models generate expected graduate volumes for the 2023/2024 through 2034/2035 cycles, segmented by highest credential attained.
 *   **Normalization and Integration:** Across all series, raw volumes are converted into standardized proportions. By calculating the quotient of specific program volumes against cohort aggregates, the framework ensures that projected distributions remain mathematically consistent when applied to both static and dynamic program registries.
 
-Standardized age groups (ranging from 17–19 to 55–64) are utilized to maintain demographic consistency. Temporal parameters are updated per model run to reflect the current cycle (Year 1: 2023/2024; Years 2+: 2024/2025–2035/2035).
-
+Standardized age groups (ranging from 17–19 to 55–64) are utilized to maintain demographic consistency. Temporal parameters are updated per model run to reflect the current cycle (Year 1: 2023/2024; Years 2+: 2024/2025–2035/2036).
 
 
 ## Data Sources and Storage
+
+### Data Sources
+The framework generates both static and projected distributions derived from the following sources:
+*   **Apprenticeship and TTRAIN Distributions:** Sourced from program cohort summaries (`T_Cohorts_Recoded`) developed in prior workflows.
+*   **Near-Completer Distributions:** Derived from age and classification summaries of students in the DACSO program survey cohort.
+*   **Core Program Distributions:** Derived from unduplicated credential tables and highest-ranking credential data.
 
 ### External Data Sources 
 
