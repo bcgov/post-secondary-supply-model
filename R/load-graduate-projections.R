@@ -10,19 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ******************************************************************************
-# Load population projections and data required for Graduate Projection Step
-# ******************************************************************************
-
 library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
 library(assertthat)
 
-
-# Note: Delete after this refactor.
-source("./sql/04-graduate-projections/04-graduate-projections-sql.R")
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
@@ -75,12 +68,12 @@ population_projections <- dbReadTable(decimal_con, "population_projections")
 
 min_enrolments <- dbReadTable(
   decimal_con,
-  SQL(glue::glue('"{db_schema}"."qry09c_MinEnrolment"'))
+  SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
 )
 credentials <- dbReadTable(
   decimal_con,
   SQL(glue::glue(
-    '"{db_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
+    '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
   ))
 )
 
