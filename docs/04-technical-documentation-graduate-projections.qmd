@@ -20,16 +20,11 @@ format:
 
 ## Overview
 
-As a critical predictive component of the Post-Secondary Supply Model (PSSM), the Graduate Projections analysis generates longitudinal forecasts for student graduations and "near-completers" within British Columbia; accordingly, the script `04-graduate-projections.R` provides the computational framework necessary to calculate these specific graduation projection outputs.
+As a critical predictive component of the Post-Secondary Supply Model (PSSM), the Graduate Projections analysis generates longitudinal forecasts for student graduations and "near-completers" within British Columbia; accordingly, the script `04-graduate-projections.R` provides the code used to calculate these specific graduation projection outputs.
 
-At a high-level, the methodology is as follows:
+Estimates of population and population projections from the BC Stats Population App (People Soft) are used to calculate enrollment rates by age and gender.  Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years. Forecasted enrolment rates are applied to the projected population by age and gender to derive forecasted enrollment.
 
-  1. Use estimates of population and population projections to calculate enrollment rates by age and gender
-  2. Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years
-  3. Forecasted enrolment rates are applied to the project population by age and gender to derive forecasted enrollment
-  4.  A 2 year average graduation rate (calculated as a percentage of enrollment by age group/gender) is multiplied by
-  forecasted enrollments to derive forecasted graduates.
-  5.  forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential
+A 2-year average graduation rate is calculated as a percentage of enrollment by age group/gender; this is multiplied by forecasted enrollments to directly derive forecasted graduates. Finally, forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential.
 
 ## Data Sources and Storage
 
@@ -53,7 +48,7 @@ Description: This dataset provides annual population estimates and projections. 
 Source: Internal STOB/PSSM Data Warehouse (`decimal` database)  
 Access Method: SQL Query execution via `dbGetQuery`
 
-Description: Longitudinal enrollment data representing the historical baseline for provincial post-secondary participation.  Generated in 01e-stp-distributions.R from STP Enrolment data.
+Description: Longitudinal enrollment data providing the historical baseline for provincial post-secondary participation.  Generated in `01e-stp-distributions.R` and derived from the STP Enrolment data.
 
 #### Credential Distribution Matrix
 
@@ -133,13 +128,15 @@ df <- dbGetQuery(con, strSQL)
 
 ##### Data Normalization and Preprocessing
 
-The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable for aggregation into population counts by age group. The cohort is restricted to binary gender categories to maintain alignment with historical models, and administrative prefixes are converted into standardized age descriptors suitable for downstream join operations.
+The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable. The cohort is restricted to binary gender categories.
 
-The primary enrollment and graduate credential distributions used in this analysis were generated in prior analysis (`01c-stp-credential-analysis.R` , `01d-stp-enrolment-analysis.R` and `01e-stp-distributions.R`).  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. 
+The primary enrollment and graduate credential distributions used in this analysis were generated upstream in the `01` series.  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. 
 
 ##### Enrollment Forecasting
 
-Historical enrollment rates ($r_{t}$) are calculated as a percentage of the total provincial population. Normalized enrollment counts ($E_t$) are joined with population projections ($Pop_t$); all stratified by gender, age cohort, and academic year. The participation rate for each demographic segment is defined by $r_{t} = 100 \times (E_t / Pop_t)$ for $2001 \lt t \lt 2023$,.
+Historical enrollment rates ($r_E$) are calculated as a percentage of the total provincial population. Normalized enrollment counts ($N_E$) are joined with population projections ($N_P$); all stratified by gender, age cohort, and academic year. 
+
+$r_{E} = 100 \times (N_E / N_P)$ for $2001 \lt t \lt 2023$
 
 Future participation rates are derived through linear regression analysis. The baseline data is stratified into discrete cohorts based on age and gender, after which a linear model is fit to the historical rates against enrolment year using R function (`r_f = lm (r_e~t)`). To generate the 12-year projection horizon, the model predicts enrollment rates for the initial five-year period (2023–2027). To prevent unrealistic long-term divergence inherent in linear extrapolation, the projected rate for the year 2027 is held constant for the subsequent seven years (2028–2034), establishing a stabilized rate ceiling for the remainder of the forecast period.
 
@@ -172,29 +169,6 @@ To facilitate long-term trend analysis, an additional extended time series is ge
 The methodology maintains structural parity with the projection model, applying identical PSSM credential mapping and demographic stratification to the historical time series. Near-completer counts for the 2019–2022 period are recovered using year-specific ratios ($N_{NC\_STP}$), while apprenticeship data from the APPSO survey is reconciled across previous submission cycles. The final output is the table `Graduate_Projections_Include_Historical` and contains a continuous longitudinal dataset suitable for back-testing.
 
 #### Data Dictionary (Incomplete)
-
-##### [Table 1 Name]
-
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
-
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
 
 ## Key Output Tables
 
