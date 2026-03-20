@@ -26,7 +26,7 @@ raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 raw_data <- read_csv(raw_data_file, locale = locale(encoding = "latin1"))
 
 # ---- Clean data ----
-data <- raw_data %>%
+stat_can_data_raw <- raw_data %>%
   clean_names() %>%
   rename(
     age_group = age,
