@@ -10,8 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-library(tidyverse)
-
 # these should now be in the R environment
 required_tables <- c(
   "population_projections",
@@ -97,6 +95,7 @@ f_enrolments <- p_enrolments |>
     )
   )
 
+
 ## Forecasted Enrolments ----
 rn <- as.numeric(rownames(data.frame(f_enrolments)))
 f_enrolments_t <- data.frame(f_enrolments) %>%
@@ -116,7 +115,7 @@ f_enrolments_t <- f_enrolments_t %>%
 
 # ---- Forecasted Graduates ----
 ## Graduation Rates (annual, as a percentage of enrolment) ----
-annual_grad_rate <- credentials %>%
+annual_grad_count <- credentials %>%
   summarize(
     N_GRADS = sum(N, na.rm = TRUE),
     .by = c(GENDER, AGE_GROUP, YEAR)
@@ -129,11 +128,11 @@ annual_grad_rate <- credentials %>%
         .by = c(GENDER, AGE_GROUP, YEAR)
       ),
     by = join_by(GENDER, AGE_GROUP, YEAR)
-  ) %>%
-  mutate(P_GRADS_ENROL = 100 * N_GRADS / N_ENROL)
+  )
+# mutate(P_GRADS_ENROL = 100 * N_GRADS / N_ENROL)
 
 ## Graduation Rate (2-yr average, as percentage of enrolment) ----
-avg_2_yr_grad_rate <- annual_grad_rate %>%
+avg_2_yr_grad_rate <- annual_grad_count %>%
   filter(YEAR %in% 2021:2022) %>%
   summarise(GRAD_RATE = sum(N_GRADS) / sum(N_ENROL), .by = c(GENDER, AGE_GROUP))
 
@@ -337,7 +336,7 @@ pop_projections_for_compare <- population_projections %>%
   filter(YEAR < 2035)
 
 # HISTORICAL - grads ----
-historical_forecasted_grads <- annual_grad_rate %>%
+historical_forecasted_grads <- annual_grad_count %>%
   select(YEAR, AGE_GROUP, GENDER, N = N_GRADS) %>%
   mutate(TYPE = 'H. GRADS') %>%
   bind_rows(
