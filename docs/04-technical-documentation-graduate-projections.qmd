@@ -134,24 +134,30 @@ The primary enrollment and graduate credential distributions used in this analys
 
 ##### Enrollment Forecasting
 
-Historical enrollment rates ($r_E$) are calculated as a percentage of the total provincial population. Normalized enrollment counts ($N_E$) are joined with population projections ($N_P$); all stratified by gender, age cohort, and academic year. 
+Historical enrollment rates are calculated as a percentage of historical enrolment counts over the the total provincial population; all stratified by gender, age cohort, and academic year. 
 
-$r_{E} = 100 \times (N_E / N_P)$ for $2001 \lt t \lt 2023$
+$R_{E} = 100 \times (N_{E} / N_P)$ for $2002 \lt t \lt 2022$
 
-Future participation rates are derived through linear regression analysis. The baseline data is stratified into discrete cohorts based on age and gender, after which a linear model is fit to the historical rates against enrolment year using R function (`r_f = lm (r_e~t)`). To generate the 12-year projection horizon, the model predicts enrollment rates for the initial five-year period (2023–2027). To prevent unrealistic long-term divergence inherent in linear extrapolation, the projected rate for the year 2027 is held constant for the subsequent seven years (2028–2034), establishing a stabilized rate ceiling for the remainder of the forecast period.
+Future participation rates are derived through linear regression analysis using R function, `lm()`. Baseline data stratified by age and gender are fit to the historical rates, predicting enrollment rates for the initial five-year period (2023–2027). 
 
-The final forecasted enrollment numbers ($E_{t}$) are calculated by reapplying the projected participation rates to the anticipated population counts, $E_{t} = r_{t} \times Pop_{t} \times 0.01$, for $2023 \lt t \lt 2035$, converting abstract participation trends back into absolute student counts.
+$R_F = \beta_0 + \beta_1Yr.  
+
+To prevent long-term divergence the projected rate for 2027 is held constant for seven susequent years (2028–2034), establishing a stabilized rate ceiling for the remainder of the forecast period.  The rates are used to forecast enrollment numbers using the projected population counts from PEOPLESOFT.
+
+ $N_{F} = R_F \times N_P \times 0.01$.
 
 ##### Graduate Forecasting
-Historical stratified graduation rates $r(grad)_t$ are determined by calculating annual graduate counts $G_t$ as a percentage of enrollment counts $E_t$ for $2006 \lt t \lt 2023$.  A static grad rate, $r(grad)$ is derived for each strata by calculating the weighted average of the 2021–2022 academic cycle. This rate represents the empirical probability of a student successfully attaining a credential within a given age and gender group. $r(grad)$ is subsequently applied to the forecasted enrollment figures, $E_{t}$, to generate the absolute volume of anticipated graduates $G_t = r(grad) \times E_{t}$, for $2023 \lt t \lt 2035$.
+A 2-year annual stratified graduation rate, $R_G$, is calculated from graduate and enrollment counts for 2021 and 2022 acedemic years.  $R_G = \frac{N_G}{N_E}$  This rate is subsequently applied back to the forecasted enrollment counts generate anticipated graduates $N_G = R_G \times N_F$.
 
-The aggregate graduate forecast is then further disaggregated into specific credential categories based on a biennial distribution matrix. Using the same 2021–2022 baseline, the proportion of graduates,$W_{cred}$, in each credential category is calculated relative to the total cohort. This proportional weight, $W_{cred}$, is then applied to the total forecasted graduate count yielding the final granular supply projection disaggregated by year, age, gender, and credential type. $G_{t, cred} = W_{cred} \times G_t$.
+### 3.2 Credential Distribution Methodology
+Stratified graduation credential counts, $N_{G_C}$, are derived for the 2021–2022 observation period and are defined as a proportion relative to each gender-age: 
 
+$P_{G_C} = \frac{N_{G_C}}{N_C}$
+
+Uunobserved credential categories are assigned an explicit zero-value ($P=0$), maintaining a balanced data matrix across all defined demographic and credential vectors.
 
 ##### Inclusion of Near-Completers
-The "Near-Completer" population is estimated by applying credential-specific ratios, $r_{cred}$ calculated in a previous analysis (see `03-near-completers-ttrain.R`).
-
-Demographic cohorts within the 35–64 age range are aggregated into a singular macro-cohort to ensure broader ratios are mapped back to the granular five-year age increments present in the primary graduate forecast. Graduate projections are joined to the near completers ratio matrix; for each unique combination of gender, age group, and credential category, the forecasted graduate count is multiplied by it's corresponding near completer's ratio coefficient.  This calculation, $NC_{cred,t} = G_t \times r_{cred}$, quantifies the secondary supply stream of students who have completed significant program requirements without formal credential attainment. 
+The "Near-Completer" population is estimated by applying credential-specific ratios, $R_{C_{NC}}$ calculated in a previous analysis (see `03-near-completers-ttrain.R`).  Near completer ratios ire applied to the forecasted grad count to derive an estimate of near completer graduates, $N_G_{NC}$ = $N_G \times R_{C_{NC}}$, who have completed significant program requirements without formal credential attainment. 
 
 ##### Categorical Mapping and PSSM Standardization
 Administrative award categories are mapped to a standardized PSSM reporting hierarchy to ensure consistency across the model. This protocol consolidates granular credential strings into unified labels while preserving the distinction between graduates and near-completers via numerical prefixes. To maintain workforce relevance, cohorts representing individuals aged 15–16 and 65–89 are excluded from the final projections.
@@ -159,9 +165,8 @@ Administrative award categories are mapped to a standardized PSSM reporting hier
 The reclassified graduate and near-completer datasets are merged into a unified supply table and aggregated by credential, fiscal year, and age cohort. This consolidated output is designated as the `Credential_Projections_Transp` stream; the table is named `Graduate_Projections`.
 
 ##### Inclusion of Apprenticeship Supply
-Data from the Apprenticeship Student Outcomes (APPSO) survey is used to integrate the apprenticeship supply stream into forecasted data.  To establish a stable forecast baseline, a two-year arithmetic mean graduate count is calculated from the 2022 and 2023 APPSO submission cycles, representing the expected annual output of apprenticeship graduates.  This is subsequently assigned to the inaugural forecast year (2023/2024) and tagged under the `APPSO` survey identifier.
+Data from the Apprenticeship Student Outcomes (APPSO) survey is used to integrate the apprenticeship supply stream into forecasted data.  To establish a stable forecast baseline, a two-year arithmetic mean graduate count, $N_{G_{AP}}$ is calculated from the 2022 and 2023 Apprenticeship grad counts.  
 
-The supply forecast is finalized through the union of the primary graduate and near-completer dataset (`f_graduates_agg`) with the processed APPSO baseline. During this integration, a standardized `PSSM_CREDENTIAL` variable is generated removing the reference to near completers (i.e "1 - " and "3 - " are removed from the credential labels).
 
 ##### Longitudinal Historical Reconstruction
 To facilitate long-term trend analysis, an additional extended time series is generated by appending the 12-year forecast horizon to aggregated historical enrolment, graduation, and near-completer counts.  The new extension includes a window of $2006 \leq t \leq 2022$, or $2019 \leq t \leq 2022$ for near-completers.
