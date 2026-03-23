@@ -134,7 +134,30 @@ new_noc_counts <- noc_4_noc_5 |>
     new_credential
   )
 
+lookup_table <- stat_can_data |>
+  filter(grepl("^[0-9]{5}", occupation_NOC)) |>
+  distinct(occupation_NOC) |>
+  mutate(noc_5 = str_extract(occupation_NOC, "^\\d{5}"))
+
+new_noc_counts <-
+  new_noc_counts |>
+  ungroup() |>
+  left_join(lookup_table, by = "noc_5")
+
 # Make summary tables for comparison ----
+
+new_counts_summary <- new_noc_counts |>
+  group_by(region, age_group, major_field_cip, credential_name) |>
+  summarize(New_Noc4 = sum(new_credential)) |>
+  ungroup() |>
+  pivot_wider(
+    names_from = credential_name,
+    values_from = New_Noc4,
+    names_glue = "New_Noc4_{.name}"
+  ) |>
+  ungroup()
+
+
 all_occupations_summary <- working_data |>
   filter(NOC_LVL %in% c("4", "5", "All occupations")) |>
   group_by(region, age_group, major_field_cip, NOC_LVL) |>
@@ -155,17 +178,6 @@ all_occupations_summary <- working_data |>
   select(-contains("_TOTAL")) |>
   ungroup()
 
-# Create summary tables ----
-new_counts_summary <- new_noc_counts |>
-  group_by(region, age_group, major_field_cip, credential_name) |>
-  summarize(New_Noc4 = sum(new_credential)) |>
-  ungroup() |>
-  pivot_wider(
-    names_from = credential_name,
-    values_from = New_Noc4,
-    names_glue = "New_Noc4_{.name}"
-  ) |>
-  ungroup()
 
 compare_summaries <- all_occupations_summary |>
   left_join(
@@ -178,5 +190,12 @@ compare_summaries <- all_occupations_summary |>
 # Save files ----
 newcounts_fn <- glue::glue("{lan}/data/statcan/output/new counts.csv")
 summary_fn <- glue::glue("{lan}/data/statcan/output/summary.csv")
-write_csv(new_noc_counts, newcounts_fn)
+
+new_noc_counts |>
+  pivot_wider(
+    names_from = credential_name,
+    values_from = new_credential,
+    names_glue = "New_{.name}"
+  ) |>
+  write_csv(newcounts_fn)
 write_csv(compare_summaries, summary_fn)
