@@ -11,6 +11,25 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # ---- Data Requirements and SQL Definitons ----
+# these should now be in the R environment
+required_tables <- c(
+  "stat_can_data_raw"
+)
+
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
+
+# ---- Clean up data ----
+stat_can_data_raw %>% count(geography)
+stat_can_data_raw %>% count(age_group)
+stat_can_data_raw %>% count(major_field_cip)
+
 data <- stat_can_data
 working_data <- data |>
   select(
