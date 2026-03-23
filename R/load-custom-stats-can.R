@@ -90,3 +90,31 @@ combined_masters_doctorate_var <- "masters_degree_and_earned_doctorate"
 masters_var <- "masters_degree"
 doctorate_var <- "earned_doctorate"
 total_var <- "total_highest_certificate_diploma_or_degree"
+
+t_current_region_pssm_rollup_codes_statcan <-
+  readr::read_csv(
+    glue::glue(
+      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_StatCan.csv"
+    ),
+    col_types = cols(.default = col_guess())
+  ) %>%
+  janitor::clean_names(case = "all_caps")
+
+dbWriteTable(
+  decimal_con,
+  name = "t_current_region_pssm_rollup_codes_statcan",
+  value = t_current_region_pssm_rollup_codes_statcan
+)
+
+tbl_age_groups_rollup <- data.frame(
+  Age_Group_Rollup = c(1, 2, 3),
+  Age_Group_Rollup_Label = c("17 to 29", "30 to 44", "45 to 64")
+)
+names(tbl_age_groups_rollup) <- toupper(names(tbl_age_groups_rollup))
+
+dbWriteTable(
+  decimal_con,
+  name = "tbl_age_groups_rollup",
+  value = t_age_groups_rollup,
+  overwrite = TRUE
+)
