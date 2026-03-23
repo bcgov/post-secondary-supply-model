@@ -10,17 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script prepares census data for the Occupations_Distributions table
-#
-# Assumes that the noc-imputation work has been completed
-#
-# Required tables
-#   'new counts' csv files for each region (noc-imputation work)
-#   tbl_age_groups_rollup
-#   t_current_region_pssm_rollup_codes_statcan
-#
-# ---- Import all csv outputs ----
-
 required_tables <- c(
   "new_noc_counts",
   "t_current_region_pssm_rollup_codes_statcan",
