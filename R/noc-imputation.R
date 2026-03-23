@@ -11,9 +11,8 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # ---- Data Requirements and SQL Definitons ----
-# these should now be in the R environment
 required_tables <- c(
-  "stat_can_data_raw"
+  "stat_can_data"
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -25,13 +24,8 @@ if (length(missing) > 0) {
   ))
 }
 
-# ---- Clean up data ----
-stat_can_data_raw %>% count(geography)
-stat_can_data_raw %>% count(age_group)
-stat_can_data_raw %>% count(major_field_cip)
-
-data <- stat_can_data
-working_data <- data |>
+# create working data set
+working_data <- stat_can_data |>
   select(
     geography,
     region,
@@ -92,14 +86,21 @@ noc_4 <- noc_4 |>
   ) |>
   rename(noc4_total = total)
 
-# Combine NOC 4 and NOC 5 distributions and create new count summary
+# Combine NOC 4 and NOC 5 distributions and do the stuff
 noc_4_noc_5 <- noc_4 |>
   left_join(
     noc_5,
     by = c("age_group", "region", "major_field_cip", "noc_4", "credential_name")
   )
 
-# missing occupation_noc
+# Create new overall total column as the Total NOC4 count - the NOC5 counts where the credential count is not missing
+# Sometimes this can result in a negative number due to Census rounding -> To handle this, take the max between the new overall total and 0
+# similarly, create new credential total
+# Then fill in the missing credential counts as the New credential total * total count / new overall total
+# Some exceptions:
+# If New_Total_Total==0; new value = 0 to avoid division by 0
+# Total is bigger than New_Total_Total (due to census rounding) new value= new credential total (i.e., divide by 1)
+
 new_noc_counts <- noc_4_noc_5 |>
   group_by(age_group, region, major_field_cip, noc_4, credential_name) |>
   mutate(sum_total = sum(total)) |>
@@ -155,7 +156,7 @@ all_occupations_summary <- working_data |>
   ungroup()
 
 # New Summary table by 5D NOC ----
-NOC_5_summary_2 <- new_noc_counts %>%
+new_counts_summary <- new_noc_counts %>%
   group_by(region, age_group, major_field_cip, credential_name) %>%
   summarize(New_Noc4 = sum(new_credential)) |>
   ungroup() |>
@@ -167,7 +168,10 @@ NOC_5_summary_2 <- new_noc_counts %>%
   ungroup()
 
 compare_summaries <- all_occupations_summary %>%
-  left_join(NOC_5_summary_2, by = c("age_group", "major_field_cip", "region")) # Combine summary tables ----
+  left_join(
+    new_counts_summary,
+    by = c("age_group", "major_field_cip", "region")
+  ) # Combine summary tables ----
 
 # got to here
 # add total row
@@ -181,5 +185,7 @@ compare_summaries <- compare_summaries %>%
   )
 
 # Save files ----
+fn <- glue::glue("{lan}/data/statcan/output/new counts.csv")
+summary_fn <- glue::glue("{lan}/data/statcan/output/summary.csv")
 write_csv(new_noc_counts, newcounts_fn)
 write_csv(compare_summaries, summary_fn)
