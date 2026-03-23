@@ -22,7 +22,7 @@
 # ---- Import all csv outputs ----
 
 required_tables <- c(
-  "new counts",
+  "new_noc_counts",
   "t_current_region_pssm_rollup_codes_statcan",
   "tbl_age_groups_rollup"
 )

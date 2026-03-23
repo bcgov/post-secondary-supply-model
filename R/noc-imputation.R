@@ -144,6 +144,15 @@ new_noc_counts <-
   ungroup() |>
   left_join(lookup_table, by = "noc_5")
 
+new_noc_counts <-
+  new_noc_counts |>
+  pivot_wider(
+    names_from = credential_name,
+    values_from = new_credential,
+    names_glue = "New_{.name}"
+  )
+
+
 # Make summary tables for comparison ----
 
 new_counts_summary <- new_noc_counts |>
@@ -178,7 +187,6 @@ all_occupations_summary <- working_data |>
   select(-contains("_TOTAL")) |>
   ungroup()
 
-
 compare_summaries <- all_occupations_summary |>
   left_join(
     new_counts_summary,
@@ -186,16 +194,3 @@ compare_summaries <- all_occupations_summary |>
   ) |>
   janitor::adorn_totals(where = "row", fill = "Total") |>
   filter(age_group == "Total")
-
-# Save files ----
-newcounts_fn <- glue::glue("{lan}/data/statcan/output/new counts.csv")
-summary_fn <- glue::glue("{lan}/data/statcan/output/summary.csv")
-
-new_noc_counts |>
-  pivot_wider(
-    names_from = credential_name,
-    values_from = new_credential,
-    names_glue = "New_{.name}"
-  ) |>
-  write_csv(newcounts_fn)
-write_csv(compare_summaries, summary_fn)
