@@ -20,6 +20,22 @@
 #   t_current_region_pssm_rollup_codes_statcan
 #
 # ---- Import all csv outputs ----
+
+required_tables <- c(
+  "new counts",
+  "t_current_region_pssm_rollup_codes_statcan",
+  "tbl_age_groups_rollup"
+)
+
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
+
 output_folder <- glue::glue(
   "{lan}/development/work/graduate noc imputation/output/"
 )
