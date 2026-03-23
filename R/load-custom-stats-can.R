@@ -22,19 +22,19 @@ raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 raw_data <- read_csv(raw_data_file, locale = locale(encoding = "latin1"))
 
 # ---- Clean data ----
-stat_can_data_raw <- raw_data %>%
-  clean_names() %>%
+stat_can_data_raw <- raw_data |>
+  clean_names() |>
   rename(
     age_group = age,
     occupation_NOC = occupation,
     masters_degree_and_earned_doctorate = master_s_degree_and_earned_doctorate # funky apostrophe header name
-  ) %>%
+  ) |>
   # fix the geography column en-dashes
   mutate(geography = str_replace(geography, "\u0096", "-"))
 
 
 # create region variable based off geography
-stat_can_data <- stat_can_data_raw %>%
+stat_can_data <- stat_can_data_raw |>
   mutate(
     region = case_when(
       str_detect(geography, "Canada") ~ "Canada",
@@ -67,15 +67,15 @@ stat_can_data <- stat_can_data_raw %>%
   )
 
 # check
-stat_can_data %>% filter(region == "missing") # expect 0 rows
-stat_can_data %>% count(region, geography) # review regions
+stat_can_data |> filter(region == "missing") # expect 0 rows
+stat_can_data |> count(region, geography) # review regions
 
 # review age groups and major fields total variable names
-stat_can_data %>% count(age_group)
-stat_can_data %>% count(major_field_cip)
+stat_can_data |> count(age_group)
+stat_can_data |> count(major_field_cip)
 
 # filter out totals from age and study fields
-stat_can_data <- stat_can_data %>%
+stat_can_data <- stat_can_data |>
   filter(
     age_group != "Total - population 17 to 64 years old" &
       major_field_cip !=
