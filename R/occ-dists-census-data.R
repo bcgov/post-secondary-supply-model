@@ -25,17 +25,8 @@ if (length(missing) > 0) {
   ))
 }
 
-output_folder <- glue::glue(
-  "{lan}/development/work/graduate noc imputation/output/"
-)
 
-# save initial imputed data
-combined_new_counts <- read_csv(glue::glue(
-  "{lan}/data/statcan/output/new counts.csv"
-)) |>
-  rename(file_name = region)
-
-stat_can_imputed_data_raw <- combined_new_counts
+stat_can_imputed_data_raw <- new_noc_counts |> rename(file_name = region)
 
 # ---- Create required Region counts ----
 ## Create Northeast ----
@@ -229,4 +220,5 @@ occupation_distributions_stat_can <- combined_stat_can %>%
     COUNT,
     TOTAL,
     PERCENT
-  )
+  ) |>
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
