@@ -155,17 +155,16 @@ new_noc_counts <-
 
 # Make summary tables for comparison ----
 
-new_counts_summary <- new_noc_counts |>
-  group_by(region, age_group, major_field_cip, credential_name) |>
-  summarize(New_Noc4 = sum(new_credential)) |>
-  ungroup() |>
-  pivot_wider(
-    names_from = credential_name,
-    values_from = New_Noc4,
-    names_glue = "New_Noc4_{.name}"
-  ) |>
-  ungroup()
-
+#new_counts_summary <- new_noc_counts |>
+#  group_by(region, age_group, major_field_cip) |>
+#  summarize(New_Noc4 = sum(new_credential)) |>
+#  ungroup() |>
+#  pivot_wider(
+#    names_from = credential_name,
+#    values_from = New_Noc4,
+#    names_glue = "New_Noc4_{.name}"
+#  ) |>
+#  ungroup()
 
 all_occupations_summary <- working_data |>
   filter(NOC_LVL %in% c("4", "5", "All occupations")) |>
@@ -187,10 +186,10 @@ all_occupations_summary <- working_data |>
   select(-contains("_TOTAL")) |>
   ungroup()
 
-compare_summaries <- all_occupations_summary |>
-  left_join(
-    new_counts_summary,
-    by = c("age_group", "major_field_cip", "region")
-  ) |>
-  janitor::adorn_totals(where = "row", fill = "Total") |>
-  filter(age_group == "Total")
+#compare_summaries <- all_occupations_summary |>
+#  left_join(
+#    new_counts_summary,
+#    by = c("age_group", "major_field_cip", "region")
+#  ) |>
+#  janitor::adorn_totals(where = "row", fill = "Total") |>
+#  filter(age_group == "Total")
