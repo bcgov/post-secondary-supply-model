@@ -471,13 +471,7 @@ min_enrolment <- min_enrolment |>
 
 
 # ---- Final Distributions ----
-# SQL version starts at line ? on branch main
-# Replicates:
-# What the code does:
-# BA Notes:
-dbExecute(con, qry09c_MinEnrolment_by_Credential_and_CIP_Code)
-dbExecute(con, qry09c_MinEnrolment_Domestic)
-dbExecute(con, qry09c_MinEnrolment)
+# This section moved to 01e-stp-distributions
 
 ## Review ----
 # SQL version starts at line ? on branch main
