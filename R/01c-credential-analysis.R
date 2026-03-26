@@ -154,7 +154,7 @@ credential <- stp_credential |>
 
 # -------------------------------------------------------------------------------------------------
 # ----------------------------- Make Credential Sup Vars Enrolment Table --------------------------------
-## reference: source("./sql/01-credential-analysis/credential-sup-vars-additional-gender-cleaning.R")
+## reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
 # qry01 to qry05
 latest_enrolment_epen <- stp_enrolment_valid |>
   filter(
