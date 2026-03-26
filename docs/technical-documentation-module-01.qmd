@@ -157,7 +157,7 @@ A multi-tiered classification logic is used to assign status codes (0–8) to ea
 
 Each student's "first" and "minimum" enrolment events are identified establishing markers used in downstream analysis.
 
-The main enrolment data is subset into a "valid" baseline contaiining only records with RecordStatus == 0; developmental, administrative, and out-of-province entries are discarded.  Only core identifiers and key temporal markers are retained.  The population is further partitioned into two cohorts, those with a unique `ENCRYPTED_TRUE_PEN` and those without.  For records lacking a PEN, the script utilizes the institutional composite key (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  Flags are created for the absolute first record in their history (`is_first_enrol`) and the first record within each distinct academic year (`is_min_enrol`) and integrated back into the `stp_enrolment_record_type` table (see data dictionary, below)
+The main enrolment data is subset into a "valid" baseline containing only records with RecordStatus == 0; developmental, administrative, and out-of-province entries are discarded.  Only core identifiers and key temporal markers are retained.  The population is further partitioned into two cohorts, those with a unique `ENCRYPTED_TRUE_PEN` and those without.  For records lacking a PEN, the script utilizes the institutional composite key (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  Flags are created for the absolute first record in their history (`is_first_enrol`) and the first record within each distinct academic year (`is_min_enrol`) and integrated back into the `stp_enrolment_record_type` table (see data dictionary, below)
 
 #### Data Dictionary
 
@@ -245,7 +245,7 @@ Records categorized as "Developmental," "Short Certificate," or "Other/None" are
 
 **Missing Gender Recovery**
 
-A hierarchical backfilling protocol resolves missing gender attributes using using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
+A hierarchical backfilling protocol resolves missing gender attributes using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
 
 **Birthdate Recovery**
 
@@ -313,7 +313,7 @@ Valid secondary "delayed" awards occurring after the primary achievement are det
 
 For students with qualifying secondary awards, the script selects the most recent occurrence to establish a final CREDENTIAL_AWARD_DATE. These values are integrated back into the main dataset ensuring that student records reflect either their original graduation date or their reconciled "delayed" exit point.
 
-**Research University Flag adn Outcomes Credential Standardization**
+**Research University Flag and Outcomes Credential Standardization**
 
 The final processing phase applies institutional and categorical identifiers to standardize records for sector-level reporting. A binary flag, RESEARCH_UNIVERSITY, is assigned to records originating from research-intensive institutions (SFU, UBC, UNBC, UVic, RRU). PSI_CREDENTIAL_CATEGORY is standardized to ensure collapses disparate institutional titles into consistent categories required for provincial performance metrics.
 
