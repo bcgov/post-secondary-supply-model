@@ -263,7 +263,8 @@ stp_enrolment_valid <- stp_enrolment |>
     PSI_CODE,
     PSI_MIN_START_DATE,
     PSI_SCHOOL_YEAR,
-    PSI_ENROLMENT_SEQUENCE
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_STUDENT_POSTAL_CODE_CURRENT
   ) |>
   inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
   filter(RecordStatus == 0) |>
