@@ -10,3 +10,6 @@ sql/Notebook-refactor-1.ipynb
 sql/test_refactor.r
 sql/test_refactor.sql
 R/02a-dacso-program-matching-test-id.R
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv
+.gitignore
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv
