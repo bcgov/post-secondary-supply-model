@@ -60,6 +60,8 @@ appso_data_final <- t_appso_data_final
 bgs_data_final <- t_bgs_data_final
 bgs_inst_recode <- t_bgs_inst_recode
 
+t_cohorts_recoded <- t_cohorts_recoded |> filter(FALSE)
+
 required_tables <- c(
   "trd_graduates",
   "trd_data",
@@ -129,14 +131,56 @@ if (regular_run == T | ptib_run == T) {
     )
 }
 
-if (qi_run == T) {
-  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights_QI)
-}
-
 
 # Refresh trd survey records in T_Cohorts_Recoded
-dbExecute(decimal_con, Q000_TRD_Q005_1b1_Delete_Cohort)
+
 dbExecute(decimal_con, Q000_TRD_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
+trd_data2 <-
+  trd_data |>
+  inner_join(
+    t_year_survey_year |>
+      filter(SURVEY == "TRD") |>
+      select(SURVEY_YEAR, SUBM_CD),
+    by = "SUBM_CD"
+  ) |>
+  transmute(
+    PEN = PEN,
+    STQU_ID = paste0("TRD - ", as.character(KEY)),
+    SURVEY = SURVEY,
+    SURVEY_YEAR = SURVEY_YEAR,
+    INST_CD = INST,
+    LCIP_CD = LCIP_CD,
+    LCP4_CD = LCIP_LCP4_CD,
+    TTRAIN = if_else(TTRAIN == 2, 1, as.numeric(TTRAIN)),
+    NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD),
+    AGE_AT_SURVEY = TRD_AGE_AT_SURVEY,
+    AGE_GROUP = AGE_GROUP,
+    AGE_GROUP_ROLLUP = AGE_GROUP_ROLLUP,
+    GRAD_STATUS = GRADSTAT_GROUP,
+    RESPONDENT = RESPONDENT,
+    NEW_LABOUR_SUPPLY = NEW_LABOUR_SUPPLY,
+    WEIGHT = WEIGHT,
+    PSSM_CREDENTIAL = PSSM_CREDENTIAL,
+    PSSM_CRED = paste0(GRADSTAT_GROUP, " - ", PSSM_CREDENTIAL),
+    LCIP4_CRED = paste(
+      GRADSTAT_GROUP,
+      LCIP_LCP4_CD,
+      if_else(TTRAIN == 2, "1", as.character(TTRAIN)),
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    LCIP2_CRED = paste(
+      GRADSTAT_GROUP,
+      substr(LCIP_LCP4_CD, 1, 2),
+      if_else(TTRAIN == 2, "1", as.character(TTRAIN)),
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
+  )
+
+trd_data2[setdiff(names(t_cohorts_recoded), names(trd_data2))] <- NA
+r_t <- t_cohorts_recoded |> rbind(trd_data2)
 
 # ---- APP Queries ----
 # Refresh survey records in T_Cohorts_Recoded
