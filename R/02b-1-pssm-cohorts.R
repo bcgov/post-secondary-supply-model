@@ -216,12 +216,12 @@ t_cohorts_recoded <- t_cohorts_recoded |> rbind(appso_data_final)
 dbExecute(decimal_con, BGS_Q001b_INST_Recode)
 
 t_bgs_data_final <- t_bgs_data_final |>
-  inner_join(
+  left_join(
     t_bgs_inst_recode,
     by = "INST"
   ) |>
   mutate(
-    INST = INST_RECODE
+    INST = coalesce(INST_RECODE, INST)
   ) |>
   select(-INST_RECODE)
 
