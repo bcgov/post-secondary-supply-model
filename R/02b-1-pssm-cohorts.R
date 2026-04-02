@@ -225,9 +225,7 @@ t_bgs_data_final <- t_bgs_data_final |>
   ) |>
   select(-INST_RECODE)
 
-
-# Note: update CIPS after program matching.
-dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
+# update cips after program matching
 t_bgs_data_final <- t_bgs_data_final |>
   inner_join(
     t_bgs_data_final_for_outcomesmatching |>
@@ -245,8 +243,6 @@ t_bgs_data_final <- t_bgs_data_final |>
     LCIP_LCIPPC_CD = FINAL_CIP_CLUSTER_CODE
   ) |>
   select(-FINAL_CIP_CODE_4, -FINAL_CIP_CODE_2, -FINAL_CIP_CLUSTER_CODE)
-
-dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
 
 t_bgs_data_final <- t_bgs_data_final |>
   mutate(
