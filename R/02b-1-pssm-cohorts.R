@@ -99,6 +99,34 @@ if (regular_run == T | ptib_run == T) {
     "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;"
   )
   dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
+
+  # Translation using native pipe and dplyr syntax
+  trd_data <- trd_data |>
+    select(-WEIGHT) |>
+    inner_join(
+      t_weights |>
+        filter(MODEL == "2022-2023", SURVEY == "TRD") |>
+        select(SUBM_CD, WEIGHT, WEIGHT_QI),
+      by = "SUBM_CD"
+    ) |>
+    left_join(
+      tbl_age,
+      by = c("TRD_AGE_AT_SURVEY" = "AGE")
+    ) |>
+    left_join(
+      tbl_age_groups |> select(AGE_GROUP, AGE_GROUP_ROLLUP),
+      by = "AGE_GROUP"
+    ) |>
+    mutate(
+      NEW_LABOUR_SUPPLY = case_when(
+        TRD_LABR_EMPLOYED == 1 ~ 1,
+        TRD_LABR_IN_LABOUR_MARKET == 1 & TRD_LABR_EMPLOYED == 0 ~ 1,
+        TRD_LABR_EMPLOYED == 0 ~ 0,
+        RESPONDENT == "1" ~ 0,
+        TRUE ~ 0
+      ),
+      WEIGHT = case_when(qi_run == T ~ WEIGHT_QI, TRUE ~ WEIGHT)
+    )
 }
 
 if (qi_run == T) {
