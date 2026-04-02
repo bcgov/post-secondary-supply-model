@@ -54,8 +54,6 @@ library(assertthat)
 
 # List of required tables with categories
 # these to be renamed in load scripts
-trd_graduates <- q000_trd_graduates
-trd_data <- q000_trd_data_01
 appso_data_final <- t_appso_data_final
 bgs_data_final <- t_bgs_data_final
 bgs_inst_recode <- t_bgs_inst_recode
@@ -192,7 +190,7 @@ appso_data_final <- appso_data_final |>
     INST_CD = INST,
     LCIP_CD = LCIP_CD,
     LCP4_CD = LCIP_LCP4_CD,
-    NOC_CD = if_else(NOC_CD == "xxxxx", "99999", NOC_CD),
+    NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD),
     AGE_AT_SURVEY = APP_AGE_AT_SURVEY,
     AGE_GROUP = AGE_GROUP,
     AGE_GROUP_ROLLUP = AGE_GROUP_ROLLUP,
@@ -207,16 +205,55 @@ appso_data_final <- appso_data_final |>
     CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
   )
 
-trd_data[setdiff(names(t_cohorts_recoded), names(appso_data_final))] <- NA
-t_cohorts_recoded <- t_cohorts_recoded |> plyr::rbind.fill(appso_data_final)
+appso_data_final[setdiff(
+  names(t_cohorts_recoded),
+  names(appso_data_final)
+)] <- NA
+t_cohorts_recoded <- t_cohorts_recoded |> rbind(appso_data_final)
 
 # ---- BGS Queries ----
 # Recode institution codes to be consistent to STP file
 dbExecute(decimal_con, BGS_Q001b_INST_Recode)
 
+t_bgs_data_final <- t_bgs_data_final |>
+  inner_join(
+    t_bgs_inst_recode,
+    by = "INST"
+  ) |>
+  mutate(
+    INST = INST_RECODE
+  ) |>
+  select(-INST_RECODE)
+
+
 # Note: update CIPS after program matching.
 dbExecute(decimal_con, BGS_Q001c_Update_CIPs_After_Program_Matching)
+t_bgs_data_final <- t_bgs_data_final |>
+  inner_join(
+    t_bgs_data_final_for_outcomesmatching |>
+      select(
+        STQU_ID,
+        FINAL_CIP_CODE_4,
+        FINAL_CIP_CODE_2,
+        FINAL_CIP_CLUSTER_CODE
+      ),
+    by = "STQU_ID"
+  ) |>
+  mutate(
+    CIP_CODE_4 = FINAL_CIP_CODE_4,
+    CIP_CODE_2 = FINAL_CIP_CODE_2,
+    LCIP_LCIPPC_CD = FINAL_CIP_CLUSTER_CODE
+  ) |>
+  select(-FINAL_CIP_CODE_4, -FINAL_CIP_CODE_2, -FINAL_CIP_CLUSTER_CODE)
+
 dbExecute(decimal_con, BGS_Q002_LCP4_CRED)
+
+t_bgs_data_final <- t_bgs_data_final |>
+  mutate(
+    LCIP4_CRED = paste0(CIP_CODE_4, " - ", "BACH"),
+    PSSM_CREDENTIAL = "BACH"
+  )
+
 
 # Applies weight for model year and derives New Labour Supply
 if (regular_run == T | ptib_run == T) {
