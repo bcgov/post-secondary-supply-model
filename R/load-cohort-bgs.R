@@ -14,44 +14,29 @@
 # Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 #
 # The following data set is read from SQL server database:
-#   BGS_Data_Update: unique survey responses for each person/survey year (for years since last model run)
+#   bgs_data_update: unique survey responses for each person/survey year (for years since last model run)
 #
 # The following data sets are read into SQL server from the LAN:
 #   T_BGS_Data: unique survey responses for each person/survey year (last model run)
 #   T_weights: carried forward from last models run and updated with new data.  Waiting for confirmation
 #   T_BGS_INST_Re-code: look-up used to re-code several institution codes
 #
-# Notes: T_BGS_Data +  BGS_Data_Update contain the full set of survey responses used.
+# Notes: T_BGS_Data +  bgs_data_update contain the full set of survey responses used.
 # T_BGS_Data_Final_2017.csv used for 2019 model run, T_BGS_Data_Final.csv for 2023 model run (rollover)
 # Some changes to variable names were done for consistency and will be needed when using 2023 BGS_Data_Final
 # use query BGS_Q001_BGS_Data_2019_2023 for 2023 model run but note overlapping years (2019)
 
 library(tidyverse)
-library(RODBC)
 library(config)
-library(DBI)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-# source("./sql/02b-pssm-cohorts/bgs-data.sql")
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-# should specify the DBO schema for final run, individual IDIRS for testing
-schema <- config::get("myschema")
 
 # ---- Read LAN Data ----
 # Lookups
-T_weights <-
+t_weights <-
   readr::read_csv(
-    glue::glue("{lan}/development/csv/gh-source/lookups/02/t_weights.csv"),
+    glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Weights.csv"),
     col_types = cols(
       Group = "d",
       Weight = "d",
@@ -61,7 +46,7 @@ T_weights <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-tmp_BGS_INST_REGION_CDS <-
+tmp_bgs_inst_cds <-
   readr::read_csv(
     glue::glue(
       "{lan}/development/csv/gh-source/lookups/02/tmp_BGS_INST_REGION_CDS.csv"
@@ -70,7 +55,7 @@ tmp_BGS_INST_REGION_CDS <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-T_BGS_INST_Recode <-
+t_bgs_inst_recode <-
   readr::read_csv(
     glue::glue(
       "{lan}/development/csv/gh-source/lookups/02/T_BGS_INST_Recode.csv"
@@ -81,11 +66,11 @@ T_BGS_INST_Recode <-
 
 # ---- Read Outcomes Data ----
 if (regular_run == T | ptib_run == T) {
-  BGS_Data_Update <- read_csv(glue::glue(
+  bgs_data_update <- read_csv(glue::glue(
     "{lan}/data/student-outcomes/csv/so-provision/BGS_Q001_BGS_Data_2019_2023.csv"
   ))
 
-  BGS_Data_Update <- BGS_Data_Update %>%
+  bgs_data_update <- bgs_data_update %>%
     rename(
       "FULL_TM_WRK" = FULL_TM,
       "FULL_TM_SCHOOL" = D03_STUDYING_FT,
@@ -99,7 +84,7 @@ if (regular_run == T | ptib_run == T) {
     mutate(OLD_LABOUR_SUPPLY = NA) %>% # I don't think we use this?
     select(-c(D02_R1_CURRENTLY_STUDYING, SUBM_CD)) # nor these?
 
-  BGS_Data_Update <- BGS_Data_Update %>%
+  bgs_data_update <- bgs_data_update %>%
     mutate(
       CURRENT_REGION_PSSM_CODE = case_when(
         REGION_CD %in% 1:8 ~ REGION_CD,
@@ -111,8 +96,8 @@ if (regular_run == T | ptib_run == T) {
       )
     )
 
-  BGS_Data_Update <- BGS_Data_Update %>%
-    inner_join(tmp_BGS_INST_REGION_CDS, by = join_by(INST)) %>%
+  bgs_data_update <- bgs_data_update %>%
+    inner_join(tmp_bgs_inst_cds, by = join_by(INST)) %>%
     mutate(
       CURRENT_REGION_PSSM_CODE = if_else(
         (CURRENT_REGION_PSSM_CODE == -1 | is.na(CURRENT_REGION_PSSM_CODE)) &
@@ -123,33 +108,9 @@ if (regular_run == T | ptib_run == T) {
     )
 
   # ---- Make T_BGS_Data_Final ----
-  T_BGS_Data_Final <- BGS_Data_Update %>%
+  t_bgs_data_final <- bgs_data_update %>%
     select(-c(CUR_RES, REGION_CD, CURRENT_REGION))
 }
 
-
-# ---- Write to decimal----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."T_Weights"')),
-  value = T_weights,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."T_BGS_INST_Recode"')),
-  value = T_BGS_INST_Recode,
-  overwrite = TRUE
-)
-
-if (regular_run == T | ptib_run == T) {
-  dbWriteTable(
-    decimal_con,
-    name = SQL(glue::glue('"{my_schema}"."T_BGS_Data_Final"')),
-    value = T_BGS_Data_Final,
-    overwrite = TRUE
-  )
-}
-
 # ---- Clean Up ----
-dbDisconnect(decimal_con)
+rm(bgs_data_update, tmp_bgs_inst_cds)

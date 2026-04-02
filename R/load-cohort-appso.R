@@ -14,44 +14,33 @@
 # final year of their apprenticeship technical training within the first year of graduation.
 #
 # The following data is read from SQL server database:
-#   T_APPSO_DATA_Final: unique survey responses for each person/survey year  (a few duplicates)
+#   t_appso_data_final: unique survey responses for each person/survey year  (a few duplicates)
 #   APPSO_Graduates: a count of graduates by credential type, age and survey year
+
 library(tidyverse)
-library(RODBC)
 library(config)
 library(glue)
-library(DBI)
+
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
-my_schema <- config::get("myschema")
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
 
 # ---- Read outcomes data ----
 # source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
-T_APPSO_DATA_Final <- read_csv(glue::glue(
+t_appso_data_final <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/APPSO_DATA_01_Final.csv"
 ))
-APPSO_Graduates_dat <- read_csv(glue::glue(
+appso_graduates <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/APPSO_Graduates.csv"
 ))
 
 # Convert some variables that should be numeric
-T_APPSO_DATA_Final <- T_APPSO_DATA_Final %>%
+t_appso_data_final <- t_appso_data_final %>%
   mutate(TTRAIN = as.numeric(TTRAIN))
 
 # Make sure this is updated to only the last 6 years of data
-T_APPSO_DATA_Final <-
-  T_APPSO_DATA_Final %>%
+t_appso_data_final <-
+  t_appso_data_final %>%
   mutate(
     CURRENT_REGION_PSSM_CODE = case_when(
       CURRENT_REGION1 %in% 1:8 ~ CURRENT_REGION1,
@@ -102,8 +91,8 @@ T_APPSO_DATA_Final <-
 # Replace the weights in the appropriate area in the code (~lines 71-77):
 
 if (regular_run == TRUE | ptib_run == T) {
-  T_APPSO_DATA_Final <-
-    T_APPSO_DATA_Final %>%
+  t_appso_data_final <-
+    t_appso_data_final %>%
     mutate(
       WEIGHT = case_when(
         SUBM_CD == 'C_Outc19' ~ 1,
@@ -119,8 +108,8 @@ if (regular_run == TRUE | ptib_run == T) {
 if (qi_run == TRUE) {
   # check that these years are correct
   # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
-  T_APPSO_DATA_Final <-
-    T_APPSO_DATA_Final %>%
+  t_appso_data_final <-
+    t_appso_data_final %>%
     mutate(
       WEIGHT = case_when(
         SUBM_CD == 'C_Outc19' ~ 2,
@@ -134,7 +123,7 @@ if (qi_run == TRUE) {
 }
 
 # prepare graduate dataset
-APPSO_Graduates_dat %>%
+appso_graduates %>%
   mutate(
     AGE_GROUP = case_when(
       APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
@@ -148,23 +137,4 @@ APPSO_Graduates_dat %>%
       APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
       TRUE ~ NA
     )
-  ) -> APPSO_Graduates_dat
-
-
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."T_APPSO_DATA_Final"')),
-  value = T_APPSO_DATA_Final,
-  overwrite = TRUE
-)
-
-
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."APPSO_Graduates"')),
-  value = APPSO_Graduates_dat,
-  overwrite = TRUE
-)
-
-
-dbDisconnect(decimal_con)
+  ) -> appso_graduates

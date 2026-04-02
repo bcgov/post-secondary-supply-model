@@ -14,45 +14,31 @@
 # a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
 #
 # The following data sets are read into SQL server from the student outcomes survey database:
-#   Q000_TRD_DATA_01: unique survey responses for each person/survey year (a few duplicates)
-#   Q000_TRD_Graduates: a count of graduates by credential type, age and survey year
+#   q000_trd_data_01: unique survey responses for each person/survey year (a few duplicates)
+#   q000_trd_graduates: a count of graduates by credential type, age and survey year
 #
 # Notes: Age group labels are assigned.  Note there are two different groupings used to group students by age in the model.
 
 library(tidyverse)
-library(RODBC)
 library(config)
 library(glue)
-library(DBI)
+
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
 
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-# should specify the DBO schema for final run, individual IDIRS for testing
-schema <- config::get("myschema")
+# ---- Read LAN data ----
 
-# ---- Read raw data and disconnect ----
-#source(glue::glue("./sql/02b-pssm-cohorts/trd-data.sql"))
-
-Q000_TRD_DATA_01 <- read_csv(glue::glue(
+q000_trd_data_01 <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/Q000_TRD_DATA_01.csv"
 ))
 
-Q000_TRD_Graduates <- read_csv(glue::glue(
+q000_trd_graduates <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/Q000_TRD_Graduates.csv"
 ))
 
 # Convert some variables that should be numeric
-Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
+q000_trd_data_01 <- q000_trd_data_01 %>%
   mutate(
     GRADSTAT = as.numeric(GRADSTAT),
     KEY = as.numeric(KEY),
@@ -60,7 +46,7 @@ Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
   )
 
 # Gradstat group : couldn't find in outcomes data so defining here.
-Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
+q000_trd_data_01 <- q000_trd_data_01 %>%
   mutate(
     LCIP4_CRED = paste0(
       GRADSTAT_GROUP,
@@ -73,8 +59,8 @@ Q000_TRD_DATA_01 <- Q000_TRD_DATA_01 %>%
     )
   )
 
-Q000_TRD_DATA_01 <-
-  Q000_TRD_DATA_01 %>%
+q000_trd_data_01 <-
+  q000_trd_data_01 %>%
   mutate(
     CURRENT_REGION_PSSM_CODE = case_when(
       CURRENT_REGION1 %in% 1:8 ~ CURRENT_REGION1,
@@ -86,9 +72,8 @@ Q000_TRD_DATA_01 <-
     )
   )
 
-
 # prepare graduate dataset
-Q000_TRD_Graduates %>%
+q000_trd_graduates <- q000_trd_graduates %>%
   mutate(
     AGE_GROUP_LABEL = case_when(
       TRD_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
@@ -102,20 +87,4 @@ Q000_TRD_Graduates %>%
       TRD_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
       TRUE ~ NA
     )
-  ) -> Q000_TRD_Graduates
-
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."T_TRD_DATA"')),
-  value = Q000_TRD_DATA_01,
-  overwrite = TRUE
-)
-
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."TRD_Graduates"')),
-  value = Q000_TRD_Graduates,
-  overwrite = TRUE
-)
-
-dbDisconnect(decimal_con)
+  )
