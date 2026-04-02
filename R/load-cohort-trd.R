@@ -59,7 +59,7 @@ q000_trd_data_01 <- q000_trd_data_01 %>%
     )
   )
 
-q000_trd_data_01 <-
+trd_data <-
   q000_trd_data_01 %>%
   mutate(
     CURRENT_REGION_PSSM_CODE = case_when(
@@ -73,7 +73,7 @@ q000_trd_data_01 <-
   )
 
 # prepare graduate dataset
-q000_trd_graduates <- q000_trd_graduates %>%
+trd_graduates <- q000_trd_graduates %>%
   mutate(
     AGE_GROUP_LABEL = case_when(
       TRD_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
