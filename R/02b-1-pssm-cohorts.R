@@ -95,14 +95,6 @@ if (length(missing) > 0) {
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
 if (regular_run == T | ptib_run == T) {
-  dbExecute(decimal_con, "ALTER TABLE t_TRD_data ADD Age_Group FLOAT NULL;")
-  dbExecute(
-    decimal_con,
-    "ALTER TABLE t_TRD_data ADD Age_Group_Rollup FLOAT NULL;"
-  )
-  dbExecute(decimal_con, Q000_TRD_Q003c_Derived_And_Weights)
-
-  # Translation using native pipe and dplyr syntax
   trd_data <- trd_data |>
     select(-WEIGHT) |>
     inner_join(
@@ -131,11 +123,7 @@ if (regular_run == T | ptib_run == T) {
     )
 }
 
-
-# Refresh trd survey records in T_Cohorts_Recoded
-
-dbExecute(decimal_con, Q000_TRD_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
-trd_data2 <-
+trd_data <-
   trd_data |>
   inner_join(
     t_year_survey_year |>
@@ -179,13 +167,48 @@ trd_data2 <-
     CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
   )
 
-trd_data2[setdiff(names(t_cohorts_recoded), names(trd_data2))] <- NA
-r_t <- t_cohorts_recoded |> rbind(trd_data2)
+trd_data[setdiff(names(t_cohorts_recoded), names(trd_data))] <- NA
+t_cohorts_recoded <- t_cohorts_recoded |> rbind(trd_data)
 
 # ---- APP Queries ----
-# Refresh survey records in T_Cohorts_Recoded
-dbExecute(decimal_con, APPSO_Q005_1b1_Delete_Cohort)
-dbExecute(decimal_con, APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
+# Process APPSO data into the cohorts recoded table
+appso_data_final <- appso_data_final |>
+  select(-AGE_GROUP, -AGE_GROUP_LABEL) |>
+  inner_join(
+    t_year_survey_year |>
+      filter(SURVEY == "APPSO") |>
+      select(SURVEY_YEAR, SUBM_CD),
+    by = "SUBM_CD"
+  ) |>
+  left_join(
+    tbl_age |> inner_join(tbl_age_groups, by = "AGE_GROUP"),
+    by = c("APP_AGE_AT_SURVEY" = "AGE")
+  ) |>
+  transmute(
+    PEN = PEN,
+    STQU_ID = paste0("APPSO - ", as.character(as.integer(KEY))),
+    SURVEY = SURVEY,
+    SURVEY_YEAR = SURVEY_YEAR,
+    INST_CD = INST,
+    LCIP_CD = LCIP_CD,
+    LCP4_CD = LCIP_LCP4_CD,
+    NOC_CD = if_else(NOC_CD == "xxxxx", "99999", NOC_CD),
+    AGE_AT_SURVEY = APP_AGE_AT_SURVEY,
+    AGE_GROUP = AGE_GROUP,
+    AGE_GROUP_ROLLUP = AGE_GROUP_ROLLUP,
+    GRAD_STATUS = "1",
+    RESPONDENT = RESPONDENT,
+    NEW_LABOUR_SUPPLY = NEW_LABOUR_SUPPLY,
+    WEIGHT = WEIGHT,
+    PSSM_CREDENTIAL = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CREDENTIAL, # In your SQL, this was mapped to pssm_credential
+    LCIP4_CRED = LCIP4_CRED,
+    LCIP2_CRED = paste0(substr(LCIP_LCP4_CD, 1, 2), " - ", PSSM_CREDENTIAL),
+    CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
+  )
+
+trd_data[setdiff(names(t_cohorts_recoded), names(appso_data_final))] <- NA
+t_cohorts_recoded <- t_cohorts_recoded |> plyr::rbind.fill(appso_data_final)
 
 # ---- BGS Queries ----
 # Recode institution codes to be consistent to STP file
@@ -245,12 +268,3 @@ dbExistsTable(decimal_con, "t_dacso_data_part_1")
 dbExistsTable(decimal_con, "T_Cohorts_Recoded")
 
 # ---- Clean Up Lookups (if desired, not a needed step) ----
-# dbExecute(decimal_con, "DROP TABLE T_BGS_INST_Recode;")
-# dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-# dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
-# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
-# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
-# dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
-
-dbDisconnect(decimal_con)
-# rm(list=ls())
