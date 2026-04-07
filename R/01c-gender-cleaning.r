@@ -1,7 +1,19 @@
-# create backup of credential_supvars as this is the only table that gets altered
-# consider creating a seperate table and returning for update
+# Copyright 2024 Province of British Columbia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
 
-credential_supvars.bk -> credential_supvars
+# credential_supvars is the only table in the global environment that gets altered by this script.
+# toggle to create a convenience backup (development only)
+# credential_supvars.bk <- credential_supvars
 
 credential_supvars_gender <- credential_supvars_enrolment |>
   distinct(
@@ -112,7 +124,7 @@ credential_supvars <- credential_supvars |> distinct()
 # ---------------------------------------------------------------------------------------------------------
 # NULLS (section needs to be rewritten)
 #   - Identify records where the cleaned gender is missing in credential_supvars
-#   - Search enrolment data to find any recorded gender values based on PSI_STUDENT_NUMBER and PSI_CODE
+#   - Search stp enrolment data to find any recorded gender values based on PSI_STUDENT_NUMBER and PSI_CODE
 #   - Multiple resolved genders
 #   -   - Identify cases with multiple conflicting genders for the same student/ID
 #   -   - Resolve conflicts by selecting the "top" gender in the most recent year from credential_supvars_enrolment
@@ -120,10 +132,12 @@ credential_supvars <- credential_supvars |> distinct()
 # ---------------------------------------------------------------------------------------------------------
 
 # qry03f_24 & 25
+# create a list of records still missing a gender
 credential_supvars_missing <- credential_supvars |>
   filter(is.na(psi_gender_cleaned)) |>
   select(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, psi_gender_cleaned)
 
+# search stp_enrolment for records that can be used to backfill in the missing genders
 credential_supvars_missing_recovered <- credential_supvars_missing |>
   inner_join(
     stp_enrolment |> select(PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER),
@@ -133,11 +147,13 @@ credential_supvars_missing_recovered <- credential_supvars_missing |>
   distinct()
 
 # qry03f_26 & 27
+# isolate records associated with multiple genders per student
 missing_recovered_multis <- credential_supvars_missing_recovered |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
   summarise(GenderCount = n_distinct(PSI_GENDER), .groups = "drop") |>
   filter(GenderCount > 1)
 
+# select (resolve) one gender per student for the multi-gender records
 missing_recovered_multis_distinct <- missing_recovered_multis |>
   select(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
   inner_join(
@@ -167,6 +183,7 @@ missing_recovered_multis_distinct <- missing_recovered_multis |>
 
 
 # qry03f_28, 32, 33, & 34
+# assign the resolved gender to the multi-gender records
 credential_supvars_missing_recovered <- credential_supvars_missing_recovered |>
   left_join(
     missing_recovered_multis_distinct |>
@@ -200,6 +217,7 @@ credential_supvars_missing_recovered <- credential_supvars_missing_recovered |>
 
 
 # qry03f_35
+# backfill missing genders in credential_supvars
 credential_supvars <- credential_supvars |>
   left_join(
     credential_supvars_missing_recovered |>
