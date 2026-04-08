@@ -213,8 +213,6 @@ t_cohorts_recoded <- t_cohorts_recoded |> rbind(appso_data_final)
 
 # ---- BGS Queries ----
 # Recode institution codes to be consistent to STP file
-dbExecute(decimal_con, BGS_Q001b_INST_Recode)
-
 t_bgs_data_final <- t_bgs_data_final |>
   left_join(
     t_bgs_inst_recode,
