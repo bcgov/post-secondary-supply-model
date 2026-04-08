@@ -250,23 +250,76 @@ t_bgs_data_final <- t_bgs_data_final |>
     PSSM_CREDENTIAL = "BACH"
   )
 
-## GOT TO HERE
+
 # Applies weight for model year and derives New Labour Supply
-if (regular_run == T | ptib_run == T) {
-  dbExecute(
-    decimal_con,
-    "ALTER TABLE T_BGS_Data_Final ADD BGS_New_Labour_Supply FLOAT NULL;"
+target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
+
+t_bgs_data_final <- t_bgs_data_final |>
+  select(-WEIGHT, -AGE_GROUP, -AGE_GROUP_ROLLUP) |>
+  inner_join(
+    t_weights |>
+      filter(MODEL == "2022-2023", SURVEY == "BGS") |>
+      mutate(SURVEY_YEAR = as.double(SURVEY_YEAR)) |>
+      select(SURVEY_YEAR, WEIGHT = any_of(target_weight)),
+    by = "SURVEY_YEAR"
+  ) |>
+  left_join(
+    tbl_age,
+    by = "AGE"
+  ) |>
+  left_join(
+    tbl_age_groups |> select(-AGE_GROUP_LABEL),
+    by = "AGE_GROUP"
+  ) |>
+  mutate(
+    BGS_NEW_LABOUR_SUPPLY = case_when(
+      CURRENT_ACTIVITY == 1 ~ 1,
+      CURRENT_ACTIVITY == 4 & FULL_TM_WRK == 1 ~ 1,
+      CURRENT_ACTIVITY == 4 & FULL_TM_WRK == 0 ~ 2,
+      CURRENT_ACTIVITY == 3 & IN_LBR_FRC == 1 ~ 1,
+      is.na(CURRENT_ACTIVITY) & is.na(FULL_TM_WRK) & IN_LBR_FRC == 1 ~ 1,
+      is.na(CURRENT_ACTIVITY) & IN_LBR_FRC == 1 ~ 1,
+      SRV_Y_N == 0 ~ 0,
+      TRUE ~ 0
+    )
   )
-  dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights)
-}
-if (qi_run == T) {
-  dbExecute(decimal_con, BGS_Q003c_Derived_And_Weights_QI)
-}
-
 # Refresh bgs survey records in T_Cohorts_Recoded
-dbExecute(decimal_con, BGS_Q005_1b1_Delete_Cohort)
-dbExecute(decimal_con, BGS_Q005_1b2_Cohort_Recoded)
+bgs_update <- t_bgs_data_final |>
+  transmute(
+    PEN = PEN,
+    STQU_ID = paste0("BGS - ", as.character(as.integer(STQU_ID))),
+    SURVEY = "BGS",
+    SURVEY_YEAR = SURVEY_YEAR,
+    INST_CD = INST,
+    LCP4_CD = CIP_CODE_4,
+    NOC_CD = if_else(NOC == "XXXXX", "99999", NOC),
+    AGE_AT_SURVEY = AGE,
+    AGE_GROUP = AGE_GROUP,
+    AGE_GROUP_ROLLUP = AGE_GROUP_ROLLUP,
+    GRAD_STATUS = "1",
+    RESPONDENT = SRV_Y_N,
+    NEW_LABOUR_SUPPLY = BGS_NEW_LABOUR_SUPPLY,
+    OLD_LABOUR_SUPPLY = OLD_LABOUR_SUPPLY,
+    WEIGHT = WEIGHT,
+    PSSM_CREDENTIAL = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CREDENTIAL,
+    LCIP4_CRED = LCIP4_CRED,
+    LCIP2_CRED = paste0(substr(CIP_CODE_4, 1, 2), " - ", "BACH"),
+    CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
+  )
 
+bgs_update[setdiff(
+  names(t_cohorts_recoded),
+  names(bgs_update)
+)] <- NA
+
+t_cohorts_recoded <-
+  t_cohorts_recoded |>
+  filter(SURVEY != "BGS")
+
+t_cohorts_recoded <- t_cohorts_recoded |> rbind(bgs_update)
+
+## GOT TO HERE
 # ----DACSO Queries ----
 # adds age, updates credential, creates new LCIP4_CRED variable
 dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
