@@ -10,62 +10,54 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ==============================================================================
-# BGS program matching and CIP alignment
+# WHAT: This script performs program matching between BGS survey outcomes and STP credential data.
+# We need to match Baccalaureate Graduate Survey (BGS) data from the Student Outcomes team, to Student Transitions Project (STP) Credential data. The two sources have many differences in the program names submitted, which results in differences in the Classification of Instructional Programs (CIP) codes used in the modelling. There are no College Program Codes (CPCs) in BGS data like there are in the Diploma, Associate Degree and Certificate Survey (DACSO) data so instead we have to do case level matching to determine what the CIP code differences are between STP and BGS data, and decide which CIP to use. In general, we keep the STP CIP [SY1.1]if we are not able match at the case-level to compare.
+# WHY: BGS survey data uses INFOWARE CIP codes while STP uses different CIP classifications.
+#      We need to align these codes to enable accurate supply modeling across data sources.
+# HOW: 1) Build combined outcomes data from INFOWARE tables
+#      2) Create normalized STP CIP codes (4D and 2D) from credential data
+#      3) Match records by PEN (Personal Education Number)
+#      4) Apply flagging logic for high-confidence matches
+#      5) Update source tables with matched CIP codes
+# The general rules for CIP coding the BGS data are:[SY2.1]
+# •	If records matched on PEN, institution, award year, and CIP 4-digit, then we used the BGS CIP (which is the same as the STP CIP). No CIP change required.
+# •	If records matched on PEN, institution, award year, CIP 2-digit (but had a different CIP 4-digit), then historically would used the STP CIP. In 2023, some new criteria were added as work has been done to improve the BGS CIPs:
+#    o	If the BGS CIP is in a “general program” (the 4-digit CIP category is the 2-digit CIP category followed by “general”) – then use the STP CIP
+#    o	If the STP CIP is in a “general program” – then use the BGS CIP
+#    o	Then using the 4-digit matches, if one of the 2-digit program matches can be linked to the 4-digit matches on STP institution, program, and CIP – then use the STP CIP
+#    o	If on of the 2-digit program matches can be linked to the 4-digit matches on BGS institution, program and CIP – then use the BGS CIP
+#    o	Some additional custom CIP choices were made
+#    o	The remaining were mostly double majors – used STP CIP for these
+# •	If records matched on PEN, institution, and award year only, but had a different CIP 4-digit and 2-digit, then we manually investigated at the case level and decided if it was really a match, and if so whether the BGS or the STP CIP was the most appropriate to use.
+# •	For the remaining unmatched records, use the STP CIP in the Credential data and the BGS CIP in the BGS data. This is where there will still be differences between BGS data and STP.
+
+# ******************************************************************************
+# Aligns CIP codes between BGS survey and STP data
+# Required Tables
+#   INFOWARE_BGS_DIST_19_23 - BGS outcomes 2019-2023
+#   INFOWARE_BGS_DIST_18_22 - BGS outcomes 2018-2022
+#   INFOWARE_BGS_COHORT_INFO - Cohort metadata for matching
+#   INFOWARE_L_CIP_6DIGITS_CIP2016 - 6-digit CIP lookup
+#   INFOWARE_L_CIP_4DIGITS_CIP2016 - 4-digit CIP lookup
+#   INFOWARE_L_CIP_2DIGITS_CIP2016 - 2-digit CIP lookup
+#   Credential_non_Dup - STP credential data with CIP codes
+#   STP_Credential - for PSI_PEN (institution identifier)
+# Resulting Tables
+#   T_BGS_Data_Final_for_OutcomesMatching - Combined BGS outcomes data
+#   Credential_Non_Dup_BGS_IDs - BGS credentials with matched CIPs
+#   Credential_Non_Dup_GRAD_IDs - GRAD credentials with matched CIPs
 #
-# Purpose:
-# Align program CIP codes between Baccalaureate Graduate Survey (BGS) outcomes
-# data and Student Transitions Project (STP) credential data.
-#
-# Why this script exists:
-# BGS and STP often describe the same program differently and may assign different
-# CIP codes. This script compares records at the student level and applies
-# business rules to decide whether the final CIP should come from BGS or STP.
-#
-# High-level workflow:
-# 1. Build the BGS outcomes table used for matching.
-# 2. Standardize STP CIP codes to 4-digit and 2-digit forms.
-# 3. Match BGS and STP records by PEN.
-# 4. Apply automatic match rules for high-confidence cases.
-# 5. Apply program-level decision rules for 2-digit matches.
-# 6. Export borderline cases for manual review.
-# 7. Update the STP credential table with final CIP values.
-# 8. Update the BGS outcomes table with final CIP values.
-#
-# Key business rule:
-# When BGS and STP can be confidently linked, use the source judged to have the
-# most appropriate CIP for that program. When no confident match is available,
-# keep the source-specific CIP and flag that no direct match was found.
-#
-# Main outputs:
-# - T_BGS_Data_Final_for_OutcomesMatching
-# - Credential_Non_Dup_BGS_IDs
-# - Credential_Non_Dup_GRAD_IDs
-# - BGS_Matching_STP_Credential_PEN
-#
-# Important:
-# This script contains both automated matching and a manual review workflow.
-# Read the comments in Part 3C before rerunning the manual review section.
-# ==============================================================================
+# WHAT: This script performs program matching between BGS survey outcomes and STP credential data.
+# WHY: BGS survey data uses INFOWARE CIP codes while STP uses different CIP classifications.
+#      We need to align these codes to enable accurate supply modeling across data sources.
+# HOW: 1) Build combined outcomes data from INFOWARE tables
+#      2) Create normalized STP CIP codes (4D and 2D) from credential data
+#      3) Match records by PEN (Personal Education Number)
+#      4) Apply flagging logic for high-confidence matches
+#      5) Update source tables with matched CIP codes
 #
 
 ############################################################################
-# ------------------------------------------------------------------------------
-# Setup: connections and required lookup tables
-#
-# Purpose:
-# Connect to the working database and confirm that all lookup and source tables
-# needed by this script are available.
-#
-# Notes:
-# - Oracle connection code is kept below as a one-time setup reference for
-#   loading INFOWARE tables into Decimal.
-# - In normal use, this script expects those tables to already exist in the
-#   target schema.
-# - If required tables are missing, stop early rather than failing later in the
-#   matching process.
-# ------------------------------------------------------------------------------
-
 # oracle connection instruction
 # Follow this solution: [\[oracle.com\]](https://www.oracle.com/database/technologies/releasenote-odbc-ic.html), [\[oracle.com\]](https://www.oracle.com/database/technologies/instant-client/winx64-64-downloads.html)
 
@@ -297,30 +289,19 @@ infoware_cohort_info %>%
   tally()
 # YES
 
-# ------------------------------------------------------------------------------
-# Part 1: Build BGS outcomes data used for matching
+## Part 1: Build Outcomes Data ----
+## Created tables: T_BGS_Data_Final_for_OutcomesMatching
+
+# BGS data: Build T_DATA_FINAL_for_OutcomesMatching table with past 6 years
+## ** IMPORTANT - update queries with table years **
 #
-# Purpose:
-# Create one combined BGS outcomes table covering the years used in the current
-# matching cycle.
-#
-# Why this step exists:
-# The BGS outcomes data is split across multiple INFOWARE delivery tables.
-# We need one consistent table with common field names before matching to STP.
-#
-# Inputs:
-# - INFOWARE_BGS_DIST_19_23
-# - INFOWARE_BGS_DIST_18_22
-# - INFOWARE_BGS_COHORT_INFO
-#
-# Output:
-# - T_BGS_Data_Final_for_OutcomesMatching
-#
-# Notes:
-# - The current script takes all years from the 2019–2023 table and only 2018
-#   from the 2018–2022 table.
-# - STQU_ID is the safest row-level key for later updates in this table.
-# ------------------------------------------------------------------------------
+# WHAT: Combines BGS outcomes data from two time periods (2019-2023 and 2018-2022) into a unified table.
+# WHY: Data is split across two INFOWARE tables with different year ranges. We need to union them
+#      and standardize column names for downstream matching logic.
+# HOW: 1) Inner join each outcomes table with cohort info to get institution metadata
+#      2) Select common columns including PEN, institution codes, CIP codes, and program info
+#      3) Union the two datasets and add PSSM_CREDENTIAL identifier
+#      4) Materialize as persistent table for subsequent steps
 
 # Step 1: 2020 Outcomes (from 19_23 table)
 t_bgs_step1 <- infoware_bgs_19_23 %>%
@@ -512,30 +493,18 @@ t_bgs_final <- tbl(
   rm(chk_bgs_cip)
 }
 
-# ------------------------------------------------------------------------------
-# Part 2: Standardize STP CIP codes to match BGS structure
+# ---- Part 2: Create Credential (STP) 4D and 2D CIP Codes ----
+# Created tables: Credential_Non_Dup_BGS_IDs, Credential_Non_Dup_GRAD_IDs
 #
-# Purpose:
-# Convert STP credential CIPs into comparable 4-digit and 2-digit CIP codes so
-# they can be matched to BGS records.
+# WHAT: Normalizes CIP codes from STP credential data into 4-digit and 2-digit formats matching BGS structure.
+# WHY: STP credentials use 6-digit CIP codes with periods (e.g., "51.0204") while BGS uses 4-digit
+#      codes without periods (e.g., "5102"). We need consistent formats for matching.
+# HOW: 1) Extract BGS/GRAD credentials and clean CIP strings (fix leading/trailing zeros)
+#      2) Join to CIP lookup tables to derive 4D and 2D codes from 6-digit codes
+#      3) Apply fallback logic: 5-char match, then 2-char match, then general program defaults
+#      4) Join to CIP name tables for human-readable descriptions
+#      5) Create separate ID tables for BGS (needs PEN matching) and GRAD (direct finalize)
 #
-# Why this step exists:
-# STP stores CIP values in 6-digit form with periods, while BGS matching is
-# done mainly at the 4-digit and 2-digit level. We need a consistent structure
-# before comparing the two sources.
-#
-# Output tables:
-# - Credential_Non_Dup_STP_CIP4_Cleaning
-# - Credential_Non_Dup_BGS_IDs
-# - Credential_Non_Dup_GRAD_IDs
-#
-# Key rules:
-# - First try an exact 6-digit lookup.
-# - If that fails, try partial matching using the first 5 characters.
-# - For selected "general program" CIPs, default the 4-digit code to the
-#   corresponding general 01 category.
-# - Derive 2-digit CIPs and descriptive labels from the official lookup tables.
-# ------------------------------------------------------------------------------
 
 # 1. Create cleaning table (collect STP BGS/GRAD data)
 stp_cip_cleaning <- credential_non_dup_tbl |>
@@ -881,10 +850,7 @@ credential_bgs_ids |>
 # GRAD credentials are finalized immediately with STP CIP codes as the final CIP.
 # No further matching to survey outcomes is needed (no BGS survey data exists for GRAD).
 # These records bypass the matching logic and proceed directly to supply modeling.
-
-# TODO [LOW]:
-# Confirm whether this table is used by downstream supply modelling.
-
+# ?never get used?
 credential_grad_ids <- stp_cip_ids %>%
   filter(OUTCOMES_CRED == "GRAD") %>%
   select(
@@ -983,30 +949,23 @@ credential_grad_ids |> tally() # verify count matches expected from documentatio
   rm(chk)
 }
 
-# ------------------------------------------------------------------------------
-# Part 3: Match BGS survey outcomes to STP credentials
-#
-# Purpose:
-# Link BGS survey records to STP credential records and decide whether the final
-# CIP should come from BGS or STP.
-#
-# Why this step exists:
-# BGS and STP may refer to the same graduate and program but assign different
-# CIP codes. This part of the script applies the matching rules that determine
-# which source should be trusted for each linked case.
-#
-# Main stages:
-# - Part 3A: Create the case-level crosswalk using PEN.
-# - Part 3B: Auto-resolve exact and near-exact matches using rules.
-# - Part 3C: Export remaining borderline matches for manual review.
-# - Part 3D: Fill in final names and cluster values after the CIP choice is made.
-#
-# Important:
-# The PEN join is expected to be many-to-many. A student may have more than one
-# credential or more than one survey-related record across the matching period.
-# Do not assume PEN, ID, or STQU_ID is unique in the crosswalk table unless a
-# specific validation step confirms the correct key for that update.
-# ------------------------------------------------------------------------------
+## Part 3: Build Case-level XWALK ----
+## Created tables: BGS_Matching_STP_Credential_PEN
+##                 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly
+##
+##nWHY: BGS and STP use different CIP coding systems. By matching records and applying business rules,
+##      we can decide which CIP source is most appropriate for supply modeling. High-confidence matches
+##      (where institution, year, and CIP all align) require no further review.
+## HOW: 1) Inner join BGS outcomes (T_BGS_Data_Final_for_OutcomesMatching) to STP credentials
+##         (Credential_Non_Dup_BGS_IDs) on PEN
+##      2) Calculate match flags for: institution code, award year, 4-digit CIP, 2-digit CIP
+##      3) Apply institution alias mapping (e.g., CAPU=CAP, UBCO=UBCV=UBC) to handle naming differences
+##      4) Create compound flags: MATCH_ALL_3_CIP4_FLAG requires all three (inst, year, CIP4) to match
+##      5) Initialize FINAL_CIP columns based on high-confidence matches; remaining records require
+##         manual review or secondary matching logic in Parts 3B/3C
+##
+## Note: This join is many-to-many on PEN - a single BGS STQU_ID and STP Credential ID may appear
+##       multiple times if a student has multiple credentials or survey records in the matching periods.
 
 ### Part 3A: Initial XWALK ----
 
@@ -1402,25 +1361,19 @@ bgs_matching_flagged %>%
 }
 # many unmatched rows
 
-# ------------------------------------------------------------------------------
-# Part 3B: Apply automatic decision rules
-#
-# Purpose:
-# Resolve as many matched BGS/STP pairs as possible without manual review.
-#
-# Decision order:
-# 1. Exact institution + year + 4-digit CIP match:
-#    Treat as high confidence and keep the aligned CIP.
-# 2. Institution + year + 2-digit CIP match:
-#    Apply program-level rules to decide whether BGS or STP is more reliable.
-# 3. Remaining institution/year matches with differing CIPs:
-#    Send to manual review in Part 3C.
-#
-# Notes:
-# - Institution aliases are handled here because the two sources do not always
-#   use the same institution codes.
-# - This section reduces the number of records that require manual review.
-# ------------------------------------------------------------------------------
+# ---- Part 3B Extended: Apply Decision Logic for 2-Digit CIP Matches ----
+# WHAT: For records that matched on institution and year but differ on 4-digit CIP codes,
+#       apply a multi-step decision tree to determine whether BGS or STP CIP codes are more
+#       appropriate. This section handles the ~1,500 program combinations that need manual review.
+# WHY: Records matching only on 2-digit CIP (broader program category) indicate the student's
+#      program was recorded differently between BGS survey and STP credentials. We need to pick
+#      the most reliable CIP source for supply modeling.
+# HOW: 1) Identify "general programs" - if one source uses a generic code, prefer the other's
+#         more specific code
+#      2) Cross-reference to 4-digit exact matches - if a program appears in exact matches,
+#         that source's CIP is likely more reliable
+#      3) Apply custom business logic for known program pairs
+#      4) Default remaining cases to STP CIP (consistent with historical approach)
 
 # ---- Step 1: Prepare 2-digit CIP match candidates for algorithmic review ----
 # Aggregate all 2-digit CIP matches (institution + year + 2D CIP match, but no 4D match)
@@ -1844,66 +1797,57 @@ bgs_matching_tbl %>%
   filter(n > 1) %>%
   tally()
 
-
-# ------------------------------------------------------------------------------
-# Part 3C: Manual Review for Institution/Year Matches with Different CIPs
+# ---- Part 3C: Manual Matching for Institution & Year Matches with Differing CIPs ----
 #
-# Purpose:
-# Handle records that appear to be genuine BGS/STP matches based on institution
-# and year, but where the program CIP codes differ, requiring human judgment
-# for final CIP selection.
+# WHAT: Handles records where BGS survey and STP credentials match on institution and award year,
+#       but have different 4-digit CIP codes. These records couldn't be auto-matched in Part 3B
+#       because the program classifications diverged between the two systems.
+# WHY: Some legitimate program matches have different CIP codes due to how BGS (INFOWARE) and
+#      STP classify programs. Rather than discard these matches, we need human judgment to decide
+#      whether the mismatch represents: (a) the same program coded differently, or (b) genuinely
+#      different programs. This manual review ensures we don't lose valid matches.
+# HOW: 1) Extract candidates: records with matching institution & year but divergent CIPs
+#      2) Aggregate to program level to reduce manual review workload (~100s of combinations vs ~1000s of records)
+#      3) Export for manual review: domain experts mark which CIP source (BGS or STP) is more reliable
+#      4) Re-import marked decisions and apply to all matching individual records
+#      5) Populate FINAL_CIP columns based on manual decisions
+# NOTE: In production, steps 3-4 involve CSV export/import workflow with external stakeholder review.
+#       This code provides the infrastructure for that manual process.
 #
-# Workflow:
-# 1. Extract candidate records needing manual review (institution and year match,
-#    but CIPs differ and no automatic decision was made).
-# 2. Aggregate to program-level combinations to reduce review effort from
-#    thousands of individual rows to hundreds of unique program decisions.
-# 3. Export the aggregated program combinations to CSV for expert review.
-# 4. Experts review and mark each program: USE_BGS_CIP = "Yes" (use BGS CIP) or
-#    "No" (use STP CIP).
-# 5. Re-import the reviewed CSV and apply decisions to all matching records.
-#
-# Output:
-# - BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly (review input/output table)
-#
-# Important:
-# This section requires a manual step outside R. The script expects the reviewed
-# CSV to be returned with a populated USE_BGS_CIP field. If the file is missing,
-# the script will default to STP CIP for unreviewed candidates.
-# ------------------------------------------------------------------------------
 
-# ---- Part 3C.1: Extract Candidates for Manual Review ----
-# Filter to "borderline" matches: institution and award year match, but 4-digit
-# CIPs differ, and no automatic decision was applied. These require human judgment.
+# ---- Part 3C.1: Extract candidates for manual review ----
+# Filter to "borderline" matches: institution code matches, award year matches,
+# but 4-digit CIPs differ. These are the records requiring human judgment.
 
-# In an interactive session, you would:
-# - Export manual_candidates to CSV.
-# - Share with subject matter experts for review.
-# - Experts mark each row: USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP).
-# - Re-import the marked CSV.
+# Note: In a real interactive session, you would:
+# - Write manual_candidates to CSV
+# - Share with subject matter experts for review
+# - Experts mark each row: USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP)
+# - Re-import the marked CSV
 
-# ---- Part 3C Extended: Aggregate for Manual Review Workflow ----
+# ---- Part 3C Extended: Aggregate for manual review workflow ----
 # Extract institution/year matches with CIP divergence into a program-level view.
-# Aggregating reduces manual review workload from thousands of individual records
-# to hundreds of unique program decisions.
+# Aggregating from individual records to unique program combinations reduces
+# manual review workload from ~1,000s of individual rows to ~100s of program decisions.
 #
-# Workflow:
-# 1. Extract: Pull all institution+year matches with differing CIPs.
-# 2. Aggregate: Group by program identifiers (institution, codes, names, CIPs).
-# 3. Export: Save aggregated unique program combinations to CSV.
-# 4. Manual Review: Experts edit CSV, adding USE_BGS_CIP column ("Yes"/"No").
-# 5. Re-import: Read marked CSV back into R.
-# 6. Join: Apply decisions to all individual records matching those program pairs.
+# WORKFLOW:
+# 1. Extract: Pull all institution+year matches with different CIPs
+# 2. Aggregate: Group by program identifiers (institution, program code, program names, CIPs)
+# 3. Export: Save aggregated unique program combinations to CSV
+# 4. Manual Review: Subject matter experts edit CSV, adding USE_BGS_CIP column (Yes/No)
+# 5. Re-import: Read marked CSV back into R
+# 6. Join: Apply decisions back to all individual records matching those program pairs
+#
 
-# ---- Part 3C.1a: Create Initial Dataset for Manual Review ----
-# Query all institution/year matches with CIP divergence, formatted for export.
+# ---- Part 3C.3a: Create initial dataset for manual review ----
+# Query all institution+year matches with CIP divergence, formatted for export.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig <- bgs_matching_tbl %>%
   filter(
     MATCH_INST == "Yes",
     MATCH_AWARD_SCHOOL_YEAR == "Yes",
     is.na(FINAL_CONSIDER_A_MATCH)
-  ) %>%
+  ) |>
   select(
     STQU_ID,
     ID,
@@ -1930,18 +1874,17 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig <- bgs_matching_tbl %>%
     STP_PROGRAM_CODE,
     STP_PROGRAM_DESC,
     USE_BGS_CIP
-  ) %>%
+  ) |>
   collect()
-
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% tally()
-# ~6000 records
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> tally()
+# ~ 6000
 
 # Creates: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly table in SQL
-# This is the full row-level data for the manual review set.
+# This is the full row-level data for the manual review set
 
-# ---- Part 3C.3b: Aggregate to Program Level for Manual Review ----
-# Reduce row-level data (~6000 records) to unique program combinations (~1700).
+# ---- Part 3C.3b: Aggregate to program level for manual review ----
+# Reduce row-level data (~1,000s of records) to unique program combinations (~100s).
 # Each row represents one unique program pair at one institution where CIP codes differ.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>%
@@ -1961,36 +1904,37 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group <- BGS_Matching_ST
   ) %>%
   summarize(Count = n(), .groups = "drop")
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>% glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>% tally()
-# ~1700 unique combinations
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |> glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |> tally()
+# ~ 1700
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>%
-  collect() %>% # Collect for CSV export
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |>
+  collect() %>% # Count records per program combination
   write_csv(
     "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
   )
 # NEXT STEP (manual):
-# - Open CSV in Excel.
-# - For each row, add USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP).
-# - Save as: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv.
-# - Return to this script.
+# - Open CSV in Excel
+# - For each row, add USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP)
+# - Save as: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv
+# - Return to this script
 
-# ---- Part 3C.1c: Re-import Manual Decisions ----
+# ---- Part 3C.3c: Re-import manual decisions ----
 # Read back the CSV with manual USE_BGS_CIP decisions from subject matter experts.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos <- read_csv(
   "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
 )
 
-# ---- Part 3C.1d: Broadcast Manual Decisions to All Matching Records ----
+# ---- Part 3C.3d: Broadcast manual decisions to all matching records ----
 # Join aggregated program-level decisions back to individual records.
 # This propagates the manual decision for a program pair to all student records
 # matching that program pair at that institution.
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% count(USE_BGS_CIP)
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos %>%
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> count(USE_BGS_CIP)
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos |>
   count(USE_BGS_CIP)
+
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>%
   mutate(across(everything(), trimws)) %>% # Normalize whitespace from CSV round-trip
@@ -1999,6 +1943,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
     # Join manual decisions by all program identifiers to match the aggregation key
     BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos %>%
       mutate(across(everything(), trimws)) %>%
+      # select(-BGS_FINAL_CIP_CODE_4_NAME, -STP_FINAL_CIP_CODE_4_NAME) |> # Avoid duplicate columns
       mutate(across(everything(), as.character)),
     by = c(
       "INSTITUTION_CODE",
@@ -2011,14 +1956,22 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
       "BGS_PROGRAM_DESC",
       "STP_PROGRAM_CODE",
       "STP_PROGRAM_DESC"
+      # "INSTITUTION_CODE",
+      # "PSI_CODE",
+      # "BGS_FINAL_CIP_CODE_4",
+      # "STP_FINAL_CIP_CODE_4",
+      # "BGS_PROGRAM_CODE",
+      # "BGS_PROGRAM_DESC",
+      # "STP_PROGRAM_CODE",
+      # "STP_PROGRAM_DESC"
     )
   )
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% count(USE_BGS_CIP)
-# Note: Some NAs may remain if join keys do not match exactly.
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> count(USE_BGS_CIP)
+# still 753 nas?
 
-# ---- Part 3C.1e: Validate Manual Decisions Were Applied to All Records ----
+# ---- Part 3C.3e: Validate manual decisions were applied to all records ----
 # Check that every record has a USE_BGS_CIP decision (no NAs).
 # If NAs remain, it indicates a mismatch in the join keys between tables.
 
@@ -2047,10 +2000,15 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% count(USE_BGS_CIP)
   }
 }
 
-# ---- Update BGS_Matching_STP_Credential_PEN with Final CIPs Chosen Manually ----
+# ---- Part 3C.3f: Populate final CIP columns based on manual decisions ----
+# For each record, assign FINAL_CIP values based on the manual decision.
+# USE_BGS_CIP = "Yes" → use BGS CIP codes
+# USE_BGS_CIP = "No" → use STP CIP codes
+
+## Update BGS_Matching_STP_Credential_PEN with final CIPs chosen manually
 {
-  # Optional: Save a backup copy of BGS_Matching_STP_Credential_PEN before updating
-  # in case you want to make changes to the manual matching.
+  ## may want to save a back up copy of BGS_Matching_STP_Credential_PEN before updating it
+  ## in case you want to make changes to the manual matching
   if (
     dbExistsTable(
       con,
@@ -2077,12 +2035,13 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% count(USE_BGS_CIP)
   )
 }
 
-# ---- Part 3C.2: Apply Default Logic for Unreviewed Candidates ----
+
+# ---- Part 3C.2: Apply default logic for unreviewed candidates ----
 # For any records without explicit manual decision, default to STP CIP.
 # This fallback ensures all candidates get a final CIP assignment.
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> tally()
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% tally()
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>%
   mutate(
@@ -2101,7 +2060,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
       USE_BGS_CIP == "Yes",
       BGS_FINAL_CIP_CODE_2,
       STP_FINAL_CIP_CODE_2
-    )
+    ),
   ) %>%
   # Keep only columns needed to update the main matching table
   select(
@@ -2112,9 +2071,10 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
     USE_BGS_CIP
   )
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |>
+  glimpse()
 
-# ---- Part 3C.2b: Validate Final CIPs Are Populated for All Decisions ----
+# ---- Part 3C.3g: Validate final CIPs are populated for all decisions ----
 # Verify that every record now has FINAL_CIP_CODE_4 and FINAL_CIP_CODE_2 values.
 # Any remaining NAs indicate missing manual review decisions.
 
@@ -2129,7 +2089,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
     count(USE_BGS_CIP)
 }
 
-# ---- Part 3C.3: Upload Manual Decisions and Update Main Matching Table ----
+# ---- Part 3C.3: Upload manual decisions and update main matching table ----
 # Apply the manual decisions back to BGS_Matching_STP_Credential_PEN table,
 # replacing any placeholder values with finalized CIP assignments.
 
@@ -2156,22 +2116,22 @@ if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
       table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly"
     )
   )
-  source_tbl %>% glimpse()
-  source_tbl %>% tally()
-  # Check unique keys
-  source_tbl %>% count(STQU_ID, ID) %>% collect() %>% filter(n > 1) %>% tally()
+  source_tbl |> glimpse()
+  source_tbl |> tally()
+  # chekc unique keys
+  source_tbl |> count(STQU_ID, ID) |> collect() |> filter(n > 1) |> tally()
 
-  bgs_matching_tbl %>% glimpse()
-  bgs_matching_tbl %>% tally()
-  bgs_matching_tbl %>%
-    count(STQU_ID, ID) %>%
-    collect() %>%
-    filter(n > 1) %>%
+  bgs_matching_tbl |> glimpse()
+  bgs_matching_tbl |> tally()
+  bgs_matching_tbl |>
+    count(STQU_ID, ID) |>
+    collect() |>
+    filter(n > 1) |>
     tally()
-  # Good: No duplicates in either table
+  # good so both do not have duplication
 
   # Build the rows that should update
-  # qry_update_CIP_for_MatchingYearInstOnly_step1 ----
+  ## qry_update_CIP_for_MatchingYearInstOnly_step1 ----
   bgs_matching_updated <- bgs_matching_tbl %>%
     left_join(
       source_tbl %>%
@@ -2193,46 +2153,51 @@ if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
     ) %>%
     mutate(
       FINAL_PROBABLE_MATCH = case_when(
-        needs_update == TRUE ~ "Yes",
+        needs_update == T ~ "Yes",
         TRUE ~ FINAL_PROBABLE_MATCH
       ),
       FINAL_CIP_CODE_4 = case_when(
-        needs_update == TRUE ~ src_FINAL_CIP_CODE_4,
+        needs_update == T ~ src_FINAL_CIP_CODE_4,
         TRUE ~ FINAL_CIP_CODE_4
       ),
       FINAL_CIP_CODE_2 = case_when(
-        needs_update == TRUE ~ src_FINAL_CIP_CODE_2,
+        needs_update == T ~ src_FINAL_CIP_CODE_2,
         TRUE ~ FINAL_CIP_CODE_2
       ),
       USE_BGS_CIP = case_when(
-        needs_update == TRUE ~ src_USE_BGS_CIP,
+        needs_update == T ~ src_USE_BGS_CIP,
         TRUE ~ USE_BGS_CIP
       )
     ) %>%
     select(-needs_update, -starts_with("src_"))
+
+  # bgs_matching_updated |> glimpse()
 } else {
   # No manual candidates - use existing matched table
   bgs_matching_updated <- bgs_matching_tbl
 }
 
-# bgs_matching_updated %>% show_query()
-bgs_matching_updated %>% count(FINAL_PROBABLE_MATCH) %>% collect()
+bgs_matching_updated |> show_query()
+bgs_matching_updated |> count(FINAL_PROBABLE_MATCH) |> collect()
 
-bgs_matching_updated %>% glimpse()
-bgs_matching_updated %>% tally()
+bgs_matching_updated |> glimpse()
+bgs_matching_updated |> tally()
 
-# qry_update_CIP_for_MatchingYearInstOnly_step2 ----
+
+##
+
+## qry_update_CIP_for_MatchingYearInstOnly_step2 ----
 # Update the rest of the records to use the STP CIPs as final if no match was found
-bgs_matching_updated <- bgs_matching_updated %>%
+bgs_matching_updated <- bgs_matching_updated |>
   mutate(
     # Identify records where all target columns are still NULL
     needs_stp_fallback = is.na(FINAL_CIP_CODE_4) &
       is.na(FINAL_CIP_CODE_4_NAME) &
       is.na(FINAL_CIP_CODE_2) &
       is.na(FINAL_CIP_CODE_2_NAME)
-  ) %>%
+  ) |>
   mutate(
-    # Apply fallback values from STP source columns
+    # # Apply fallback values from STP source columns
     FINAL_CIP_CODE_4 = if_else(
       needs_stp_fallback == TRUE,
       STP_FINAL_CIP_CODE_4,
@@ -2254,16 +2219,16 @@ bgs_matching_updated <- bgs_matching_updated %>%
       FINAL_CIP_CODE_2_NAME
     ),
     USE_BGS_CIP = if_else(needs_stp_fallback == TRUE, "No", USE_BGS_CIP)
-  ) %>%
+  ) |>
   select(-needs_stp_fallback)
 
-# bgs_matching_updated %>% show_query()
-bgs_matching_updated %>% glimpse()
-bgs_matching_updated %>% tally()
+bgs_matching_updated |> show_query()
+bgs_matching_updated |> glimpse()
+bgs_matching_updated |> tally()
 
-# Check remaining non-matches: Compare program descriptions to ensure they are truly non-matches
+## check remaining non-matches: compare program descriptions to ensure they really are non-matches
 {
-  # Get IDs of matches
+  ## get IDs of matches
   ids_exact <- bgs_matching_updated %>%
     filter(FINAL_CONSIDER_A_MATCH == "Yes") %>%
     distinct(ID) %>%
@@ -2273,14 +2238,14 @@ bgs_matching_updated %>% tally()
     distinct(ID) %>%
     collect()
 
-  # Filter out non-matches for students that have an existing matched program
-  # Review non-matches to see if any should be matched - if so, redo Part 3C to this point
+  ## filter out non-matches for students that have an existing matched program
+  ## review non-matches to see if any should be matched - if so, redo Part 3C to this point
   chk <- bgs_matching_updated %>%
-    filter(is.na(FINAL_CIP_CODE_4)) %>% # Filter on empty FINAL CIP
-    filter(!is.na(MATCH_INST) & !is.na(MATCH_AWARD_SCHOOL_YEAR)) %>% # Remove records that don't match on institution or year
+    filter(is.na(FINAL_CIP_CODE_4)) %>% ## filter on empty FINAL CIP
+    filter(!is.na(MATCH_INST) & !is.na(MATCH_AWARD_SCHOOL_YEAR)) %>% ## remove records that don't match on institution or year
     collect() %>%
-    anti_join(ids_exact, by = "ID") %>% # Remove records that already have a match (from flags)
-    anti_join(ids_probable, by = "ID") %>% # Remove records that already have a match (from manual)
+    anti_join(ids_exact, by = "ID") %>% ## remove records that already have a match (from flags)
+    anti_join(ids_probable, by = "ID") %>% ## remove records that already have a match (from manual)
     group_by(
       INSTITUTION_CODE,
       BGS_FINAL_CIP_CODE_4,
@@ -2298,43 +2263,36 @@ bgs_matching_updated %>% tally()
   rm(chk, ids_exact, ids_probable)
 }
 
-bgs_matching_updated %>% count(FINAL_CONSIDER_A_MATCH) %>% collect()
-bgs_matching_updated %>% count(FINAL_PROBABLE_MATCH) %>% collect()
-bgs_matching_updated %>%
-  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) %>%
+bgs_matching_updated |> count(FINAL_CONSIDER_A_MATCH) |> collect()
+bgs_matching_updated |> count(FINAL_PROBABLE_MATCH) |> collect()
+bgs_matching_updated |>
+  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) |>
   collect()
+# why are there ~10,000 no match yet
 
-# TODO [HIGH]:
-# Investigate why a large number of rows still have no match after the current
-# auto-match and manual-review steps.
+# ??
+# id should be unique for updates to be reliable.
 
-# Validation check:
-# Confirm whether this field is safe as a join key for the next update.
-# In this workflow, ID is unique in the credential table, but not always unique
-# in the BGS/STP crosswalk after matching on PEN.
-
-bgs_matching_updated %>% tally()
+bgs_matching_updated |> tally()
 # 133952 rows
 
 bgs_matching_updated %>%
   count(ID) %>%
   filter(n > 1) %>%
   tally()
-# Still ~5000 have at least two rows
-
+# still ~5000 has at least two rows
 bgs_matching_updated %>%
   count(STQU_ID) %>%
   filter(n > 1) %>%
   tally()
-# ~11,000
-
+# ~ 11,000
 bgs_matching_updated %>%
   count(STQU_ID, ID) %>%
   filter(n > 1) %>%
   tally()
-# Zero rows
+# zero rows
 
-# Check consistency of USE_BGS_CIP with CIP sources
+## check
 {
   bgs_matching_updated %>%
     count(
@@ -2343,15 +2301,14 @@ bgs_matching_updated %>%
       FINAL_CIP_CODE_4 == BGS_FINAL_CIP_CODE_4
     )
 }
-# Result may be confusing due to NA values
+# ? result is confusing
 
-# Remove local tables
+## remove local tables
 rm(
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig,
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos
 )
-
 
 ### Part 3D: Fill in Final Columns ----
 
@@ -2383,11 +2340,7 @@ bgs_matching_final <- bgs_matching_updated %>%
       select(LCP2_CD, LCP2_DIGITS_NAME, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME),
     by = c("FINAL_CIP_CODE_2" = "LCP2_CD")
   ) %>%
-
-  # TODO [MEDIUM]:
-  # Confirm whether resetting these name/cluster fields is still required after
-  # the current refactor. If yes, explain why we intentionally rebuild them later.
-
+  #  don't understand why now we reset all those columns. If so, why we bother to set values for them in previous steps.
   mutate(
     FINAL_CIP_CODE_4_NAME = LCP4_CIP_4DIGITS_NAME,
     FINAL_CIP_CODE_2_NAME = LCP2_DIGITS_NAME,
@@ -2415,9 +2368,7 @@ bgs_matching_final |> tally()
       FINAL_CIP_CODE_4 == BGS_FINAL_CIP_CODE_4
     )
 }
-
-# TODO [MEDIUM]:
-# Review this summary output. NA values may be making the comparison hard to read.
+# ?confusing, could be nas
 
 # Materialize the update to the physical database
 
@@ -2467,25 +2418,20 @@ bgs_matching_final <- tbl(
 }
 # ? still ~14000 NAs
 
-# ------------------------------------------------------------------------------
-# Part 4: Update the BGS credential table with final CIP decisions
+## Part 4: Update Credential_Non_Dup  ----
+
+# ---- Part 4: Update Credential_Non_Dup_BGS_IDs ----
+## Created tables: Credential_Unmatched_CIPS_to_update
+## Updated tables: Credential_Non_Dup_BGS_IDs
 #
-# Purpose:
-# Push the CIP decisions from the BGS/STP matching process back into the
-# credential table used downstream.
-#
-# Why this step exists:
-# The crosswalk table is the decision engine, but downstream modelling uses the
-# credential table. This step makes the final CIP choice available there.
-#
-# Main stages:
-# - Part 4A: Apply CIP decisions from the BGS/STP matching table.
-# - Part 4B: Review unmatched credential programs and apply selected manual
-#   overrides for consistency across similar programs.
-#
-# Output:
-# - Credential_Non_Dup_BGS_IDs (updated)
-# ------------------------------------------------------------------------------
+# WHAT: Updates the BGS credential IDs table with matched CIP codes from the PEN matching workflow.
+# WHY: The matching results need to be propagated back to the source credential table for
+#      downstream cohort building and supply projections.
+# HOW: 1) Left join matching results to BGS IDs table
+#      2) Use coalesce to prefer matched CIPs, fallback to original STP values
+#      3) Copy match flags and metadata
+#      4) Fill missing cluster information from CIP lookup tables
+#      5) Materialize updated table
 
 ### Part 4A: Update with XWALK ----
 
@@ -2512,6 +2458,10 @@ bgs_matching_final <- tbl(
 }
 
 ## Fill in final CIPS with BGS_Matching_STP_Credential_PEN
+# dbGetQuery(con, qry_BGS_IDs_Credential_add_columns)
+# dbGetQuery(con, qry_update_Credential_Non_Dup_BGS_IDS_CIP_matches_step1) ## fill in final CIP, etc. from BGS_Matching_STP_Credential_PEN where FINAL_CONSIDER_A_MATCH is not empty
+# dbGetQuery(con, qry_update_Credential_Non_Dup_BGS_IDS_CIP_matches_step2) ## fill in still empty CIP, etc. from BGS_Matching_STP_Credential_PEN where FINAL_PROBABLE_MATCH is not empty
+
 # id should be unique for updates to be reliable.
 
 bgs_matching_final %>%
@@ -2569,423 +2519,116 @@ bgs_matching_final %>%
   filter(n > 1) %>%
   glimpse()
 
-
-# ------------------------------------------------------------------------------
-# Prepare Step 1 source: rows with Final_Consider_A_Match
-#
-# SQL equivalent:
-# qry_update_Credential_Non_Dup_BGS_IDS_CIP_matches_step1
-#
-# Business rule:
-# If the crosswalk says this is a confirmed "consider a match" case, copy the
-# final CIP fields and match metadata into the credential table.
-#
-# One row per ID is required before joining. If multiple crosswalk rows for the
-# same ID carry the same final decision, distinct() will collapse them safely.
-# If conflicting decisions remain, stop and review before updating.
-# ------------------------------------------------------------------------------
-
-cred_step1_src <- bgs_matching_final %>%
-  filter(
-    !is.na(FINAL_CONSIDER_A_MATCH),
-    FINAL_CONSIDER_A_MATCH != ""
-  ) %>%
-  transmute(
-    ID,
-    STEP1_FINAL_CIP_CODE_4 = FINAL_CIP_CODE_4,
-    STEP1_FINAL_CIP_CODE_4_NAME = FINAL_CIP_CODE_4_NAME,
-    STEP1_FINAL_CIP_CODE_2 = FINAL_CIP_CODE_2,
-    STEP1_FINAL_CIP_CODE_2_NAME = FINAL_CIP_CODE_2_NAME,
-    STEP1_FINAL_CIP_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
-    STEP1_FINAL_CIP_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
-    STEP1_USE_BGS_CIP = USE_BGS_CIP,
-    STEP1_OUTCOMES_CIP_CODE_4 = BGS_FINAL_CIP_CODE_4,
-    STEP1_OUTCOMES_CIP_CODE_4_NAME = BGS_FINAL_CIP_CODE_4_NAME,
-    STEP1_FINAL_CONSIDER_A_MATCH = FINAL_CONSIDER_A_MATCH,
-    STEP1_FINAL_PROBABLE_MATCH = FINAL_PROBABLE_MATCH
-  ) %>%
-  distinct()
-
-# Optional validation: if an ID still appears more than once here, the crosswalk
-# has conflicting step-1 decisions and should be reviewed before updating.
-cred_step1_dups <- cred_step1_src %>%
-  count(ID) %>%
-  filter(n > 1) |>
-  collect()
-# TODO: 9 IDs have conflicting step-1 decisions. This should be investigated before updating.
-# if (nrow(cred_step1_dups) > 0) {
-#   stop(
-#     "Step 1 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
-#   )
-# }
-
-new_cols <- c(
-  "OUTCOMES_CIP_CODE_4", # 4-digit STP CIP code for comparison
-  "OUTCOMES_CIP_CODE_4_NAME", # 4-digit STP CIP name for comparison
-  "FINAL_CONSIDER_A_MATCH", # Flag indicating auto-matched records (high confidence)
-  "FINAL_PROBABLE_MATCH", # Flag indicating manually reviewed matches (medium confidence)
-  "USE_BGS_CIP", # Flag: "Yes" if BGS CIP was selected as final, "No" if STP CIP was selected
-  "FINAL_CIP_CODE_4", # Final 4-digit CIP code (either BGS or STP based on matching logic)
-  "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
-  "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
-  "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
-)
-
-# Add new columns to the table
-for (col in new_cols) {
-  dbExecute(
-    con,
-    glue::glue(
-      "ALTER TABLE [{my_schema}].Credential_Non_Dup_BGS_IDs ADD [{col}] VARCHAR(255) NULL"
-    )
-  )
-}
-
 credential_bgs_updated <- tbl(
   con,
   in_schema(my_schema, "Credential_Non_Dup_BGS_IDs")
 )
-# Validation check: the credential table should still be one row per ID.
+
+credential_bgs_updated |> glimpse()
+
 credential_bgs_updated %>%
   count(ID) %>%
   filter(n > 1) %>%
   tally()
-# Expected: zero duplicate IDs
+# No duplication
 
-# ------------------------------------------------------------------------------
-# Step 1 update: apply Final_Consider_A_Match results
-#
-# This mirrors the SQL UPDATE ... JOIN for exact / high-confidence matches.
-# ------------------------------------------------------------------------------
-
-credential_bgs_updated <- credential_bgs_updated %>%
-  left_join(cred_step1_src, by = "ID") %>%
-  mutate(
-    step1_apply = !is.na(STEP1_FINAL_CONSIDER_A_MATCH) &
-      STEP1_FINAL_CONSIDER_A_MATCH != ""
-  ) %>%
-  mutate(
-    FINAL_CIP_CODE_4 = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CODE_4,
-      FINAL_CIP_CODE_4
-    ),
-    FINAL_CIP_CODE_4_NAME = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CODE_4_NAME,
-      FINAL_CIP_CODE_4_NAME
-    ),
-    FINAL_CIP_CODE_2 = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CODE_2,
-      FINAL_CIP_CODE_2
-    ),
-    FINAL_CIP_CODE_2_NAME = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CODE_2_NAME,
-      FINAL_CIP_CODE_2_NAME
-    ),
-    FINAL_CIP_CLUSTER_CODE = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CLUSTER_CODE,
-      FINAL_CIP_CLUSTER_CODE
-    ),
-    FINAL_CIP_CLUSTER_NAME = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CIP_CLUSTER_NAME,
-      FINAL_CIP_CLUSTER_NAME
-    ),
-    USE_BGS_CIP = if_else(
-      step1_apply == TRUE,
-      STEP1_USE_BGS_CIP,
-      USE_BGS_CIP
-    ),
-    OUTCOMES_CIP_CODE_4 = if_else(
-      step1_apply == TRUE,
-      STEP1_OUTCOMES_CIP_CODE_4,
-      OUTCOMES_CIP_CODE_4
-    ),
-    OUTCOMES_CIP_CODE_4_NAME = if_else(
-      step1_apply == TRUE,
-      STEP1_OUTCOMES_CIP_CODE_4_NAME,
-      OUTCOMES_CIP_CODE_4_NAME
-    ),
-    FINAL_CONSIDER_A_MATCH = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_CONSIDER_A_MATCH,
-      FINAL_CONSIDER_A_MATCH
-    ),
-    FINAL_PROBABLE_MATCH = if_else(
-      step1_apply == TRUE,
-      STEP1_FINAL_PROBABLE_MATCH,
-      FINAL_PROBABLE_MATCH
-    )
-  ) %>%
-  select(-starts_with("STEP1_"), -step1_apply)
-
-# ------------------------------------------------------------------------------
-# Prepare Step 2 source: rows with Final_Probable_Match
-#
-# SQL equivalent:
-# qry_update_Credential_Non_Dup_BGS_IDS_CIP_matches_step2
-#
-# Business rule:
-# Use probable-match decisions only for rows that are still completely empty
-# in the target match-derived fields after Step 1.
-# ------------------------------------------------------------------------------
-
-cred_step2_src <- bgs_matching_final %>%
-  filter(
-    !is.na(FINAL_PROBABLE_MATCH),
-    FINAL_PROBABLE_MATCH != ""
-  ) %>%
-  transmute(
-    ID,
-    STEP2_FINAL_CIP_CODE_4 = FINAL_CIP_CODE_4,
-    STEP2_FINAL_CIP_CODE_4_NAME = FINAL_CIP_CODE_4_NAME,
-    STEP2_FINAL_CIP_CODE_2 = FINAL_CIP_CODE_2,
-    STEP2_FINAL_CIP_CODE_2_NAME = FINAL_CIP_CODE_2_NAME,
-    STEP2_FINAL_CIP_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
-    STEP2_FINAL_CIP_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
-    STEP2_USE_BGS_CIP = USE_BGS_CIP,
-    STEP2_OUTCOMES_CIP_CODE_4 = BGS_FINAL_CIP_CODE_4,
-    STEP2_OUTCOMES_CIP_CODE_4_NAME = BGS_FINAL_CIP_CODE_4_NAME,
-    STEP2_FINAL_PROBABLE_MATCH = FINAL_PROBABLE_MATCH
-  ) %>%
-  distinct()
-
-cred_step2_dups <- cred_step2_src %>%
-  count(ID) %>%
-  filter(n > 1) |>
-  collect()
-#  7 IDs have conflicting step-2 decisions. This should be investigated before updating.
-# if (nrow(cred_step2_dups) > 0) {
-#   stop(
-#     "Step 2 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
-#   )
-# }
-
-# ------------------------------------------------------------------------------
-# Step 2 update: apply Final_Probable_Match only where the target fields are empty
-#
-# This mirrors the SQL WHERE clause that requires all target match-derived fields
-# to still be NULL before the probable match is applied.
-# ------------------------------------------------------------------------------
+# Part 4: Update Credential_Non_Dup_BGS_IDs
+# This section updates the BGS credential IDs table with final matched CIP codes from the PEN-based matching process.
+# It propagates the results of the matching logic (which CIP source to use: BGS or STP) back to the credential records.
+# This ensures that downstream supply modeling uses the most appropriate CIP codes for each credential.
 
 credential_bgs_updated <- credential_bgs_updated %>%
-  left_join(cred_step2_src, by = "ID") %>%
-  mutate(
-    step2_target_is_empty = is.na(FINAL_CIP_CODE_4) &
-      is.na(FINAL_CIP_CODE_4_NAME) &
-      is.na(FINAL_CIP_CODE_2) &
-      is.na(FINAL_CIP_CODE_2_NAME) &
-      is.na(FINAL_CIP_CLUSTER_CODE) &
-      is.na(FINAL_CIP_CLUSTER_NAME) &
-      is.na(USE_BGS_CIP) &
-      is.na(OUTCOMES_CIP_CODE_4) &
-      is.na(OUTCOMES_CIP_CODE_4_NAME) &
-      is.na(FINAL_PROBABLE_MATCH),
-
-    step2_source_ok = !is.na(STEP2_FINAL_PROBABLE_MATCH) &
-      STEP2_FINAL_PROBABLE_MATCH != "",
-
-    step2_update = step2_target_is_empty == TRUE & step2_source_ok == TRUE
+  # Join matched CIP results from the BGS_Matching_STP_Credential_PEN table
+  # This brings in the final CIP decisions for records that were matched (either auto-matched or manually reviewed)
+  left_join(
+    bgs_matching_final %>%
+      filter(!is.na(FINAL_CONSIDER_A_MATCH) | !is.na(FINAL_PROBABLE_MATCH)) %>%
+      select(
+        ID,
+        MATCH_FINAL_CIP_4 = FINAL_CIP_CODE_4,
+        MATCH_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
+        MATCH_FINAL_CIP_2 = FINAL_CIP_CODE_2,
+        MATCH_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
+        MATCH_FINAL_CLUSTER_CODE = FINAL_CIP_CLUSTER_CODE,
+        MATCH_FINAL_CLUSTER_NAME = FINAL_CIP_CLUSTER_NAME,
+        MATCH_USE_BGS = USE_BGS_CIP,
+        MATCH_BGS_CIP_4 = BGS_FINAL_CIP_CODE_4,
+        MATCH_BGS_CIP_4_NAME = BGS_FINAL_CIP_CODE_4_NAME,
+        FINAL_CONSIDER_A_MATCH,
+        FINAL_PROBABLE_MATCH
+      ),
+    by = "ID"
   ) %>%
+  # Note: At this point, new columns like FINAL_CIP_CODE_4 are still NA in the credential table
+  # The mutate below will populate them using the matched values or fallbacks
+
+  # Populate final CIP columns:
+  # - Prefer matched CIPs from the joining table (MATCH_FINAL_CIP_4, etc.)
+  # - Fall back to original STP CIPs if no match was found
+  # - Also set flags and additional columns for tracking the CIP source
   mutate(
-    FINAL_CIP_CODE_4 = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CODE_4,
-      FINAL_CIP_CODE_4
+    FINAL_CIP_CODE_4 = coalesce(MATCH_FINAL_CIP_4, STP_CIP_CODE_4),
+    FINAL_CIP_CODE_4_NAME = coalesce(
+      MATCH_FINAL_CIP_4_NAME,
+      STP_CIP_CODE_4_NAME
     ),
-    FINAL_CIP_CODE_4_NAME = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CODE_4_NAME,
-      FINAL_CIP_CODE_4_NAME
+    FINAL_CIP_CODE_2 = coalesce(MATCH_FINAL_CIP_2, STP_CIP_CODE_2),
+    FINAL_CIP_CODE_2_NAME = coalesce(
+      MATCH_FINAL_CIP_2_NAME,
+      STP_CIP_CODE_2_NAME
     ),
-    FINAL_CIP_CODE_2 = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CODE_2,
-      FINAL_CIP_CODE_2
-    ),
-    FINAL_CIP_CODE_2_NAME = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CODE_2_NAME,
-      FINAL_CIP_CODE_2_NAME
-    ),
-    FINAL_CIP_CLUSTER_CODE = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CLUSTER_CODE,
-      FINAL_CIP_CLUSTER_CODE
-    ),
-    FINAL_CIP_CLUSTER_NAME = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_CIP_CLUSTER_NAME,
-      FINAL_CIP_CLUSTER_NAME
-    ),
-    USE_BGS_CIP = if_else(
-      step2_update == TRUE,
-      STEP2_USE_BGS_CIP,
-      USE_BGS_CIP
-    ),
-    OUTCOMES_CIP_CODE_4 = if_else(
-      step2_update == TRUE,
-      STEP2_OUTCOMES_CIP_CODE_4,
-      OUTCOMES_CIP_CODE_4
-    ),
-    OUTCOMES_CIP_CODE_4_NAME = if_else(
-      step2_update == TRUE,
-      STEP2_OUTCOMES_CIP_CODE_4_NAME,
-      OUTCOMES_CIP_CODE_4_NAME
-    ),
-    FINAL_PROBABLE_MATCH = if_else(
-      step2_update == TRUE,
-      STEP2_FINAL_PROBABLE_MATCH,
-      FINAL_PROBABLE_MATCH
-    )
-  ) %>%
-  select(
-    -starts_with("STEP2_"),
-    -step2_target_is_empty,
-    -step2_source_ok,
-    -step2_update
+    # Cluster codes come from the matched results where available
+    FINAL_CIP_CLUSTER_CODE = MATCH_FINAL_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME = MATCH_FINAL_CLUSTER_NAME,
+    # USE_BGS_CIP indicates whether BGS CIP was selected ("Yes") or STP was used ("No" or "No because no match")
+    USE_BGS_CIP = coalesce(MATCH_USE_BGS, "No because no match"),
+    # Store the original BGS CIP for reference (even if not used as final)
+    OUTCOMES_CIP_CODE_4 = MATCH_BGS_CIP_4,
+    OUTCOMES_CIP_CODE_4_NAME = MATCH_BGS_CIP_4_NAME
   )
 
-# ------------------------------------------------------------------------------
-# Step 3 fallback: for remaining unresolved rows, use STP CIP
-#
-# SQL equivalent:
-# qry_update_remaining_BGS_CIPs_in_Cred_Non_Dup_BGS_IDS_step1
-#
-# Business rule:
-# If no exact/probable match decision was applied, use the credential-side STP
-# CIP as the final CIP and mark USE_BGS_CIP = "No because no match".
-# ------------------------------------------------------------------------------
-
-credential_bgs_updated <- credential_bgs_updated %>%
-  mutate(
-    needs_stp_fallback = is.na(FINAL_CIP_CODE_4) &
-      is.na(FINAL_CIP_CODE_2) &
-      is.na(FINAL_CONSIDER_A_MATCH) &
-      is.na(FINAL_PROBABLE_MATCH)
-  ) %>%
-  mutate(
-    FINAL_CIP_CODE_4 = if_else(
-      needs_stp_fallback == TRUE,
-      STP_CIP_CODE_4,
-      FINAL_CIP_CODE_4
-    ),
-    FINAL_CIP_CODE_4_NAME = if_else(
-      needs_stp_fallback == TRUE,
-      STP_CIP_CODE_4_NAME,
-      FINAL_CIP_CODE_4_NAME
-    ),
-    FINAL_CIP_CODE_2 = if_else(
-      needs_stp_fallback == TRUE,
-      STP_CIP_CODE_2,
-      FINAL_CIP_CODE_2
-    ),
-    FINAL_CIP_CODE_2_NAME = if_else(
-      needs_stp_fallback == TRUE,
-      STP_CIP_CODE_2_NAME,
-      FINAL_CIP_CODE_2_NAME
-    ),
-    USE_BGS_CIP = if_else(
-      needs_stp_fallback == TRUE,
-      "No because no match",
-      USE_BGS_CIP
-    )
-  ) %>%
-  select(-needs_stp_fallback)
-
-# ------------------------------------------------------------------------------
-# Step 4 fill cluster fields from the official 2-digit CIP lookup
-#
-# SQL equivalent:
-# qry_update_remaining_BGS_CIPs_in_Cred_Non_Dup_BGS_IDS_step2
-#
-# Business rule:
-# If final cluster fields are still missing, fill them from the CIP 2-digit
-# lookup using FINAL_CIP_CODE_2.
-# ------------------------------------------------------------------------------
-
-credential_bgs_updated <- credential_bgs_updated %>%
+# Fill in missing cluster information for records that didn't have matched cluster codes
+# Join to CIP_2 lookup table to get cluster codes based on the final 2-digit CIP
+credential_bgs_updated <- credential_bgs_updated |>
   left_join(
-    cip_2_tbl %>%
-      select(LCP2_CD, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME),
+    cip_2_tbl %>% select(LCP2_CD, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME),
     by = c("FINAL_CIP_CODE_2" = "LCP2_CD")
   ) %>%
   mutate(
-    fill_cluster = is.na(FINAL_CIP_CLUSTER_CODE) &
-      is.na(FINAL_CIP_CLUSTER_NAME),
-
-    FINAL_CIP_CLUSTER_CODE = if_else(
-      fill_cluster == TRUE,
-      LCP2_LCIPPC_CD,
-      FINAL_CIP_CLUSTER_CODE
-    ),
-    FINAL_CIP_CLUSTER_NAME = if_else(
-      fill_cluster == TRUE,
-      LCP2_LCIPPC_NAME,
-      FINAL_CIP_CLUSTER_NAME
-    )
+    FINAL_CIP_CLUSTER_CODE = coalesce(FINAL_CIP_CLUSTER_CODE, LCP2_LCIPPC_CD),
+    FINAL_CIP_CLUSTER_NAME = coalesce(FINAL_CIP_CLUSTER_NAME, LCP2_LCIPPC_NAME)
   ) %>%
-  select(-LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME, -fill_cluster)
+  select(-LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME) %>%
+  # Ensure all final CIP columns have values by defaulting any remaining NAs to STP values
+  mutate(
+    FINAL_CIP_CODE_4 = coalesce(FINAL_CIP_CODE_4, STP_CIP_CODE_4),
+    FINAL_CIP_CODE_4_NAME = coalesce(
+      FINAL_CIP_CODE_4_NAME,
+      STP_CIP_CODE_4_NAME
+    ),
+    FINAL_CIP_CODE_2 = coalesce(FINAL_CIP_CODE_2, STP_CIP_CODE_2),
+    FINAL_CIP_CODE_2_NAME = coalesce(
+      FINAL_CIP_CODE_2_NAME,
+      STP_CIP_CODE_2_NAME
+    ),
+    USE_BGS_CIP = coalesce(USE_BGS_CIP, "No")
+  )
 
-# ------------------------------------------------------------------------------
-# Optional validation checks
-# ------------------------------------------------------------------------------
-
-# Check that the credential table is still one row per ID after the update logic.
-credential_bgs_updated %>%
-  count(ID) %>%
+# Check for any duplicate IDs after updates (should be none, as ID is unique)
+credential_bgs_updated |>
+  group_by(ID) %>%
+  mutate(n = n()) %>%
   filter(n > 1) %>%
-  tally()
-#  16 IDs have duplicate rows after the update. This should be investigated to ensure data integrity.
-# Quick summary of how rows were resolved.
-credential_bgs_updated %>%
-  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH, USE_BGS_CIP)
+  glimpse()
 
+# Part 4B: Update Unmatched CIPs
+# This subsection identifies programs that were not matched to BGS outcomes and reviews whether
+# they should use alternative CIP codes based on similar programs that were matched.
+# This helps ensure consistency across similar programs even if individual records weren't matched.
 
-# ------------------------------------------------------------------------------
-# Part 4B: Update unmatched credential programs using approved BGS CIP overrides
-#
-# Purpose:
-# Improve consistency for unmatched credential records that defaulted to STP CIP
-# because no case-level BGS/STP match was found.
-#
-# Why this step exists:
-# Some unmatched credential programs appear elsewhere in matched records where
-# BGS CIP was clearly selected as the better final CIP. This section identifies
-# those patterns, supports manual review, and then applies approved overrides to
-# unmatched credential rows with the same program description.
-#
-# Workflow:
-# 1. Build an evidence table of matched credential programs where BGS CIP was
-#    selected as the final CIP.
-# 2. Build an audit table of unmatched credential programs that still show
-#    USE_BGS_CIP = "No because no match".
-# 3. Link unmatched programs to matched BGS-CIP evidence using credential-side
-#    program identifiers.
-# 4. Summarize candidate overrides for analyst review.
-# 5. Apply the approved manual override table.
-# 6. Refill final CIP names and cluster fields from the official CIP lookups.
-# ------------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# 4B.1 Evidence table: matched credential programs where BGS CIP was used
-#
-# Purpose:
-# Capture credential program combinations where the final decision was to use
-# BGS CIP instead of STP CIP.
-#
-# Why this matters:
-# These matched cases are the evidence base for deciding whether similar
-# unmatched programs should also switch to BGS CIP for consistency.
-# ------------------------------------------------------------------------------
-
-credential_matched_cips_using_bgs <- credential_bgs_updated %>%
+# Create a list of programs that were matched and chose to use BGS CIPs
+# This identifies program patterns where BGS CIP was preferred over STP
+Credential_Matched_CIPS_using_BGS <- credential_bgs_updated %>%
   filter(USE_BGS_CIP == "Yes") %>%
   group_by(
     PSI_CODE,
@@ -3007,18 +2650,13 @@ credential_matched_cips_using_bgs <- credential_bgs_updated %>%
     FINAL_PROBABLE_MATCH,
     USE_BGS_CIP
   ) %>%
-  summarise(n = n(), .groups = "drop")
+  summarise(
+    Expr1 = n(),
+    .groups = "drop"
+  )
 
-# ------------------------------------------------------------------------------
-# 4B.2 Audit table: unmatched credential programs
-#
-# Purpose:
-# Capture credential program combinations that did not receive a BGS/STP match
-# decision and therefore kept the fallback value:
-#   USE_BGS_CIP = "No because no match"
-# ------------------------------------------------------------------------------
-
-credential_unmatched_cips <- credential_bgs_updated %>%
+# Create a list of programs that were not matched to outcomes data (used STP by default)
+Credential_Unmatched_CIPS <- credential_bgs_updated %>%
   filter(USE_BGS_CIP == "No because no match") %>%
   group_by(
     PSI_CODE,
@@ -3040,31 +2678,17 @@ credential_unmatched_cips <- credential_bgs_updated %>%
     FINAL_PROBABLE_MATCH,
     USE_BGS_CIP
   ) %>%
-  summarise(n = n(), .groups = "drop")
+  summarise(
+    Expr1 = n(),
+    .groups = "drop"
+  )
 
-# ------------------------------------------------------------------------------
-# 4B.3 Candidate review table
-#
-# Purpose:
-# Find unmatched credential programs that appear elsewhere in matched records
-# where BGS CIP was selected as the final CIP.
-#
-# Join keys:
-# Use PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION, and
-# STP_CIP_CODE_4 to find closely matching program definitions.
-#
-# Interpretation:
-# - MATCHED_BGS_EXAMPLE = "Yes" means the unmatched program has a matched
-#   counterpart where BGS CIP was used.
-# - BGS_CIP_DIFFERS_FROM_STP = "Yes" means the suggested BGS CIP is actually
-#   different from the original STP CIP, so the program is a real override
-#   candidate rather than a no-op.
-# ------------------------------------------------------------------------------
-
-credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
+# Review unmatched programs to see if they have similar programs that were matched with different CIPs
+# This identifies cases where unmatched programs might benefit from using BGS CIPs for consistency
+Credential_Unmatched_CIPS_to_review <- Credential_Unmatched_CIPS %>%
   select(-OUTCOMES_CIP_CODE_4, -OUTCOMES_CIP_CODE_4_NAME) %>%
   left_join(
-    credential_matched_cips_using_bgs %>%
+    Credential_Matched_CIPS_using_BGS %>%
       distinct(
         PSI_CODE,
         PSI_PROGRAM_CODE,
@@ -3081,70 +2705,58 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
     )
   ) %>%
   mutate(
-    MATCHED_BGS_EXAMPLE = case_when(
-      !is.na(OUTCOMES_CIP_CODE_4) ~ "Yes",
-      TRUE ~ NA_character_
+    Unmatched_But_in_BGS_Program = case_when(
+      !is.na(OUTCOMES_CIP_CODE_4) ~ 'Yes'
     ),
-    BGS_CIP_DIFFERS_FROM_STP = case_when(
-      !is.na(OUTCOMES_CIP_CODE_4) &
-        OUTCOMES_CIP_CODE_4 != STP_CIP_CODE_4 ~ "Yes",
-      TRUE ~ NA_character_
+    BGS_CIP_is_Different = case_when(
+      OUTCOMES_CIP_CODE_4 != STP_CIP_CODE_4 ~ 'Yes'
     )
   ) %>%
+  group_by(
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    STP_CIP_CODE_4
+  ) %>%
   filter(
-    MATCHED_BGS_EXAMPLE == "Yes",
-    BGS_CIP_DIFFERS_FROM_STP == "Yes"
+    Unmatched_But_in_BGS_Program == "Yes" & BGS_CIP_is_Different == "Yes"
+  ) %>%
+  select(
+    -PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    everything(),
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION
   ) %>%
   arrange(FINAL_CIP_CODE_4)
 
-credential_unmatched_cips_to_review %>% glimpse()
-credential_unmatched_cips_to_review %>% tally()
+Credential_Unmatched_CIPS_to_review |> glimpse()
+Credential_Unmatched_CIPS_to_review |> tally()
 
-# ------------------------------------------------------------------------------
-# 4B.4 Program-level summary for analyst review
-#
-# Purpose:
-# Reduce the row-level candidate table to one row per credential program
-# description and STP CIP combination for easier review.
-#
-# Why this matters:
-# Analysts usually review program-level patterns, not every individual row.
-# Keeping only count == 1 avoids cases where one program maps to multiple
-# possible BGS CIPs and needs more careful review.
-# ------------------------------------------------------------------------------
 
-credential_unmatched_cips_review_summary <- credential_unmatched_cips_to_review %>%
+# ---- Part 4B: Update Unmatched CIPs ----
+# This subsection identifies programs that were not matched to BGS outcomes and reviews whether
+# they should use alternative CIP codes based on similar programs that were matched.
+# This helps ensure consistency across similar programs even if individual records weren't matched.
+
+# Review unmatched programs to see if they have similar programs that were matched with different CIPs
+# This identifies cases where unmatched programs might benefit from using BGS CIPs for consistency
+Credential_Unmatched_CIPS_to_review <- Credential_Unmatched_CIPS_to_review %>%
   group_by(
     PSI_CODE,
     PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
     STP_CIP_CODE_4,
     STP_CIP_CODE_4_NAME
   ) %>%
-  summarise(
+  summarize(
     OUTCOMES_CIP_NAME = str_flatten(OUTCOMES_CIP_CODE_4_NAME, collapse = "\n "),
     OUTCOMES_CIP_CODE = str_flatten(OUTCOMES_CIP_CODE_4, collapse = "\n "),
-    count = n(),
-    .groups = "drop"
+    count = n()
   ) %>%
   filter(count == 1)
 
-credential_unmatched_cips_review_summary %>% glimpse()
-credential_unmatched_cips_review_summary %>% tally()
-
-# ------------------------------------------------------------------------------
-# 4B.5 Approved manual override table
-#
-# Purpose:
-# Store the final list of unmatched credential programs that should use BGS CIP
-# instead of their default STP CIP fallback.
-#
-# Notes:
-# - This is a manual, analyst-approved lookup table.
-# - The join key used later is PSI_CREDENTIAL_PROGRAM_DESCRIPTION.
-# - Keep one row per program description.
-# ------------------------------------------------------------------------------
-
-credential_unmatched_cips_to_update <- tibble::tribble(
+# Create a manual table of program descriptions that should be updated to use BGS CIP codes
+# These are unmatched programs where similar matched programs used different CIPs
+# The CIP codes here are derived from the matched programs' BGS CIPs
+Credential_Unmatched_CIPS_to_update <- tibble::tribble(
   ~PSI_CREDENTIAL_PROGRAM_DESCRIPTION                                         , ~FINAL_CIP_CODE_4 , ~FINAL_CIP_CODE_2 ,
   "Bachelor Of Applied Science In Mechatronic Systems Engineering"            ,              1442 ,                14 ,
   "Bachelor Of Athletic And Exercise Therapy"                                 ,              5123 ,                51 ,
@@ -3164,46 +2776,25 @@ credential_unmatched_cips_to_update <- tibble::tribble(
   "Bachelor Of Child & Youth Care In Child & Youth Care - Indigenous Stream"  ,              1907 ,                19
 )
 
-# Validation check: the manual override table must be unique by program description.
-dup_override_programs <- credential_unmatched_cips_to_update %>%
-  count(PSI_CREDENTIAL_PROGRAM_DESCRIPTION) %>%
-  filter(n > 1)
-
-if (nrow(dup_override_programs) > 0) {
-  stop(
-    "credential_unmatched_cips_to_update has duplicate PSI_CREDENTIAL_PROGRAM_DESCRIPTION values."
-  )
-}
-
-# Write the approved override table to SQL for database-side joins.
+# Write the update table to SQL for efficient joining
 dbWriteTable(
   con,
   "Credential_Unmatched_CIPS_to_update",
-  credential_unmatched_cips_to_update,
+  Credential_Unmatched_CIPS_to_update,
   overwrite = TRUE
 )
 
-# Reload as a dbplyr table reference.
-credential_unmatched_cips_to_update <- tbl(
+# Load the update table as a dbplyr reference for joining
+Credential_Unmatched_CIPS_to_update <- tbl(
   con,
   in_schema(my_schema, "Credential_Unmatched_CIPS_to_update")
 )
 
-# ------------------------------------------------------------------------------
-# 4B.6 Apply approved overrides to unmatched credential rows
-#
-# Business rule:
-# Only override rows that were never matched earlier in the workflow:
-#   - FINAL_CONSIDER_A_MATCH is NA
-#   - FINAL_PROBABLE_MATCH is NA
-#
-# After replacing the final CIP codes, clear the dependent name and cluster
-# fields so they can be rebuilt from the official lookup tables.
-# ------------------------------------------------------------------------------
-
+# Update the BGS credentials table to use the manually specified CIP codes for unmatched programs
+# This ensures consistency with similar programs that were matched and used BGS CIPs
 credential_bgs_updated <- credential_bgs_updated %>%
   left_join(
-    credential_unmatched_cips_to_update %>%
+    Credential_Unmatched_CIPS_to_update %>%
       select(
         PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
         FINAL_CIP_CODE_4,
@@ -3216,65 +2807,70 @@ credential_bgs_updated <- credential_bgs_updated %>%
     by = "PSI_CREDENTIAL_PROGRAM_DESCRIPTION"
   ) %>%
   mutate(
-    apply_unmatched_override = is.na(FINAL_CONSIDER_A_MATCH) &
-      is.na(FINAL_PROBABLE_MATCH) &
-      (!is.na(upd_FINAL_CIP_CODE_4) | !is.na(upd_FINAL_CIP_CODE_2))
-  ) %>%
-  mutate(
+    # Update 4-digit CIP for unmatched programs that have a manual override
     FINAL_CIP_CODE_4 = if_else(
-      apply_unmatched_override == TRUE & !is.na(upd_FINAL_CIP_CODE_4),
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        !is.na(upd_FINAL_CIP_CODE_4),
       upd_FINAL_CIP_CODE_4,
       FINAL_CIP_CODE_4
     ),
+    # Clear the name to force re-lookup from CIP tables
     FINAL_CIP_CODE_4_NAME = if_else(
-      apply_unmatched_override == TRUE & !is.na(upd_FINAL_CIP_CODE_4),
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        !is.na(upd_FINAL_CIP_CODE_4),
       NA_character_,
       FINAL_CIP_CODE_4_NAME
     ),
+    # Update 2-digit CIP for unmatched programs
     FINAL_CIP_CODE_2 = if_else(
-      apply_unmatched_override == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        !is.na(upd_FINAL_CIP_CODE_2),
       upd_FINAL_CIP_CODE_2,
       FINAL_CIP_CODE_2
     ),
+    # Clear the name to force re-lookup
     FINAL_CIP_CODE_2_NAME = if_else(
-      apply_unmatched_override == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        !is.na(upd_FINAL_CIP_CODE_2),
       NA_character_,
       FINAL_CIP_CODE_2_NAME
     ),
+    # Clear cluster info to force re-lookup
     FINAL_CIP_CLUSTER_CODE = if_else(
-      apply_unmatched_override == TRUE,
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        (!is.na(upd_FINAL_CIP_CODE_4) | !is.na(upd_FINAL_CIP_CODE_2)),
       NA_character_,
       FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = if_else(
-      apply_unmatched_override == TRUE,
+      is.na(FINAL_CONSIDER_A_MATCH) &
+        is.na(FINAL_PROBABLE_MATCH) &
+        (!is.na(upd_FINAL_CIP_CODE_4) | !is.na(upd_FINAL_CIP_CODE_2)),
       NA_character_,
       FINAL_CIP_CLUSTER_NAME
     )
   ) %>%
-  select(
-    -upd_FINAL_CIP_CODE_4,
-    -upd_FINAL_CIP_CODE_2,
-    -apply_unmatched_override
-  )
+  select(-upd_FINAL_CIP_CODE_4, -upd_FINAL_CIP_CODE_2)
 
-# ------------------------------------------------------------------------------
-# 4B.7 Validation checks after override
-# ------------------------------------------------------------------------------
+# Validation checks: Ensure no missing CIP names after updates
+{
+  # Check for remaining NA CIP names and their match status
+  credential_bgs_updated %>%
+    filter(is.na(FINAL_CIP_CODE_4_NAME)) %>%
+    count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH)
 
-# Review remaining rows with missing 4-digit CIP names.
-credential_bgs_updated %>%
-  filter(is.na(FINAL_CIP_CODE_4_NAME)) %>%
-  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH)
+  # Check specific CIP codes that still have missing names
+  credential_bgs_updated %>%
+    filter(is.na(FINAL_CIP_CODE_4_NAME)) %>%
+    count(FINAL_CIP_CODE_4)
+}
 
-credential_bgs_updated %>%
-  filter(is.na(FINAL_CIP_CODE_4_NAME)) %>%
-  count(FINAL_CIP_CODE_4)
-
-# ------------------------------------------------------------------------------
-# 4B.8 Refill missing 4-digit CIP names from official lookup
-# ------------------------------------------------------------------------------
-
+# Fill in missing 4-digit CIP names by joining to the CIP lookup table
 credential_bgs_updated <- credential_bgs_updated %>%
   left_join(
     cip_4_tbl %>%
@@ -3290,13 +2886,7 @@ credential_bgs_updated <- credential_bgs_updated %>%
   ) %>%
   select(-LCP4_CIP_4DIGITS_NAME)
 
-# ------------------------------------------------------------------------------
-# 4B.9 Refill missing 2-digit CIP names and cluster fields from official lookup
-#
-# Use a helper flag so all related fields are refilled consistently based on
-# whether FINAL_CIP_CODE_2_NAME was missing before this refill step.
-# ------------------------------------------------------------------------------
-
+# Fill in missing 2-digit CIP names and cluster information by joining to the CIP lookup table
 credential_bgs_updated <- credential_bgs_updated %>%
   left_join(
     cip_2_tbl %>%
@@ -3309,20 +2899,18 @@ credential_bgs_updated <- credential_bgs_updated %>%
     by = c("FINAL_CIP_CODE_2" = "LCP2_CD")
   ) %>%
   mutate(
-    fill_cip2_fields = is.na(FINAL_CIP_CODE_2_NAME),
-
     FINAL_CIP_CODE_2_NAME = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_DIGITS_NAME,
       FINAL_CIP_CODE_2_NAME
     ),
     FINAL_CIP_CLUSTER_CODE = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_LCIPPC_CD,
       FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_LCIPPC_NAME,
       FINAL_CIP_CLUSTER_NAME
     )
@@ -3330,8 +2918,7 @@ credential_bgs_updated <- credential_bgs_updated %>%
   select(
     -LCP2_DIGITS_NAME,
     -LCP2_LCIPPC_CD,
-    -LCP2_LCIPPC_NAME,
-    -fill_cip2_fields
+    -LCP2_LCIPPC_NAME
   )
 
 # Preview the updated credentials table structure
@@ -3384,26 +2971,22 @@ rm(
   Credential_Unmatched_CIPS_to_update
 )
 
-# ------------------------------------------------------------------------------
-# Part 5: Update the BGS outcomes table with final CIP values
+## Part 5: Update T_BGS_DATA_FINAL ----
+## Created tables: T_BGS_Data_Final_CIPS_to_update
+## Updated tables: T_BGS_Data_Final_CIP_for_OutcomesMatching
+# ---- Part 5: Update T_BGS_DATA_FINAL ----
+# Created table: T_BGS_Data_Final_for_OutcomesMatching (Updated)
 #
-# Purpose:
-# Write the final CIP decision back to the BGS outcomes table so the BGS source
-# also reflects the outcome of the BGS/STP matching process.
+# WHAT: Updates the main BGS outcomes table with final matched CIP codes and metadata.
+# WHY: The matching workflow determines which CIP codes to use (BGS or STP) for each record.
+#      This needs to be reflected in the source outcomes table.
+# HOW: 1) Left join matching results to BGS outcomes table
+#      2) Use matched CIPs where available, fallback to original BGS CIPs
+#      3) Add USE_STP_CIP flag to indicate source of final CIP code
+#      4) Enrich with STP CIP codes for comparison
+#      5) Fill missing cluster information and finalize
 #
-# Why this step exists:
-# The matching logic may decide that the final CIP should come from STP rather
-# than the original BGS outcome record. This step stores that final choice,
-# preserves comparison fields, and fills missing descriptive metadata.
-#
-# Main stages:
-# - Part 5A: Join match results back to the BGS outcomes table.
-# - Part 5B: Review unmatched programs and apply manual CIP overrides where
-#   needed for consistency.
-#
-# Output:
-# - T_BGS_Data_Final_for_OutcomesMatching (updated)
-# ------------------------------------------------------------------------------
+# TODO [LOW]: Add validation that final CIP coverage is 100%
 
 ### Part 5A: Update with XWALK ----
 
@@ -3434,6 +3017,17 @@ rm(
     )
   )
 }
+
+# ---- Part 5: Update T_BGS_Data_Final_for_OutcomesMatching ----
+# WHAT: Updates the main BGS outcomes table (T_BGS_Data_Final_for_OutcomesMatching) with final matched CIP codes and metadata from the PEN-based matching workflow.
+# WHY: The matching process determines which CIP codes (BGS or STP) are most appropriate for each record. This decision needs to be propagated back to the source outcomes table for accurate supply modeling.
+# HOW: 1) Add new columns to store final CIP codes, STP CIPs, and matching flags
+#      2) Left join matching results from BGS_Matching_STP_Credential_PEN table
+#      3) Apply updates in priority order: auto-matched records first, then manually reviewed records
+#      4) Set USE_STP_CIP flag (inverse of USE_BGS_CIP) to indicate CIP source
+#      5) Fallback to original BGS CIPs for unmatched records
+#      6) Fill missing cluster information from CIP lookup tables
+#      7) Materialize updated table as persistent SQL table
 
 ## Fill in final CIPs with BGS_Matching_STP_Credential_PEN
 
@@ -3764,49 +3358,24 @@ t_bgs_updated <- t_bgs_updated %>%
 
 t_bgs_updated |> glimpse()
 
+##
+### Part 5B: Update unmatched CIPs ----
+## Create a list of programs that matched to STP data and use STP CIPs instead of BGS
 # ------------------------------------------------------------------------------
-# Part 5B: Review and update unmatched BGS programs using STP-linked CIP values
+# qry_List_T_BGS_Data_Using_STP_CIPS
 #
 # Purpose:
-# Handle BGS records that did not receive a case-level match in the earlier
-# BGS/STP matching workflow. For selected unmatched programs, use evidence from
-# matched records to assign a more appropriate final CIP.
+# Create a grouped list of BGS program records where the STP-linked CIP
+# should be used. This is mainly an audit/check table.
 #
-# Why this step exists:
-# Some BGS programs remain unmatched and therefore keep their original BGS CIP.
-# However, the same PROGRAM may appear elsewhere in matched cases where STP CIP
-# was clearly the better final choice. This step identifies those cases,
-# exports them for optional analyst review, and applies approved updates.
-#
-# Workflow:
-# 1. Build an audit table of matched BGS program combinations that already use
-#    STP CIP.
-# 2. Build an audit table of unmatched BGS program combinations.
-# 3. Create a review table showing unmatched programs that have evidence from
-#    matched cases suggesting a replacement final CIP.
-# 4. Export that review table to CSV.
-# 5. If a reviewed CSV exists, read it back and use it as the update table.
-#    Otherwise, build a draft update table automatically for PROGRAM values that
-#    map to one unique replacement CIP.
-# 6. Update unmatched rows in t_bgs_updated and refill descriptive fields from
-#    the official CIP lookup tables.
-#
-# Important assumptions:
-# - The final update step joins by PROGRAM only.
-# - Because of that, the update table must contain at most one row per PROGRAM.
-# - If one PROGRAM maps to multiple possible replacement CIPs, that PROGRAM
-#   must be reviewed manually before it can be updated safely.
+# SQL equivalent:
+#   SELECT ... COUNT(*)
+#   FROM T_BGS_Data_Final_for_OutcomesMatching
+#   GROUP BY ...
+#   HAVING USE_STP_CIP = 'Yes'
 # ------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------
-# 5B.1 Build audit table: matched BGS program combinations that use STP CIP
-#
-# This is the BGS-side equivalent of the matched-program evidence used in Part 4B.
-# It identifies programs where the final decision was already to use STP CIP.
-# Those matched examples are the evidence base for updating similar unmatched rows.
-# ------------------------------------------------------------------------------
-
-T_BGS_Data_Matched_CIPS_Using_STP <- t_bgs_updated %>%
+qry_List_T_BGS_Data_Using_STP_CIPS <- t_bgs_updated %>%
   group_by(
     INSTITUTION_CODE,
     CPC,
@@ -3827,17 +3396,23 @@ T_BGS_Data_Matched_CIPS_Using_STP <- t_bgs_updated %>%
     FINAL_PROBABLE_MATCH,
     USE_STP_CIP
   ) %>%
-  summarise(n = n(), .groups = "drop") %>%
+  summarise(Expr1 = n(), .groups = "drop") %>%
   filter(USE_STP_CIP == "Yes")
 
+
+## Create a list of programs that did not match to STP data
 # ------------------------------------------------------------------------------
-# 5B.2 Build audit table: unmatched BGS program combinations
+# qry_List_T_BGS_Data_Umatched
 #
-# These are records that did not receive a match-based CIP decision earlier in
-# the workflow and therefore still show USE_STP_CIP = "No because no match".
+# Purpose:
+# Create a grouped list of records that remain unmatched after the earlier
+# matching logic. These are records where USE_STP_CIP says:
+#   "No because no match"
+#
+# This is another audit/check table.
 # ------------------------------------------------------------------------------
 
-T_BGS_Data_Unmatched_CIPS <- t_bgs_updated %>%
+qry_List_T_BGS_Data_Umatched <- t_bgs_updated %>%
   group_by(
     INSTITUTION_CODE,
     CPC,
@@ -3858,164 +3433,20 @@ T_BGS_Data_Unmatched_CIPS <- t_bgs_updated %>%
     FINAL_PROBABLE_MATCH,
     USE_STP_CIP
   ) %>%
-  summarise(n = n(), .groups = "drop") %>%
+  summarise(Expr1 = n(), .groups = "drop") %>%
   filter(USE_STP_CIP == "No because no match")
 
 # ------------------------------------------------------------------------------
-# 5B.3 Create review table for unmatched BGS programs
+# Safety check before joining
 #
-# Strategy:
-# Join unmatched programs to matched programs that already use STP CIP.
-# At the review stage, use a safer program identity:
-#   INSTITUTION_CODE + CPC + PROGRAM
-# rather than PROGRAM alone.
+# Why this matters:
+# The SQL UPDATE joins by PROGRAM. In dplyr, if the update table has more than
+# one row per PROGRAM, a left_join() would duplicate rows.
 #
-# This helps avoid accidental cross-institution or cross-CPC reuse of a CIP.
-# The final update table is collapsed to PROGRAM only later, but only if the
-# recommended CIP is unique for that PROGRAM.
+# This check helps future analysts catch that issue early.
 # ------------------------------------------------------------------------------
 
-T_BGS_Data_Unmatched_CIPS_to_review <- T_BGS_Data_Unmatched_CIPS %>%
-  select(
-    INSTITUTION_CODE,
-    CPC,
-    PROGRAM,
-    CURRENT_BGS_CIP_4 = CIP_4DIGIT_NO_PERIOD,
-    CURRENT_BGS_CIP_4_NAME = CIP4DIG_NAME,
-    CURRENT_BGS_CIP_2 = CIP2DIG,
-    CURRENT_BGS_CIP_2_NAME = CIP2DIG_NAME,
-    CURRENT_FINAL_CIP_4 = FINAL_CIP_CODE_4,
-    CURRENT_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
-    CURRENT_FINAL_CIP_2 = FINAL_CIP_CODE_2,
-    CURRENT_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME,
-    USE_STP_CIP,
-    n
-  ) %>%
-  left_join(
-    T_BGS_Data_Matched_CIPS_Using_STP %>%
-      distinct(
-        INSTITUTION_CODE,
-        CPC,
-        PROGRAM,
-        MATCHED_FINAL_CIP_4 = FINAL_CIP_CODE_4,
-        MATCHED_FINAL_CIP_4_NAME = FINAL_CIP_CODE_4_NAME,
-        MATCHED_FINAL_CIP_2 = FINAL_CIP_CODE_2,
-        MATCHED_FINAL_CIP_2_NAME = FINAL_CIP_CODE_2_NAME
-      ),
-    by = c("INSTITUTION_CODE", "CPC", "PROGRAM")
-  ) %>%
-  mutate(
-    FOUND_MATCHED_STP_EXAMPLE = if_else(
-      !is.na(MATCHED_FINAL_CIP_4),
-      "Yes",
-      NA_character_
-    ),
-    REPLACEMENT_DIFFERS_FROM_CURRENT_BGS = if_else(
-      !is.na(MATCHED_FINAL_CIP_4) & MATCHED_FINAL_CIP_4 != CURRENT_BGS_CIP_4,
-      "Yes",
-      NA_character_
-    )
-  ) %>%
-  filter(
-    FOUND_MATCHED_STP_EXAMPLE == "Yes",
-    REPLACEMENT_DIFFERS_FROM_CURRENT_BGS == "Yes"
-  ) %>%
-  arrange(INSTITUTION_CODE, CPC, PROGRAM, MATCHED_FINAL_CIP_4)
-
-# ------------------------------------------------------------------------------
-# 5B.4 Export review table for analyst review
-#
-# Analysts can inspect this file and optionally create a reviewed version with
-# exactly these columns:
-#   PROGRAM, FINAL_CIP_CODE_4, FINAL_CIP_CODE_2
-#
-# Suggested manual workflow:
-# - Review whether the matched STP-linked CIP should be applied to unmatched
-#   rows for the same PROGRAM.
-# - Keep only approved rows in the final reviewed file.
-# ------------------------------------------------------------------------------
-
-review_file <- "T_BGS_Data_Unmatched_CIPS_to_review.csv"
-update_file <- "T_BGS_Data_Unmatched_CIPS_to_update.csv"
-
-T_BGS_Data_Unmatched_CIPS_to_review <- T_BGS_Data_Unmatched_CIPS_to_review |>
-  collect()
-write_csv(T_BGS_Data_Unmatched_CIPS_to_review, review_file)
-
-# ------------------------------------------------------------------------------
-# 5B.5 Read reviewed update table if available; otherwise build a safe draft
-#
-# If the reviewed update file exists, use it.
-# Otherwise, automatically draft an update table for PROGRAM values that map to
-# exactly one unique replacement 4-digit and 2-digit CIP.
-#
-# This keeps the script runnable even before manual review is complete, while
-# avoiding unsafe many-to-one PROGRAM mappings.
-# ------------------------------------------------------------------------------
-
-if (file.exists(update_file)) {
-  # --------------------------------------------------------------------------
-  # Preferred path: use the reviewed update file
-  # --------------------------------------------------------------------------
-  T_BGS_Data_Unmatched_CIPS_to_update <- read_csv(
-    update_file,
-    show_col_types = FALSE
-  ) %>%
-    transmute(
-      PROGRAM = as.character(PROGRAM),
-      FINAL_CIP_CODE_4 = as.character(FINAL_CIP_CODE_4),
-      FINAL_CIP_CODE_2 = as.character(FINAL_CIP_CODE_2)
-    )
-
-  dup_programs <- T_BGS_Data_Unmatched_CIPS_to_update %>%
-    count(PROGRAM) %>%
-    filter(n > 1)
-
-  if (nrow(dup_programs) > 0) {
-    T_BGS_Data_Unmatched_CIPS_to_update <- T_BGS_Data_Unmatched_CIPS_to_update %>%
-      group_by(PROGRAM) %>%
-      summarise(
-        FINAL_CIP_CODE_4 = first(na.omit(MATCHED_FINAL_CIP_4)),
-        FINAL_CIP_CODE_2 = first(na.omit(MATCHED_FINAL_CIP_2)),
-        n_cip4 = n_distinct(MATCHED_FINAL_CIP_4, na.rm = TRUE),
-        n_cip2 = n_distinct(MATCHED_FINAL_CIP_2, na.rm = TRUE),
-        .groups = "drop"
-      ) %>%
-      filter(n_cip4 == 1, n_cip2 == 1) %>%
-      select(PROGRAM, FINAL_CIP_CODE_4, FINAL_CIP_CODE_2)
-  }
-} else {
-  # --------------------------------------------------------------------------
-  # Fallback path: build an automatic draft update table
-  #
-  # Only keep PROGRAM values that map to one unique replacement CIP pair.
-  # If a PROGRAM maps to more than one candidate CIP, do not auto-update it.
-  # Those cases should be handled through the reviewed CSV path.
-  # --------------------------------------------------------------------------
-  T_BGS_Data_Unmatched_CIPS_to_update <- T_BGS_Data_Unmatched_CIPS_to_review %>%
-    group_by(PROGRAM) %>%
-    summarise(
-      FINAL_CIP_CODE_4 = first(na.omit(MATCHED_FINAL_CIP_4)),
-      FINAL_CIP_CODE_2 = first(na.omit(MATCHED_FINAL_CIP_2)),
-      n_cip4 = n_distinct(MATCHED_FINAL_CIP_4, na.rm = TRUE),
-      n_cip2 = n_distinct(MATCHED_FINAL_CIP_2, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    filter(n_cip4 == 1, n_cip2 == 1) %>%
-    select(PROGRAM, FINAL_CIP_CODE_4, FINAL_CIP_CODE_2)
-
-  # Save the automatic draft so analysts can review or override it later.
-  write_csv(T_BGS_Data_Unmatched_CIPS_to_update, update_file)
-}
-
-# ------------------------------------------------------------------------------
-# 5B.6 Validate update table
-#
-# The later join uses PROGRAM only, so PROGRAM must be unique in the final
-# update table. Stop if duplicates remain.
-# ------------------------------------------------------------------------------
-
-dup_programs <- T_BGS_Data_Unmatched_CIPS_to_update %>%
+dup_programs <- t_bgs_updated %>%
   count(PROGRAM) %>%
   filter(n > 1)
 
@@ -4025,41 +3456,22 @@ if (nrow(dup_programs) > 0) {
   )
 }
 
-# Optional check: review programs that were excluded from the automatic draft
-# because they mapped to multiple possible replacement CIPs.
-T_BGS_Data_Unmatched_CIPS_ambiguous <- T_BGS_Data_Unmatched_CIPS_to_review %>%
-  group_by(PROGRAM) %>%
-  summarise(
-    n_cip4 = n_distinct(MATCHED_FINAL_CIP_4, na.rm = TRUE),
-    n_cip2 = n_distinct(MATCHED_FINAL_CIP_2, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  filter(n_cip4 > 1 | n_cip2 > 1)
-
 # ------------------------------------------------------------------------------
-# 5B.7 Apply unmatched-program CIP updates
+# qry_update_T_BGS_Data_unmatched
+#
+# Purpose:
+# For programs that did not get a final match through the normal matching logic,
+# replace the final CIP values using a manually linked lookup table.
 #
 # Business rule:
-# Only update rows that were never resolved in the earlier matching workflow:
+# Only update rows where BOTH:
 #   - FINAL_CONSIDER_A_MATCH is NA
 #   - FINAL_PROBABLE_MATCH is NA
 #
-# After replacing the final CIP codes, clear the name and cluster fields so
-# they can be refilled from the official lookup tables below.
+# After updating the final CIP codes, clear the descriptive name fields so they
+# can be refilled from the official CIP reference tables in the next steps.
+# T_BGS_Data_Unmatched_CIPS_to_update table is missing
 # ------------------------------------------------------------------------------
-
-# Write the update table to SQL for efficient joining
-dbWriteTable(
-  con,
-  "T_BGS_Data_Unmatched_CIPS_to_update",
-  T_BGS_Data_Unmatched_CIPS_to_update,
-  overwrite = TRUE
-)
-
-T_BGS_Data_Unmatched_CIPS_to_update <- tbl(
-  con,
-  in_schema(my_schema, "T_BGS_Data_Unmatched_CIPS_to_update")
-)
 
 t_bgs_updated <- t_bgs_updated %>%
   left_join(
@@ -4070,42 +3482,43 @@ t_bgs_updated <- t_bgs_updated %>%
         upd_FINAL_CIP_CODE_2 = FINAL_CIP_CODE_2
       ),
     by = "PROGRAM"
-  )
-
-t_bgs_updated <- t_bgs_updated %>%
+  ) %>%
   mutate(
+    # Identify rows that were unmatched in the original matching process
     needs_unmatched_update = is.na(FINAL_CONSIDER_A_MATCH) &
       is.na(FINAL_PROBABLE_MATCH),
 
+    # Replace final CIP codes from the unmatched-program lookup
     FINAL_CIP_CODE_4 = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_4),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_4),
       upd_FINAL_CIP_CODE_4,
       FINAL_CIP_CODE_4
     ),
     FINAL_CIP_CODE_2 = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_2),
       upd_FINAL_CIP_CODE_2,
       FINAL_CIP_CODE_2
     ),
 
-    # Clear descriptive fields so they can be rebuilt from official lookups.
+    # Clear labels and cluster fields for updated rows.
+    # These will be rebuilt from official lookup tables below.
     FINAL_CIP_CODE_4_NAME = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_4),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_4),
       NA_character_,
       FINAL_CIP_CODE_4_NAME
     ),
     FINAL_CIP_CODE_2_NAME = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_2),
       NA_character_,
       FINAL_CIP_CODE_2_NAME
     ),
     FINAL_CIP_CLUSTER_CODE = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_2),
       NA_character_,
       FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = if_else(
-      needs_unmatched_update == TRUE & !is.na(upd_FINAL_CIP_CODE_2),
+      needs_unmatched_update & !is.na(upd_FINAL_CIP_CODE_2),
       NA_character_,
       FINAL_CIP_CLUSTER_NAME
     )
@@ -4113,13 +3526,22 @@ t_bgs_updated <- t_bgs_updated %>%
   select(-upd_FINAL_CIP_CODE_4, -upd_FINAL_CIP_CODE_2, -needs_unmatched_update)
 
 # ------------------------------------------------------------------------------
-# 5B.8 Refill final 4-digit CIP name from official lookup
+# qry_fill_final_CIP4_NAME_T_BGS_Data
+#
+# Purpose:
+# Refill FINAL_CIP_CODE_4_NAME using the official 4-digit CIP lookup table.
+#
+# Business rule:
+# Only fill rows where FINAL_CIP_CODE_4_NAME is currently missing.
 # ------------------------------------------------------------------------------
 
 t_bgs_updated <- t_bgs_updated %>%
   left_join(
     cip_4_tbl %>%
-      select(LCP4_CD, LCP4_CIP_4DIGITS_NAME),
+      select(
+        LCP4_CD,
+        LCP4_CIP_4DIGITS_NAME
+      ),
     by = c("FINAL_CIP_CODE_4" = "LCP4_CD")
   ) %>%
   mutate(
@@ -4132,15 +3554,20 @@ t_bgs_updated <- t_bgs_updated %>%
   select(-LCP4_CIP_4DIGITS_NAME)
 
 # ------------------------------------------------------------------------------
-# 5B.9 Refill final 2-digit CIP name and cluster fields from official lookup
+# qry_fill_final_CIP2_NAME_and_CLUSTER_T_BGS_Data
 #
-# Use a helper flag so the same "was missing before refill" condition is applied
-# consistently to all related fields.
+# Purpose:
+# Refill the 2-digit CIP label and associated cluster fields using the official
+# 2-digit CIP lookup table.
+#
+# Business rule:
+# Only fill these fields where FINAL_CIP_CODE_2_NAME is missing.
+# This mirrors the SQL WHERE clause.
 # ------------------------------------------------------------------------------
 
 t_bgs_updated <- t_bgs_updated %>%
   left_join(
-    cip_2_tbl %>%
+    INFOWARE_L_CIP_2DIGITS_CIP2016 %>%
       select(
         LCP2_CD,
         LCP2_DIGITS_NAME,
@@ -4150,45 +3577,23 @@ t_bgs_updated <- t_bgs_updated %>%
     by = c("FINAL_CIP_CODE_2" = "LCP2_CD")
   ) %>%
   mutate(
-    fill_cip2_fields = is.na(FINAL_CIP_CODE_2_NAME),
-
     FINAL_CIP_CODE_2_NAME = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_DIGITS_NAME,
       FINAL_CIP_CODE_2_NAME
     ),
     FINAL_CIP_CLUSTER_CODE = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_LCIPPC_CD,
       FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = if_else(
-      fill_cip2_fields == TRUE,
+      is.na(FINAL_CIP_CODE_2_NAME),
       LCP2_LCIPPC_NAME,
       FINAL_CIP_CLUSTER_NAME
     )
   ) %>%
-  select(
-    -LCP2_DIGITS_NAME,
-    -LCP2_LCIPPC_CD,
-    -LCP2_LCIPPC_NAME,
-    -fill_cip2_fields
-  )
-
-# ------------------------------------------------------------------------------
-# 5B.10 Optional summary checks
-#
-# These checks help analysts see:
-# - how many candidate review rows were exported,
-# - how many PROGRAM values made it into the final update table,
-# - and how many ambiguous PROGRAM values still need manual review.
-# ------------------------------------------------------------------------------
-
-list(
-  n_review_rows = nrow(T_BGS_Data_Unmatched_CIPS_to_review),
-  n_update_programs = nrow(T_BGS_Data_Unmatched_CIPS_to_update),
-  n_ambiguous_programs = nrow(T_BGS_Data_Unmatched_CIPS_ambiguous)
-)
+  select(-LCP2_DIGITS_NAME, -LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME)
 
 target_name <- "T_BGS_Data_Final_for_OutcomesMatching"
 temp_name <- "T_BGS_Data_Final_for_OutcomesMatching_temp"
