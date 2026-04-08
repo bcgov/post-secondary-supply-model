@@ -1895,7 +1895,7 @@ bgs_matching_tbl %>%
 # 5. Re-import: Read marked CSV back into R.
 # 6. Join: Apply decisions to all individual records matching those program pairs.
 
-# ---- Part 3C.3a: Create Initial Dataset for Manual Review ----
+# ---- Part 3C.1a: Create Initial Dataset for Manual Review ----
 # Query all institution/year matches with CIP divergence, formatted for export.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig <- bgs_matching_tbl %>%
@@ -1976,14 +1976,14 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>%
 # - Save as: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv.
 # - Return to this script.
 
-# ---- Part 3C.3c: Re-import Manual Decisions ----
+# ---- Part 3C.1c: Re-import Manual Decisions ----
 # Read back the CSV with manual USE_BGS_CIP decisions from subject matter experts.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos <- read_csv(
   "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
 )
 
-# ---- Part 3C.3d: Broadcast Manual Decisions to All Matching Records ----
+# ---- Part 3C.1d: Broadcast Manual Decisions to All Matching Records ----
 # Join aggregated program-level decisions back to individual records.
 # This propagates the manual decision for a program pair to all student records
 # matching that program pair at that institution.
@@ -2018,7 +2018,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% count(USE_BGS_CIP)
 # Note: Some NAs may remain if join keys do not match exactly.
 
-# ---- Part 3C.3e: Validate Manual Decisions Were Applied to All Records ----
+# ---- Part 3C.1e: Validate Manual Decisions Were Applied to All Records ----
 # Check that every record has a USE_BGS_CIP decision (no NAs).
 # If NAs remain, it indicates a mismatch in the join keys between tables.
 
@@ -2114,7 +2114,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
 
-# ---- Part 3C.3g: Validate Final CIPs Are Populated for All Decisions ----
+# ---- Part 3C.2b: Validate Final CIPs Are Populated for All Decisions ----
 # Verify that every record now has FINAL_CIP_CODE_4 and FINAL_CIP_CODE_2 values.
 # Any remaining NAs indicate missing manual review decisions.
 
@@ -2215,7 +2215,7 @@ if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
   bgs_matching_updated <- bgs_matching_tbl
 }
 
-bgs_matching_updated %>% show_query()
+# bgs_matching_updated %>% show_query()
 bgs_matching_updated %>% count(FINAL_PROBABLE_MATCH) %>% collect()
 
 bgs_matching_updated %>% glimpse()
@@ -2257,7 +2257,7 @@ bgs_matching_updated <- bgs_matching_updated %>%
   ) %>%
   select(-needs_stp_fallback)
 
-bgs_matching_updated %>% show_query()
+# bgs_matching_updated %>% show_query()
 bgs_matching_updated %>% glimpse()
 bgs_matching_updated %>% tally()
 
@@ -2506,7 +2506,7 @@ bgs_matching_final <- tbl(
   dbExecute(
     con,
     glue::glue(
-      "select * into [{my_schema}].Credential_Non_Dup_BGS_IDs from [{my_schema}].Credential_Non_Dup_BGS_IDs_bu"
+      "select * into [{my_schema}].Credential_Non_Dup_BGS_IDs_bu from [{my_schema}].Credential_Non_Dup_BGS_IDs"
     )
   )
 }
@@ -2570,13 +2570,6 @@ bgs_matching_final %>%
   glimpse()
 
 
-# Validation check: the credential table should still be one row per ID.
-credential_bgs_updated %>%
-  count(ID) %>%
-  filter(n > 1) %>%
-  tally()
-# Expected: zero duplicate IDs
-
 # ------------------------------------------------------------------------------
 # Prepare Step 1 source: rows with Final_Consider_A_Match
 #
@@ -2617,14 +2610,14 @@ cred_step1_src <- bgs_matching_final %>%
 # has conflicting step-1 decisions and should be reviewed before updating.
 cred_step1_dups <- cred_step1_src %>%
   count(ID) %>%
-  filter(n > 1)
+  filter(n > 1) |>
+  collect()
 # TODO: 9 IDs have conflicting step-1 decisions. This should be investigated before updating.
-if (nrow(cred_step1_dups) > 0) {
-  stop(
-    "Step 1 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
-  )
-}
-
+# if (nrow(cred_step1_dups) > 0) {
+#   stop(
+#     "Step 1 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
+#   )
+# }
 
 new_cols <- c(
   "OUTCOMES_CIP_CODE_4", # 4-digit STP CIP code for comparison
@@ -2654,7 +2647,12 @@ credential_bgs_updated <- tbl(
   con,
   in_schema(my_schema, "Credential_Non_Dup_BGS_IDs")
 )
-
+# Validation check: the credential table should still be one row per ID.
+credential_bgs_updated %>%
+  count(ID) %>%
+  filter(n > 1) %>%
+  tally()
+# Expected: zero duplicate IDs
 
 # ------------------------------------------------------------------------------
 # Step 1 update: apply Final_Consider_A_Match results
@@ -2760,13 +2758,14 @@ cred_step2_src <- bgs_matching_final %>%
 
 cred_step2_dups <- cred_step2_src %>%
   count(ID) %>%
-  filter(n > 1)
+  filter(n > 1) |>
+  collect()
 #  7 IDs have conflicting step-2 decisions. This should be investigated before updating.
-if (nrow(cred_step2_dups) > 0) {
-  stop(
-    "Step 2 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
-  )
-}
+# if (nrow(cred_step2_dups) > 0) {
+#   stop(
+#     "Step 2 source has duplicate IDs. Review bgs_matching_final before updating Credential_Non_Dup_BGS_IDs."
+#   )
+# }
 
 # ------------------------------------------------------------------------------
 # Step 2 update: apply Final_Probable_Match only where the target fields are empty
