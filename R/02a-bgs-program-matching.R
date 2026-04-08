@@ -87,7 +87,6 @@ library(glue)
 library(RJDBC)
 library(dbplyr)
 
-
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
 db_config <- config::get("decimal")
@@ -101,7 +100,6 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "TRUE"
 )
-
 
 # ---- Read in INFOWARE tables ----
 # only run once to get tables ready
@@ -276,7 +274,6 @@ cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
 
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
 stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
-
 
 # id should be unique for updates to be reliable.
 infoware_cohort_info |> tally()
@@ -475,7 +472,6 @@ t_bgs_final %>%
   filter(n > 1) %>%
   tally()
 
-
 # To uniquely join two tables,  use STQU_ID as key, don't use PEN or STUDID.
 
 t_bgs_final <- tbl(
@@ -485,7 +481,6 @@ t_bgs_final <- tbl(
     table = "T_BGS_Data_Final_for_OutcomesMatching"
   )
 )
-
 
 ## check counts by year
 {
@@ -558,7 +553,6 @@ stp_cip_cleaning <- credential_non_dup_tbl |>
     CIP_5 = substr(PSI_CREDENTIAL_CIP, 1, 5),
     CIP_2 = substr(PSI_CREDENTIAL_CIP, 1, 2)
   )
-
 
 # 2. Add 4 and 2D CIP codes from INFOWARE
 # Match on full CIP
@@ -737,7 +731,6 @@ stp_cip_cleaning |> tally()
     }
   }
 }
-
 
 # Check for blank CIP4s and CIP2s: no data, so pass
 {
@@ -1030,7 +1023,6 @@ credential_bgs_ids %>%
   filter(n > 1) %>%
   tally()
 
-
 # 1. Match BGS and STP on PEN (Personal Education Number)
 bgs_matching <- t_bgs_final %>%
   # Filter for valid PEN values (exclude blank, missing, or zero values)
@@ -1287,7 +1279,6 @@ bgs_matching_flagged <- bgs_matching %>%
 bgs_matching_flagged |> tally() # Verify row count: 133,952 (2023)
 bgs_matching_flagged |> glimpse() # Review structure
 
-
 ## Materialize as persistent SQL table for use in Parts 3B extended/3C
 {
   if (
@@ -1309,7 +1300,6 @@ bgs_matching_flagged <- bgs_matching_flagged |>
     temporary = FALSE
   )
 
-
 bgs_matching_flagged |> tally() # Verify: 133,952 (2023)
 bgs_matching_flagged |> glimpse() # Review structure
 
@@ -1319,7 +1309,6 @@ bgs_matching_flagged %>%
   count(ID) %>%
   filter(n > 1) %>%
   tally()
-
 
 ## Validation: Check for any new institution codes that need mapping
 ## If you see unmatched PSI_CODEs/INSTITUTION_CODE pairs, add them to the MATCH_INST case_when above
@@ -1674,7 +1663,6 @@ matched_2d_cips <- matched_2d_cips %>%
 
 count(matched_2d_cips, CIP_TO_USE) # All rows should have a CIP_TO_USE assignment now
 
-
 matched_2d_cips |> tally()
 matched_2d_cips |> glimpse()
 matched_2d_cips |> str()
@@ -1820,10 +1808,8 @@ refactored_tbl %>%
 # Update reference to point to final table
 bgs_matching_tbl <- refactored_tbl
 
-
 bgs_matching_tbl |> glimpse()
 bgs_matching_tbl |> tally()
-
 
 # ---- Validation: Verify 2-digit CIP decisions were applied correctly ----
 # Check distribution of USE_BGS_CIP by match type to ensure the decision logic worked
@@ -1843,7 +1829,6 @@ bgs_matching_tbl %>%
   count(ID) %>%
   filter(n > 1) %>%
   tally()
-
 
 # ------------------------------------------------------------------------------
 # Part 3C: Manual Review for Institution/Year Matches with Different CIPs
@@ -2352,7 +2337,6 @@ rm(
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos
 )
 
-
 ### Part 3D: Fill in Final Columns ----
 
 # ---- Part 3D: Final Fill (CIP Names and Clusters) ----
@@ -2455,7 +2439,7 @@ bgs_matching_final <- tbl(
   Id(schema = my_schema, table = output_name)
 )
 
-## check for blanks
+## Validation check: look for any remaining missing values in the final output.
 {
   bgs_matching_final %>%
     filter(is.na(FINAL_CIP_CLUSTER_CODE)) %>%
@@ -2568,7 +2552,6 @@ bgs_matching_final %>%
   mutate(n = n()) %>%
   filter(n > 1) %>%
   glimpse()
-
 
 # ------------------------------------------------------------------------------
 # Prepare Step 1 source: rows with Final_Consider_A_Match
@@ -2946,7 +2929,6 @@ credential_bgs_updated %>%
 # Quick summary of how rows were resolved.
 credential_bgs_updated %>%
   count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH, USE_BGS_CIP)
-
 
 # ------------------------------------------------------------------------------
 # Part 4B: Update unmatched credential programs using approved BGS CIP overrides
@@ -3365,15 +3347,13 @@ credential_bgs_updated <- tbl(con, in_schema(my_schema, target_name))
 credential_bgs_updated |> glimpse()
 credential_bgs_updated |> tally()
 
-
-## check for blanks
+## Validation check: look for any remaining missing values in the final output.
 {
   tbl(con, "Credential_Non_Dup_BGS_IDs") %>%
     filter(is.na(FINAL_CIP_CODE_4_NAME))
   tbl(con, "Credential_Non_Dup_BGS_IDs") %>%
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
-
 
 ## remove local tables
 rm(
@@ -3577,7 +3557,6 @@ t_bgs_updated <- t_bgs_updated %>%
   )
 
 t_bgs_updated |> glimpse()
-
 
 ## qry_update_T_BGS_Data_CIP_matches_step2 ----
 ## New: mimicking Credential_Non_Dup update code
