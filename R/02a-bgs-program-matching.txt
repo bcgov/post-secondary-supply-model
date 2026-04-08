@@ -1844,64 +1844,66 @@ bgs_matching_tbl %>%
   filter(n > 1) %>%
   tally()
 
+
 # ------------------------------------------------------------------------------
-# Part 3C: Manual review for institution/year matches with different CIPs
+# Part 3C: Manual Review for Institution/Year Matches with Different CIPs
 #
 # Purpose:
-# Handle records that look like genuine BGS/STP matches based on institution and
-# year, but where the program CIP differs enough that a rule-based decision is
-# not reliable.
+# Handle records that appear to be genuine BGS/STP matches based on institution
+# and year, but where the program CIP codes differ, requiring human judgment
+# for final CIP selection.
 #
 # Workflow:
-# 1. Extract candidate records that still need a decision.
-# 2. Aggregate them to program-level combinations to reduce review effort.
-# 3. Export the program-level list to CSV.
-# 4. Have a subject matter expert mark whether to use the BGS CIP or the STP CIP.
-# 5. Re-import the marked CSV and apply that decision back to all matching rows.
+# 1. Extract candidate records needing manual review (institution and year match,
+#    but CIPs differ and no automatic decision was made).
+# 2. Aggregate to program-level combinations to reduce review effort from
+#    thousands of individual rows to hundreds of unique program decisions.
+# 3. Export the aggregated program combinations to CSV for expert review.
+# 4. Experts review and mark each program: USE_BGS_CIP = "Yes" (use BGS CIP) or
+#    "No" (use STP CIP).
+# 5. Re-import the reviewed CSV and apply decisions to all matching records.
 #
 # Output:
-# - BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly (review input/output)
+# - BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly (review input/output table)
 #
 # Important:
-# This section includes a manual step outside R. The script assumes the reviewed
-# CSV is returned with a populated USE_BGS_CIP field.
+# This section requires a manual step outside R. The script expects the reviewed
+# CSV to be returned with a populated USE_BGS_CIP field. If the file is missing,
+# the script will default to STP CIP for unreviewed candidates.
 # ------------------------------------------------------------------------------
 
-#
+# ---- Part 3C.1: Extract Candidates for Manual Review ----
+# Filter to "borderline" matches: institution and award year match, but 4-digit
+# CIPs differ, and no automatic decision was applied. These require human judgment.
 
-# ---- Part 3C.1: Extract candidates for manual review ----
-# Filter to "borderline" matches: institution code matches, award year matches,
-# but 4-digit CIPs differ. These are the records requiring human judgment.
+# In an interactive session, you would:
+# - Export manual_candidates to CSV.
+# - Share with subject matter experts for review.
+# - Experts mark each row: USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP).
+# - Re-import the marked CSV.
 
-# Note: In a real interactive session, you would:
-# - Write manual_candidates to CSV
-# - Share with subject matter experts for review
-# - Experts mark each row: USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP)
-# - Re-import the marked CSV
-
-# ---- Part 3C Extended: Aggregate for manual review workflow ----
+# ---- Part 3C Extended: Aggregate for Manual Review Workflow ----
 # Extract institution/year matches with CIP divergence into a program-level view.
-# Aggregating from individual records to unique program combinations reduces
-# manual review workload from ~1,000s of individual rows to ~100s of program decisions.
+# Aggregating reduces manual review workload from thousands of individual records
+# to hundreds of unique program decisions.
 #
-# WORKFLOW:
-# 1. Extract: Pull all institution+year matches with different CIPs
-# 2. Aggregate: Group by program identifiers (institution, program code, program names, CIPs)
-# 3. Export: Save aggregated unique program combinations to CSV
-# 4. Manual Review: Subject matter experts edit CSV, adding USE_BGS_CIP column (Yes/No)
-# 5. Re-import: Read marked CSV back into R
-# 6. Join: Apply decisions back to all individual records matching those program pairs
-#
+# Workflow:
+# 1. Extract: Pull all institution+year matches with differing CIPs.
+# 2. Aggregate: Group by program identifiers (institution, codes, names, CIPs).
+# 3. Export: Save aggregated unique program combinations to CSV.
+# 4. Manual Review: Experts edit CSV, adding USE_BGS_CIP column ("Yes"/"No").
+# 5. Re-import: Read marked CSV back into R.
+# 6. Join: Apply decisions to all individual records matching those program pairs.
 
-# ---- Part 3C.3a: Create initial dataset for manual review ----
-# Query all institution+year matches with CIP divergence, formatted for export.
+# ---- Part 3C.3a: Create Initial Dataset for Manual Review ----
+# Query all institution/year matches with CIP divergence, formatted for export.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig <- bgs_matching_tbl %>%
   filter(
     MATCH_INST == "Yes",
     MATCH_AWARD_SCHOOL_YEAR == "Yes",
     is.na(FINAL_CONSIDER_A_MATCH)
-  ) |>
+  ) %>%
   select(
     STQU_ID,
     ID,
@@ -1928,17 +1930,18 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig <- bgs_matching_tbl %>%
     STP_PROGRAM_CODE,
     STP_PROGRAM_DESC,
     USE_BGS_CIP
-  ) |>
+  ) %>%
   collect()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> tally()
-# ~ 6000
+
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% tally()
+# ~6000 records
 
 # Creates: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly table in SQL
-# This is the full row-level data for the manual review set
+# This is the full row-level data for the manual review set.
 
-# ---- Part 3C.3b: Aggregate to program level for manual review ----
-# Reduce row-level data (~1,000s of records) to unique program combinations (~100s).
+# ---- Part 3C.3b: Aggregate to Program Level for Manual Review ----
+# Reduce row-level data (~6000 records) to unique program combinations (~1700).
 # Each row represents one unique program pair at one institution where CIP codes differ.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>%
@@ -1958,37 +1961,36 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group <- BGS_Matching_ST
   ) %>%
   summarize(Count = n(), .groups = "drop")
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |> glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |> tally()
-# ~ 1700
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>% glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>% tally()
+# ~1700 unique combinations
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group |>
-  collect() %>% # Count records per program combination
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>%
+  collect() %>% # Collect for CSV export
   write_csv(
     "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
   )
 # NEXT STEP (manual):
-# - Open CSV in Excel
-# - For each row, add USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP)
-# - Save as: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv
-# - Return to this script
+# - Open CSV in Excel.
+# - For each row, add USE_BGS_CIP = "Yes" (use BGS CIP) or "No" (use STP CIP).
+# - Save as: BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv.
+# - Return to this script.
 
-# ---- Part 3C.3c: Re-import manual decisions ----
+# ---- Part 3C.3c: Re-import Manual Decisions ----
 # Read back the CSV with manual USE_BGS_CIP decisions from subject matter experts.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos <- read_csv(
   "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
 )
 
-# ---- Part 3C.3d: Broadcast manual decisions to all matching records ----
+# ---- Part 3C.3d: Broadcast Manual Decisions to All Matching Records ----
 # Join aggregated program-level decisions back to individual records.
 # This propagates the manual decision for a program pair to all student records
 # matching that program pair at that institution.
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig |> count(USE_BGS_CIP)
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos |>
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>% count(USE_BGS_CIP)
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos %>%
   count(USE_BGS_CIP)
-
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig %>%
   mutate(across(everything(), trimws)) %>% # Normalize whitespace from CSV round-trip
@@ -1997,7 +1999,6 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
     # Join manual decisions by all program identifiers to match the aggregation key
     BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos %>%
       mutate(across(everything(), trimws)) %>%
-      # select(-BGS_FINAL_CIP_CODE_4_NAME, -STP_FINAL_CIP_CODE_4_NAME) |> # Avoid duplicate columns
       mutate(across(everything(), as.character)),
     by = c(
       "INSTITUTION_CODE",
@@ -2010,22 +2011,14 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
       "BGS_PROGRAM_DESC",
       "STP_PROGRAM_CODE",
       "STP_PROGRAM_DESC"
-      # "INSTITUTION_CODE",
-      # "PSI_CODE",
-      # "BGS_FINAL_CIP_CODE_4",
-      # "STP_FINAL_CIP_CODE_4",
-      # "BGS_PROGRAM_CODE",
-      # "BGS_PROGRAM_DESC",
-      # "STP_PROGRAM_CODE",
-      # "STP_PROGRAM_DESC"
     )
   )
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> count(USE_BGS_CIP)
-# still 753 nas?
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% count(USE_BGS_CIP)
+# Note: Some NAs may remain if join keys do not match exactly.
 
-# ---- Part 3C.3e: Validate manual decisions were applied to all records ----
+# ---- Part 3C.3e: Validate Manual Decisions Were Applied to All Records ----
 # Check that every record has a USE_BGS_CIP decision (no NAs).
 # If NAs remain, it indicates a mismatch in the join keys between tables.
 
@@ -2054,15 +2047,10 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> count(USE_BGS_CIP)
   }
 }
 
-# ---- Part 3C.3f: Populate final CIP columns based on manual decisions ----
-# For each record, assign FINAL_CIP values based on the manual decision.
-# USE_BGS_CIP = "Yes" → use BGS CIP codes
-# USE_BGS_CIP = "No" → use STP CIP codes
-
-## Update BGS_Matching_STP_Credential_PEN with final CIPs chosen manually
+# ---- Update BGS_Matching_STP_Credential_PEN with Final CIPs Chosen Manually ----
 {
-  ## may want to save a back up copy of BGS_Matching_STP_Credential_PEN before updating it
-  ## in case you want to make changes to the manual matching
+  # Optional: Save a backup copy of BGS_Matching_STP_Credential_PEN before updating
+  # in case you want to make changes to the manual matching.
   if (
     dbExistsTable(
       con,
@@ -2089,13 +2077,12 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> count(USE_BGS_CIP)
   )
 }
 
-
-# ---- Part 3C.2: Apply default logic for unreviewed candidates ----
+# ---- Part 3C.2: Apply Default Logic for Unreviewed Candidates ----
 # For any records without explicit manual decision, default to STP CIP.
 # This fallback ensures all candidates get a final CIP assignment.
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> glimpse()
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |> tally()
 
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% tally()
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>%
   mutate(
@@ -2114,7 +2101,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
       USE_BGS_CIP == "Yes",
       BGS_FINAL_CIP_CODE_2,
       STP_FINAL_CIP_CODE_2
-    ),
+    )
   ) %>%
   # Keep only columns needed to update the main matching table
   select(
@@ -2125,10 +2112,9 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
     USE_BGS_CIP
   )
 
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |>
-  glimpse()
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly %>% glimpse()
 
-# ---- Part 3C.3g: Validate final CIPs are populated for all decisions ----
+# ---- Part 3C.3g: Validate Final CIPs Are Populated for All Decisions ----
 # Verify that every record now has FINAL_CIP_CODE_4 and FINAL_CIP_CODE_2 values.
 # Any remaining NAs indicate missing manual review decisions.
 
@@ -2143,7 +2129,7 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly |>
     count(USE_BGS_CIP)
 }
 
-# ---- Part 3C.3: Upload manual decisions and update main matching table ----
+# ---- Part 3C.3: Upload Manual Decisions and Update Main Matching Table ----
 # Apply the manual decisions back to BGS_Matching_STP_Credential_PEN table,
 # replacing any placeholder values with finalized CIP assignments.
 
@@ -2170,22 +2156,22 @@ if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
       table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly"
     )
   )
-  source_tbl |> glimpse()
-  source_tbl |> tally()
-  # chekc unique keys
-  source_tbl |> count(STQU_ID, ID) |> collect() |> filter(n > 1) |> tally()
+  source_tbl %>% glimpse()
+  source_tbl %>% tally()
+  # Check unique keys
+  source_tbl %>% count(STQU_ID, ID) %>% collect() %>% filter(n > 1) %>% tally()
 
-  bgs_matching_tbl |> glimpse()
-  bgs_matching_tbl |> tally()
-  bgs_matching_tbl |>
-    count(STQU_ID, ID) |>
-    collect() |>
-    filter(n > 1) |>
+  bgs_matching_tbl %>% glimpse()
+  bgs_matching_tbl %>% tally()
+  bgs_matching_tbl %>%
+    count(STQU_ID, ID) %>%
+    collect() %>%
+    filter(n > 1) %>%
     tally()
-  # good so both do not have duplication
+  # Good: No duplicates in either table
 
   # Build the rows that should update
-  ## qry_update_CIP_for_MatchingYearInstOnly_step1 ----
+  # qry_update_CIP_for_MatchingYearInstOnly_step1 ----
   bgs_matching_updated <- bgs_matching_tbl %>%
     left_join(
       source_tbl %>%
@@ -2207,51 +2193,46 @@ if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
     ) %>%
     mutate(
       FINAL_PROBABLE_MATCH = case_when(
-        needs_update == T ~ "Yes",
+        needs_update == TRUE ~ "Yes",
         TRUE ~ FINAL_PROBABLE_MATCH
       ),
       FINAL_CIP_CODE_4 = case_when(
-        needs_update == T ~ src_FINAL_CIP_CODE_4,
+        needs_update == TRUE ~ src_FINAL_CIP_CODE_4,
         TRUE ~ FINAL_CIP_CODE_4
       ),
       FINAL_CIP_CODE_2 = case_when(
-        needs_update == T ~ src_FINAL_CIP_CODE_2,
+        needs_update == TRUE ~ src_FINAL_CIP_CODE_2,
         TRUE ~ FINAL_CIP_CODE_2
       ),
       USE_BGS_CIP = case_when(
-        needs_update == T ~ src_USE_BGS_CIP,
+        needs_update == TRUE ~ src_USE_BGS_CIP,
         TRUE ~ USE_BGS_CIP
       )
     ) %>%
     select(-needs_update, -starts_with("src_"))
-
-  # bgs_matching_updated |> glimpse()
 } else {
   # No manual candidates - use existing matched table
   bgs_matching_updated <- bgs_matching_tbl
 }
 
-bgs_matching_updated |> show_query()
-bgs_matching_updated |> count(FINAL_PROBABLE_MATCH) |> collect()
+bgs_matching_updated %>% show_query()
+bgs_matching_updated %>% count(FINAL_PROBABLE_MATCH) %>% collect()
 
-bgs_matching_updated |> glimpse()
-bgs_matching_updated |> tally()
+bgs_matching_updated %>% glimpse()
+bgs_matching_updated %>% tally()
 
-
-##
-
-## qry_update_CIP_for_MatchingYearInstOnly_step2 ----
+# qry_update_CIP_for_MatchingYearInstOnly_step2 ----
 # Update the rest of the records to use the STP CIPs as final if no match was found
-bgs_matching_updated <- bgs_matching_updated |>
+bgs_matching_updated <- bgs_matching_updated %>%
   mutate(
     # Identify records where all target columns are still NULL
     needs_stp_fallback = is.na(FINAL_CIP_CODE_4) &
       is.na(FINAL_CIP_CODE_4_NAME) &
       is.na(FINAL_CIP_CODE_2) &
       is.na(FINAL_CIP_CODE_2_NAME)
-  ) |>
+  ) %>%
   mutate(
-    # # Apply fallback values from STP source columns
+    # Apply fallback values from STP source columns
     FINAL_CIP_CODE_4 = if_else(
       needs_stp_fallback == TRUE,
       STP_FINAL_CIP_CODE_4,
@@ -2273,16 +2254,16 @@ bgs_matching_updated <- bgs_matching_updated |>
       FINAL_CIP_CODE_2_NAME
     ),
     USE_BGS_CIP = if_else(needs_stp_fallback == TRUE, "No", USE_BGS_CIP)
-  ) |>
+  ) %>%
   select(-needs_stp_fallback)
 
-bgs_matching_updated |> show_query()
-bgs_matching_updated |> glimpse()
-bgs_matching_updated |> tally()
+bgs_matching_updated %>% show_query()
+bgs_matching_updated %>% glimpse()
+bgs_matching_updated %>% tally()
 
-## check remaining non-matches: compare program descriptions to ensure they really are non-matches
+# Check remaining non-matches: Compare program descriptions to ensure they are truly non-matches
 {
-  ## get IDs of matches
+  # Get IDs of matches
   ids_exact <- bgs_matching_updated %>%
     filter(FINAL_CONSIDER_A_MATCH == "Yes") %>%
     distinct(ID) %>%
@@ -2292,14 +2273,14 @@ bgs_matching_updated |> tally()
     distinct(ID) %>%
     collect()
 
-  ## filter out non-matches for students that have an existing matched program
-  ## review non-matches to see if any should be matched - if so, redo Part 3C to this point
+  # Filter out non-matches for students that have an existing matched program
+  # Review non-matches to see if any should be matched - if so, redo Part 3C to this point
   chk <- bgs_matching_updated %>%
-    filter(is.na(FINAL_CIP_CODE_4)) %>% ## filter on empty FINAL CIP
-    filter(!is.na(MATCH_INST) & !is.na(MATCH_AWARD_SCHOOL_YEAR)) %>% ## remove records that don't match on institution or year
+    filter(is.na(FINAL_CIP_CODE_4)) %>% # Filter on empty FINAL CIP
+    filter(!is.na(MATCH_INST) & !is.na(MATCH_AWARD_SCHOOL_YEAR)) %>% # Remove records that don't match on institution or year
     collect() %>%
-    anti_join(ids_exact, by = "ID") %>% ## remove records that already have a match (from flags)
-    anti_join(ids_probable, by = "ID") %>% ## remove records that already have a match (from manual)
+    anti_join(ids_exact, by = "ID") %>% # Remove records that already have a match (from flags)
+    anti_join(ids_probable, by = "ID") %>% # Remove records that already have a match (from manual)
     group_by(
       INSTITUTION_CODE,
       BGS_FINAL_CIP_CODE_4,
@@ -2317,10 +2298,10 @@ bgs_matching_updated |> tally()
   rm(chk, ids_exact, ids_probable)
 }
 
-bgs_matching_updated |> count(FINAL_CONSIDER_A_MATCH) |> collect()
-bgs_matching_updated |> count(FINAL_PROBABLE_MATCH) |> collect()
-bgs_matching_updated |>
-  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) |>
+bgs_matching_updated %>% count(FINAL_CONSIDER_A_MATCH) %>% collect()
+bgs_matching_updated %>% count(FINAL_PROBABLE_MATCH) %>% collect()
+bgs_matching_updated %>%
+  count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) %>%
   collect()
 
 # TODO [HIGH]:
@@ -2332,26 +2313,28 @@ bgs_matching_updated |>
 # In this workflow, ID is unique in the credential table, but not always unique
 # in the BGS/STP crosswalk after matching on PEN.
 
-bgs_matching_updated |> tally()
+bgs_matching_updated %>% tally()
 # 133952 rows
 
 bgs_matching_updated %>%
   count(ID) %>%
   filter(n > 1) %>%
   tally()
-# still ~5000 has at least two rows
+# Still ~5000 have at least two rows
+
 bgs_matching_updated %>%
   count(STQU_ID) %>%
   filter(n > 1) %>%
   tally()
-# ~ 11,000
+# ~11,000
+
 bgs_matching_updated %>%
   count(STQU_ID, ID) %>%
   filter(n > 1) %>%
   tally()
-# zero rows
+# Zero rows
 
-## check
+# Check consistency of USE_BGS_CIP with CIP sources
 {
   bgs_matching_updated %>%
     count(
@@ -2360,14 +2343,15 @@ bgs_matching_updated %>%
       FINAL_CIP_CODE_4 == BGS_FINAL_CIP_CODE_4
     )
 }
-# ? result is confusing
+# Result may be confusing due to NA values
 
-## remove local tables
+# Remove local tables
 rm(
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig,
   BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos
 )
+
 
 ### Part 3D: Fill in Final Columns ----
 
