@@ -319,38 +319,159 @@ t_cohorts_recoded <-
 
 t_cohorts_recoded <- t_cohorts_recoded |> rbind(bgs_update)
 
-## GOT TO HERE
 # ----DACSO Queries ----
+# !! investigate!! t_dacso_data_part_1_stepa  variables TTRAIN and COSC_GRAD_STATUS_LGDS_CD_GROUP are
+# NA (why)?  This forces  LCIP4_CRED to include NA's in the concatenated parts
+# but SQL coerces the entire variable to NA
+
 # adds age, updates credential, creates new LCIP4_CRED variable
-dbExecute(decimal_con, DACSO_Q003_DACSO_Data_Part_1_stepB)
+t_dacso_data_part_1 <- t_dacso_data_part_1_stepa |>
+  select(-AGE_GROUP, -AGE_GROUP_ROLLUP) |>
+  inner_join(
+    t_pssm_credential_grouping,
+    by = c("PRGM_CREDENTIAL" = "PRGM_CREDENTIAL_AWARDED")
+  ) |>
+  left_join(
+    tbl_age,
+    by = c("COCI_AGE_AT_SURVEY" = "AGE")
+  ) |>
+  left_join(
+    tbl_age_groups,
+    by = "AGE_GROUP"
+  ) |>
+  mutate(
+    LCIP4_CRED = paste(
+      as.character(COSC_GRAD_STATUS_LGDS_CD_GROUP),
+      LCP4_CD,
+      if_else(as.character(TTRAIN) == "2", "1", as.character(TTRAIN)),
+      PSSM_CREDENTIAL,
+      sep = " - "
+    )
+  ) |>
+  rename(PRGM_CREDENTIAL_AWARDED = PRGM_CREDENTIAL) |>
+  select(
+    -TPID_CURRENT_REGION1,
+    -TPID_CURRENT_REGION4,
+    -COSC_GRAD_STATUS_LGDS_CD,
+    -DACSO_INCLUDE_IN_MODEL,
+    -AGE_GROUP_LABEL
+  )
 
 # Recode institution codes for CIP-NOC work
-dbExecute(decimal_con, DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed)
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  select(-PFST_HAD_PREVIOUS_CDTL, -PFST_FURSTDY_INCL_STILL_ATTD) |>
+  inner_join(
+    infoware_c_outc_clean_short_resp |>
+      select(
+        STQU_ID,
+        Q08,
+        PFST_HAD_PREVIOUS_CDTL,
+        PFST_FURSTDY_INCL_STILL_ATTD
+      ),
+    by = c("COCI_STQU_ID" = "STQU_ID")
+  ) |>
+  mutate(
+    HAD_PREVIOUS_CREDENTIAL = if_else(
+      Q08 == "1",
+      PFST_HAD_PREVIOUS_CDTL,
+      Q08
+    ),
+    PFST_IN_POST_SEC_BEFORE = Q08,
+    PFST_HAD_PREVIOUS_CDTL = PFST_HAD_PREVIOUS_CDTL,
+    PFST_FURSTDY_INCL_STILL_ATTD = PFST_FURSTDY_INCL_STILL_ATTD
+  ) |>
+  select(-Q08)
 
 # Deletes other, none, invalid etc. credentials that are not part of the PSSM
-dbExecute(decimal_con, DACSO_Q004_DACSO_DATA_Part_1_Delete_Credentials)
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  anti_join(
+    t_pssm_credential_grouping |>
+      filter(is.na(DACSO_INCLUDE_IN_MODEL)),
+    by = "PRGM_CREDENTIAL_AWARDED"
+  )
 
 # Recodes all the old institution codes to the current code so that weight adjustments across years by program can be applied.
 # This step skipped as not needed, but could add as a check at some point.
 # dbExecute(decimal_con, DACSO_Q004b_INST_Recode)
 
 # Applies weight for model year and derives New Labour Supply - re-run if changing model years or grouping geographies
-if (regular_run == T | ptib_run == T) {
-  dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived)
-}
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  select(-WEIGHT) |>
+  inner_join(
+    t_weights |>
+      filter(MODEL == "2022-2023", SURVEY == "DACSO") |>
+      select(SUBM_CD, WEIGHT = any_of(target_weight)),
+    by = c("COCI_SUBM_CD" = "SUBM_CD")
+  ) |>
+  mutate(
+    NEW_LABOUR_SUPPLY = case_when(
+      PFST_CURRENT_ACTIVITY == 3 ~ 1,
+      PFST_CURRENT_ACTIVITY == 2 & LABR_EMPLOYED_FULL_PART_TIME == 1 ~ 1,
+      PFST_CURRENT_ACTIVITY == 2 & LABR_EMPLOYED_FULL_PART_TIME == 0 ~ 2,
+      PFST_CURRENT_ACTIVITY == 4 & LABR_IN_LABOUR_MARKET == 1 ~ 1,
+      RESPONDENT == "1" ~ 0,
+      TRUE ~ 0
+    )
+  )
 
-if (qi_run == T) {
-  dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1a_Derived_QI)
-}
+# Refresh dacso survey records in t_cohorts_recoded
+dacso_update <- t_dacso_data_part_1 |>
+  inner_join(
+    t_year_survey_year |> filter(SURVEY == "DACSO"),
+    by = c("COCI_SUBM_CD" = "SUBM_CD")
+  ) |>
+  mutate(
+    PEN = COCI_PEN,
+    STQU_ID = paste0("DACSO - ", as.character(COCI_STQU_ID)),
+    INST_CD = COCI_INST_CD,
+    TTRAIN_VAL = if_else(TTRAIN == 2, 1, as.numeric(TTRAIN)),
+    NOC_CD = if_else(
+      LABR_OCCUPATION_LNOC_CD == "XXXXX",
+      "99999",
+      LABR_OCCUPATION_LNOC_CD
+    ),
+    AGE_AT_SURVEY = COCI_AGE_AT_SURVEY,
+    GRAD_STATUS = COSC_GRAD_STATUS_LGDS_CD_GROUP,
+    PSSM_CREDENTIAL = PSSM_CREDENTIAL,
+    PSSM_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    LCIP4_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      LCP4_CD,
+      if_else(TTRAIN == 2, "1", as.character(TTRAIN)),
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    LCIP2_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      substr(LCP4_CD, 1, 2),
+      if_else(TTRAIN == 2, "1", as.character(TTRAIN)),
+      PSSM_CREDENTIAL,
+      sep = " - "
+    )
+  )
 
-# Refresh dacso survey records in T_Cohorts_Recoded
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b1_Delete_Cohort)
-dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded)
+t_cohorts_recoded <-
+  t_cohorts_recoded |>
+  filter(SURVEY != "DACSO")
 
-# ---- Keep  ----
-dbExistsTable(decimal_con, "APPSO_Graduates")
-dbExistsTable(decimal_con, "TRD_Graduates")
-dbExistsTable(decimal_con, "t_dacso_data_part_1")
-dbExistsTable(decimal_con, "T_Cohorts_Recoded")
+dacso_update[setdiff(
+  names(t_cohorts_recoded),
+  names(dacso_update)
+)] <- NA
 
-# ---- Clean Up Lookups (if desired, not a needed step) ----
+t_cohorts_recoded <- t_cohorts_recoded |>
+  rbind(dacso_update |> select(any_of(names(t_cohorts_recoded))))
+
+# ---- Keep A Key Tables ----
+tables_to_keep <- c(
+  "trd_graduates",
+  "t_dacso_data_part_1",
+  "t_cohorts_recoded",
+  "appso_graduates"
+)
+
+rm(list = setdiff(ls(), tables_to_keep))
