@@ -1,0 +1,136 @@
+---
+title: "Graduate Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+## Data Sources and Storage
+
+### External Data Sources
+
+#### Statistics Canada Custom Data
+
+<ul class="list-variable-names">
+  <li>Geography (String): The geographical region or administrative area associated with the data record.</li>
+  <li>Age (String): The categorical age group for the record.</li>
+  <li>Major field CIP (String): The Classification of Instructional Programs identifier for the primary field of study.</li>
+  <li>Occupation (String): The National Occupational Classification (NOC) descriptor for the participant's profession.</li>
+  <li>Total - Highest certificate, diploma or degree (Double): The aggregate count of individuals across all highest levels of educational attainment.</li>
+  <li>University certificate, diploma or degree above bachelor level (Double): The count of individuals holding any university qualification exceeding the bachelor's level.</li>
+  <li>University certificate or diploma above bachelor level (Double): The count specifically for non-degree university qualifications earned after a bachelor's degree.</li>
+  <li>Degree in medicine, dentistry, veterinary medicine or optometry (Double): The count of individuals with professional degrees in specific healthcare fields.</li>
+  <li>Master’s degree and Earned doctorate (Double): The combined count of individuals holding master's or doctoral-level credentials.</li>
+  <li>Master's degree (Double): The count of individuals whose highest level of education is a master's degree.</li>
+  <li>Earned doctorate (Double): The count of individuals whose highest level of education is an earned doctorate.</li>
+</ul>
+
+### Internal Data Sources
+
+### Data Dictionary: Regional and Demographic Lookup Tables
+
+##### Current Region PSSM Rollup (StatCan)
+<ul class="list-variable-names">
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (Double): A numeric identifier used to group specific geographical regions into standardized reporting units.</li>
+  <li>CURRENT_REGION_PSSM_NAME_ROLLUP_STAT_CAN (String): The standardized regional name mapped specifically to Statistics Canada geographical definitions.</li>
+</ul>
+
+##### Age Group Rollup
+<ul class="list-variable-names">
+  <li>AGE_GROUP_ROLLUP (Double): A numeric key used to categorize granular age data into broader demographic segments (e.g., 1, 2, or 3).</li>
+  <li>AGE_GROUP_ROLLUP_LABEL (String): The descriptive label defining the specific age range for the rollup (e.g., "17 to 29").</li>
+</ul>
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
+
+## Methodology Overview
+
+#### Data Ingestion and Structure
+
+Raw export data are retrieved from secure storage, utilizing `latin1` character encoding to preserve data integrity.  Variables are standardized to consistent nomenclature and non-standard delimiters in geographical identifiers are repaired. Geographical are mapped to standardized regional classifications, specifically provincial economic regions.
+Aggregate "total" categories are excluded from both age and program-of-study dimensions; the focus is on discrete demographic cohorts rather than redundant summary values. Regional and age group lookup tables are used to align variables with project-specific reporting standards.
+
+####  4 and 5 digit NOC Classifications
+Records are stratified into two occupation levels and aggregate totals are calculated for each occupational level across specific age groups, regions, and program clusters. 
+
+1. Records at the 5-digit National Occupational Classification (NOC) level are isolated and mapped to their parent 4-digit classifications. 
+2. 4-digit occupational cohorts are established as a baseline for comparative analysis.
+
+#### Residual Estimation and Proportional Redistribution
+Residual totals for both the aggregate population and specific credential cohorts are derived by subtracting known 5-digit National Occupational Classification (NOC) values from their corresponding 4-digit parent totals. A floor of zero is enforced for all calculated residuals to ensure calculated residuals are realisitic.
+
+In instances where specific credential counts are missing or recorded as zero, values are estimated by applying a proportional weight—based on the ratio of the sub-stratum population to the total residual population—to the available credential residual. Logical constraints are applied to prevent division by zero and to ensure that estimated values do not exceed the available residual pool. The resulting long-form dataset is re-integrated with official occupational nomenclature and transformed into a wide-format structure, providing refined estimates for master’s degrees, doctorates, and other advanced credentials.
+
+---
+
+### Data Dictionary: Regional and Demographic Variables
+
+<ul class="list-variable-names">
+  <li>geography (String): The raw geographical descriptor retrieved from the source data, including national and sub-provincial labels.</li>
+  <li>region (String): A standardized classification mapping raw geography to provincial economic regions (e.g., "Vancouver Island and Coast").</li>
+  <li>age_group (String): Categorical age ranges for the population, filtered to exclude aggregate totals.</li>
+  <li>occupation_NOC (String): National Occupational Classification codes associated with the records.</li>
+  <li>major_field_cip (String): The Classification of Instructional Programs identifier for the student’s primary field of study.</li>
+  <li>AGE_GROUP_ROLLUP (Integer): A numeric identifier used to group granular ages into broader reporting cohorts (1, 2, or 3).</li>
+  <li>AGE_GROUP_ROLLUP_LABEL (String): The descriptive label for age cohorts (e.g., "17 to 29", "30 to 44").</li>
+  <li>masters_degree_and_earned_doctorate (Double): The count of individuals holding advanced graduate-level credentials.</li>
+</ul>
+
+#### Data Dictionary (Incomplete)
+
+## Key Output Tables
+
+The final outputs of this module are persisted to the SQL environment as standardized tables. The primary table, `Graduate_Projections`, serves as the supply-side foundation for the Post-Secondary Supply Model, containing integrated forecasts for graduates, near-completers, and apprenticeships.
+
+### Data Dictionary: Graduate_Projections
+
+The following variables comprise the schema for the consolidated projection table:
+
+<ul class="list-variable-names">
+<li>PSSM_CRED (String): A standardized credential label incorporating supply-stream prefixes (e.g., "1 - BACH" for graduates or "3 - CERT" for near-completers).</li>
+<li>YEAR (String): The fiscal academic year formatted as a range (e.g., "2023/2024").</li>
+<li>AGE_GROUP (String): The demographic age cohort associated with the projection (e.g., "20 to 24").</li>
+<li>GRADUATES (Numeric): The count of forecasted individuals for the specific year, age, and credential strata.</li>
+<li>SURVEY (String): A categorical identifier denoting the data origin (e.g., "Credential_Projections_Transp" for academic supply or "APPSO" for apprenticeships).</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The original administrative award classification; primarily used for data lineage and validation.</li>
+<li>PSSM_CREDENTIAL (String): The cleaned credential category with prefixes removed - facilitates reporting.</li>
+</ul>
+
+## Suggested Improvements
+
+Add in trades to Graduate Projections and project similar to APPSO.
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
