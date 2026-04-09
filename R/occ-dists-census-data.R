@@ -221,4 +221,4 @@ occupation_distributions_stat_can <- combined_stat_can %>%
     TOTAL,
     PERCENT
   ) |>
-  mutate(across(where(is.numeric), ~ round(.x, 3)))
+  mutate(across(where(is.numeric), ~ round(.x, 2)))

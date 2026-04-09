@@ -12,7 +12,9 @@
 
 # ---- Data Requirements and SQL Definitons ----
 required_tables <- c(
-  "stat_can_data"
+  "stat_can_data",
+  "t_current_region_pssm_rollup_codes_statcan",
+  "tbl_age_groups_rollup"
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -152,10 +154,10 @@ new_noc_counts <-
     names_glue = "New_{.name}"
   )
 
-
 # Make summary tables for comparison ----
+# leaving for now, but I think we don't need any of this section.
 
-#new_counts_summary <- new_noc_counts |>
+# new_counts_summary <- new_noc_counts |>
 #  group_by(region, age_group, major_field_cip) |>
 #  summarize(New_Noc4 = sum(new_credential)) |>
 #  ungroup() |>
@@ -166,25 +168,25 @@ new_noc_counts <-
 #  ) |>
 #  ungroup()
 
-all_occupations_summary <- working_data |>
-  filter(NOC_LVL %in% c("4", "5", "All occupations")) |>
-  group_by(region, age_group, major_field_cip, NOC_LVL) |>
-  summarize(across(where(is.numeric), sum)) |>
-  mutate(
-    NOC_LVL = case_when(
-      NOC_LVL == "4" ~ "NOC4",
-      NOC_LVL == 5 ~ "NOC5",
-      TRUE ~ "All_Occs"
-    )
-  ) |>
-  pivot_wider(
-    id_cols = c(region, age_group, major_field_cip),
-    names_from = NOC_LVL,
-    values_from = c(above_bach, pdeg, combined, masters, doctorate, total),
-    names_glue = "{NOC_LVL}_{.value}"
-  ) |>
-  select(-contains("_TOTAL")) |>
-  ungroup()
+# all_occupations_summary <- working_data |>
+# filter(NOC_LVL %in% c("4", "5", "All occupations")) |>
+# group_by(region, age_group, major_field_cip, NOC_LVL) |>
+# summarize(across(where(is.numeric), sum)) |>
+# mutate(
+#   NOC_LVL = case_when(
+#     NOC_LVL == "4" ~ "NOC4",
+#     NOC_LVL == 5 ~ "NOC5",
+#     TRUE ~ "All_Occs"
+#   )
+# ) |>
+# pivot_wider(
+#   id_cols = c(region, age_group, major_field_cip),
+#   names_from = NOC_LVL,
+#   values_from = c(above_bach, pdeg, combined, masters, doctorate, total),
+#   names_glue = "{NOC_LVL}_{.value}"
+# ) |>
+# select(-contains("_TOTAL")) |>
+# ungroup()
 
 #compare_summaries <- all_occupations_summary |>
 #  left_join(

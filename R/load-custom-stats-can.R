@@ -96,3 +96,12 @@ tbl_age_groups_rollup <- data.frame(
   Age_Group_Rollup_Label = c("17 to 29", "30 to 44", "45 to 64")
 )
 names(tbl_age_groups_rollup) <- toupper(names(tbl_age_groups_rollup))
+
+tables_to_keep <- c(
+  "stat_can_data",
+  "t_current_region_pssm_rollup_codes_statcan",
+  "tbl_age_groups_rollup"
+)
+
+rm(list = setdiff(ls(), tables_to_keep))
+gc()
