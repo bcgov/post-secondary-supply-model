@@ -164,14 +164,20 @@ if (regular_run == T | ptib_run == T) {
         TPID_CURRENT_REGION4 == 8 ~ -1,
         TRUE ~ NA_integer_
       )
-    ) |>
-    mutate(
-      TTRAIN = NA_integer_,
-      LABR_EMPLOYED = NA_integer_,
-      COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
-      COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
-      RESPONDENT = NA_integer_,
     )
+  # commenting these out for now - I think this is incorrect at TTRAIN and COSC_GRAD_STATUS_LGDS_CD are used to
+  # populate a few cols, including LCIP_CRED.  SQL version doesn't coerce the data type properly, these labels change
+  # to NA.  R keeps the NA but it is wrong.  The DBO SQL version is correct for those labels so this may be a problem
+  # with the script on main, in particular load-cohort-dacso.R, lines 128 to 132.
+  # TO DO: run again in idir and comment out lines 128-132, then check.
+  #|>
+  #mutate(
+  #  TTRAIN = NA_integer_,
+  #  LABR_EMPLOYED = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
+  #  RESPONDENT = NA_integer_,
+  #)
 }
 
 t_noc_broad_categories <- t_noc_broad_categories |>
