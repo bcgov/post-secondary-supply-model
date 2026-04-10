@@ -90,6 +90,10 @@ if (length(missing) > 0) {
   ))
 }
 
+
+# Set weight for model year
+target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
+
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
 trd_data <- trd_data |>
@@ -97,7 +101,7 @@ trd_data <- trd_data |>
   inner_join(
     t_weights |>
       filter(MODEL == "2022-2023", SURVEY == "TRD") |>
-      select(SUBM_CD, WEIGHT, WEIGHT_QI),
+      select(SUBM_CD, WEIGHT = any_of(target_weight)),
     by = "SUBM_CD"
   ) |>
   left_join(
@@ -245,10 +249,6 @@ t_bgs_data_final <- t_bgs_data_final |>
     LCIP4_CRED = paste0(CIP_CODE_4, " - ", "BACH"),
     PSSM_CREDENTIAL = "BACH"
   )
-
-
-# Applies weight for model year and derives New Labour Supply
-target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
 
 t_bgs_data_final <- t_bgs_data_final |>
   select(-WEIGHT, -AGE_GROUP, -AGE_GROUP_ROLLUP) |>
