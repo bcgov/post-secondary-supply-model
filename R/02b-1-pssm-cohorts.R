@@ -119,8 +119,7 @@ trd_data <- trd_data |>
       TRD_LABR_EMPLOYED == 0 ~ 0,
       RESPONDENT == "1" ~ 0,
       TRUE ~ 0
-    ),
-    WEIGHT = case_when(qi_run == T ~ WEIGHT_QI, TRUE ~ WEIGHT)
+    )
   )
 
 trd_data <-
