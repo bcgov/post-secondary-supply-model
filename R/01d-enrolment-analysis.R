@@ -143,8 +143,10 @@ min_enrolment <- min_enrolment |>
 
 # ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
 # uses genders from the credential view to impute gender into min_enrolment in the case of NULLS
-# what we have going here is 3 different methods for imputing invalid genders.  We could reduce complexity
-# and allocate 1.
+# !!! what we have going in the code below is 3 quite different methods for imputing invalid genders.
+# # We could reduce complexity and created a more unified approach
+
+# select the first valid gender for each student in credential data - pass #1 valid epens
 credential_epen <- credential |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
@@ -153,6 +155,7 @@ credential_epen <- credential |>
     n = 1
   )
 
+# select the first valid gender for each student in credential data - pass #2 invalid epens
 credential_no_epen <- credential |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(
@@ -165,6 +168,7 @@ credential_no_epen <- credential |>
     n = 1
   )
 
+# back fill NA genders in min_enrolment
 min_enrolment <- min_enrolment |>
   left_join(credential_epen, by = join_by(ENCRYPTED_TRUE_PEN)) |> # some duplicates being introduced here
   left_join(credential_no_epen, by = join_by(PSI_STUDENT_NUMBER, PSI_CODE)) |>
@@ -187,6 +191,7 @@ min_enrolment <- min_enrolment |>
 # - This code performs a historic imputation process based on a student’s earliest recorded data . This
 # solves the problem of the same student appearing with different gender labels across different rows in the dataset.
 
+# select first-time recorded gender from min-enrolment data
 first_gender_lookup <- min_enrolment |>
   filter(IS_FIRST_ENROLMENT == "Yes") |>
   mutate(
@@ -198,6 +203,7 @@ first_gender_lookup <- min_enrolment |>
   ) |>
   distinct(CONCATENATED_ID, FIRST_GENDER = PSI_GENDER)
 
+# forward fill NA genders (join on a concatenated ID, instead of 2-passes, epen, no epen)
 min_enrolment <- min_enrolment |>
   mutate(
     CONCATENATED_ID = if_else(
