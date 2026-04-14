@@ -45,27 +45,71 @@ na_vals = c("", " ", "(Unspecified)", NA)
 # - Originally sourced from branch 'main' (line 46)
 # Replicates:
 # - qry01a through qry01e (STP Enrolment Analysis)
+# - Replicates:qry_CreateMinEnrolmentView and qry02a-qry04a2 (missing 03 series)
 # What the code does:
-# - Creates table min_enrolment_sup_vars from 'stp_enrolment'
-#   containing supplementary variables for later use.
-# - It performs initial type-casting for dates and creates placeholder
-#   columns for age/group variables that are populated in later steps.
+#  - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
+#  record-type filters and previously initialized supplemental variables.
+#  - It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
+#  intervals and maps age groups via an inequality join.
 # QA/Review Notes:
-# - creates min_enrolment_sup_var (identical db table MinEnrolment)
-# - Placeholder columns (AGE_AT_ENROL_DATE, etc.) are initialized as
-#   typed NAs (NA_real_) to maintain structure consistency
-#   with database tables.  There are many columns I suspect are non-essential
-#   which we may want to remove later.
 # - qry defn for qry01d1_MinEnrolmentSupVar is missing a ")". qry errors - I fixed manually and reran.
+#  - creates min_enrolment (identical db table MinEnrolment)
+#  - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
+#  with the SQL version for QA/Review purposes. Non-essential columns
+#  can be dropped in a later 'refine' phase once the logic is validated.
+#  - There are some epens with > 1 gender still (in the SQL version) as an original UPDATE query
+# appears to not be deterministic; without loss of generality(?) choosing slice_max.
 
-min_enrolment_sup_var <- stp_enrolment |>
-  select(ID, psi_birthdate_cleaned, PSI_MIN_START_DATE) |>
+cols <- c(
+  "ID",
+  "PSI_PEN",
+  "PSI_BIRTHDATE",
+  "psi_birthdate_cleaned",
+  "PSI_GENDER",
+  "PSI_STUDENT_NUMBER",
+  "PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT",
+  "TRUE_PEN",
+  "ENCRYPTED_TRUE_PEN",
+  "PSI_SCHOOL_YEAR",
+  "PSI_REGISTRATION_TERM",
+  "PSI_STUDENT_POSTAL_CODE_CURRENT",
+  "PSI_INDIGENOUS_STATUS",
+  "PSI_NEW_STUDENT_FLAG",
+  "PSI_ENROLMENT_SEQUENCE",
+  "PSI_CODE",
+  "PSI_TYPE",
+  "PSI_FULL_NAME",
+  "PSI_BASIS_OF_ADMISSION",
+  "PSI_MIN_START_DATE",
+  "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+  "PSI_PROGRAM_CODE",
+  "PSI_CIP_CODE",
+  "PSI_PROGRAM_EFFECTIVE_DATE",
+  "PSI_FACULTY",
+  "PSI_CONTINUING_EDUCATION_COURSE_ONLY",
+  "PSI_CREDENTIAL_CATEGORY",
+  "PSI_VISA_STATUS",
+  "PSI_STUDY_LEVEL",
+  "PSI_ENTRY_STATUS",
+  "OVERALL_INDIGENOUS_STATUS"
+)
+
+min_enrolment <- stp_enrolment |>
+  select(all_of(cols)) |>
+  mutate(
+    AGE_AT_CENSUS_2016 = NA_real_,
+    AGE_GROUP_CENSUS_2016 = NA_real_,
+    IS_SKILLS_BASED = NA_integer_
+  ) |>
   inner_join(
     stp_enrolment_record_type |>
-      select(ID, MinEnrolment, FirstEnrolment, RecordStatus),
+      filter(RecordStatus == 0, MinEnrolment == 1) |>
+      select(ID, FirstEnrolment),
     by = "ID"
   ) |>
-  rename_with(toupper) |>
+  rename_with(toupper)
+
+min_enrolment <- min_enrolment |>
   mutate(
     PSI_BIRTHDATE_CLEANED_D = if_else(
       PSI_BIRTHDATE_CLEANED %in%
@@ -77,98 +121,18 @@ min_enrolment_sup_var <- stp_enrolment |>
     PSI_MIN_START_DATE_D = if_else(
       PSI_MIN_START_DATE %in% na_vals,
       as.Date(NA),
-      as.Date(PSI_MIN_START_DATE),
+      as.Date(PSI_MIN_START_DATE)
     ),
     IS_FIRST_ENROLMENT = if_else(FIRSTENROLMENT == 1, "Yes", NA_character_),
-    AGE_AT_ENROL_DATE = NA_real_,
-    AGE_GROUP_ENROL_DATE = NA_real_,
-    AGE_AT_CENSUS_2016 = NA_real_,
-    AGE_GROUP_CENSUS_2016 = NA_real_,
-    IS_SKILLS_BASED = NA_integer_
-  )
-
-# ---- Create MinEnrolment View ---
-# SQL Reference: branch 'main' (line 46)
-# Replicates:qry_CreateMinEnrolmentView and qry02a-qry04a2 (missing 03 series)
-# What the code does:
-#  - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
-#  record-type filters and previously initialized supplemental variables.
-#  - It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
-#  intervals and maps age groups via an inequality join.
-# BA Notes:
-#  - creates min_enrolment (identical db table MinEnrolment)
-#  - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
-#  with the SQL version for QA/Review purposes. Non-essential columns
-#  can be dropped in a later 'refine' phase once the logic is validated.
-#  - There are some epens with > 1 gender still (in the SQL version) as an original UPDATE query
-# appears to not be deterministic; without loss of generality(?) choosing slice_max.
-#  - hard to test the SQL version seperatly as min_enrolment is a view to stp_enrolment.  You'd need
-# to make sure this script hasn't been run once already which could be tricky or not reasonable.
-
-min_enrolment <- stp_enrolment |>
-  select(
-    ID,
-    PSI_PEN,
-    PSI_BIRTHDATE,
-    psi_birthdate_cleaned,
-    PSI_GENDER,
-    PSI_STUDENT_NUMBER,
-    PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT,
-    TRUE_PEN,
-    ENCRYPTED_TRUE_PEN,
-    PSI_SCHOOL_YEAR,
-    PSI_REGISTRATION_TERM,
-    PSI_STUDENT_POSTAL_CODE_CURRENT,
-    PSI_INDIGENOUS_STATUS,
-    PSI_NEW_STUDENT_FLAG,
-    PSI_ENROLMENT_SEQUENCE,
-    PSI_CODE,
-    PSI_TYPE,
-    PSI_FULL_NAME,
-    PSI_BASIS_OF_ADMISSION,
-    PSI_MIN_START_DATE,
-    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-    PSI_PROGRAM_CODE,
-    PSI_CIP_CODE,
-    PSI_PROGRAM_EFFECTIVE_DATE,
-    PSI_FACULTY,
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY,
-    PSI_CREDENTIAL_CATEGORY,
-    PSI_VISA_STATUS,
-    PSI_STUDY_LEVEL,
-    PSI_ENTRY_STATUS,
-    OVERALL_INDIGENOUS_STATUS
-  ) |>
-  inner_join(
-    stp_enrolment_record_type |>
-      filter(RecordStatus == 0, MinEnrolment == 1) |>
-      select(ID),
-    by = "ID"
-  ) |>
-  inner_join(
-    min_enrolment_sup_var |>
-      select(
-        ID,
-        PSI_BIRTHDATE_CLEANED_D,
-        PSI_MIN_START_DATE_D,
-        AGE_AT_ENROL_DATE,
-        AGE_GROUP_ENROL_DATE,
-        AGE_AT_CENSUS_2016,
-        AGE_GROUP_CENSUS_2016,
-        IS_FIRST_ENROLMENT,
-        IS_SKILLS_BASED
-      ),
-    by = "ID"
-  )
-
-min_enrolment <- min_enrolment |>
-  mutate(
     AGE_AT_ENROL_DATE = if_else(
       !is.na(PSI_BIRTHDATE_CLEANED_D) & !is.na(PSI_MIN_START_DATE_D),
       floor(interval(PSI_BIRTHDATE_CLEANED_D, PSI_MIN_START_DATE_D) / years(1)),
       NA_real_
     )
   ) |>
+  select(-FIRSTENROLMENT)
+
+min_enrolment <- min_enrolment |>
   left_join(
     age_group_lookup,
     by = join_by(between(AGE_AT_ENROL_DATE, LowerBound, UpperBound))
@@ -176,13 +140,17 @@ min_enrolment <- min_enrolment |>
   mutate(AGE_GROUP_ENROL_DATE = AgeIndex) |>
   select(-AgeIndex, -AgeGroup, -LowerBound, -UpperBound)
 
+
+# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
+# uses genders from the credential view to impute gender into min_enrolment in the case of NULLS
+# what we have going here is 3 different methods for imputing invalid genders.  We could reduce complexity
+# and allocate 1.
 credential_epen <- credential |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
-  slice_max(
+  slice_head(
     by = ENCRYPTED_TRUE_PEN,
-    order_by = gender_cred_epen,
-    with_ties = FALSE
+    n = 1
   )
 
 credential_no_epen <- credential |>
@@ -192,10 +160,9 @@ credential_no_epen <- credential |>
     PSI_CODE,
     gender_cred_no_epen = psi_gender_cleaned
   ) |>
-  slice_max(
+  slice_head(
     by = c(PSI_STUDENT_NUMBER, PSI_CODE),
-    order_by = gender_cred_no_epen,
-    with_ties = FALSE
+    n = 1
   )
 
 min_enrolment <- min_enrolment |>
@@ -213,17 +180,13 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-gender_cred_epen, -gender_cred_no_epen, -gender_cred)
 
-# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# AND
 # ---- Assign one gender/student and update MinEnrolment table ----
 # SQL version starts at line 62 on branch main
 # Replicates: qry04b through qry04e2
 # What the code does:
-# - This code performs a Gender Standardization process based on a student’s earliest recorded data.
-# - It is designed to solve the problem of "conflicting records", where the same student might appear
-# with different gender labels across different rows in the dataset.
-# BA Notes: We use Concatenated_ID instead of EPEN for the next set of queries
-# I beleive this would be a useful approach to adopt for many of the other steps.
+# - This code performs a historic imputation process based on a student’s earliest recorded data . This
+# solves the problem of the same student appearing with different gender labels across different rows in the dataset.
+
 first_gender_lookup <- min_enrolment |>
   filter(IS_FIRST_ENROLMENT == "Yes") |>
   mutate(
@@ -256,67 +219,75 @@ min_enrolment <- min_enrolment |>
 # - Perform a Proportional Imputation for missing gender data.
 # Instead of leaving "Unknown" genders as blanks or assigning them all to one category,
 # it calculates the "natural" distribution of the known population and applies that same ratio to the missing records.
+# the distribution is taken from the set of firt enrolment records, effectivly performing a historical imputation,
+# where the first seen record is carried forward. (This was what I think SQL versions were doing - we should relook at this)
 
 na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
 
+# first-time "unknowns"
 extract_no_gender_first <- min_enrolment |>
   filter(IS_FIRST_ENROLMENT == "Yes", PSI_GENDER %in% na_vals) |>
   select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER)
 
 total_unknowns <- nrow(extract_no_gender_first)
 
+# first-time valid genders (Male, Female, Gender Diverse)
 gender_weights <- min_enrolment |>
   filter(IS_FIRST_ENROLMENT == "Yes", !PSI_GENDER %in% na_vals) |>
   count(PSI_GENDER) |>
   mutate(PROPORTION = n / sum(n)) |>
   mutate(TARGET_N = round(PROPORTION * total_unknowns))
 
+# resample unknownws
 imputed_first_enrolments <- extract_no_gender_first |>
-  sample_frac(size = 1, replace = FALSE) |>
   mutate(
-    PSI_GENDER = rep(
+    PSI_GENDER_IMPUTED = sample(rep(
       gender_weights$PSI_GENDER,
       times = gender_weights$TARGET_N
-    ) |>
-      head(total_unknowns) |> # handle
-      as.character()
+    ))
   )
 
-extract_no_gender <- min_enrolment |>
-  filter(PSI_GENDER %in% na_vals) |>
-  select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE) |>
-  left_join(
+# carry forward first seen gender for records with valid encrypted true pen
+extract_no_gender_epen <- min_enrolment |>
+  filter(PSI_GENDER %in% na_vals, !ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  select(ID, ENCRYPTED_TRUE_PEN) |>
+  inner_join(
     imputed_first_enrolments |>
-      distinct(PSI_GENDER, PSI_STUDENT_NUMBER, PSI_CODE),
-    by = join_by(PSI_STUDENT_NUMBER, PSI_CODE)
+      distinct(ENCRYPTED_TRUE_PEN, PSI_GENDER_IMPUTED),
+    by = join_by(ENCRYPTED_TRUE_PEN)
   )
 
-# at this point SQL does some more proportional updates to obtain a gender for a handful of records, followed by
-# further processing to handle multiple EPEN-gender combos.
-# however, those records all have valid EPENS so I'm doing a second pass and joining by epen.
-# The finals distributions are minimally off, but worth noting.
-extract_no_gender <- extract_no_gender |>
-  left_join(
-    extract_no_gender |>
-      filter(PSI_GENDER %in% na_vals) |>
-      left_join(
-        imputed_first_enrolments |>
-          distinct(ENCRYPTED_TRUE_PEN, PSI_GENDER_to_update = PSI_GENDER)
-      )
-  ) |>
-  mutate(PSI_GENDER_to_update = coalesce(PSI_GENDER, PSI_GENDER_to_update)) |>
-  select(-PSI_GENDER)
+# carry forward first seen gender for records without valid encrypted true pen
+extract_no_gender_no_epen <- min_enrolment |>
+  filter(PSI_GENDER %in% na_vals, ENCRYPTED_TRUE_PEN %in% na_vals) |>
+  filter(!PSI_CODE %in% na_vals, !PSI_STUDENT_NUMBER %in% na_vals) |>
+  select(ID, PSI_CODE, PSI_STUDENT_NUMBER) |>
+  inner_join(
+    imputed_first_enrolments |>
+      distinct(PSI_CODE, PSI_STUDENT_NUMBER, PSI_GENDER_IMPUTED),
+    by = join_by(PSI_CODE, PSI_STUDENT_NUMBER)
+  )
 
+# backfill genders in min_enrolment data
 min_enrolment <- min_enrolment |>
-  left_join(extract_no_gender |> select(ID, PSI_GENDER_to_update)) |>
+  left_join(
+    extract_no_gender_epen |> select(ID, PSI_GENDER_IMPUTED),
+    by = "ID"
+  ) |>
+  left_join(
+    extract_no_gender_no_epen |> select(ID, PSI_GENDER_IMPUTED),
+    by = "ID",
+    suffix = c(".pen", ".nopen")
+  ) |>
   mutate(
-    PSI_GENDER = if_else(
-      PSI_GENDER %in% na_vals,
-      PSI_GENDER_to_update,
-      PSI_GENDER
+    PSI_GENDER = if_else(PSI_GENDER %in% na_vals, NA_character_, PSI_GENDER),
+    PSI_GENDER = coalesce(
+      PSI_GENDER,
+      PSI_GENDER_IMPUTED.pen,
+      PSI_GENDER_IMPUTED.nopen
     )
   ) |>
-  select(-PSI_GENDER_to_update)
+  select(-PSI_GENDER_IMPUTED.pen, -PSI_GENDER_IMPUTED.nopen)
 
 
 # ---- Create Age and Gender Distrbutions ----
