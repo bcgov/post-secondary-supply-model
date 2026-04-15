@@ -21,6 +21,7 @@ set.seed(123456)
 # QA/Review Notes:
 # - As more queries from SQL are ported and the process is refined,
 #   new tables may be added to the 'required_tables' list below.
+
 required_tables <- c(
   "age_group_lookup",
   "outcome_credential",
@@ -67,31 +68,31 @@ cols <- c(
   "psi_birthdate_cleaned",
   "PSI_GENDER",
   "PSI_STUDENT_NUMBER",
-  "PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT",
+  #"PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT",
   "TRUE_PEN",
   "ENCRYPTED_TRUE_PEN",
   "PSI_SCHOOL_YEAR",
-  "PSI_REGISTRATION_TERM",
-  "PSI_STUDENT_POSTAL_CODE_CURRENT",
-  "PSI_INDIGENOUS_STATUS",
-  "PSI_NEW_STUDENT_FLAG",
+  #"PSI_REGISTRATION_TERM",
+  #"PSI_STUDENT_POSTAL_CODE_CURRENT",
+  #"PSI_INDIGENOUS_STATUS",
+  #"PSI_NEW_STUDENT_FLAG",
   "PSI_ENROLMENT_SEQUENCE",
   "PSI_CODE",
   "PSI_TYPE",
   "PSI_FULL_NAME",
-  "PSI_BASIS_OF_ADMISSION",
+  #"PSI_BASIS_OF_ADMISSION",
   "PSI_MIN_START_DATE",
-  "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+  #"PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
   "PSI_PROGRAM_CODE",
   "PSI_CIP_CODE",
   "PSI_PROGRAM_EFFECTIVE_DATE",
-  "PSI_FACULTY",
-  "PSI_CONTINUING_EDUCATION_COURSE_ONLY",
-  "PSI_CREDENTIAL_CATEGORY",
-  "PSI_VISA_STATUS",
-  "PSI_STUDY_LEVEL",
-  "PSI_ENTRY_STATUS",
-  "OVERALL_INDIGENOUS_STATUS"
+  #"PSI_FACULTY",
+  #"PSI_CONTINUING_EDUCATION_COURSE_ONLY",
+  #"PSI_CREDENTIAL_CATEGORY",
+  #"PSI_VISA_STATUS",
+  #"PSI_STUDY_LEVEL",
+  #"PSI_ENTRY_STATUS",
+  #"OVERALL_INDIGENOUS_STATUS"
 )
 
 min_enrolment <- stp_enrolment |>
@@ -295,7 +296,7 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-PSI_GENDER_IMPUTED.pen, -PSI_GENDER_IMPUTED.nopen)
 
-# reviewed to here
+
 # ---- Create Age and Gender Distrbutions ----
 # SQL version starts at line 163 on branch main
 # Replicates: qry07a-qry07b2
@@ -340,8 +341,7 @@ extract_no_age_first_enrol <- min_enrolment |>
 # - Performs a Stratified Proportional Imputation for missing ages.
 # - Followed by a Temporal Projection to fill in subsequent records.
 # - Updates extract_no_age with imputed ages
-# BA Notes:
-# compare extract_no_age to Extract_No_Age
+# - distribution of assigned (imputed) ages are similar for this version vs last
 
 impute_age_by_gender <- function(sub_df, gender_name, lookup_table) {
   # Look for the distribution for this specific gender
@@ -450,37 +450,40 @@ min_enrolment <- min_enrolment |>
 # ---- Final Distributions ----
 # This section moved to 01e-stp-distributions
 
-## Review ----
-# SQL version starts at line ? on branch main
-# Replicates:
-# What the code does:
-# BA Notes: I get an error in qry09c_:
-#   invalid object name 'PSI_CODE_RECODE' is this another table I need to bring in?
-# dbExecute(con, qry09c_MinEnrolment_PSI_TYPE)
+# Test 1
+# sql <- "
+# SELECT PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, COUNT(*) AS n
+# FROM MinEnrolment
+# GROUP BY PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE
+# ORDER BY PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE;"
+
+# s1 <- dbGetQuery(con, sql)
+# r1 <- min_enrolment |> count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE) |> arrange(PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE)
+# res <- full_join(s1, r1, by = join_by(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE))
+
+# ks.test(res$n.x, res$n.y)
+# plot(res$n.x, res$n.y)
+
+# Test 2
+# sql <- "
+# SELECT MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS n
+# FROM MinEnrolment
+# INNER JOIN AgeGroupLookup
+# ON  MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
+# GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
+# ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;""
+
+# s2 <- dbGetQuery(con, sql)
+# r2<- min_enrolment |> inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
+#   count(PSI_SCHOOL_YEAR, AgeGroup, PSI_GENDER) |> arrange(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR)
+# res <- full_join(s2, r2, by = join_by(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR))
+
+# ks.test(res$n.x, res$n.y)
+# plot(res$n.x, res$n.y)
 
 # ---- Clean Up ----
-# SQL version starts at line ? on branch main
-# Replicates:
-# What the code does:
-# BA Notes: refine as needed
 tables_to_keep <- c(
-  "stp_enrolment",
-  "stp_credential",
-  "stp_enrolment_record_type",
-  "stp_credential_record_type",
-  "stp_enrolment_valid",
   "age_group_lookup",
-  "credential_rank",
-  "credential",
-  "credential_non_dup",
-  "credential_sup_vars",
-  "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect",
-  "outcome_credential",
-  "con",
-  "db_config",
-  "my_schema",
-  "db_schema",
   "min_enrolment"
 )
 
