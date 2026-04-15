@@ -14,11 +14,10 @@ library(tidyverse)
 set.seed(123456)
 
 # ---- Check required Tables etc. ----
-# SQL version: Originally sourced from branch 'main' (line 41)
-# What the code does: Acts as a pre-flight "circuit breaker" to ensure all source dataframes
-#   and lookup tables are present in global environemnt before processing. Prevents
-#   partial execution errors.
-# QA/Review Notes:
+# Where is the SQL version: Originally sourced from branch 'main' (line 41)
+# What the code does: Ensures all source dataframes
+#   and lookup tables are present in global environemnt before processing.
+# BA Notes:
 # - As more queries from SQL are ported and the process is refined,
 #   new tables may be added to the 'required_tables' list below.
 
@@ -39,27 +38,8 @@ if (length(missing) > 0) {
   ))
 }
 
+# define global variables
 na_vals = c("", " ", "(Unspecified)", NA)
-
-# ---- Extract first-time enrolled records ----
-# SQL Reference:
-# - Originally sourced from branch 'main' (line 46)
-# Replicates:
-# - qry01a through qry01e (STP Enrolment Analysis)
-# - Replicates:qry_CreateMinEnrolmentView and qry02a-qry04a2 (missing 03 series)
-# What the code does:
-#  - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
-#  record-type filters and previously initialized supplemental variables.
-#  - It also calculates the primary 'AGE_AT_ENROL_DATE' using lubridate
-#  intervals and maps age groups via an inequality join.
-# QA/Review Notes:
-# - qry defn for qry01d1_MinEnrolmentSupVar is missing a ")". qry errors - I fixed manually and reran.
-#  - creates min_enrolment (identical db table MinEnrolment)
-#  - Column bloat: I’ve retained all 30+ legacy columns to ensure 1:1 parity
-#  with the SQL version for QA/Review purposes. Non-essential columns
-#  can be dropped in a later 'refine' phase once the logic is validated.
-#  - There are some epens with > 1 gender still (in the SQL version) as an original UPDATE query
-# appears to not be deterministic; without loss of generality(?) choosing slice_max.
 
 stp_cols <- c(
   "ID",
@@ -76,6 +56,22 @@ stp_cols <- c(
 )
 cred_cols <- c("ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "psi_gender_cleaned")
 
+# ---- Extract first-time enrolled records ----
+# Where is the SQL version: Originally sourced from branch 'main' (line 46)
+# Replicates: qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry04a2 (except 03 series)
+# What the code does:
+# - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
+#  record-type filters and previously initialized supplemental variables.
+# - Calculates the primary 'AGE_AT_ENROL_DATE' intervals
+# - maps age groups via an inequality join.
+# BA Notes:
+# - qry defn for qry01d1_MinEnrolmentSupVar is missing a ")". qry errors - I fixed manually and reran.
+# - Non-essential columns have been dropped from STP_Enrolment and Credential tables to speed up processing
+
+
+
+# define min_enrolment dataframe from stp_enrolment and stp_enrolment_record_type
+# keeping only valid first enrolment records (RecordStatus == 0, MinEnrolment == 1)
 min_enrolment <- stp_enrolment |>
   select(all_of(stp_cols)) |>
   inner_join(
@@ -86,6 +82,7 @@ min_enrolment <- stp_enrolment |>
   ) |>
   rename_with(toupper)
 
+# clean and format date variables, calculate age at enrolment, and flag first enrolments
 min_enrolment <- min_enrolment |>
   mutate(
     PSI_BIRTHDATE_CLEANED_D = if_else(
@@ -109,6 +106,7 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-FIRSTENROLMENT)
 
+# map age groups via an inequality join
 min_enrolment <- min_enrolment |>
   left_join(
     age_group_lookup,
@@ -119,9 +117,13 @@ min_enrolment <- min_enrolment |>
 
 
 # ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# uses genders from the credential view to impute gender into min_enrolment in the case of NULLS
-# !!! what we have going in the code below is 3 quite different methods for imputing invalid genders.
-# # We could reduce complexity and created a more unified approach
+# Where is the SQL version: Originally sourced from branch 'main' (line 62)
+# What the code does: identifies invalid genders  ("", " ", "(Unspecified)", NA) and 
+#   uses genders from the credential view to impute (backfill) gender into min_enrolment.  Accomplished 
+#   by performing two passes - 1) using valid epens, then 2) valid psi code/number combinations for records without valid epens.
+# BA Notes:
+# We have 3 quite different methods for imputing invalid genders in the next couple of sections
+# We should consider reducing complexity and creating a more unified approach
 
 # select the first valid gender for each student in credential data - pass #1 valid epens
 credential_epen <- credential |>
@@ -164,11 +166,11 @@ min_enrolment <- min_enrolment |>
   select(-gender_cred_epen, -gender_cred_no_epen, -gender_cred)
 
 # ---- Assign one gender/student and update MinEnrolment table ----
-# SQL version starts at line 62 on branch main
-# Replicates: qry04b through qry04e2
+# Where is the SQL version: Originally sourced from branch 'main' (line 78)
+# Replicates: qry04c through qry04e2
 # What the code does:
-# - This code performs a historic imputation process based on a student’s earliest recorded data . This
-# solves the problem of the same student appearing with different gender labels across different rows in the dataset.
+# - Performs a historic imputation process based on a student’s earliest recorded data in stp_enrolment.
+# - Accomplished in one pass by creating a concatenated ID (encrypted true pen where available, and psi code/number where not) 
 
 # select first-time recorded gender from min-enrolment data
 first_gender_lookup <- min_enrolment |>
@@ -198,14 +200,13 @@ min_enrolment <- min_enrolment |>
   select(-FIRST_GENDER)
 
 # ---- impute gender  ----
-# SQL version starts ~line 101 on branch main
-# Replicates: qry05a1 through qry06a5
+# Where is the SQL version: SQL version starts ~line 101 on branch main
+# Replicates: qry05a1 through qry06a5 and some R code from lines 101 to 170 (main)
 # What the code does:
-# - Perform a Proportional Imputation for missing gender data.
-# Instead of leaving "Unknown" genders as blanks or assigning them all to one category,
-# it calculates the "natural" distribution of the known population and applies that same ratio to the missing records.
-# the distribution is taken from the set of firt enrolment records, effectivly performing a historical imputation,
-# where the first seen record is carried forward. (This was what I think SQL versions were doing - we should relook at this)
+# - Performs a proportional imputation for missing gender data.
+# It calculates the distribution of the known population from the set of first enrolment records
+#  and applies that same ratio to missing first records.
+# Simulataneously performs a historical imputation, where the first seen record is carried forward. 
 
 na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
 
@@ -276,15 +277,21 @@ min_enrolment <- min_enrolment |>
 
 
 # ---- Create Age and Gender Distrbutions ----
-# SQL version starts at line 163 on branch main
-# Replicates: qry07a-qry07b2
+# and 
+# ----- Assign age to records with missing age -----
+# Where is the SQL version: Originally sourced from branch 'main' (line 164:281)
+# Replicates: qry07a-qry08 and much R code
 # What the code does:
 # - This code extracts and isolates records where the student's age could not be calculated.
-# - It prepares the data for a second round of imputation (on age) by identifying which students are missing an age.
+# - Performs a Stratified Proportional Imputation for missing ages.
+# - Followed by a Temporal Projection to fill in subsequent records.
+# - Updates extract_no_age with imputed ages
 # BA Notes:
 # - compare extract_no_age to Extract_No_Age and
 # - compare extract_no_age_first_enrol to Extract_No_Age_First_Enrolment
-# R version carries the column PSI_GENDER - needed?
+# - distribution of assigned (imputed) ages are similar for this version vs last
+
+# extract records with missing age at enrolment
 extract_no_age <- min_enrolment |>
   filter(is.na(AGE_AT_ENROL_DATE)) |>
   distinct(
@@ -300,6 +307,7 @@ extract_no_age <- min_enrolment |>
     PSI_GENDER
   )
 
+# extract records with missing age at enrolment for first enrolments only (for imputation)
 extract_no_age_first_enrol <- min_enrolment |>
   filter(is.na(AGE_AT_ENROL_DATE), IS_FIRST_ENROLMENT == "Yes") |>
   distinct(
@@ -311,53 +319,46 @@ extract_no_age_first_enrol <- min_enrolment |>
     AGE_AT_ENROL_DATE_first = AGE_AT_ENROL_DATE
   )
 
+# function to impute age by gender
+# assumes that wt contains a p for every age 
+impute_age_by_gender <- function(df, gender_name, wt) {
+  # isolate frequency distribution for specified gender
+  dist <- wt |> filter(PSI_GENDER == gender_name)
 
-# ----- Assign age to records with missing age -----
-# SQL version starts at line 169 on branch main
-# Replicates: the R code from lines 171 to 263 (main)
-# What the code does:
-# - Performs a Stratified Proportional Imputation for missing ages.
-# - Followed by a Temporal Projection to fill in subsequent records.
-# - Updates extract_no_age with imputed ages
-# - distribution of assigned (imputed) ages are similar for this version vs last
-
-impute_age_by_gender <- function(sub_df, gender_name, lookup_table) {
-  # Look for the distribution for this specific gender
-  dist <- lookup_table |> filter(PSI_GENDER == gender_name)
-
-  # Fallback: If gender group is empty/missing, use the global age distribution
+  # if the distribution is empty/missing, use the global age distribution
   if (nrow(dist) == 0) {
-    dist <- lookup_table |>
+    dist <- wt |>
       count(AGE_AT_ENROL_DATE, wt = count) |>
-      mutate(prob = n / sum(n))
+      mutate(p = n / sum(n))
   }
 
-  # Assign the sampled ages
-  sub_df$AGE_AT_ENROL_DATE <- sample(
+  # sample ages and assign to df
+  df$AGE_AT_ENROL_DATE <- sample(
     dist$AGE_AT_ENROL_DATE,
-    size = nrow(sub_df),
+    size = nrow(df),
     replace = TRUE,
-    prob = dist$prob
+    prob = dist$p
   )
-  return(sub_df)
+  return(df)
 }
 
-# 1. Prep the weights once
+# calculate natural age by gender distribution from known ages at first enrolment
 age_weights <- min_enrolment |>
   filter(!is.na(AGE_AT_ENROL_DATE), IS_FIRST_ENROLMENT == "Yes") |>
   count(PSI_GENDER, AGE_AT_ENROL_DATE, name = "count") |>
   group_by(PSI_GENDER) |>
-  mutate(prob = count / sum(count)) |>
+  mutate(p = count / sum(count)) |>
   ungroup()
 
-# 2. Run the imputation
-# We split by gender, apply the function, and bind the results back together
+# impute ages for records with missing age at first enrolment
+# improvement: assumes age_weights includes a p for every age
+# but if there are missing ages, this forces sampling with 0 p.
 extract_no_age_first_enrol <- extract_no_age_first_enrol |>
   split(~PSI_GENDER) |>
   imap(~ impute_age_by_gender(.x, .y, age_weights)) |>
   list_rbind()
 
-
+# assign ages to all first enrolment records that are missing ages
 extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE) |>
   left_join(
@@ -366,16 +367,12 @@ extract_no_age <- extract_no_age |>
   )
 
 # calculate missing ages from first enrolments
-# Arrange to ensure the first record (baseline) is chronologically first
 calc_ages <- extract_no_age |>
   arrange(PSI_STUDENT_NUMBER, PSI_CODE, PSI_MIN_START_DATE_D) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
   mutate(
-    # Get the baseline date and age from the first record in the group
     base_date = first(PSI_MIN_START_DATE_D),
     base_age = first(AGE_AT_ENROL_DATE),
-
-    # Only calculate if the first record has an age (as per your 'if' logic)
     AGE_AT_ENROL_DATE = if_else(
       is.na(AGE_AT_ENROL_DATE) & !is.na(base_age),
       base_age +
@@ -388,6 +385,7 @@ calc_ages <- extract_no_age |>
 
 calc_ages <- calc_ages %>% select(ID, AGE_AT_ENROL_DATE)
 
+# 
 extract_no_age <- extract_no_age |>
   left_join(
     calc_ages |> rename(AGE_AT_ENROL_DATE_to_update = AGE_AT_ENROL_DATE)
