@@ -123,7 +123,7 @@ min_enrolment <- min_enrolment |>
 #   by performing two passes - 1) using valid epens, then 2) valid psi code/number combinations for records without valid epens.
 # BA Notes:
 # We have 3 quite different methods for imputing invalid genders in the next couple of sections
-# We should consider reducing complexity and creating a more unified approach
+# We should consider reducing complexity and create aunified approach
 
 # select the first valid gender for each student in credential data - pass #1 valid epens
 credential_epen <- credential |>
@@ -283,9 +283,9 @@ min_enrolment <- min_enrolment |>
 # Replicates: qry07a-qry08 and much R code
 # What the code does:
 # - This code extracts and isolates records where the student's age could not be calculated.
-# - Performs a Stratified Proportional Imputation for missing ages.
-# - Followed by a Temporal Projection to fill in subsequent records.
-# - Updates extract_no_age with imputed ages
+# - Performs a proportional imputation for missing ages.
+# - Followed by a temporal (or forward-fill) projection to fill in subsequent records.
+# - Updates min_enrolment with imputed ages.
 # BA Notes:
 # - compare extract_no_age to Extract_No_Age and
 # - compare extract_no_age_first_enrol to Extract_No_Age_First_Enrolment
