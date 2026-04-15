@@ -61,47 +61,23 @@ na_vals = c("", " ", "(Unspecified)", NA)
 #  - There are some epens with > 1 gender still (in the SQL version) as an original UPDATE query
 # appears to not be deterministic; without loss of generality(?) choosing slice_max.
 
-cols <- c(
+stp_cols <- c(
   "ID",
-  "PSI_PEN",
   "PSI_BIRTHDATE",
   "psi_birthdate_cleaned",
   "PSI_GENDER",
   "PSI_STUDENT_NUMBER",
-  #"PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT",
-  "TRUE_PEN",
   "ENCRYPTED_TRUE_PEN",
   "PSI_SCHOOL_YEAR",
-  #"PSI_REGISTRATION_TERM",
-  #"PSI_STUDENT_POSTAL_CODE_CURRENT",
-  #"PSI_INDIGENOUS_STATUS",
-  #"PSI_NEW_STUDENT_FLAG",
-  "PSI_ENROLMENT_SEQUENCE",
   "PSI_CODE",
-  "PSI_TYPE",
-  "PSI_FULL_NAME",
-  #"PSI_BASIS_OF_ADMISSION",
   "PSI_MIN_START_DATE",
-  #"PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
-  "PSI_PROGRAM_CODE",
   "PSI_CIP_CODE",
-  "PSI_PROGRAM_EFFECTIVE_DATE",
-  #"PSI_FACULTY",
-  #"PSI_CONTINUING_EDUCATION_COURSE_ONLY",
-  #"PSI_CREDENTIAL_CATEGORY",
-  #"PSI_VISA_STATUS",
-  #"PSI_STUDY_LEVEL",
-  #"PSI_ENTRY_STATUS",
-  #"OVERALL_INDIGENOUS_STATUS"
+  "PSI_CREDENTIAL_CATEGORY"
 )
+cred_cols <- c("ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "psi_gender_cleaned")
 
 min_enrolment <- stp_enrolment |>
-  select(all_of(cols)) |>
-  mutate(
-    AGE_AT_CENSUS_2016 = NA_real_,
-    AGE_GROUP_CENSUS_2016 = NA_real_,
-    IS_SKILLS_BASED = NA_integer_
-  ) |>
+  select(all_of(stp_cols)) |>
   inner_join(
     stp_enrolment_record_type |>
       filter(RecordStatus == 0, MinEnrolment == 1) |>
@@ -149,6 +125,7 @@ min_enrolment <- min_enrolment |>
 
 # select the first valid gender for each student in credential data - pass #1 valid epens
 credential_epen <- credential |>
+  select(all_of(cred_cols)) |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
   slice_head(
@@ -158,6 +135,7 @@ credential_epen <- credential |>
 
 # select the first valid gender for each student in credential data - pass #2 invalid epens
 credential_no_epen <- credential |>
+  select(all_of(cred_cols)) |>
   filter(ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
   select(
     PSI_STUDENT_NUMBER,
@@ -456,11 +434,10 @@ min_enrolment <- min_enrolment |>
 # FROM MinEnrolment
 # GROUP BY PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE
 # ORDER BY PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE;"
-
+# 
 # s1 <- dbGetQuery(con, sql)
 # r1 <- min_enrolment |> count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE) |> arrange(PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE)
-# res <- full_join(s1, r1, by = join_by(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE))
-
+# res <- full_join(s1, r1, by = join_by(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE)
 # ks.test(res$n.x, res$n.y)
 # plot(res$n.x, res$n.y)
 
@@ -471,13 +448,11 @@ min_enrolment <- min_enrolment |>
 # INNER JOIN AgeGroupLookup
 # ON  MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
 # GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
-# ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;""
-
+# ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;"
 # s2 <- dbGetQuery(con, sql)
 # r2<- min_enrolment |> inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
 #   count(PSI_SCHOOL_YEAR, AgeGroup, PSI_GENDER) |> arrange(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR)
 # res <- full_join(s2, r2, by = join_by(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR))
-
 # ks.test(res$n.x, res$n.y)
 # plot(res$n.x, res$n.y)
 
