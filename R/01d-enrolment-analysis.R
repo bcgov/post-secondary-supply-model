@@ -18,8 +18,9 @@ set.seed(123456)
 # What the code does: Ensures all source dataframes
 #   and lookup tables are present in global environemnt before processing.
 # BA Notes:
-# - As more queries from SQL are ported and the process is refined,
-#   new tables may be added to the 'required_tables' list below.
+# - Required tables, and "tables to keep" at the end of the script, reflect
+#  tables used/retained from this script only.  Additional changes will be needed
+# if running as a continuous workflow.
 
 required_tables <- c(
   "age_group_lookup",
@@ -65,7 +66,6 @@ cred_cols <- c("ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "psi_gend
 # - Calculates the primary 'AGE_AT_ENROL_DATE' intervals
 # - maps age groups via an inequality join.
 # BA Notes:
-# - qry defn for qry01d1_MinEnrolmentSupVar is missing a ")". qry errors - I fixed manually and reran.
 # - Non-essential columns have been dropped from STP_Enrolment and Credential tables to speed up processing
 
 
