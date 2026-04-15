@@ -366,8 +366,8 @@ extract_no_age <- extract_no_age |>
   )
 
 # calculate missing ages from first enrolments
+# Arrange to ensure the first record (baseline) is chronologically first
 calc_ages <- extract_no_age |>
-  # Arrange to ensure the first record (baseline) is chronologically first
   arrange(PSI_STUDENT_NUMBER, PSI_CODE, PSI_MIN_START_DATE_D) |>
   group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
   mutate(
@@ -398,10 +398,8 @@ extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
 # ---- some manual edits ----
-# SQL version starts at line ? on branch main
-# Replicates:
-# What the code does: Some manual updates were made here to remaining missing ages.
-# BA Notes: I haven't done the manual fixes as we're getting away from manual work
+# BA Notes: Some manual updates were made here to remaining missing ages. 
+# I haven't done the manual fixes as we're getting away from manual work
 
 min_enrolment <- min_enrolment |>
   left_join(
@@ -419,42 +417,14 @@ min_enrolment <- min_enrolment |>
     by = join_by(between(AGE_AT_ENROL_DATE, LowerBound, UpperBound))
   ) |>
   mutate(
-    # Update the target column and clean up the join helpers
     AGE_GROUP_ENROL_DATE = AgeIndex
   ) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
 
 # ---- Final Distributions ----
-# This section moved to 01e-stp-distributions
+# !! This section moved to 01e-stp-distributions
 
-# Test 1
-# sql <- "
-# SELECT PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, COUNT(*) AS n
-# FROM MinEnrolment
-# GROUP BY PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE
-# ORDER BY PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE;"
-# 
-# s1 <- dbGetQuery(con, sql)
-# r1 <- min_enrolment |> count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE) |> arrange(PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE)
-# res <- full_join(s1, r1, by = join_by(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE)
-# ks.test(res$n.x, res$n.y)
-# plot(res$n.x, res$n.y)
-
-# Test 2
-# sql <- "
-# SELECT MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS n
-# FROM MinEnrolment
-# INNER JOIN AgeGroupLookup
-# ON  MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
-# GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
-# ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;"
-# s2 <- dbGetQuery(con, sql)
-# r2<- min_enrolment |> inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
-#   count(PSI_SCHOOL_YEAR, AgeGroup, PSI_GENDER) |> arrange(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR)
-# res <- full_join(s2, r2, by = join_by(PSI_GENDER, AgeGroup, PSI_SCHOOL_YEAR))
-# ks.test(res$n.x, res$n.y)
-# plot(res$n.x, res$n.y)
 
 # ---- Clean Up ----
 tables_to_keep <- c(
