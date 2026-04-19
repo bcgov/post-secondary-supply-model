@@ -36,8 +36,6 @@ lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 # Note: SQL repeated in sql/01.  Delete one copy after merging 2023 run.
-source("./sql/04-graduate-projections/04-graduate-projections-sql.R")
-
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(odbc::odbc(),

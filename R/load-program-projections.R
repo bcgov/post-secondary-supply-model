@@ -45,8 +45,6 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Database = db_config$database,
                          Trusted_Connection = "True")
 
-source("./sql/06-program-projections/06-program-projections.R")
-
 if (regular_run == T | ptib_run == T){
 # ---- Lookups  ----
 T_Cohort_Program_Distributions_Y2_to_Y12 <-  
@@ -104,6 +102,45 @@ dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_PSSM_Projectio
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."T_Weights_STP"')),  T_Weights_STP, overwrite = TRUE)
 
 # ---- Build tbl_Program_Projection_Input ---- 
+
+# [SQL]
+# ---- qry_Build_Program_Projection_Input ----
+qry_Build_Program_Projection_Input <- "
+--CREATE VIEW tbl_Program_Projection_Input AS
+SELECT  A.AgeGroup,
+        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY,
+        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + A.AgeGroup AS Expr1,
+        Credential_Non_Dup.FINAL_CIP_CODE_4,
+        tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED,
+COUNT(*) AS Count
+	FROM    tblCredential_HighestRank
+	INNER JOIN AgeGroupLookup A
+	  ON    tblCredential_HighestRank.AGE_GROUP_AT_GRAD = A.AgeIndex
+	INNER JOIN Credential_Non_Dup
+	  ON    tblCredential_HighestRank.id = Credential_Non_Dup.id
+	WHERE   (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC')
+	  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY = 1)
+	  AND   (tblCredential_HighestRank.OUTCOMES_CRED <> 'DACSO')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10')
+	  OR    (tblCredential_HighestRank.PSI_VISA_STATUS IS NULL)
+	  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY = 1)
+	  AND   (tblCredential_HighestRank.OUTCOMES_CRED <> 'DACSO')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10')
+	  OR    (tblCredential_HighestRank.PSI_VISA_STATUS = 'DOMESTIC')
+	  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY IS NULL)
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10')
+	  OR    (tblCredential_HighestRank.PSI_VISA_STATUS IS NULL)
+	  AND   (tblCredential_HighestRank.RESEARCH_UNIVERSITY IS NULL)
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '09')
+	  AND   (Credential_Non_Dup.FINAL_CIP_CLUSTER_CODE <> '10')
+	GROUP BY A.AgeGroup,
+	        tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY,
+	        tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED,
+	        Credential_Non_Dup.FINAL_CIP_CODE_4
+	HAVING  (tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY <> 'APPRENTICESHIP');"
 tbl_Program_Projection_Input <- dbGetQuery(decimal_con, qry_Build_Program_Projection_Input)
 dbWriteTable(decimal_con, name = SQL(glue::glue('"{my_schema}"."tbl_Program_Projection_Input"')), tbl_Program_Projection_Input, overwrite = TRUE)
 
@@ -124,7 +161,6 @@ dbGetQuery(decimal_con, "ALTER TABLE Cohort_Program_Distributions_Projected ALTE
 stopifnot(exprs = {
   dbGetQuery(decimal_con, "select distinct survey_year from T_Cohorts_Recoded")$survey_year==c(2019:2023)
 })
-
 
 
 }
