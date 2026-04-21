@@ -13,7 +13,7 @@
 
 # credential_supvars is the only table in the global environment that gets altered by this script.
 # toggle to create a convenience backup (development only)
-# credential_supvars.bk <- credential_supvars
+# credential_supvars.bk -> credential_supvars
 
 credential_supvars_gender <- credential_supvars_enrolment |>
   distinct(
@@ -31,22 +31,21 @@ credential_supvars_gender <- credential_supvars_enrolment |>
 # qry03f Cleaning 1 through 5
 supvars_enrol_more_than_1 <- credential_supvars_enrolment |>
   group_by(ENCRYPTED_TRUE_PEN) |>
+  filter(
+    !is.na(ENCRYPTED_TRUE_PEN),
+    !(ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)"))
+  ) |>
   filter(n_distinct(PSI_GENDER) > 1) |>
   slice_max(
     order_by = tibble(PSI_SCHOOL_YEAR, PSI_ENROLMENT_SEQUENCE),
     n = 1,
     with_ties = FALSE
   ) |>
-  filter(
-    !is.na(ENCRYPTED_TRUE_PEN),
-    !(ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)"))
-  ) |>
   select(
     ENCRYPTED_TRUE_PEN,
     PSI_GENDER_To_Use = PSI_GENDER
   ) |>
-  ungroup() |>
-  distinct()
+  ungroup()
 
 # qry03f_6 thorough 11 (redundant, removed)
 
@@ -85,7 +84,8 @@ gender_recovery_lookup <- credential_supvars_gender |>
     credential_supvars_enrolment |>
       filter(!PSI_GENDER %in% c("U", "Unknown")) |>
       select(ENCRYPTED_TRUE_PEN, ResolvedGender = PSI_GENDER),
-    by = "ENCRYPTED_TRUE_PEN"
+    by = "ENCRYPTED_TRUE_PEN",
+    relationship = "many-to-many" # each student can have multiple credentials. Downstream slice_max handles this later.
   ) |>
   filter(
     !is.na(ENCRYPTED_TRUE_PEN),
@@ -102,7 +102,7 @@ credential_supvars_gender <- credential_supvars_gender |>
   left_join(gender_recovery_lookup, by = "ENCRYPTED_TRUE_PEN") |>
   mutate(
     psi_gender_cleaned = if_else(
-      psi_gender_cleaned == 'Unknown',
+      psi_gender_cleaned %in% c("U", "Unknown"),
       psi_gender_cleaned_NEW,
       psi_gender_cleaned
     )
@@ -116,10 +116,10 @@ credential_supvars <- credential_supvars |>
         !is.na(ENCRYPTED_TRUE_PEN),
         !(ENCRYPTED_TRUE_PEN %in% c("", " ", "(Unspecified)"))
       ) |>
-      select(ENCRYPTED_TRUE_PEN, psi_gender_cleaned),
-    by = "ENCRYPTED_TRUE_PEN"
+      distinct(ENCRYPTED_TRUE_PEN, psi_gender_cleaned),
+    by = "ENCRYPTED_TRUE_PEN",
+    relationship = "many-to-many" # each student can have multiple credentials; distinct() handles this downstream.
   )
-credential_supvars <- credential_supvars |> distinct()
 
 # ---------------------------------------------------------------------------------------------------------
 # NULLS (section needs to be rewritten)
@@ -164,7 +164,9 @@ missing_recovered_multis_distinct <- missing_recovered_multis |>
         PSI_SCHOOL_YEAR,
         PSI_ENROLMENT_SEQUENCE
       ),
-    by = "ENCRYPTED_TRUE_PEN"
+    by = "ENCRYPTED_TRUE_PEN",
+    # each student can have multiple credentials, we want to keep all so we determing the max enrolment downstream
+    relationship = "many-to-many"
   ) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER) |>
   summarise(
@@ -215,14 +217,13 @@ credential_supvars_missing_recovered <- credential_supvars_missing_recovered |>
   ) |>
   select(-ResolvedGender)
 
-
 # qry03f_35
 # backfill missing genders in credential_supvars
 credential_supvars <- credential_supvars |>
   left_join(
     credential_supvars_missing_recovered |>
       filter(PSI_GENDER_CLEANED_FLAG == "Yes") |>
-      select(PSI_STUDENT_NUMBER, PSI_CODE, psi_gender_cleaned),
+      distinct(PSI_STUDENT_NUMBER, PSI_CODE, psi_gender_cleaned),
     by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
   ) |>
   mutate(
@@ -233,7 +234,6 @@ credential_supvars <- credential_supvars |>
     )
   ) |>
   select(-psi_gender_cleaned.x, -psi_gender_cleaned.y)
-credential_supvars <- credential_supvars |> distinct()
 
 rm(
   missing_recovered_multis_distinct,
