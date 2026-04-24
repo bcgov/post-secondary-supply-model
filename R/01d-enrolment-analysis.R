@@ -59,7 +59,7 @@ cred_cols <- c("ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "psi_gend
 
 # ---- Extract first-time enrolled records ----
 # Where is the SQL version: Originally sourced from branch 'main' (line 46)
-# Replicates: qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry04a2 (except 03 series)
+# Replicates: qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry02b (except 03 series)
 # What the code does:
 # - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
 #  record-type filters and previously initialized supplemental variables.
@@ -117,7 +117,8 @@ min_enrolment <- min_enrolment |>
 
 
 # ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# Where is the SQL version: Originally sourced from branch 'main' (line 62)
+# Where is the SQL version: Originally sourced from branch 'main' (line 59)
+# Replicates: qry04a1 through qry04a2
 # What the code does: identifies invalid genders  ("", " ", "(Unspecified)", NA) and 
 #   uses genders from the credential view to impute (backfill) gender into min_enrolment.  Accomplished 
 #   by performing two passes - 1) using valid epens, then 2) valid psi code/number combinations for records without valid epens.
@@ -126,10 +127,12 @@ min_enrolment <- min_enrolment |>
 # We should consider reducing complexity and create aunified approach
 
 # select the first valid gender for each student in credential data - pass #1 valid epens
+# this mimicks SQL - in SQL when an UPDATE...SET returns multiple options, the engine will choose one, usually the first one
+# this is unpredictable but at this point we only concerned with generating the same counts as the SQL version.
 credential_epen <- credential |>
   select(all_of(cred_cols)) |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
-  select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
+  select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |> 
   slice_head(
     by = ENCRYPTED_TRUE_PEN,
     n = 1
@@ -225,12 +228,14 @@ gender_weights <- min_enrolment |>
   mutate(TARGET_N = round(PROPORTION * total_unknowns))
 
 # resample unknownws
-imputed_first_enrolments <- extract_no_gender_first |>
-  mutate(
-    PSI_GENDER_IMPUTED = sample(rep(
-      gender_weights$PSI_GENDER,
-      times = gender_weights$TARGET_N
-    ))
+imputed_first_enrolments <- extract_no_gender_first |>  
+  mutate(  
+    PSI_GENDER_IMPUTED = sample(  
+      gender_weights$PSI_GENDER,  
+      size = n(),  
+      replace = TRUE,  
+      prob = gender_weights$PROPORTION  
+    )  
   )
 
 # carry forward first seen gender for records with valid encrypted true pen
