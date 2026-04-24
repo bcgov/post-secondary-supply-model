@@ -6,3 +6,9 @@
 config.yml
 scratch/*
 *_log.txt
+R/02a-dacso-program-matching.txt
+R/gender_cleaning.r
+R/pssm_sql_dplyr_validation.qmd
+R/test-sql-r-comparison.r
+sql/pssm-refactor01-code-review.txt
+sql/test_refactor.sql
