@@ -1185,6 +1185,14 @@ xwalk_coci <- xwalk %>%
     PSI_CREDENTIAL_PROGRAM_DESC_KEY,
     CIP_CODE_4,
     LCP4_CIP_4DIGITS_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = c(
+      COCI_INST_CD_KEY,
+      PSI_PROGRAM_CODE_KEY,
+      PSI_CREDENTIAL_PROGRAM_DESC_KEY
+    )
   )
 
 stp_dacso <- stp_dacso %>%
@@ -1195,8 +1203,7 @@ stp_dacso <- stp_dacso %>%
       "COCI_INST_CD_KEY" = "COCI_INST_CD_KEY",
       "PSI_PROGRAM_CODE_KEY" = "PSI_PROGRAM_CODE_KEY",
       "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY" = "PSI_CREDENTIAL_PROGRAM_DESC_KEY"
-    ),
-    relationship = "many-to-many" # no reason is provided
+    )
   ) %>%
   mutate(
     Already_Matched = if_else(
@@ -1226,10 +1233,6 @@ stp_dacso <- stp_dacso %>%
   ) %>%
   select(-XW_CIP4, -XW_CIP4_NAME)
 
-# ℹ Row 14 of `x` matches multiple rows in `y`.
-# ℹ Row 1251 of `y` matches multiple rows in `x`
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462 rows
 
 ## ---- Newly matched programs ----
 # reference: to check after each query to see counts of matched
@@ -1251,6 +1254,14 @@ xwalk_new_a <- xwalk %>%
     PSI_CREDENTIAL_PROGRAM_DESC_KEY,
     CIP_CODE_4,
     LCP4_CIP_4DIGITS_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = c(
+      PSI_CODE_KEY,
+      PRGM_LCPC_CD_KEY,
+      PSI_CREDENTIAL_PROGRAM_DESC_KEY
+    )
   )
 
 stp_dacso <- stp_dacso %>%
@@ -1261,8 +1272,7 @@ stp_dacso <- stp_dacso %>%
       "PSI_CODE_KEY",
       "PSI_PROGRAM_CODE_KEY" = "PRGM_LCPC_CD_KEY",
       "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY" = "PSI_CREDENTIAL_PROGRAM_DESC_KEY"
-    ),
-    relationship = "many-to-many" # no reason is provided
+    )
   ) %>%
   mutate(
     New_Auto_Match = if_else(
@@ -1283,12 +1293,6 @@ stp_dacso <- stp_dacso %>%
   ) %>%
   select(-XW_CIP4, -XW_CIP4_NAME)
 
-# ℹ Row 783 of `x` matches multiple rows in `y`.
-# ℹ Row 1608 of `y` matches multiple rows in `x`.
-
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462 rows
-
 # join STP data to XWALK on COCI_INST_CD, PSI_CREDENTIAL_PROGRAM_DESCRIPTION = PRGM_INST_PROGRAM_NAME, PSI_PROGRAM_CODE = PRGM_LCPC_CD
 # Match on COCI_INST_CD + PSI_PROGRAM_CODE=PRGM_LCPC_CD + DESC=PRGM_INST_PROGRAM_NAME
 xwalk_new_a2 <- xwalk %>%
@@ -1301,6 +1305,14 @@ xwalk_new_a2 <- xwalk %>%
     PRGM_INST_PROGRAM_NAME_KEY,
     CIP_CODE_4,
     LCP4_CIP_4DIGITS_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = c(
+      COCI_INST_CD_KEY,
+      PRGM_LCPC_CD_KEY,
+      PRGM_INST_PROGRAM_NAME_KEY
+    )
   )
 
 stp_dacso <- stp_dacso %>%
@@ -1311,8 +1323,7 @@ stp_dacso <- stp_dacso %>%
       "COCI_INST_CD_KEY",
       "PSI_PROGRAM_CODE_KEY" = "PRGM_LCPC_CD_KEY",
       "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY" = "PRGM_INST_PROGRAM_NAME_KEY"
-    ),
-    relationship = "many-to-many" # no reason is provided
+    )
   ) %>%
   mutate(
     New_Auto_Match = if_else(
@@ -1337,11 +1348,6 @@ stp_dacso <- stp_dacso %>%
   ) %>%
   select(-XW_CIP4, -XW_CIP4_NAME)
 
-# ℹ Row 783 of `x` matches multiple rows in `y`.
-# ℹ Row 1716 of `y` matches multiple rows in `x`.
-
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462 rows
 
 ## ---- Add to XWALK: newly matched STP programs ----
 ## qry_STP_Credential_DACSO_Programs_NewMatches_b ----
@@ -1365,7 +1371,7 @@ newly_matched <- stp_dacso %>%
     STP_CIP_CODE_4,
     STP_CIP_CODE_4_NAME
   )
-# 227
+# 3 rows
 
 # Update XWALK for PSI_CODE matches
 DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
@@ -1381,8 +1387,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
       "PSI_CODE_KEY" = "PSI_CODE_KEY",
       "PRGM_LCPC_CD_KEY" = "PSI_PROGRAM_CODE_KEY",
       "PRGM_INST_PROGRAM_NAME_KEY" = "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY"
-    ),
-    relationship = "many-to-many" # no reason is provided yet
+    )
   ) %>%
   mutate(
     PSI_PROGRAM_CODE = if_else(
@@ -1420,10 +1425,6 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
 
 #
 
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
-  distinct()
-# 4487
-
 ## qry_STP_Credential_DACSO_Programs_NewMatches_b_step2 ----
 # same as above but join on COCI_INST_CD, PSI_CREDENTIAL_PROGRAM_DESCRIPTION = PRGM_INST_PROGRAM_NAME, PSI_PROGRAM_CODE = PRGM_LCPC_CD
 # Update XWALK for COCI_INST_CD matches (only rows not yet updated)
@@ -1439,7 +1440,9 @@ newly_matched_2 <- stp_dacso %>%
     STP_CIP_CODE_4,
     STP_CIP_CODE_4_NAME
   )
+# 3 rows
 
+# Update XWALK for COCI_INST_CD matches
 DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
   left_join(
     newly_matched_2 %>%
@@ -1453,8 +1456,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
       "COCI_INST_CD_KEY" = "COCI_INST_CD_KEY",
       "PRGM_LCPC_CD_KEY" = "PSI_PROGRAM_CODE_KEY",
       "PRGM_INST_PROGRAM_NAME_KEY" = "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY"
-    ),
-    relationship = "many-to-many" # no reason is provided yet
+    )
   ) %>%
   mutate(
     PSI_PROGRAM_CODE = if_else(
@@ -1490,9 +1492,6 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
   ) %>%
   select(-starts_with("XW_STP"))
 
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
-  distinct()
-# 4487
 
 # simplify the name
 DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
@@ -1577,6 +1576,14 @@ match_on_test_code <- function(
             PRGM_INST_PROGRAM_NAME_KEY,
             CIP_CODE_4,
             LCP4_CIP_4DIGITS_NAME
+          ) |>
+          slice_head(
+            n = 1,
+            by = c(
+              COCI_INST_CD_KEY,
+              PRGM_LCPC_CD_KEY,
+              PRGM_INST_PROGRAM_NAME_KEY
+            )
           ),
         by = c(
           "COCI_INST_CD_KEY",
@@ -1594,6 +1601,13 @@ match_on_test_code <- function(
             PRGM_LCPC_CD_KEY,
             CIP_CODE_4,
             LCP4_CIP_4DIGITS_NAME
+          ) |>
+          slice_head(
+            n = 1,
+            by = c(
+              COCI_INST_CD_KEY,
+              PRGM_LCPC_CD_KEY
+            )
           ),
         by = c(
           "COCI_INST_CD_KEY",
@@ -1664,11 +1678,7 @@ stp_dacso <- match_on_test_code(
   match_flag = "Yes2021_23BCIT",
   join_cols_desc = TRUE
 )
-# ℹ Row 7 of `x` matches multiple rows in `y`.
-# ℹ Row 2739 of `y` matches multiple rows in `x`.
 
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
 
 # join STP data to XWALK on COCI_INST_CD, BCIT_TEST_PROGRAM_CODE = PRGM_LCPC_CD without PSI_CREDENTIAL_PROGRAM_DESCRIPTION
 # dbGetQuery(con, qry_Update_BCIT_Programs_b)
@@ -1680,11 +1690,7 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23BCIT",
   join_cols_desc = FALSE
 )
-# ℹ Row 7 of `x` matches multiple rows in `y`.
-# ℹ Row 2739 of `y` matches multiple rows in `x`
-# less constrain in join, so more duplications
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 
 ## ---- Update CAPU ----
 # CAPU submits CPC codes to STP that are 6 digits long, but in DACSO they are generally 3 or 4 digits long
@@ -1724,10 +1730,6 @@ stp_dacso <- match_on_test_code(
   join_cols_desc = TRUE
 )
 
-# ℹ Row 2269 of `x` matches multiple rows in `y`.
-# ℹ Row 4175 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
 
 stp_dacso <- match_on_test_code(
   stp_dacso,
@@ -1736,10 +1738,7 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23CAPU",
   join_cols_desc = FALSE
 )
-# ℹ Row 1647 of `x` matches multiple rows in `y`.
-# ℹ Row 4175 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 
 # 4 digits, another way of matching
 # Try 4-digit prefix
@@ -1760,10 +1759,7 @@ stp_dacso <- match_on_test_code(
   join_cols_desc = TRUE
 )
 
-# ℹ Row 1202 of `x` matches multiple rows in `y`.
-# ℹ Row 1684 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 stp_dacso <- match_on_test_code(
   stp_dacso,
   xwalk,
@@ -1771,10 +1767,7 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23CAPU",
   join_cols_desc = FALSE
 )
-# ℹ Row 1200 of `x` matches multiple rows in `y`.
-# ℹ Row 1684 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 
 # 3 digits, another way of matching
 
@@ -1795,10 +1788,8 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23CAPU",
   join_cols_desc = TRUE
 )
-# ℹ Row 1348 of `x` matches multiple rows in `y`.
-# ℹ Row 2219 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
+
 stp_dacso <- match_on_test_code(
   stp_dacso,
   xwalk,
@@ -1806,10 +1797,7 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23CAPU",
   join_cols_desc = FALSE
 )
-# ℹ Row 1151 of `x` matches multiple rows in `y`.
-# ℹ Row 2219 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 
 ## ---- Update VIU ----
 # STP versions seem longer (e.g., CERT-WELDM_01) versus DACSO (e.g.,WELDM)
@@ -1850,10 +1838,7 @@ stp_dacso <- match_on_test_code(
   "Yes2021_23VIU",
   join_cols_desc = FALSE
 )
-# ℹ Row 5389 of `x` matches multiple rows in `y`.
-# ℹ Row 936 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 
 ## Update remaining matching ----
 
@@ -1864,7 +1849,19 @@ stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
 # Match on COCI_INST_CD + PSI_PROGRAM_CODE=PRGM_LCPC_CD
 xwalk_remaining <- xwalk %>%
   filter(!is.na(COCI_INST_CD) & !is.na(PRGM_LCPC_CD)) %>%
-  select(COCI_INST_CD_KEY, PRGM_LCPC_CD_KEY, CIP_CODE_4, LCP4_CIP_4DIGITS_NAME)
+  select(
+    COCI_INST_CD_KEY,
+    PRGM_LCPC_CD_KEY,
+    CIP_CODE_4,
+    LCP4_CIP_4DIGITS_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = c(
+      COCI_INST_CD_KEY,
+      PRGM_LCPC_CD_KEY
+    )
+  )
 
 stp_dacso <- stp_dacso %>%
   left_join(
@@ -1873,8 +1870,7 @@ stp_dacso <- stp_dacso %>%
         XW_CIP4 = CIP_CODE_4,
         XW_CIP4_NAME = LCP4_CIP_4DIGITS_NAME
       ),
-    by = c("COCI_INST_CD_KEY", "PSI_PROGRAM_CODE_KEY" = "PRGM_LCPC_CD_KEY"),
-    relationship = "many-to-many" # no reason is provided yet
+    by = c("COCI_INST_CD_KEY", "PSI_PROGRAM_CODE_KEY" = "PRGM_LCPC_CD_KEY")
   ) %>%
   mutate(
     New_Auto_Match = if_else(
@@ -1898,11 +1894,6 @@ stp_dacso <- stp_dacso %>%
   ) %>%
   select(-XW_CIP4, -XW_CIP4_NAME)
 
-
-# ℹ Row 841 of `x` matches multiple rows in `y`.
-# ℹ Row 1651 of `y` matches multiple rows in `x`.
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
 
 # Match on COCI_INST_CD + PSI_CREDENTIAL_PROGRAM_DESCRIPTION=PRGM_INST_PROGRAM_NAME
 xwalk_remaining_desc <- xwalk %>%
@@ -1912,6 +1903,13 @@ xwalk_remaining_desc <- xwalk %>%
     PRGM_INST_PROGRAM_NAME_KEY,
     CIP_CODE_4,
     LCP4_CIP_4DIGITS_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = c(
+      COCI_INST_CD_KEY,
+      PRGM_INST_PROGRAM_NAME_KEY
+    )
   )
 
 stp_dacso <- stp_dacso %>%
@@ -1921,9 +1919,7 @@ stp_dacso <- stp_dacso %>%
     by = c(
       "COCI_INST_CD_KEY",
       "PSI_CREDENTIAL_PROGRAM_DESCRIPTION_KEY" = "PRGM_INST_PROGRAM_NAME_KEY"
-    ),
-    # keep = TRUE,
-    relationship = "many-to-many" # no reason is provided yet
+    )
   ) %>%
   mutate(
     New_Auto_Match = if_else(
@@ -1947,8 +1943,7 @@ stp_dacso <- stp_dacso %>%
   ) %>%
   select(-XW_CIP4, -XW_CIP4_NAME)
 
-stp_dacso <- stp_dacso %>% distinct() # this is not in the original code
-# 5462
+
 rm(xwalk_remaining, xwalk_remaining_desc)
 
 
