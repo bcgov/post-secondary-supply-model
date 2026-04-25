@@ -1143,7 +1143,7 @@ xwalk_exact <- xwalk %>%
     PSI_CREDENTIAL_PROGRAM_DESC_KEY,
     CIP_CODE_4,
     LCP4_CIP_4DIGITS_NAME
-  )
+  ) |> slice_head(n=1, by = c(PSI_CODE_KEY, PSI_PROGRAM_CODE_KEY, PSI_CREDENTIAL_PROGRAM_DESC_KEY))
 
 stp_dacso <- stp_dacso %>%
   left_join(
