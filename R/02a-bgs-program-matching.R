@@ -1751,7 +1751,7 @@ refactored_tbl <- refactored_tbl %>%
       FINAL_CIP_CODE_4,
       case_when(
         CIP_TO_USE == "BGS" ~ BGS_FINAL_CIP_CODE_4,
-        CIP_TO_USE == "STP" ~ STP_FINAL_CIP_CODE_2
+        CIP_TO_USE == "STP" ~ STP_FINAL_CIP_CODE_4
       )
     ),
     #  Align 2-digit CIP with 4-digit decision for consistency
