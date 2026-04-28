@@ -15,7 +15,7 @@ R/02a-dacso-program-matching-test-id.R
 sql/Notebook-refactor-1.ipynb
 sql/test_refactor.r
 sql/test_refactor.sql
-sql/pssm-refactor01-code-review.txt
-.gitignore
 R/test-sql-r-comparison.r
-sql/pssm_sql_queris.txt
+.gitignore
+sql/pssm-refactor01-code-review.txt
+R/pssm_sql_dplyr_validation.qmd
