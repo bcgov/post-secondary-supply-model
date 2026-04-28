@@ -1750,8 +1750,8 @@ refactored_tbl <- refactored_tbl %>%
     FINAL_CIP_CODE_4 = coalesce(
       FINAL_CIP_CODE_4,
       case_when(
-        CIP_TO_USE == "BGS" ~ BGS_FINAL_CIP_CODE_2,
-        CIP_TO_USE == "STP" ~ STP_FINAL_CIP_CODE_2
+        CIP_TO_USE == "BGS" ~ BGS_FINAL_CIP_CODE_4,
+        CIP_TO_USE == "STP" ~ STP_FINAL_CIP_CODE_4
       )
     ),
     #  Align 2-digit CIP with 4-digit decision for consistency
@@ -3318,7 +3318,13 @@ credential_bgs_updated <- credential_bgs_updated %>%
 
 # Preview the updated credentials table structure
 credential_bgs_updated |> glimpse()
+credential_bgs_updated <- credential_bgs_updated %>% 
+  as_tibble() %>% 
+  mutate(FINAL_CIP_CODE_4 = str_pad(FINAL_CIP_CODE_4, width = 4, side = "left", pad = "0"), 
+         FINAL_CIP_CODE_2 = str_pad(FINAL_CIP_CODE_2, width = 2, side = "left", pad = "0")))
 
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_BGS_IDs"')), credential_bgs_updated)
+credential_bgs_updated <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs")
 # write it back to SQL
 
 target_name <- "Credential_Non_Dup_BGS_IDs"
