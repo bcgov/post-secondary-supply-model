@@ -68,6 +68,34 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
+#' Read Table from Database Schema
+#'
+#' Reads a table from a specified database schema using a database connection.
+#'
+#' @param tbl Character string specifying the name of the table to read.
+#' @param conn Database connection object. Defaults to `con`.
+#' @param schema Character string specifying the schema name. Defaults to `my_schema`.
+#'
+#' @return A data frame containing the contents of the specified table.
+#'
+#' @details
+#' This function constructs a schema-qualified table reference using SQL syntax
+#' and retrieves the table data from the connected database. The schema and table
+#' names are properly quoted to handle special characters.
+#'
+#' @examples
+#' \dontrun{
+#'   data <- sch_tbl("my_table")
+#'   data <- sch_tbl("my_table", conn = my_connection, schema = "public")
+#' }
+#'
+#' @seealso [DBI::dbReadTable()]
+#'
+#' @keywords internal
+sch_tbl <- function(tbl, conn = con, schema = my_schema) {
+  dplyr::tbl(conn, DBI::Id(schema = schema, table = tbl))
+}
+
 # ---- Check Required Tables ----
 # main table
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
@@ -218,7 +246,7 @@ bgs_cips <- bgs_cips |> rename_with(toupper)
 
 bgs_cips |>
   filter(ID %in% (bgs_cips |> count(ID) |> filter(n > 1) |> pull(ID))) |>
-  arrange(ID) 
+  arrange(ID)
 
 # 16 rows have two rows
 # bgs_updates: This is a smaller data frame (derived from the BGS program matching process) containing updated CIP information (like FINAL_CIP_CODE_4 and FINAL_CIP_CLUSTER_CODE) for specific records.
@@ -229,17 +257,22 @@ bgs_updates <- bgs_cips |>
   # .keep_all = TRUE: By default, distinct() only returns the columns you used to determine uniqueness (in this case, just the ID). Setting .keep_all = TRUE tells R to keep all the other columns in the dataframe (like FINAL_CIP_CODE_4, FINAL_CIP_CLUSTER_NAME, etc.) for the rows that are retained.
   # distinct(ID, .keep_all = TRUE) %>%
   # distinct is randomly picking up one row, so we prefer the determistical way by using slice_head and by.
-  slice_min(
-    order_by = c(
-     FINAL_CIP_CODE_4,
-     FINAL_CIP_CODE_4_NAME,
-     FINAL_CIP_CODE_2,
-     FINAL_CIP_CODE_2_NAME,
-     FINAL_CIP_CLUSTER_CODE,
-     FINAL_CIP_CLUSTER_NAME), 
-      n = 1, 
-      by = ID, 
-      with_ties = FALSE) |>
+  #   Use distinct(ID, .keep_all = TRUE) only when duplicate rows are truly interchangeable.
+  # Use slice_min(), slice_max(), or arrange() |> slice_head(by = ID) when you need a clear business rule.
+  # For rows_update(),  strongly prefer the second approach because it is more transparent, reproducible, and auditable
+  arrange(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME,
+    FINAL_CIP_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = ID
+  ) |>
   # convert to strings
   mutate(
     across(
@@ -248,7 +281,7 @@ bgs_updates <- bgs_cips |>
     )
   )
 
-bgs_updates |> distinct() |> count(ID) |> filter(n > 1)
+# bgs_updates |> distinct() |> count(ID) |> filter(n > 1)
 # only 16 rows when no distinct process
 
 # test <- bgs_updates |> filter(ID == "872917")
@@ -274,17 +307,32 @@ grad_updates <- grad_cips %>%
     FINAL_CIP_CODE_4_NAME,
     FINAL_CIP_CODE_2,
     FINAL_CIP_CODE_2_NAME
-  ) |>
+  ) %>%
+  collect() |>
   # Ensure ID is unique to prevent rows_update() from erroring
-  distinct(ID, .keep_all = TRUE) %>%
+  arrange(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = ID
+  ) |>
   # convert to strings
   mutate(
     across(
       .cols = FINAL_CIP_CODE_4:FINAL_CIP_CODE_2_NAME,
       .fns = as.character
     )
-  ) %>%
-  collect()
+  )
+
+
+# grad_updates |>
+#   count(ID) |>
+#   filter(n > 1)
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(grad_updates, by = "ID", unmatched = "ignore")
@@ -305,17 +353,31 @@ appso_updates <- appso_cips %>%
     FINAL_CIP_CODE_4_NAME,
     FINAL_CIP_CODE_2,
     FINAL_CIP_CODE_2_NAME
-  ) |>
+  ) %>%
+  collect() |>
   # Ensure ID is unique to prevent rows_update() from erroring
-  distinct(ID, .keep_all = TRUE) %>%
+  arrange(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME
+  ) |>
+  slice_head(
+    n = 1,
+    by = ID
+  ) |>
   # convert to strings
   mutate(
     across(
       .cols = FINAL_CIP_CODE_4:FINAL_CIP_CODE_2_NAME,
       .fns = as.character
     )
-  ) %>%
-  collect()
+  )
+
+# appso_updates |>
+#   count(ID) |>
+#   filter(n > 1)
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(appso_updates, by = "ID", unmatched = "ignore")
