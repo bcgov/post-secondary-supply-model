@@ -3318,7 +3318,13 @@ credential_bgs_updated <- credential_bgs_updated %>%
 
 # Preview the updated credentials table structure
 credential_bgs_updated |> glimpse()
+credential_bgs_updated <- credential_bgs_updated %>% 
+  as_tibble() %>% 
+  mutate(FINAL_CIP_CODE_4 = str_pad(FINAL_CIP_CODE_4, width = 4, side = "left", pad = "0"), 
+         FINAL_CIP_CODE_2 = str_pad(FINAL_CIP_CODE_2, width = 2, side = "left", pad = "0")))
 
+dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_BGS_IDs"')), credential_bgs_updated)
+credential_bgs_updated <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs")
 # write it back to SQL
 
 target_name <- "Credential_Non_Dup_BGS_IDs"
