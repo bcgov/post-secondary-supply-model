@@ -103,22 +103,22 @@ dbExistsTable(
 # and the STP fallback (Steps 7–13).
 # KEPT AS SQL: ALTER TABLE is DDL — no dplyr equivalent
 # ---- Step 1: Add CIP columns to Credential_Non_Dup ----
-# dbExecute(
-#   con,
-#   "ALTER TABLE Credential_Non_Dup
-# ADD         OUTCOMES_CIP_CODE_4 varchar(4),
-#             OUTCOMES_CIP_CODE_4_NAME varchar(255),
-#             FINAL_CIP_CODE_4 varchar(4),
-#             FINAL_CIP_CODE_4_NAME varchar(255),
-#             FINAL_CIP_CODE_2 varchar(2),
-#             FINAL_CIP_CODE_2_NAME varchar(255),
-#             FINAL_CIP_CLUSTER_CODE varchar(10),
-#             FINAL_CIP_CLUSTER_NAME varchar(255),
-#             STP_CIP_CODE_4 varchar(4),
-#             STP_CIP_CODE_4_NAME varchar(255),
-#             STP_CIP_CODE_2 varchar(2),
-#             STP_CIP_CODE_2_NAME varchar(255);"
-# )
+dbExecute(
+  con,
+  "ALTER TABLE Credential_Non_Dup
+ADD         OUTCOMES_CIP_CODE_4 varchar(4),
+            OUTCOMES_CIP_CODE_4_NAME varchar(255),
+            FINAL_CIP_CODE_4 varchar(4),
+            FINAL_CIP_CODE_4_NAME varchar(255),
+            FINAL_CIP_CODE_2 varchar(2),
+            FINAL_CIP_CODE_2_NAME varchar(255),
+            FINAL_CIP_CLUSTER_CODE varchar(10),
+            FINAL_CIP_CLUSTER_NAME varchar(255),
+            STP_CIP_CODE_4 varchar(4),
+            STP_CIP_CODE_4_NAME varchar(255),
+            STP_CIP_CODE_2 varchar(2),
+            STP_CIP_CODE_2_NAME varchar(255);"
+)
 
 # ---- Update non dup with new CIP codes from DACSO, BGS and GRAD records ----
 # DACSO provides the richest matching — it joins on 7 columns (institution,
@@ -130,10 +130,11 @@ dbExistsTable(
 
 cred_non_dup <- sch_tbl("credential_non_dup")
 cred_non_dup <- cred_non_dup |> rename_with(toupper)
-cred_non_dup |> count(ID) |> filter(n > 1)
-
-dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs") %>%
+# cred_non_dup |> count(ID) |> filter(n > 1)
+# no duplications
+cred_non_dup <- cred_non_dup |>
   collect()
+dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs")
 dacso_cips <- dacso_cips |> rename_with(toupper)
 
 # Drop the empty CIP columns (just added by ALTER TABLE) before joining so the
@@ -160,18 +161,18 @@ dacso_join <- dacso_cips %>%
   ) %>%
   collect()
 
-dacso_join |>
-  count(
-    PSI_CODE,
-    PSI_PROGRAM_CODE,
-    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-    PSI_CREDENTIAL_CIP,
-    PSI_CREDENTIAL_LEVEL,
-    PSI_CREDENTIAL_CATEGORY,
-    OUTCOMES_CRED
-  ) |>
-  filter(n > 1)
-
+# dacso_join |>
+#   count(
+#     PSI_CODE,
+#     PSI_PROGRAM_CODE,
+#     PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+#     PSI_CREDENTIAL_CIP,
+#     PSI_CREDENTIAL_LEVEL,
+#     PSI_CREDENTIAL_CATEGORY,
+#     OUTCOMES_CRED
+#   ) |>
+#   filter(n > 1)
+# no duplications
 # dbExecute(con, qry_update_Credential_Non_Dup_DACSO_Final_CIPs)
 
 # cred_non_dup: This is the main credential data frame that the script is progressively enriching with cleaned CIP (Classification of Instructional Programs) codes.
@@ -213,12 +214,32 @@ bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs") %>%
   ) %>%
   collect()
 bgs_cips <- bgs_cips |> rename_with(toupper)
-bgs_cips |> count(ID) |> filter(n > 1)
+# bgs_cips |> count(ID) |> filter(n > 1)
+
+bgs_cips |>
+  filter(ID %in% (bgs_cips |> count(ID) |> filter(n > 1) |> pull(ID))) |>
+  arrange(ID) 
+
+# 16 rows have two rows
 # bgs_updates: This is a smaller data frame (derived from the BGS program matching process) containing updated CIP information (like FINAL_CIP_CODE_4 and FINAL_CIP_CLUSTER_CODE) for specific records.
 
 bgs_updates <- bgs_cips |>
-  # Ensure ID is unique to prevent rows_update() from erroring
-  distinct(ID, .keep_all = TRUE) %>%
+  # Ensure ID is unique to prevent rows_update() from erroring: rows_update() function has a very strict requirement: The keys in your update data must be unique.
+  # distinct(ID, ...): This identifies unique values in the ID column. If there are multiple rows sharing the same ID, distinct will keep only the first row it encounters and discard the others.
+  # .keep_all = TRUE: By default, distinct() only returns the columns you used to determine uniqueness (in this case, just the ID). Setting .keep_all = TRUE tells R to keep all the other columns in the dataframe (like FINAL_CIP_CODE_4, FINAL_CIP_CLUSTER_NAME, etc.) for the rows that are retained.
+  # distinct(ID, .keep_all = TRUE) %>%
+  # distinct is randomly picking up one row, so we prefer the determistical way by using slice_head and by.
+  slice_min(
+    order_by = c(
+     FINAL_CIP_CODE_4,
+     FINAL_CIP_CODE_4_NAME,
+     FINAL_CIP_CODE_2,
+     FINAL_CIP_CODE_2_NAME,
+     FINAL_CIP_CLUSTER_CODE,
+     FINAL_CIP_CLUSTER_NAME), 
+      n = 1, 
+      by = ID, 
+      with_ties = FALSE) |>
   # convert to strings
   mutate(
     across(
