@@ -1,0 +1,248 @@
+---
+title: "Load Cohort (2b) - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+The script `load-cohort-appso.R` serves as the ingestion and standardization layer for the Apprenticeship Student Outcomes (APPSO) dataset. It is designed to transform raw survey responses and graduate counts into standardized datasets suitable for downstream analysis.
+
+The script `load-cohort-trd.R` serves as the ingestion and standardization layer for the Trades Student Outcomes (TRD) data pipeline. It processes survey data and achievement records for students formerly enrolled in apprenticeship, trades foundation, or trades-related vocational programs.
+
+The script `load-cohort-bgs.R` serves as the ingestion and standardization layer for the Baccalaureate Graduate Survey (BGS) data pipeline. It processes survey outcomes for students two years post-graduation, reconciling legacy data with recent survey updates to provide a longitudinal view of baccalaureate labor market outcomes.
+
+The script `load-cohort-dacos.R` serves as the ingestion and standardization layer for the Diploma, Associate Degree, and Certificate Student Outcomes (DACSO) data pipeline. It processes survey outcomes for graduates of public colleges, institutes, and teaching-intensive universities, typically collected 18 months post-graduation.
+
+## Data Sources and Storage
+
+### External Data Sources
+
+#### APPSO_DATA_01_Final.csv
+
+- Source: Student Outcomes Survey Database
+- Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+- Description: A CSV containing unique survey submissions for apprentices who completed their 
+technical training.
+
+#### APPSO_Graduates.csv
+
+Source: Student Outcomes Survey Database
+
+Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+
+Description: A CSV providing counts of graduates cross-tabulated by credential type, age, and survey year.
+
+#### Q000_TRD_DATA_01.csv
+
+Source: Student Outcomes Survey Database
+
+Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+
+Description: A CSV containing unique survey submissions for students across multiple survey years.
+
+#### Q000_TRD_Graduates.csv
+
+Source: Student Outcomes Survey Database
+
+Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+
+Description: A CSV providing counts of trades graduates disaggregated by credential type, age, and survey year.
+
+#### BGS_Q001_BGS_Data_2019_2023.csv
+
+Source: Student Outcomes Survey Database
+
+Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+
+Description: A comprehensive CSV containing unique responses from recent survey years (e.g., 2019–2023).
+
+#### DACSO_Q003_DACSO_DATA_Part_1_stepA.csv
+
+- Source: Student Outcomes Survey Database
+- Access Method: Data is retrieved from the local area network (LAN) as defined in a `config.yml` file
+- Description: A primary CSV containing unique survey responses for the current model cycle.
+
+#### Lookup tables
+
+Several lookup tables are sourced from the LAN.  <mark> We may recode these in R so leaving out of this section for now.</mark> 
+
+### Internal/Processed Data Sources
+
+#### [Internal Data Product Name]
+
+<mark> TO DO OR REMOVE </mark>
+
+Source: [Describe how/where the data is generated or stored]  
+Access Method: [Describe how to access the data]
+
+  - File location: [Path or variable]
+  - Processing methodology: [Link to documentation or code if available]
+
+Description: [Brief description of the processed data]
+
+
+### Data Storage Structure
+
+<mark> TO DO OR REMOVE </mark>
+
+All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
+
+```
+[BASE_FOLDER]/
+├── data/
+    ├── source/          # Processed intermediate files
+    └── raw/             # Raw input data
+        └── [subfolder]/ # [Description]
+└── outputs/
+    ├── tables/          # Final output tables  
+    └── visuals/         # Maps and visualizations
+```
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+<mark> TO DO OR REMOVE </mark>
+
+- Network Access: [List required network resources]
+- Storage: [Note storage requirements]
+- Memory: [Note memory requirements]
+- External Data: [List any required external data]
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse`
+- `config`
+- `glue`
+
+#### Authentication Setup
+
+<mark> TO DO OR REMOVE </mark>
+
+### Global Constants and Configuration
+
+All four `load-cohort-xxx.R` scripts requires specific logical flags (`regular_run`, `ptib_run`, or `qi_run`) to run. These flags help determine which weighting methodology to apply to the records <mark> anything else? </mark>
+
+#### Data Processing and Filtering
+
+  - `regular_run`: [Logical] - TRUE/FALSE flag indicating this is the main model run.
+  - `ptib_run`: [Logical] -TRUE/FALSE flag indicating if ptib data is used in this analysis.
+  - `qi_run`: [Logical] - TRUE/FALSE flag indicating if this model run is being used as a quality indicator.
+
+#### File Path Configuration
+
+<mark> TO DO OR REMOVE </mark>
+
+## Methodology Overview
+
+These following scripts execute technical transformations to ensure the data aligns with the broader Provincial Student Survey Model (PSSM) standards.
+
+#### Methods
+
+##### load-cohort-appso.R
+
+Individual ages are mapped into standardized reporting buckets (e.g., "25 to 29"), and regional identifiers are consolidated into a unified into a single coding system.
+
+A composite NEW_LABOUR_SUPPLY variable is generated by evaluating survey responses related to employment status and labor market participation.
+
+The script applies a chronological weighting schema to the survey submissions based on the submission code (SUBM_CD). This ensures that more recent outcomes are appropriately prioritized or excluded depending on whether the analysis is a standard production run or a Quality Indicator (QI) assessment.
+
+
+##### load-cohort-trd.R
+
+The script generates a unique program-credential identifier (LCIP4_CRED). This composite key concatenates graduation status groups, disciplinary codes (CIP), and trades training markers.
+
+Regional identifiers are mapped into a unified PSSM geographic coding system. 
+
+Individual age markers are binned into standardized reporting cohorts (e.g., "20 to 24"). 
+
+The script coerces numeric data types on critical analytical variables (e.g. graduation status and trades training markers) to ensure mathematical integrity during subsequent aggregation and weighting phases.
+
+##### load-cohort-bgs.R
+
+The script renames administrative survey variables (such as employment status, labor force participation, and further education markers) into a standardized nomenclature. 
+
+A specific binary age indicator is generated to isolate the "17 to 34" cohort.
+
+Regional identifiers are mapped to a unified PSSM geographic coding system. The process involves an inner join with institutional reference tables to resolve missing or ambiguous location data based on the reporting institution's primary region.
+
+Supply-related attributes are derived and redundant administrative metadata is filtering out to produce an analysis-ready dataset.
+
+##### load-cohort-dacso.R
+
+The script maps disparate administrative regional identifiers into a unified PSSM geographic coding system.
+
+Individual ages are binned into ten discrete groups and assigned standardized labels. 
+
+Administrative credential strings are mapped to a standardized reporting hierarchy. Additionally, placeholder structures are established for National Occupational Classification (NOC) broad categories to facilitate downstream analysis.
+
+The script synchronizes survey cycles with academic years and prepares a recoded cohort table.
+
+## Key Output Tables
+
+##### t_appso_data_final
+
+An enriched survey response table containing derived labour market indicators, standardized age groups, and applied analytical weights.
+
+<mark> EXAMPLE ONLY: TO DO OR REMOVE </mark>
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+</ul>
+
+##### appso_graduates
+
+A standardized graduate count table with age cohorts aligned to the PSSM reporting nomenclature.
+
+##### trd_data
+
+An enriched survey response table containing standardized geographic codes and composite program-credential identifiers.
+
+##### trd_graduates
+
+A standardized graduate count table with age cohorts aligned to the PSSM macro-reporting nomenclature.
+
+##### t_bgs_data_final
+
+The primary, cleaned survey dataset containing standardized labor market indicators, demographic tags, and reconciled regional codes.
+
+##### t_weights
+
+A standardized weighting matrix prepared for application in downstream statistical modeling.
+
+##### t_bgs_inst_recode
+
+A cleaned lookup table for institutional identity management.
+
+##### t_dacso_data_part_1_stepa
+
+The primary standardized survey dataset containing reconciled regional codes and labor market markers.
+
+## Suggested Improvements
+
+<mark> TO DO OR REMOVE </mark>
+
+## Additional Details
+
+<mark> TO DO OR REMOVE </mark>
