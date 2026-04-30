@@ -3937,7 +3937,8 @@ T_BGS_Data_Unmatched_CIPS_to_update <- tibble::tribble(
 dbWriteTable(
   con,
   "T_BGS_Data_Unmatched_CIPS_to_update_r",
-  T_BGS_Data_Unmatched_CIPS_to_update
+  T_BGS_Data_Unmatched_CIPS_to_update,
+  overwrite = TRUE
 )
 
 T_BGS_Data_Unmatched_CIPS_to_update <- tbl(
