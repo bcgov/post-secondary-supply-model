@@ -3956,7 +3956,8 @@ T_BGS_Data_Unmatched_CIPS_to_update <- tbl(
 
 dup_programs <- T_BGS_Data_Unmatched_CIPS_to_update %>%
   count(PROGRAM) %>%
-  filter(n > 1)
+  filter(n > 1) |>
+  collect()
 
 if (nrow(dup_programs) > 0) {
   stop(
