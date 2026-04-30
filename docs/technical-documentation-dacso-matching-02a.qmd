@@ -20,51 +20,47 @@ format:
 
 ## Overview
 
-_Provide a brief summary of the module’s purpose, scope, and key objectives._
+This script standardizes and aligns program records between two STP Credential and Student Outcomes datasets, supporting longitudinal consistency and data integrity across survey cycles. The process updates an existing master crosswalk (DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX) by incorporating new programs and those changed programs from recent years as sourced from Student Outcomes Survey data.
+
+Programs are matched using a combination of exact, fuzzy, and institution-specific rules to maximize linkage accuracy. For unmatched records, custom logic is applied based on known institutional coding practices. The script assigns standardized classification codes to all programs using the INFOWARE_L_CIP reference tables, ensuring each record receives a complete set of attributes. Diagnostic checks are performed to identify and review discrepancies. Finalized tables are written out for downstream analysis and reporting. 
 
 ## Data Sources and Storage
 
 ### External Data Sources
 
-#### [External Data Source Name]
+<mark> TO COMPLETE </mark>
 
-Source: [Data provider or organization]  
-Access Method: [Describe how data is accessed, e.g., API, direct download, R package]
+#### INFOWARE_PROGRAMS/INFOWARE_PROGRAMS_HIST_PRGMID_XREF
 
-  - [List any required credentials, API keys, or setup steps]
-  - Function calls: [Relevant function or method]
+Source: Student Outcomes Survey Data
+Access Method: 
+Description: 
 
-Description: [Brief description of the data, coverage, and structure]
+#### INFOWARE_L_CIP_XDIGITS_CIP2016 (2,4,6 DIGITS)
+
+Source: Student Outcomes Survey Data
+Access Method: 
+Description: 
+
+#### DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX
+
+Source: LAN
+Access Method: secure connection
+Description: 
 
 <!-- Repeat the above callout for each external data source -->
 
 ### Internal/Processed Data Sources
 
-#### [Internal Data Product Name]
+#### credential_non_dup
 
-Source: [Describe how/where the data is generated or stored]  
-Access Method: [Describe how to access the data]
-
-  - File location: [Path or variable]
-  - Processing methodology: [Link to documentation or code if available]
-
-Description: [Brief description of the processed data]
-
+Source: TBD
+Access Method: TBD
+Description: 
 
 ### Data Storage Structure
 
-All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+<mark> FILL IN LATER </mark>
 
 ## Technical Specifications
 
@@ -72,50 +68,28 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
 
 #### System Requirements
 
-- Network Access: [List required network resources]
-- Storage: [Note storage requirements]
-- Memory: [Note memory requirements]
-- External Data: [List any required external data]
+<mark> FILL IN LATER </mark>
 
 #### R Package Dependencies
 
-The following R packages are required for this module:
-
-- [List core data processing packages]
-- [List spatial analysis packages]
-- [List visualization/statistics packages]
-- [List file management packages]
-
-
+<mark> FILL IN LATER </mark>
 
 #### Authentication Setup
 
-```r
-# Example: API key configuration
-[package]::set_api_key('YOUR_API_KEY', install = TRUE)
-```
+<mark> FILL IN LATER </mark>
 
 ### Global Constants and Configuration
 
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
+<mark> FILL IN LATER </mark>
 
 #### Data Processing and Filtering
 
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
+<mark> FILL IN LATER </mark>
 
 
 #### File Path Configuration
 
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
-
-[Add other relevant settings as needed]
+<mark> FILL IN LATER </mark>
 
 
 ## Methodology Overview
