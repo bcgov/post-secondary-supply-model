@@ -796,8 +796,8 @@ age_weights <- credential_non_dup |>
   ) |>
   count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD) |>
   complete(
-    PSI_CREDENTIAL_CATEGORY,
-    psi_gender_cleaned,
+    PSI_CREDENTIAL_CATEGORY = credential_rank$PSI_CREDENTIAL_CATEGORY,
+    psi_gender_cleaned = valid_genders,
     AGE_AT_GRAD = full_seq(AGE_AT_GRAD, 1),
     fill = list(n = 0)
   ) |>
@@ -925,6 +925,24 @@ credential_non_dup <- credential_non_dup |>
   )
 
 
+# ---- 14-15 research University + Outcomes Credential ----
+research_universities <- c("SFU", "UBC", "UBCV", "UBCO", "UNBC", "UVIC", "RRU")
+credential_non_dup <- credential_non_dup |>
+  mutate(
+    RESEARCH_UNIVERSITY = if_else(
+      PSI_CODE %in% research_universities,
+      1L,
+      NA_integer_
+    )
+  )
+
+credential_non_dup <- credential_non_dup |>
+  left_join(
+    outcome_credential |>
+      select(PSI_CREDENTIAL_CATEGORY, OUTCOMES_CRED = Outcomes_Cred),
+    by = "PSI_CREDENTIAL_CATEGORY"
+  )
+
 # ---- 13 Delay Date and Highest rank----
 credential_non_dup <- credential_non_dup |>
   mutate(
@@ -1042,23 +1060,34 @@ credential_non_dup <- credential_non_dup |>
   )
 
 
-# ---- 14-15 research University + Outcomes Credential ----
-research_universities <- c("SFU", "UBC", "UBCV", "UBCO", "UNBC", "UVIC", "RRU")
-credential_non_dup <- credential_non_dup |>
-  mutate(
-    RESEARCH_UNIVERSITY = if_else(
-      PSI_CODE %in% research_universities,
-      1L,
-      NA_integer_
-    )
-  )
+dbWriteTable(
+  con,
+  Id(schema = my_schema, name = "credential_non_dup_r"),
+  credential_non_dup,
+  overwrite = TRUE
+)
 
-credential_non_dup <- credential_non_dup |>
-  left_join(
-    outcome_credential |>
-      select(PSI_CREDENTIAL_CATEGORY, OUTCOMES_CRED = Outcomes_Cred),
-    by = "PSI_CREDENTIAL_CATEGORY"
-  )
+dbWriteTable(
+  con,
+  Id(schema = my_schema, name = "credential_supvars_r"),
+  credential_supvars,
+  overwrite = TRUE
+)
+
+dbWriteTable(
+  con,
+  Id(schema = my_schema, name = "credential_r"),
+  credential,
+  overwrite = TRUE
+)
+
+dbWriteTable(
+  con,
+  Id(schema = my_schema, name = "tbl_credential_highest_rank_r"),
+  tbl_credential_highest_rank,
+  overwrite = TRUE
+)
+
 
 # refine as needed
 tables_to_keep <- c(

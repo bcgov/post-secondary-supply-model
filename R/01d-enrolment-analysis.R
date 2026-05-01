@@ -62,7 +62,7 @@ min_enrolment_sup_var <- stp_enrolment |>
   select(ID, psi_birthdate_cleaned, PSI_MIN_START_DATE) |>
   inner_join(
     stp_enrolment_record_type |>
-      select(ID, MinEnrolment, FirstEnrolment, RecordStatus),
+      select(ID, RecordStatus, is_min_enrol, is_first_enrol),
     by = "ID"
   ) |>
   rename_with(toupper) |>
@@ -79,7 +79,7 @@ min_enrolment_sup_var <- stp_enrolment |>
       as.Date(NA),
       as.Date(PSI_MIN_START_DATE),
     ),
-    IS_FIRST_ENROLMENT = if_else(FIRSTENROLMENT == 1, "Yes", NA_character_),
+    IS_FIRST_ENROLMENT = if_else(IS_FIRST_ENROL == 1, "Yes", NA_character_),
     AGE_AT_ENROL_DATE = NA_real_,
     AGE_GROUP_ENROL_DATE = NA_real_,
     AGE_AT_CENSUS_2016 = NA_real_,
@@ -141,7 +141,8 @@ min_enrolment <- stp_enrolment |>
   ) |>
   inner_join(
     stp_enrolment_record_type |>
-      filter(RecordStatus == 0, MinEnrolment == 1) |>
+      # filter(RecordStatus == 0, MinEnrolment == 1) |>
+      filter(RecordStatus == 0, is_min_enrol == 1) |> # need attention
       select(ID),
     by = "ID"
   ) |>
@@ -224,17 +225,6 @@ min_enrolment <- min_enrolment |>
 # with different gender labels across different rows in the dataset.
 # BA Notes: We use Concatenated_ID instead of EPEN for the next set of queries
 # I beleive this would be a useful approach to adopt for many of the other steps.
-first_gender_lookup <- min_enrolment |>
-  filter(IS_FIRST_ENROLMENT == "Yes") |>
-  mutate(
-    CONCATENATED_ID = if_else(
-      !ENCRYPTED_TRUE_PEN %in% na_vals,
-      ENCRYPTED_TRUE_PEN,
-      paste0(PSI_STUDENT_NUMBER, PSI_CODE)
-    )
-  ) |>
-  distinct(CONCATENATED_ID, FIRST_GENDER = PSI_GENDER)
-
 min_enrolment <- min_enrolment |>
   mutate(
     CONCATENATED_ID = if_else(
@@ -242,7 +232,13 @@ min_enrolment <- min_enrolment |>
       ENCRYPTED_TRUE_PEN,
       paste0(PSI_STUDENT_NUMBER, PSI_CODE)
     )
-  ) |>
+  )
+
+first_gender_lookup <- min_enrolment |>
+  filter(IS_FIRST_ENROLMENT == "Yes") |>
+  distinct(CONCATENATED_ID, FIRST_GENDER = PSI_GENDER)
+
+min_enrolment <- min_enrolment |>
   left_join(first_gender_lookup, by = "CONCATENATED_ID") |>
   mutate(
     PSI_GENDER = coalesce(FIRST_GENDER, PSI_GENDER)
@@ -423,8 +419,7 @@ calc_ages <- extract_no_age |>
     # Only calculate if the first record has an age (as per your 'if' logic)
     AGE_AT_ENROL_DATE = if_else(
       is.na(AGE_AT_ENROL_DATE) & !is.na(base_age),
-      base_age +
-        (as.POSIXlt(PSI_MIN_START_DATE_D)$year - as.POSIXlt(base_date)$year),
+      base_age + (year(PSI_MIN_START_DATE_D) - year(base_date)),
       AGE_AT_ENROL_DATE
     )
   ) |>
@@ -468,6 +463,14 @@ min_enrolment <- min_enrolment |>
     AGE_GROUP_ENROL_DATE = AgeIndex
   ) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
+
+
+dbWriteTable(
+  con,
+  Id(schema = my_schema, name = "min_enrolment_r"),
+  min_enrolment,
+  overwrite = TRUE
+)
 
 
 # ---- Final Distributions ----

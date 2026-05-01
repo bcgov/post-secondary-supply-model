@@ -60,36 +60,35 @@ stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 ## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
 ## all queries in the file
 
-convert_date <- function(vec) {
-  # Years 26-99 go to 19xx
-  # Years 00-25 go to 20xx
-  yy <- as.numeric(substr(vec, 1, 2))
+# convert_date <- function(vec) {
+#   # Years 26-99 go to 19xx
+#   # Years 00-25 go to 20xx
+#   yy <- as.numeric(substr(vec, 1, 2))
 
-  century_prefix <- case_when(
-    is.na(yy) ~ NA_character_,
-    yy < 24 ~ "20",
-    TRUE ~ "19"
-  )
+#   century_prefix <- case_when(
+#     is.na(yy) ~ NA_character_,
+#     yy < 24 ~ "20",
+#     TRUE ~ "19"
+#   )
 
-  lubridate::ymd(paste0(century_prefix, vec))
-}
+#   lubridate::ymd(paste0(century_prefix, vec))
+# }
 
-date_cols <- c(
-  "PSI_PROGRAM_EFFECTIVE_DATE",
-  "PSI_MIN_START_DATE",
-  "PSI_BIRTHDATE",
-  "LAST_SEEN_BIRTHDATE"
-)
+# date_cols <- c(
+#   "PSI_PROGRAM_EFFECTIVE_DATE",
+#   "PSI_MIN_START_DATE",
+#   "PSI_BIRTHDATE",
+#   "LAST_SEEN_BIRTHDATE"
+# )
 
-stp_enrolment <- stp_enrolment |>
-  mutate(
-    across(
-      .cols = date_cols,
-      .fns = convert_date,
-      .names = "{.col}"
-    )
-  )
-
+# stp_enrolment <- stp_enrolment |>
+#   mutate(
+#     across(
+#       .cols = date_cols,
+#       .fns = convert_date,
+#       .names = "{.col}"
+#     )
+#   )
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -270,6 +269,17 @@ stp_enrolment_valid <- stp_enrolment |>
   filter(RecordStatus == 0) |>
   select(-RecordStatus)
 
+# write it to SQL server
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"')),
+  stp_enrolment_valid,
+  overwrite = TRUE,
+  row.names = FALSE,
+  index = FALSE
+)
+
+
 ## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Min Enrolment --------------------------------------------
@@ -385,6 +395,26 @@ stp_enrolment <- stp_enrolment |>
   ) |>
   mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
 # Keeping as lower case to match the SQL versions, jfn.
+
+# write to SQL server
+# dbWriteTable(
+#   con,
+#   SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
+#   stp_enrolment,
+#   overwrite = TRUE,
+#   row.names = FALSE,
+#   index = FALSE
+# )
+
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"')),
+  stp_enrolment_record_type,
+  overwrite = TRUE,
+  row.names = FALSE,
+  index = FALSE
+)
+
 
 tables_to_keep <- c(
   "stp_enrolment",

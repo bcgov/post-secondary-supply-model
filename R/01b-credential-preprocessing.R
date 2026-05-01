@@ -72,25 +72,25 @@ date_cols <- c(
 
 stp_credential |> select(all_of(date_cols)) |> glimpse()
 
-# ---- Reformat yy-mm-dd to yyyy-mm-dd ----
-convert_date <- function(vec) {
-  # Years 26-99 go to 19xx
-  # Years 00-25 go to 20xx
-  yy <- as.numeric(substr(vec, 1, 2))
+# # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
+# convert_date <- function(vec) {
+#   # Years 26-99 go to 19xx
+#   # Years 00-25 go to 20xx
+#   yy <- as.numeric(substr(vec, 1, 2))
 
-  century_prefix <- case_when(
-    is.na(yy) ~ NA_character_,
-    yy < 24 ~ "20",
-    TRUE ~ "19"
-  )
+#   century_prefix <- case_when(
+#     is.na(yy) ~ NA_character_,
+#     yy < 24 ~ "20",
+#     TRUE ~ "19"
+#   )
 
-  lubridate::ymd(paste0(century_prefix, vec))
-}
+#   lubridate::ymd(paste0(century_prefix, vec))
+# }
 
-stp_credential <- stp_credential |>
-  mutate(
-    across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
-  )
+# stp_credential <- stp_credential |>
+#   mutate(
+#     across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
+#   )
 
 # ---- Process by Record Type ----
 # Record Status codes:
@@ -171,6 +171,16 @@ stp_credential_record_type <- stp_credential |>
   select(ID, ENCRYPTED_TRUE_PEN, RecordStatus)
 
 stp_credential_record_type |> count(RecordStatus)
+
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"')),
+  stp_credential_record_type,
+  overwrite = TRUE,
+  row.names = FALSE,
+  index = FALSE
+)
+
 
 tables_to_keep <- c(
   "stp_enrolment",
