@@ -391,11 +391,6 @@ birthdate_update <- birthdate_cleaning_summary |>
 stp_enrolment <- stp_enrolment |>
   left_join(
     birthdate_update,
-    by = "ENCRYPTED_TRUE_PEN"
-  ) |>
-  mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
-# Keeping as lower case to match the SQL versions, jfn.
-
 # write to SQL server
 # dbWriteTable(
 #   con,
