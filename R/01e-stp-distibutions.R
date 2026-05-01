@@ -54,6 +54,8 @@ h_rank_cols <- c(
   "RESEARCH_UNIVERSITY",
   "OUTCOMES_CRED"
 )
+
+# TODO:
 # comment out since they are not well defined yet before we fix other issues in 01a-01d scripts.
 # tbl_credential_highest_rank <- tbl_credential_highest_rank |>
 #   select(h_rank_cols)

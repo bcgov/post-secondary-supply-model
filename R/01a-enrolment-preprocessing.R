@@ -393,6 +393,8 @@ birthdate_update <- birthdate_cleaning_summary |>
   ) |>
   select(ENCRYPTED_TRUE_PEN, psi_birthdate_cleaned)
 
+# comment out right now.
+# This is because the table already has the updated 'psi_birthdate_cleaned' column.
 # stp_enrolment <- stp_enrolment |>
 #   left_join(
 #     birthdate_update,
@@ -404,16 +406,9 @@ birthdate_update <- birthdate_cleaning_summary |>
 
 # write to SQL server
 # The following dbWriteTable call for 'STP_Enrolment' is intentionally commented out.
-# This is because the table is either not required to be written back at this stage,
-# or is managed elsewhere in the workflow. Uncomment if you need to update this table.
+# This is because the table already has the updated 'psi_birthdate_cleaned' column.
 # dbWriteTable(
 #   con,
-#   SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
-#   stp_enrolment,
-#   overwrite = TRUE,
-#   row.names = FALSE,
-#   index = FALSE
-# )
 #   SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
 #   stp_enrolment,
 #   overwrite = TRUE,
