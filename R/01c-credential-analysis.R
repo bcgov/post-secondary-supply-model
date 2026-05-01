@@ -794,13 +794,18 @@ age_weights <- credential_non_dup |>
     !is.na(AGE_GROUP_AT_GRAD),
     HIGHEST_CRED_BY_DATE == "Yes"
   ) |>
-  count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD) |>
-  complete(
-    PSI_CREDENTIAL_CATEGORY = credential_rank$PSI_CREDENTIAL_CATEGORY,
-    psi_gender_cleaned = valid_genders,
-    AGE_AT_GRAD = full_seq(AGE_AT_GRAD, 1),
-    fill = list(n = 0)
-  ) |>
+  count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD)
+
+# Create all combinations of credential categories, genders, and ages
+all_combos <- tidyr::expand_grid(
+  PSI_CREDENTIAL_CATEGORY = unique(credential_rank$PSI_CREDENTIAL_CATEGORY),
+  psi_gender_cleaned = valid_genders,
+  AGE_AT_GRAD = seq(min(age_weights$AGE_AT_GRAD, na.rm = TRUE), max(age_weights$AGE_AT_GRAD, na.rm = TRUE))
+)
+
+age_weights <- all_combos |>
+  left_join(age_weights, by = c("PSI_CREDENTIAL_CATEGORY", "psi_gender_cleaned", "AGE_AT_GRAD")) |>
+  mutate(n = replace_na(n, 0)) |>
   group_by(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   mutate(grp_ttl = sum(n, na.rm = TRUE)) |>
   mutate(prob = if_else(grp_ttl > 0, n / grp_ttl, 0)) |>
@@ -1055,33 +1060,42 @@ credential_non_dup <- credential_non_dup |>
     ),
     PSI_AWARD_SCHOOL_YEAR_DELAYED = coalesce(
       PSI_AWARD_SCHOOL_YEAR_DELAYED,
-      PSI_AWARD_SCHOOL_YEAR
-    )
+tryCatch({
+  DBI::dbBegin(con)
+
+  dbWriteTable(
+    con,
+    Id(schema = my_schema, name = "credential_non_dup_r"),
+    credential_non_dup,
+    overwrite = TRUE
   )
 
+  dbWriteTable(
+    con,
+    Id(schema = my_schema, name = "credential_supvars_r"),
+    credential_supvars,
+    overwrite = TRUE
+  )
 
-dbWriteTable(
-  con,
-  Id(schema = my_schema, name = "credential_non_dup_r"),
-  credential_non_dup,
-  overwrite = TRUE
-)
+  dbWriteTable(
+    con,
+    Id(schema = my_schema, name = "credential_r"),
+    credential,
+    overwrite = TRUE
+  )
 
-dbWriteTable(
-  con,
-  Id(schema = my_schema, name = "credential_supvars_r"),
-  credential_supvars,
-  overwrite = TRUE
-)
+  dbWriteTable(
+    con,
+    Id(schema = my_schema, name = "tbl_credential_highest_rank_r"),
+    tbl_credential_highest_rank,
+    overwrite = TRUE
+  )
 
-dbWriteTable(
-  con,
-  Id(schema = my_schema, name = "credential_r"),
-  credential,
-  overwrite = TRUE
-)
-
-dbWriteTable(
+  DBI::dbCommit(con)
+}, error = function(e) {
+  DBI::dbRollback(con)
+  stop("Error writing tables to database: ", e$message)
+})
   con,
   Id(schema = my_schema, name = "tbl_credential_highest_rank_r"),
   tbl_credential_highest_rank,

@@ -60,27 +60,32 @@ stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 ## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
 ## all queries in the file
 
+# NOTE: The date conversion function below is now disabled because the source data has been updated to provide all date columns in the standard "yyyy-mm-dd" format.
+# Previously, dates were provided in "yy-mm-dd" format and required manual conversion to determine the correct century.
+# No further conversion is necessary unless the data format changes again.
+# This step is skipped right now since the tables in decimal is already in the correct format.
+
 # convert_date <- function(vec) {
 #   # Years 26-99 go to 19xx
 #   # Years 00-25 go to 20xx
 #   yy <- as.numeric(substr(vec, 1, 2))
-
+#
 #   century_prefix <- case_when(
 #     is.na(yy) ~ NA_character_,
 #     yy < 24 ~ "20",
 #     TRUE ~ "19"
 #   )
-
+#
 #   lubridate::ymd(paste0(century_prefix, vec))
 # }
-
+#
 # date_cols <- c(
 #   "PSI_PROGRAM_EFFECTIVE_DATE",
 #   "PSI_MIN_START_DATE",
 #   "PSI_BIRTHDATE",
 #   "LAST_SEEN_BIRTHDATE"
 # )
-
+#
 # stp_enrolment <- stp_enrolment |>
 #   mutate(
 #     across(
@@ -297,7 +302,7 @@ valid_pen_data <- stp_enrolment_valid |>
     as.numeric(PSI_ENROLMENT_SEQUENCE),
     as.numeric(ID)
   ) |>
-  mutate(is_first_enrol = row_number() == 1) |>
+  mutate(IS_FIRST_ENROL = row_number() == 1) |>
   group_by(ENCRYPTED_TRUE_PEN, PSI_SCHOOL_YEAR) |>
   mutate(is_min_enrol_seq = row_number() == 1) |>
   ungroup()
@@ -320,16 +325,16 @@ invalid_pen_data <- stp_enrolment_valid |>
 stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
   mutate(
-    is_min_enrol = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
-    is_first_enrol = if_else((is_first_enrol | is_first_enrol_combo), 1, 0)
+    IS_MIN_ENROL = if_else((is_min_enrol_seq | is_min_enrol_seq_combo), 1, 0),
+    IS_FIRST_ENROL = if_else((IS_FIRST_ENROL | is_first_enrol_combo), 1, 0)
   ) |>
-  select(ID, is_min_enrol, is_first_enrol)
+  select(ID, IS_MIN_ENROL, IS_FIRST_ENROL)
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   left_join(stp_enrolment_valid_final) |>
-  mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
+  mutate(across(starts_with("IS_"), ~ replace_na(.x, 0)))
 
-stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
+stp_enrolment_record_type |> count(RecordStatus, IS_MIN_ENROL, IS_FIRST_ENROL)
 
 ## ------------------------------------------------------------------------------------------------
 
@@ -388,12 +393,27 @@ birthdate_update <- birthdate_cleaning_summary |>
   ) |>
   select(ENCRYPTED_TRUE_PEN, psi_birthdate_cleaned)
 
-stp_enrolment <- stp_enrolment |>
-  left_join(
-    birthdate_update,
+# stp_enrolment <- stp_enrolment |>
+#   left_join(
+#     birthdate_update,
+#     by = "ENCRYPTED_TRUE_PEN"
+#   ) |>
+#   mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
+
+# Keeping as lower case to match the SQL versions, jfn.
+
 # write to SQL server
+# The following dbWriteTable call for 'STP_Enrolment' is intentionally commented out.
+# This is because the table is either not required to be written back at this stage,
+# or is managed elsewhere in the workflow. Uncomment if you need to update this table.
 # dbWriteTable(
 #   con,
+#   SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
+#   stp_enrolment,
+#   overwrite = TRUE,
+#   row.names = FALSE,
+#   index = FALSE
+# )
 #   SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
 #   stp_enrolment,
 #   overwrite = TRUE,

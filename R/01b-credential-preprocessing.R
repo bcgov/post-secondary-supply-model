@@ -72,24 +72,28 @@ date_cols <- c(
 
 stp_credential |> select(all_of(date_cols)) |> glimpse()
 
+# ---- Date conversion code below is temporarily disabled.
+# Uncomment and use if source data contains dates in yy-mm-dd format that need conversion to yyyy-mm-dd.
+# Review and re-enable if new data sources or requirements arise.
 # # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 # convert_date <- function(vec) {
 #   # Years 26-99 go to 19xx
 #   # Years 00-25 go to 20xx
 #   yy <- as.numeric(substr(vec, 1, 2))
-
+#
 #   century_prefix <- case_when(
 #     is.na(yy) ~ NA_character_,
 #     yy < 24 ~ "20",
 #     TRUE ~ "19"
 #   )
-
+#
 #   lubridate::ymd(paste0(century_prefix, vec))
 # }
-
+#
 # stp_credential <- stp_credential |>
 #   mutate(
 #     across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
+#   )
 #   )
 
 # ---- Process by Record Type ----

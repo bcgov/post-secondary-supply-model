@@ -62,7 +62,12 @@ min_enrolment_sup_var <- stp_enrolment |>
   select(ID, psi_birthdate_cleaned, PSI_MIN_START_DATE) |>
   inner_join(
     stp_enrolment_record_type |>
-      select(ID, RecordStatus, is_min_enrol, is_first_enrol),
+      select(
+        ID,
+        RecordStatus,
+        IS_MIN_ENROL = is_min_enrol,
+        IS_FIRST_ENROL = is_first_enrol
+      ),
     by = "ID"
   ) |>
   rename_with(toupper) |>
@@ -142,7 +147,7 @@ min_enrolment <- stp_enrolment |>
   inner_join(
     stp_enrolment_record_type |>
       # filter(RecordStatus == 0, MinEnrolment == 1) |>
-      filter(RecordStatus == 0, is_min_enrol == 1) |> # need attention
+      filter(RecordStatus == 0, IS_MIN_ENROL == 1) |> # need attention
       select(ID),
     by = "ID"
   ) |>
@@ -465,11 +470,19 @@ min_enrolment <- min_enrolment |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
 
-dbWriteTable(
-  con,
-  Id(schema = my_schema, name = "min_enrolment_r"),
-  min_enrolment,
-  overwrite = TRUE
+tryCatch(
+  {
+    dbWriteTable(
+      con,
+      Id(schema = my_schema, name = "min_enrolment_r"),
+      min_enrolment,
+      overwrite = TRUE
+    )
+  },
+  error = function(e) {
+    message("Error writing min_enrolment to the database: ", e$message)
+    stop("Database write failed. Please check your connection and permissions.")
+  }
 )
 
 

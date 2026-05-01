@@ -54,7 +54,7 @@ h_rank_cols <- c(
   "RESEARCH_UNIVERSITY",
   "OUTCOMES_CRED"
 )
-
+# comment out since they are not well defined yet before we fix other issues in 01a-01d scripts.
 # tbl_credential_highest_rank <- tbl_credential_highest_rank |>
 #   select(h_rank_cols)
 # min_enrolment <- min_enrolment |> select(min_enrol_cols)
@@ -83,7 +83,7 @@ qry20a1_credential_by_year_age_group <- tbl_credential_highest_rank |>
 qry20a1_credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
-    credential_non_dup |> select(ID, FINAL_CIP_CLUSTER_CODE),
+    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
     by = "id"
   ) |>
   filter(
