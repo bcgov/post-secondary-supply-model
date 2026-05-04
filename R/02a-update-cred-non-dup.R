@@ -281,10 +281,6 @@ bgs_updates <- bgs_cips |>
     )
   )
 
-# bgs_updates |> distinct() |> count(ID) |> filter(n > 1)
-# only 16 rows when no distinct process
-
-# test <- bgs_updates |> filter(ID == "872917")
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(bgs_updates, by = "ID", unmatched = "ignore")
@@ -337,7 +333,6 @@ grad_updates <- grad_cips %>%
 cred_non_dup <- cred_non_dup %>%
   rows_update(grad_updates, by = "ID", unmatched = "ignore")
 
-# dbExecute(con, qry_update_Credential_Non_Dup_APPSO_Final_CIPs)
 
 # APPSO (Apprentice outcomes) records get their CIP codes from the APPSO
 # cleaning script (02a-appso-programs). Like BGS/GRAD, simple ID-based lookup.
@@ -639,13 +634,6 @@ null_cleaning <- null_cleaning %>%
     )
   )
 
-# Write cleaned NULL table back for the join step
-dbWriteTable(
-  con,
-  "Credential_Non_Dup_STP_NULL_Cleaning_r",
-  null_cleaning %>% select(-any_of(c("PSI_CIP_5"))),
-  overwrite = TRUE
-)
 
 # dbExecute(con, qry_Update_Credential_with_STP_CIP_NULL) # create ID list
 
