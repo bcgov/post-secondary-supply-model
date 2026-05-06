@@ -45,7 +45,7 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Trusted_Connection = "True")
 
 # ---- Source Queries ----
-SELECT t_cohorts_recoded.survey,
+"SELECT t_cohorts_recoded.survey,
 t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup,
 t_cohorts_recoded.survey_year,
 t_cohorts_recoded.inst_cd,
@@ -85,7 +85,9 @@ HAVING
   AND ( ( t_cohorts_recoded.age_group_rollup ) IS NOT NULL )
   AND ( ( t_cohorts_recoded.grad_status ) = '1'
         OR ( t_cohorts_recoded.grad_status ) = '3' ) );"
-  SELECT t_cohorts_recoded.survey,
+
+
+"  SELECT t_cohorts_recoded.survey,
   t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup,
   t_cohorts_recoded.survey_year,
   t_cohorts_recoded.inst_cd,
@@ -123,7 +125,9 @@ HAVING
   HAVING ( ( ( t_cohorts_recoded.age_group_rollup ) IS NOT NULL )
            AND ( ( t_cohorts_recoded.grad_status ) = '1'
                  OR ( t_cohorts_recoded.grad_status ) = '3' ) );"
-SELECT t_cohorts_recoded.survey,
+
+
+"SELECT t_cohorts_recoded.survey,
 t_current_region_pssm_rollup_codes.current_region_pssm_code_rollup,
 t_cohorts_recoded.survey_year,
 t_cohorts_recoded.inst_cd,
@@ -160,7 +164,7 @@ t_cohorts_recoded.lcip4_cred
 HAVING ( ( ( t_cohorts_recoded.age_group_rollup ) IS NOT NULL )
          AND ( ( t_cohorts_recoded.grad_status ) = '1'
                OR ( t_cohorts_recoded.grad_status ) = '3' ) );"
-SELECT dacso_q008_z02a_base.survey,
+"SELECT dacso_q008_z02a_base.survey,
        dacso_q008_z02a_base.current_region_pssm_code_rollup,
        dacso_q008_z02a_base.survey_year,
        dacso_q008_z02a_base.inst_cd,
@@ -190,7 +194,7 @@ dacso_q008_z02b_respondents_noc_99999.current_region_pssm_code_rollup )
 AND ( dacso_q008_z02a_base.survey =
 dacso_q008_z02b_respondents_noc_99999.survey )
 WHERE  (( ( respondents / count ) = 1 ));"
-SELECT DACSO_Q008_Z02b_Respondents.Survey, 
+"SELECT DACSO_Q008_Z02b_Respondents.Survey, 
 DACSO_Q008_Z02b_Respondents.Current_Region_PSSM_Code_Rollup, 
 DACSO_Q008_Z02b_Respondents.Survey_Year, 
 DACSO_Q008_Z02b_Respondents.INST_CD, 
@@ -212,7 +216,8 @@ DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.TTRAIN,
 DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.LCIP4_CRED,
 DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc.Respondents
 FROM DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc;"
-SELECT age_group_rollup, noc_cd, english_name, [1],[3]
+
+"SELECT age_group_rollup, noc_cd, english_name, [1],[3]
 INTO DACSO_Q008_Z05b_NOC4D_NLS_XTab
 FROM(
 SELECT t_cohorts_recoded.age_group_rollup,
@@ -234,7 +239,8 @@ PIVOT (
 	FOR new_labour_supply IN ([1], [3])
 ) AS PivotTable
 order by age_group_rollup, noc_cd;"
-SELECT tmp_tbl_weights_nls.survey,
+
+"SELECT tmp_tbl_weights_nls.survey,
        tmp_tbl_weights_nls.survey_year,
        tmp_tbl_weights_nls.inst_cd,
        tmp_tbl_weights_nls.age_group_rollup,
@@ -281,7 +287,7 @@ on DACSO_Q008_Z01_Base_OCC.STQU_ID = T_Cohorts_Recoded.STQU_ID
 WHERE T_Cohorts_Recoded.CURRENT_REGION_PSSM_CODE <> -1
 AND T_Cohorts_Recoded.NOC_CD Is Not Null 
 And T_Cohorts_Recoded.NOC_CD <> '99999';"
-SELECT dacso_q009_weight_occs.pssm_credential,
+"SELECT dacso_q009_weight_occs.pssm_credential,
 dacso_q009_weight_occs.pssm_cred,
 dacso_q009_weight_occs.current_region_pssm_code_rollup,
 dacso_q009_weight_occs.age_group_rollup,
@@ -301,7 +307,10 @@ dacso_q009_weight_occs.lcp4_cd,
 (CASE WHEN grad_status IS NULL THEN NULL ELSE cast(grad_status as varchar(10)) + ' - ' END) + LEFT(lcp4_cd, 2) + ' - ' + pssm_credential,
 dacso_q009_weight_occs.noc_cd
 ORDER  BY dacso_q009_weight_occs.noc_cd;"
-SELECT dacso_q009b_weighted_occs_total.pssm_credential,
+
+
+
+"SELECT dacso_q009b_weighted_occs_total.pssm_credential,
        dacso_q009b_weighted_occs_total.pssm_cred,
        dacso_q009b_weighted_occs_total.current_region_pssm_code_rollup,
        dacso_q009b_weighted_occs_total.age_group_rollup,
@@ -324,6 +333,7 @@ FROM   dacso_q009b_weighted_occs_total
            dacso_q009b_weighted_occs.current_region_pssm_code_rollup )
                  AND ( dacso_q009b_weighted_occs_total.lcip4_cred =
                            dacso_q009b_weighted_occs.lcip4_cred ); "
+
 # ---- Check for required data tables ----
 # Load necessary libraries
 library(DBI)

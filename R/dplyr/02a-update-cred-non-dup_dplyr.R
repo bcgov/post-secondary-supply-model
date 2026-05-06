@@ -40,11 +40,13 @@ lan <- config::get("lan")
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
 # Helper: reference a table in the user's schema
 sch_tbl <- function(name) {
@@ -56,13 +58,28 @@ sch_tbl <- function(name) {
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
 
 # tables with CIP updates (produced by the 4 program matching scripts)
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_Programs_DACSO_FinalCIPs"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_BGS_IDs"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_GRAD_IDs"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_APPSO_IDs"')))
+dbExistsTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_Programs_DACSO_FinalCIPs"'))
+)
+dbExistsTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_BGS_IDs"'))
+)
+dbExistsTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_GRAD_IDs"'))
+)
+dbExistsTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_APPSO_IDs"'))
+)
 
 # reference tables
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"')))
+dbExistsTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"'))
+)
 
 # ==============================================================================
 # START QUERIES
@@ -73,7 +90,9 @@ dbExistsTable(con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016
 # and the STP fallback (Steps 7–13).
 # KEPT AS SQL: ALTER TABLE is DDL — no dplyr equivalent
 # ---- Step 1: Add CIP columns to Credential_Non_Dup ----
-dbExecute(con, "ALTER TABLE Credential_Non_Dup
+dbExecute(
+  con,
+  "ALTER TABLE Credential_Non_Dup
 ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             OUTCOMES_CIP_CODE_4_NAME varchar(255),
             FINAL_CIP_CODE_4 varchar(4),
@@ -85,7 +104,8 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4_NAME varchar(255),
             STP_CIP_CODE_2 varchar(2),
-            STP_CIP_CODE_2_NAME varchar(255);")
+            STP_CIP_CODE_2_NAME varchar(255);"
+)
 
 # DACSO provides the richest matching — it joins on 7 columns (institution,
 # program code, description, CIP, credential level, category, and outcome type).
@@ -97,32 +117,59 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
 cred_non_dup <- sch_tbl("credential_non_dup") %>% collect()
 cred_non_dup <- cred_non_dup |> rename_with(toupper)
 
-dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs") %>% collect()
+dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs") %>%
+  collect()
 dacso_cips <- dacso_cips |> rename_with(toupper)
 
 # Drop the empty CIP columns (just added by ALTER TABLE) before joining so the
 # CIP columns only come from dacso_cips — no .x/.y suffixes needed.
 dacso_join <- dacso_cips %>%
   select(
-    PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-    PSI_CREDENTIAL_CIP, PSI_CREDENTIAL_LEVEL, PSI_CREDENTIAL_CATEGORY, OUTCOMES_CRED,
-    OUTCOMES_CIP_CODE_4, OUTCOMES_CIP_CODE_4_NAME,
-    FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-    FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME,
-    FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME,
-    STP_CIP_CODE_4, STP_CIP_CODE_4_NAME
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_CATEGORY,
+    OUTCOMES_CRED,
+    OUTCOMES_CIP_CODE_4,
+    OUTCOMES_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME,
+    FINAL_CIP_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME,
+    STP_CIP_CODE_4,
+    STP_CIP_CODE_4_NAME
   )
 
 cred_non_dup <- cred_non_dup %>%
-  select(-any_of(c("OUTCOMES_CIP_CODE_4", "OUTCOMES_CIP_CODE_4_NAME",
-                    "FINAL_CIP_CODE_4", "FINAL_CIP_CODE_4_NAME",
-                    "FINAL_CIP_CODE_2", "FINAL_CIP_CODE_2_NAME",
-                    "FINAL_CIP_CLUSTER_CODE", "FINAL_CIP_CLUSTER_NAME",
-                    "STP_CIP_CODE_4", "STP_CIP_CODE_4_NAME"))) %>%
+  select(
+    -any_of(c(
+      "OUTCOMES_CIP_CODE_4",
+      "OUTCOMES_CIP_CODE_4_NAME",
+      "FINAL_CIP_CODE_4",
+      "FINAL_CIP_CODE_4_NAME",
+      "FINAL_CIP_CODE_2",
+      "FINAL_CIP_CODE_2_NAME",
+      "FINAL_CIP_CLUSTER_CODE",
+      "FINAL_CIP_CLUSTER_NAME",
+      "STP_CIP_CODE_4",
+      "STP_CIP_CODE_4_NAME"
+    ))
+  ) %>%
   left_join(
     dacso_join,
-    by = c("PSI_CODE", "PSI_PROGRAM_CODE", "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
-           "PSI_CREDENTIAL_CIP", "PSI_CREDENTIAL_LEVEL", "PSI_CREDENTIAL_CATEGORY", "OUTCOMES_CRED")
+    by = c(
+      "PSI_CODE",
+      "PSI_PROGRAM_CODE",
+      "PSI_CREDENTIAL_PROGRAM_DESCRIPTION",
+      "PSI_CREDENTIAL_CIP",
+      "PSI_CREDENTIAL_LEVEL",
+      "PSI_CREDENTIAL_CATEGORY",
+      "OUTCOMES_CRED"
+    )
   )
 
 # BGS (BC Government Student outcomes) records weren't matched by DACSO.
@@ -134,9 +181,17 @@ bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs") %>% collect()
 bgs_cips <- bgs_cips |> rename_with(toupper)
 
 bgs_updates <- bgs_cips %>%
-  select(ID, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-         FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME,
-         FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME)
+  select(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME,
+    FINAL_CIP_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME
+  ) %>%
+  # Ensure ID is unique to prevent rows_update() from erroring
+  distinct(ID, .keep_all = TRUE)
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(bgs_updates, by = "ID", unmatched = "ignore")
@@ -149,8 +204,13 @@ grad_cips <- sch_tbl("Credential_Non_Dup_GRAD_IDs") %>% collect()
 grad_cips <- grad_cips |> rename_with(toupper)
 
 grad_updates <- grad_cips %>%
-  select(ID, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-         FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME)
+  select(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME
+  )
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(grad_updates, by = "ID", unmatched = "ignore")
@@ -163,8 +223,13 @@ appso_cips <- sch_tbl("Credential_Non_Dup_APPSO_IDs") %>% collect()
 appso_cips <- appso_cips |> rename_with(toupper)
 
 appso_updates <- appso_cips %>%
-  select(ID, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-         FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME)
+  select(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME
+  )
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(appso_updates, by = "ID", unmatched = "ignore")
@@ -183,24 +248,34 @@ cred_non_dup <- cred_non_dup %>%
   left_join(cip2_lookup, by = c("FINAL_CIP_CODE_2" = "LCP2_CD")) %>%
   mutate(
     FINAL_CIP_CLUSTER_CODE = case_when(
-      OUTCOMES_CRED %in% c("GRAD", "APPSO") & !is.na(LCP2_LCIPPC_CD) ~ LCP2_LCIPPC_CD,
+      OUTCOMES_CRED %in%
+        c("GRAD", "APPSO") &
+        !is.na(LCP2_LCIPPC_CD) ~ LCP2_LCIPPC_CD,
       TRUE ~ FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = case_when(
-      OUTCOMES_CRED %in% c("GRAD", "APPSO") & !is.na(LCP2_LCIPPC_NAME) ~ LCP2_LCIPPC_NAME,
+      OUTCOMES_CRED %in%
+        c("GRAD", "APPSO") &
+        !is.na(LCP2_LCIPPC_NAME) ~ LCP2_LCIPPC_NAME,
       TRUE ~ FINAL_CIP_CLUSTER_NAME
     )
   ) %>%
   select(-LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME)
 
 # Write updated Credential_Non_Dup back to database
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
-             cred_non_dup, overwrite = TRUE)
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
+  cred_non_dup,
+  overwrite = TRUE
+)
 
 # ---- Check for leftover NULLs in final CIP 4 column ----
 # WHY: This diagnostic check shows how many records still need CIP codes after the
 # four primary sources. These NULLs will be filled by the STP fallback below.
-tbl(con, "Credential_Non_Dup") %>% filter(is.na(FINAL_CIP_CODE_4)) %>% count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
+tbl(con, "Credential_Non_Dup") %>%
+  filter(is.na(FINAL_CIP_CODE_4)) %>%
+  count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
 
 # ==============================================================================
 # CLEAN UP NULLS — Match leftover NULLs using STP (institution-reported) CIP codes
@@ -219,17 +294,25 @@ null_cleaning <- cred_non_dup %>%
   filter(is.na(FINAL_CIP_CODE_4)) %>%
   count(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, name = "Expr1")
 
-dbWriteTable(con, "Credential_Non_Dup_STP_NULL_Cleaning", null_cleaning, overwrite = TRUE)
+dbWriteTable(
+  con,
+  "Credential_Non_Dup_STP_NULL_Cleaning",
+  null_cleaning,
+  overwrite = TRUE
+)
 
 # KEPT AS SQL: ALTER TABLE (DDL)
-dbExecute(con, "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning
+dbExecute(
+  con,
+  "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning
 ADD STP_CIP_CODE_4 varchar (255),
 STP_CIP_CODE_4_NAME varchar (255),
 STP_CIP_CODE_2 varchar (255),
 STP_CIP_CODE_2_NAME varchar (255),
 STP_CIP_CLUSTER_CODE varchar(10),
 STP_CIP_CLUSTER_NAME varchar(255),
-PSI_CREDENTIAL_CIP_orig varchar (255)")
+PSI_CREDENTIAL_CIP_orig varchar (255)"
+)
 
 # We'll modify PSI_CREDENTIAL_CIP during cleaning, so we preserve the original
 # to use as a join key when matching the cleaned results back to credential records
@@ -247,13 +330,15 @@ null_cleaning <- null_cleaning %>%
 null_cleaning <- null_cleaning %>%
   mutate(
     PSI_CREDENTIAL_CIP = case_when(
-      nchar(PSI_CREDENTIAL_CIP) == 6 & !grepl("\\.", substring(PSI_CREDENTIAL_CIP, 1, 2))
-        ~ paste0(PSI_CREDENTIAL_CIP, "0"),
+      nchar(PSI_CREDENTIAL_CIP) == 6 &
+        !grepl("\\.", substring(PSI_CREDENTIAL_CIP, 1, 2)) ~ paste0(
+        PSI_CREDENTIAL_CIP,
+        "0"
+      ),
       TRUE ~ PSI_CREDENTIAL_CIP
     ),
     PSI_CREDENTIAL_CIP = case_when(
-      nchar(PSI_CREDENTIAL_CIP) == 6
-        ~ paste0("0", PSI_CREDENTIAL_CIP),
+      nchar(PSI_CREDENTIAL_CIP) == 6 ~ paste0("0", PSI_CREDENTIAL_CIP),
       TRUE ~ PSI_CREDENTIAL_CIP
     )
   )
@@ -303,14 +388,28 @@ null_cleaning <- null_cleaning %>%
 # Step 10c: General program CIPs (XX.00 → XX.01)
 # WHY: Some CIP families have a "general" code (XX.00) that doesn't exist in INFOWARE.
 # Map these to the first specific sub-category as a reasonable default.
-general_programs <- c("11.00", "13.00", "14.00", "19.00", "23.00", "24.00",
-                       "26.00", "40.00", "42.00", "45.00", "50.00", "52.00", "55.00")
+general_programs <- c(
+  "11.00",
+  "13.00",
+  "14.00",
+  "19.00",
+  "23.00",
+  "24.00",
+  "26.00",
+  "40.00",
+  "42.00",
+  "45.00",
+  "50.00",
+  "52.00",
+  "55.00"
+)
 
 null_cleaning <- null_cleaning %>%
   mutate(
     STP_CIP_CODE_4 = case_when(
-      substr(PSI_CREDENTIAL_CIP, 1, 5) %in% general_programs & is.na(STP_CIP_CODE_4)
-        ~ paste0(substr(PSI_CREDENTIAL_CIP, 1, 2), "01"),
+      substr(PSI_CREDENTIAL_CIP, 1, 5) %in%
+        general_programs &
+        is.na(STP_CIP_CODE_4) ~ paste0(substr(PSI_CREDENTIAL_CIP, 1, 2), "01"),
       TRUE ~ STP_CIP_CODE_4
     )
   )
@@ -319,7 +418,9 @@ null_cleaning <- null_cleaning %>%
 null_cleaning <- null_cleaning %>%
   mutate(PSI_CIP_2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) %>%
   left_join(
-    cip6 %>% mutate(PSI_CIP_2 = substr(LCIP_CD_WITH_PERIOD, 1, 2)) %>% filter(!duplicated(PSI_CIP_2)),
+    cip6 %>%
+      mutate(PSI_CIP_2 = substr(LCIP_CD_WITH_PERIOD, 1, 2)) %>%
+      filter(!duplicated(PSI_CIP_2)),
     by = "PSI_CIP_2"
   ) %>%
   mutate(STP_CIP_CODE_2 = coalesce(STP_CIP_CODE_2, LCIP_LCP2_CD)) %>%
@@ -343,11 +444,21 @@ null_cleaning <- null_cleaning %>%
 
 # Flag unmatched 4-digit CIPs so analysts can investigate
 null_cleaning <- null_cleaning %>%
-  mutate(STP_CIP_CODE_4_NAME = ifelse(is.na(STP_CIP_CODE_4_NAME), "Invalid 4-digit CIP", STP_CIP_CODE_4_NAME))
+  mutate(
+    STP_CIP_CODE_4_NAME = ifelse(
+      is.na(STP_CIP_CODE_4_NAME),
+      "Invalid 4-digit CIP",
+      STP_CIP_CODE_4_NAME
+    )
+  )
 
 # Write cleaned NULL table back for the join step
-dbWriteTable(con, "Credential_Non_Dup_STP_NULL_Cleaning",
-             null_cleaning %>% select(-any_of(c("PSI_CIP_5"))), overwrite = TRUE)
+dbWriteTable(
+  con,
+  "Credential_Non_Dup_STP_NULL_Cleaning",
+  null_cleaning %>% select(-any_of(c("PSI_CIP_5"))),
+  overwrite = TRUE
+)
 
 # Join the cleaned CIP results back to the original credential records that had
 # NULL final CIP codes, creating a lookup table for the final update in Step 13.
@@ -358,10 +469,17 @@ dbWriteTable(con, "Credential_Non_Dup_STP_NULL_Cleaning",
 null_ids <- cred_non_dup %>%
   filter(is.na(FINAL_CIP_CODE_4)) %>%
   inner_join(
-    null_cleaning %>% select(PSI_CREDENTIAL_CIP_orig, OUTCOMES_CRED,
-                              STP_CIP_CODE_4, STP_CIP_CODE_4_NAME,
-                              STP_CIP_CODE_2, STP_CIP_CODE_2_NAME,
-                              STP_CIP_CLUSTER_CODE, STP_CIP_CLUSTER_NAME),
+    null_cleaning %>%
+      select(
+        PSI_CREDENTIAL_CIP_orig,
+        OUTCOMES_CRED,
+        STP_CIP_CODE_4,
+        STP_CIP_CODE_4_NAME,
+        STP_CIP_CODE_2,
+        STP_CIP_CODE_2_NAME,
+        STP_CIP_CLUSTER_CODE,
+        STP_CIP_CLUSTER_NAME
+      ),
     by = c("PSI_CREDENTIAL_CIP" = "PSI_CREDENTIAL_CIP_orig", "OUTCOMES_CRED")
   ) %>%
   mutate(
@@ -371,13 +489,27 @@ null_ids <- cred_non_dup %>%
     FINAL_CIP_CODE_2_NAME = STP_CIP_CODE_2_NAME,
     FINAL_CIP_CLUSTER_CODE = STP_CIP_CLUSTER_CODE,
     FINAL_CIP_CLUSTER_NAME = STP_CIP_CLUSTER_NAME,
-    PSI_PROGRAM_CODE = ifelse(PSI_PROGRAM_CODE == "(Unspecified)", NA_character_, PSI_PROGRAM_CODE)
+    PSI_PROGRAM_CODE = ifelse(
+      PSI_PROGRAM_CODE == "(Unspecified)",
+      NA_character_,
+      PSI_PROGRAM_CODE
+    )
   ) %>%
-  select(ID, PSI_CODE, PSI_PROGRAM_CODE, PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
-         PSI_CREDENTIAL_CIP, PSI_AWARD_SCHOOL_YEAR, OUTCOMES_CRED,
-         FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-         FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME,
-         FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME)
+  select(
+    ID,
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_AWARD_SCHOOL_YEAR,
+    OUTCOMES_CRED,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME,
+    FINAL_CIP_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME
+  )
 
 dbWriteTable(con, "Credential_Non_Dup_NULL_IDs", null_ids, overwrite = TRUE)
 
@@ -387,19 +519,31 @@ dbWriteTable(con, "Credential_Non_Dup_NULL_IDs", null_ids, overwrite = TRUE)
 # ---- Step 13: Apply the NULL CIP fallback to Credential_Non_Dup ----
 
 null_updates <- null_ids %>%
-  select(ID, FINAL_CIP_CODE_4, FINAL_CIP_CODE_4_NAME,
-         FINAL_CIP_CODE_2, FINAL_CIP_CODE_2_NAME,
-         FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CLUSTER_NAME)
+  select(
+    ID,
+    FINAL_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME,
+    FINAL_CIP_CLUSTER_CODE,
+    FINAL_CIP_CLUSTER_NAME
+  )
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(null_updates, by = "ID", unmatched = "ignore")
 
 # Write final updated table
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
-             cred_non_dup, overwrite = TRUE)
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
+  cred_non_dup,
+  overwrite = TRUE
+)
 
 # ---- Check for remaining NULLs ----
-tbl(con, "Credential_Non_Dup") %>% filter(is.na(FINAL_CIP_CODE_4)) %>% count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
+tbl(con, "Credential_Non_Dup") %>%
+  filter(is.na(FINAL_CIP_CODE_4)) %>%
+  count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
 
 # BGS records with CIP code "99" represent "undeclared activity" — they need
 # their cluster names set explicitly. Also fill any remaining NULL FINAL_CIPs with
@@ -447,20 +591,28 @@ cred_non_dup <- cred_non_dup %>%
 cred_non_dup <- cred_non_dup %>%
   mutate(
     FINAL_CIP_CLUSTER_CODE = case_when(
-      OUTCOMES_CRED == "GRAD" & is.na(FINAL_CIP_CLUSTER_CODE) &
-        is.na(FINAL_CIP_CLUSTER_NAME) & FINAL_CIP_CODE_2 == "99" ~ "99",
+      OUTCOMES_CRED == "GRAD" &
+        is.na(FINAL_CIP_CLUSTER_CODE) &
+        is.na(FINAL_CIP_CLUSTER_NAME) &
+        FINAL_CIP_CODE_2 == "99" ~ "99",
       TRUE ~ FINAL_CIP_CLUSTER_CODE
     ),
     FINAL_CIP_CLUSTER_NAME = case_when(
-      OUTCOMES_CRED == "GRAD" & is.na(FINAL_CIP_CLUSTER_CODE) &
-        is.na(FINAL_CIP_CLUSTER_NAME) & FINAL_CIP_CODE_2 == "99" ~ "Undeclared activity",
+      OUTCOMES_CRED == "GRAD" &
+        is.na(FINAL_CIP_CLUSTER_CODE) &
+        is.na(FINAL_CIP_CLUSTER_NAME) &
+        FINAL_CIP_CODE_2 == "99" ~ "Undeclared activity",
       TRUE ~ FINAL_CIP_CLUSTER_NAME
     )
   )
 
 # Write final table
-dbWriteTable(con, SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
-             cred_non_dup, overwrite = TRUE)
+dbWriteTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"')),
+  cred_non_dup,
+  overwrite = TRUE
+)
 
 # ---- Clean up ----
 dbExecute(con, "DROP TABLE Credential_Non_Dup_STP_NULL_Cleaning")
