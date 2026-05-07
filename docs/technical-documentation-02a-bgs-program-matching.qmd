@@ -147,12 +147,11 @@ Some general programs are recoded; programs with CIP 2 level = "xx.00" are recod
 
 #### Part 2:
 
-Records are split into distinct streams based on the type of credential awarded. 
+Records are prepared and the data is split into BGS and GRAD streams. Program codes are standardized and tables are created for downstream matching. The actual matching logic and confidence flagging begin in Part 3.
 
-1) BGS credentials undergo further matching to BGS survey outcomes data: student records are linked to survey outcomes using a unique identifier (PEN). The matching process evaluates each pair of survey and credential records across several dimensions, including institution, award year, and program classification. Automated rules are applied to flag high-confidence matches—those that align on all key criteria. For records with partial agreement (e.g., matching on broad program area but not specific program), additional decision rules are used to resolve discrepancies. Any cases that cannot be resolved automatically are flagged for manual review, ensuring that each student’s program is classified as accurately as possible. 
+Because BGS credentials undergo further matching to BGS survey outcomes data, student records are linked to survey outcomes using a unique identifier (PEN). 
 
-2) GRAD credentials do not require survey matching; these records are finalized using the standardized STP program codes.
-
+However, GRAD credentials do not require survey matching; these records are finalized using the standardized STP program codes.
 
 #### Part 3:
 
