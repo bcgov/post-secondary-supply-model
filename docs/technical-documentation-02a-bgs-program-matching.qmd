@@ -82,7 +82,7 @@ Description: A deduplicated table of student credentials, with additional variab
 
 ### Data Storage Structure
 
-<mark>TO BE FILLED IN LATER</mark>
+<mark>FILL IN LATER</mark>
 
 
 ## Technical Specifications
@@ -91,6 +91,8 @@ Description: A deduplicated table of student credentials, with additional variab
 
 #### System Requirements
 
+<mark>FILL IN LATER</mark>
+
 - Network Access: [List required network resources]
 - Storage: [Note storage requirements]
 - Memory: [Note memory requirements]
@@ -98,16 +100,20 @@ Description: A deduplicated table of student credentials, with additional variab
 
 #### R Package Dependencies
 
-The following R packages are required for this module:
+The following R packages are required for this module/script:
 
-- [List core data processing packages]
-- [List spatial analysis packages]
-- [List visualization/statistics packages]
-- [List file management packages]
-
+- **tidyverse**: Collection of R packages for data manipulation, visualization, and analysis.
+- **RODBC**: Provides database connectivity using ODBC drivers.
+- **odbc**: Modern DBI-compliant interface to ODBC databases.
+- **DBI**: Defines a common interface for communication between R and database management systems.
+- **glue**: Facilitates the construction of strings from data using interpolation.
+- **RJDBC**: Enables database access via JDBC drivers.
+- **dbplyr**: Provides a dplyr backend for databases, allowing dplyr syntax for SQL databases.
 
 
 #### Authentication Setup
+
+<mark>FILL IN LATER</mark>
 
 ```r
 # Example: API key configuration
@@ -116,25 +122,16 @@ The following R packages are required for this module:
 
 ### Global Constants and Configuration
 
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
+<mark>FILL IN LATER</mark>
 
 #### Data Processing and Filtering
 
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
+<mark>FILL IN LATER</mark>
 
 
 #### File Path Configuration
 
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
-
-[Add other relevant settings as needed]
+<mark>FILL IN LATER</mark>
 
 
 ## Methodology Overview
