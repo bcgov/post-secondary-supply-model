@@ -132,6 +132,8 @@ qry20a2_credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_hig
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # Domestic only, exclude research universities and DACSO
+# Notes from 2019 docs suggest we exclude credentials which are 
+# included in DACSO but that are granted by research universities.
 qry20a3_credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   filter(
