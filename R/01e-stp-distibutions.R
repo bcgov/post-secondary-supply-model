@@ -31,6 +31,8 @@ if (length(missing) > 0) {
 
 non_dup_cols <- c(
   "id",
+  "RESEARCH_UNIVERSITY",
+  "OUTCOMES_CRED",
   "FINAL_CIP_CLUSTER_CODE",
   "FINAL_CIP_CODE_4"
 )
@@ -50,15 +52,21 @@ h_rank_cols <- c(
   "AGE_GROUP_AT_GRAD",
   "PSI_CREDENTIAL_CATEGORY",
   "PSI_AWARD_SCHOOL_YEAR_DELAYED",
-  "PSI_VISA_STATUS",
-  "RESEARCH_UNIVERSITY",
-  "OUTCOMES_CRED"
+  "PSI_VISA_STATUS"
 )
 
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
   select(h_rank_cols)
 min_enrolment <- min_enrolment |> select(min_enrol_cols)
 credential_non_dup <- credential_non_dup |> select(non_dup_cols)
+
+# bring research university and outcomes credential into tbl_credential_highest_rank 
+# this should have been done at end of 01c-credential-analysis.R
+tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+  left_join(
+    credential_non_dup |> select(id, RESEARCH_UNIVERSITY, OUTCOMES_CRED),
+    by = "id"
+  ) 
 
 # ---- 20 Final Credential Distributions ----
 # From 01c-credential-analysis.R
