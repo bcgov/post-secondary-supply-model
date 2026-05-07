@@ -1,0 +1,180 @@
+---
+title: "Module 02a BGS Program Matching - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+_Provide a brief summary of the module’s purpose, scope, and key objectives._
+
+## Data Sources and Storage
+
+### External Data Sources
+
+#### BGS_DIST_19_23 and BGS_DIST_18_22
+Source: Student Outcomes (SO) Database
+
+Access Method: Queried using R database connectors (e.g., DBI, odbc). Or, request a csv copy from SO team.
+
+- Required credentials: Database access with appropriate permissions.
+- Function calls: `dbReadTable(con, DBI::Id(schema = "INFOWARE", table = ...))`
+
+Description: Tables containing Baccalaureate Graduate Survey (BGS) distribution and cohort information for the years 2019-2023 and 2018-2022.  BGS_DIST_19_23, BGS_DIST_18_22: Student-level BGS outcomes data for recent years.
+
+#### BGS_COHORT_INFO
+Source: Student Outcomes (SO) Database
+
+Access Method: Queried using R database connectors (e.g., DBI, odbc). Or, request a csv copy from SO team.
+
+- Required credentials: Database access with appropriate permissions.
+- Function calls: `dbReadTable(con, DBI::Id(schema = "INFOWARE", table = ...))`
+
+Description: Cohort-level metadata
+
+#### L_CIP_6DIGITS_CIP2016, L_CIP_4DIGITS_CIP2016, L_CIP_2DIGITS_CIP2016
+Source: Student Outcomes (SO) Database
+
+Access Method: Queried using R database connectors (e.g., DBI, odbc). Or, request a csv copy from SO team.
+
+- Required credentials: Database access with appropriate permissions.
+- Function calls: `dbReadTable(con, DBI::Id(schema = "INFOWARE", table = ...))`
+
+Description: CIP code reference tables. These tables are used to align program codes and support matching between survey and administrative data.
+
+#### STP_Credential Table
+Source: Student Transitions Project
+
+Access Method: Queried using R database connectors(e.g., DBI, odbc).
+
+- Required credentials: Database access with appropriate permissions.
+- Function calls: `dbReadTable(con, SQL(glue::glue('"{my_schema}"."STP_Credential"')))`
+
+Description: Contains student credential records, including award dates, credential types, and identifiers. Used as the primary source for student credential data and for matching with BGS records.
+
+
+### Internal/Processed Data Sources
+
+#### credential_non_dup Table
+Source: Generated within the project by processing and deduplicating records from the STP_Credential table (see 01c-credential-analysis.R).
+
+Access Method: Created and manipulated in R as a tibble/data frame during the workflow.
+
+- File location: In-memory during processing; may be exported as an intermediate or final output.
+- Processing methodology: See 01c-credential-analysis.R for details on deduplication, gender imputation, and ranking logic.
+
+Description: A deduplicated table of student credentials, with additional variables for gender, age, and credential ranking. Used as the internal reference for program matching and further analysis.
+
+
+### Data Storage Structure
+
+<mark>TO BE FILLED IN LATER</mark>
+
+
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: [List required network resources]
+- Storage: [Note storage requirements]
+- Memory: [Note memory requirements]
+- External Data: [List any required external data]
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- [List core data processing packages]
+- [List spatial analysis packages]
+- [List visualization/statistics packages]
+- [List file management packages]
+
+
+
+#### Authentication Setup
+
+```r
+# Example: API key configuration
+[package]::set_api_key('YOUR_API_KEY', install = TRUE)
+```
+
+### Global Constants and Configuration
+
+Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
+
+#### Data Processing and Filtering
+
+  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
+  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
+  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
+  - `REQUIRED_COLS`: [List of required columns for validation]
+  - `POP_COLS`: [List of population-related columns]
+
+
+#### File Path Configuration
+
+  - `BASE_FOLDER`: Base folder for storage.
+  - `SRC_DATA_FOLDER`: Directory for source data files.
+  - `RAW_DATA_FOLDER`: Directory for raw input data.
+  - `OUTPUTS_FOLDER`: Directory for outputs.
+
+[Add other relevant settings as needed]
+
+
+## Methodology Overview
+
+_Repeat for each major step/script in the module_
+
+### [Method 1 Title]
+
+#### Methods
+
+#### Data Dictionary
+
+##### [Table 1 Name]
+
+
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+</ul>
+
+Key variables computed in this analysis:
+
+<ul class="list-variable-names">
+<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+</ul>
+
+ Variables not used in this analysis: 
+
+<ul class="list-variable-names">
+<li>AGE_AT_GRAD: NOT USED</li>
+<li>Age_Grad_Group: NOT USED</li>
+</ul>
+
+## Key Output Tables
+
+## Suggested Improvements
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
