@@ -133,16 +133,49 @@ The following R packages are required for this module/script:
 
 <mark>FILL IN LATER</mark>
 
-
 ## Methodology Overview
 
 _Repeat for each major step/script in the module_
 
-### [Method 1 Title]
+### BGS Program Matching 
 
-#### Methods
+#### Part 1:
+Student survey outcomes from multiple reporting cycles are aggregated into a single, unified dataset.  
 
-#### Data Dictionary
+STP Program classification codes are cleaned and standardized to resolve inconsistencies in formatting and level of detail:
+- Some general programs are recoded; programs with CIP 2 level = "xx.00" are recoded to "xx.01". https://www.statcan.gc.ca/en/subjects/standard/cip/2021/index
+- Periods are handled
+
+#### Part 2:
+Records are split into distinct streams based on the type of credential awarded. BGS credentials will undergo further matching to BGS survey outcomes, whereas GRAD credentials use STP CIPs directly (and require no further processing?)
+
+#### Part 3:
+
+##### Part 3A:BGS Program Matching
+- For BGS survey records: 
+- Add PSI_PEN from STP_Credential data.
+- Create BGS_Matching_STP_Credential_PEN by performing inner join on PEN. This table combines BGS survey outcomes with matched STP credentials. Each row represents a potential match between a BGS survey record and a STP credential. Many-to-many relationships are expected (e.g., student with multiple credentials or survey years) and rows without a valid pen are removed.  Columns are renamed for clarity
+
+### Part ?
+Validation flags are created to compare survey responses (BGS) against credential records (STP) across several dimensions:
+
+1. Institutional and Temporal Alignment: The logic accounts for institutional aliases (e.g., matching "CAPU" to "CAP") and incorporates a standard two-year lag between the credential award year and the survey year to ensure the records refer to the same educational event.
+2. Program Classification Matching: Records are evaluated based on the Classification of Instructional Programs (CIP) at both the 4-digit (specific program) and 2-digit (broad field) levels.
+3. Confidence Scoring: Based on these comparisons, records are assigned a confidence level. Matches that align on institution, year, and 4-digit CIP are flagged as "high-confidence" and finalized immediately. Records with discrepancies—such as those matching on broad field but not specific program—are flagged for secondary review or manual reconciliation to determine the most accurate data source.
+
+##### Part 3B:BGS Program Matching X-Walk Generation (PART 3)
+Discrepancies between survey-reported data and credential records were initially resolved using a decision-making framework. This was applied to records that aligned on broad program categories (2-digit CIP) but differed at a more specific level (4-digit CIP).  These systematic rules were applied to individual records across ~1,600 unique program combinations simultaneously.
+
+The decision tree algorithm first identifies "general" program classifications and replaces them with more specific codes whenever available. It then employs a cross-validation strategy: if a particular program-to-code assignment has already been verified as a "high-confidence" match in another part of the dataset, that assignment is automatically applied here. For any remaining conflicts, custom rules address known historical misalignments between the two systems, with the credential record serving as the final default to maintain consistency with previous reporting periods.
+
+The decisions are staged in a central reference table and integrated back into the primary database. Records not resolved through this process are flagged for manual review.
+
+#### Part C: Manual Review
+For cases where automated rules cannot definitively resolve discrepancies between survey-reported data and credential records, the system triggers a manual review process. This phase targets "borderline" matches where records where the institution and award year are identical, but the specific program classifications differ. Individual student records are aggregated by program to allow for a single decision per program/program classification pair.
+
+The aggregated program pairs are exported for manual decision to determine which data source—the survey outcome or the credential record—best represents the student’s actual program of study. The decisions are then re-imported and "broadcast" back to the individual records, reconciling the complex program misalignments. To guarantee that no record remains unclassified, any remaining unresolved cases are automatically assigned the official credential classification. 
+
+#### Key Output Tables - Data Dictionary
 
 ##### [Table 1 Name]
 
