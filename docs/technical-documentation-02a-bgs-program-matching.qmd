@@ -156,28 +156,49 @@ However, GRAD credentials do not require survey matching; these records are fina
 #### Part 3:
 
 ##### BGS Program Matching (Part 3A)
-- For BGS survey records: 
-- Add PSI_PEN from STP_Credential data.
-- Create BGS_Matching_STP_Credential_PEN by performing inner join on PEN. This table combines BGS survey outcomes with matched STP credentials. Each row represents a potential match between a BGS survey record and a STP credential. Many-to-many relationships are expected (e.g., student with multiple credentials or survey years) and rows without a valid pen are removed.  Columns are renamed for clarity
 
-##### ?
-Validation flags are created to compare survey responses (BGS) against credential records (STP) across several dimensions:
-
-1. Institutional and Temporal Alignment: The logic accounts for institutional aliases (e.g., matching "CAPU" to "CAP") and incorporates a standard two-year lag between the credential award year and the survey year to ensure the records refer to the same educational event.
-2. Program Classification Matching: Records are evaluated based on the Classification of Instructional Programs (CIP) at both the 4-digit (specific program) and 2-digit (broad field) levels.
-3. Confidence Scoring: Based on these comparisons, records are assigned a confidence level. Matches that align on institution, year, and 4-digit CIP are flagged as "high-confidence" and finalized immediately. Records with discrepancies—such as those matching on broad field but not specific program—are flagged for secondary review or manual reconciliation to determine the most accurate data source.
+BGS_Matching_STP_Credential_PEN table: BGS survey outcome records are linked to STP credential records by joining on the Personal Education Number (PEN). Rows without a valid pen are removed from further mathching. Because students may have multiple credentials or survey responses, only unique combination of survey record and credential is kept. Some columns are renamed for clarity.
 
 ##### BGS Program Matching X-Walk Generation (Part 3B)
-Discrepancies between survey-reported data and credential records were initially resolved using a decision-making framework. This was applied to records that aligned on broad program categories (2-digit CIP) but differed at a more specific level (4-digit CIP).  These systematic rules were applied to individual records across ~1,600 unique program combinations simultaneously.
 
-The decision tree algorithm first identifies "general" program classifications and replaces them with more specific codes whenever available. It then employs a cross-validation strategy: if a particular program-to-code assignment has already been verified as a "high-confidence" match in another part of the dataset, that assignment is automatically applied here. For any remaining conflicts, custom rules address known historical misalignments between the two systems, with the credential record serving as the final default to maintain consistency with previous reporting periods.
+Validation flags are created to compare survey responses (BGS) against credential records (STP) across several dimensions. The code systematically evaluates each matched pair using the following logic:
 
-The decisions are staged in a central reference table and integrated back into the primary database. Records not resolved through this process are flagged for manual review.
+- Institutional and Temporal Alignment: The script accounts for institutional aliases (e.g., matching "CAPU" to "CAP") and incorporates a standard two-year lag between the credential award year and the survey year to ensure the records refer to the same educational event.
+- Program Classification Matching: Records are evaluated based on the Classification of Instructional Programs (CIP) at both the 4-digit (specific program) and 2-digit (broad field) levels, allowing for both precise and broader program matches.
+- Confidence Scoring: Based on these comparisons, records are assigned a confidence level. Matches that align on institution, year, and 4-digit CIP are flagged as "high-confidence" and finalized immediately. Records with discrepancies—such as those matching on broad field but not specific program—are flagged for secondary review or manual reconciliation to determine the most accurate data source.
+
+Automated business rules are then applied to assign the most appropriate program code (CIP) to each record. High-confidence matches are finalized using the BGS code, while partial matches undergo additional decision logic, including cross-validation with other matches and custom rules for known program misalignments. These decisions are staged in a reference table and joined back to the main dataset, updating the final program code assignments and marking records that no longer require manual review. This process ensures that each record is assigned the most accurate program code based on all available evidence.
 
 ##### Manual Review (Part C)
-For cases where automated rules cannot definitively resolve discrepancies between survey-reported data and credential records, the system triggers a manual review process. This phase targets "borderline" matches where records where the institution and award year are identical, but the specific program classifications differ. Individual student records are aggregated by program to allow for a single decision per program/program classification pair.
 
-The aggregated program pairs are exported for manual decision to determine which data source—the survey outcome or the credential record—best represents the student’s actual program of study. The decisions are then re-imported and "broadcast" back to the individual records, reconciling the complex program misalignments. To guarantee that no record remains unclassified, any remaining unresolved cases are automatically assigned the official credential classification. 
+For cases where automated rules cannot definitively resolve discrepancies between survey-reported data and credential records, the matched cases undergo a manual review process. All “borderline” cases —records where the institution and award year match, but the program codes differ and no automatic decision was made- are extracted. These records are aggregated to unique program-level combinations to reduce the manual review workload. The aggregated list is exported to a CSV file for subject matter experts, who review each program pair and indicate whether to use the BGS or STP code.
+
+After review, the marked CSV is re-imported, and the manual decisions are broadcast back to all relevant student-level records. The manual decisions are then joined back to the main matching table, updating the final program code assignments. For any remaining records without a final code, the script applies a fallback to use the STP code, ensuring that every record has a complete and consistent program classification for downstream analysis.
+
+##### CIP Names and Clusters (Part 3D)
+
+BGS/STP program matching results are finalized: any remaining records with missing program codes are defaulted to use the STP code, ensuring complete coverage. The data is enriched with human-readable program names and cluster assignments based on the final CIP codes. 
+
+Validation checks are performed to confirm that all records have been assigned final program codes and descriptive information.
+
+#### Part 4
+
+All credential records are checked to ensure they have a final, valid, well-documented program code and descriptive metadata, with manual analyst-approved corrections applied where automated matching was insufficient.
+
+##### Manual Override for Unmatched Programs
+
+- Identifies credential programs that defaulted to the STP CIP code because no BGS/STP match was found.
+- Builds an evidence table of programs where BGS CIP was confidently used, and an audit table of unmatched programs.
+- Compares unmatched programs to matched ones to find candidates for manual override, summarizes these for analyst review, and applies a curated list of approved overrides (where BGS CIP is preferred for consistency).  The override table is unique by program description.
+
+##### Apply Overrides and Refill Metadata
+
+- Updates the main credential table, applying the approved BGS CIP overrides only to records that were never matched earlier.
+- After applying overrides, refills missing CIP names and cluster fields from official lookup tables to ensure all descriptive metadata is present and consistent.
+- Pads CIP codes to standard lengths for consistency.
+
+Final validation checks are performed to confirm that all records have final CIP codes, names, and cluster assignments, with no missing values remaining.
+
 
 #### Key Output Tables - Data Dictionary
 
