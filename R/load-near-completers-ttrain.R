@@ -245,7 +245,7 @@ dbExecute(
 dbExecute(
   decimal_con,
   SQL(glue::glue(
-    'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
+    'ALTER TABLE "{my_schema}"."Credential_Non_Dup_r" DROP COLUMN PSI_PEN;'
   ))
 )
 
@@ -255,7 +255,7 @@ t_dacso_data_part_1 <- dbReadTable(
 )
 credential_non_dup <- dbReadTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"'))
 )
 stp_credential <- dbReadTable(
   decimal_con,

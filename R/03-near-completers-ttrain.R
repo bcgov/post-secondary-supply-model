@@ -37,7 +37,6 @@ if (length(missing) > 0) {
 }
 
 na_vals = c("", " ", "(Unspecified)", NA)
-
 # ---- Derive Age at Grad ----
 # replicates lines 69:87 (main branch)
 # testing: t_dacso_data_part_1_tempselection in SQL vs R
@@ -83,6 +82,10 @@ tmp_tbl_age <- tmp_tbl_age |>
     )
   ) |>
   select(-ref_date, -year_diff, -birthday_ref_year)
+
+t_dacso_data_part_1 <- t_dacso_data_part_1 |>
+  select(-c(Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP))
+
 
 # bring age at grad into t_dacso dataset
 t_dacso_data_part_1 <- t_dacso_data_part_1 |>
@@ -131,7 +134,7 @@ t_dacso_data_part_1_tempselection |>
 #  This updates credential non-dup in current schema only".  We should
 #  confirm that we only need the psi_pen in the current R environment.
 names(credential_non_dup) <- tolower(names(credential_non_dup))
-credential_non_dup <- credential_non_dup |>
+credential_non_dup <- credential_non_dup |> # select(-psi_pen) |>
   left_join(
     stp_credential |>
       select(id = ID, psi_pen = PSI_PEN),
@@ -358,6 +361,21 @@ nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1
     )
   )
 
+nearcompleters_in_stp_credential_step1 |>
+  select(
+    coci_stqu_id,
+    stp_credential_awarded_before_dacso,
+    stp_credential_awarded_after_dacso
+  ) |>
+  count(coci_stqu_id) |>
+  filter(n > 1)
+
+t_dacso_data_part_1 |>
+  count(coci_stqu_id) |>
+  filter(n > 1)
+
+
+#
 
 t_dacso_nearcompleters <- t_dacso_data_part_1 |>
   # 1. Filter for the core population
@@ -474,6 +492,16 @@ nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1
     by = c("id", "coci_stqu_id")
   )
 
+nearcompleters_in_stp_credential_step1 |>
+  count(coci_stqu_id) |>
+  filter(n > 1)
+
+#
+
+final_winners |>
+  count(coci_stqu_id) |>
+  filter(n > 1)
+
 # 3. Update the final reporting table (Replaces Step 13)
 t_dacso_nearcompleters <- t_dacso_nearcompleters |>
   left_join(
@@ -521,7 +549,14 @@ nearcompleters_in_stp_credential_step1 <- nearcompleters_in_stp_credential_step1
       final_record_to_use
     )
   )
+t_dacso_nearcompleters |> count(coci_stqu_id) |> filter(n > 1)
 
+nearcompleters_in_stp_credential_step1 |>
+  filter(final_record_to_use == "yes") |>
+  count(coci_stqu_id) |>
+  filter(n > 1)
+
+#
 t_dacso_nearcompleters <- t_dacso_nearcompleters |>
   left_join(
     nearcompleters_in_stp_credential_step1 |>
@@ -660,7 +695,7 @@ t_dacso_data_part_1_tempselection |>
     grad_status_factoring_in_stp
   )
 
-
+# done ##################################################################
 # ----------------------- Transferred From Excel Sheet -----------------------
 
 # ----------------------- Age At Grad by CIP4 Ratios -----------------------
@@ -885,7 +920,8 @@ t_dacso_near_completers_ratio_by_gender <-
 
 # 4.1: paste to col E (C_Outc12_13_14RatiosByGender)
 base <- t_dacso_data_part_1 |>
-  select(-age_group) |>
+  select(-age_group, -has_stp_credential) |>
+  # select(-age_group) |>
   filter(tpid_lgnd_cd != "0") |>
   inner_join(
     age_group_lookup,
@@ -985,7 +1021,7 @@ t_dacso_near_completers_ratio_by_gender_year <-
     year = as.numeric(paste0('20', str_sub(coci_subm_cd, 7, 8))) - 1
   )
 
-
+# done here
 # GOT TO HERE...leaving for now but the TTRAIN flag is available if we want to include it.
 
 # ---- TTRAIN tables ----
