@@ -169,7 +169,7 @@ Validation flags are created to compare survey responses (BGS) against credentia
 
 Automated business rules are then applied to assign the most appropriate program code (CIP) to each record. High-confidence matches are finalized using the BGS code, while partial matches undergo additional decision logic, including cross-validation with other matches and custom rules for known program misalignments. These decisions are staged in a reference table and joined back to the main dataset, updating the final program code assignments and marking records that no longer require manual review. This process ensures that each record is assigned the most accurate program code based on all available evidence.
 
-##### Manual Review (Part C)
+##### Manual Review (Part 3C)
 
 For cases where automated rules cannot definitively resolve discrepancies between survey-reported data and credential records, the matched cases undergo a manual review process. All “borderline” cases —records where the institution and award year match, but the program codes differ and no automatic decision was made- are extracted. These records are aggregated to unique program-level combinations to reduce the manual review workload. The aggregated list is exported to a CSV file for subject matter experts, who review each program pair and indicate whether to use the BGS or STP code.
 
