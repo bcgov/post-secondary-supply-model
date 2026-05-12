@@ -194,12 +194,18 @@ Final validation checks are performed to confirm that all records have final CIP
 #### Part 5
 
 ##### Part 5A
-This final section updates the BGS outcomes table with the results of the program matching process, ensuring that the BGS source data reflects the final CIP code decisions:
 
-Matching results from the credential-level matching table are joined back to the BGS outcomes table using the unique record identifier. New columns are populated with the final CIP codes and metadata, first for high-confidence (auto-matched) records, then for manually reviewed matches, ensuring that auto-matches take precedence. A flag is added to indicate whether the final code came from BGS or STP for each record.
+This section updates the BGS outcomes table with the results of the program matching process, ensuring that the BGS source data reflects the final CIP code decisions. Matching results from the credential-level matching table are joined back to the BGS outcomes table using the unique record identifier. New columns are populated with the final CIP codes and metadata, first for high-confidence (auto-matched) records, then for manually reviewed matches, ensuring that auto-matches take precedence. A flag is added to indicate whether the final code came from BGS or STP for each record.
 
-The updated table is now ready for downstream analysis and reporting, with all matching logic and manual overrides fully reflected. The BGS outcomes data is fully synchronized with the results of the matching process, providing a consistent and traceable record of how each program’s final classification was determined.
+##### Part 5B
 
+A final clean-up and consistency check is performed on the BGS outcomes data after the main matching process is complete.
+
+Any BGS records that were not successfully matched to an STP credential are identified. For these records, the original BGS program code (CIP) is assigned as the final, authoritative CIP. This ensures every record has a final CIP code assigned.
+
+Cases are isolated where an unmatched BGS program has the exact same name as another BGS program that was successfully matched, and for which the STP program code was determined to be the better choice. Using a predefined list of these known program-name-to-CIP mappings, the script overrides the original BGS CIP for the unmatched records, replacing it with the more appropriate STP CIP. This ensures that programs with the same name are treated consistently, regardless of whether they were individually matched.
+
+Official lookup tables are used to fill in any missing descriptive names and cluster information for the newly assigned final CIP codes.
 
 #### Key Output Tables - Data Dictionary
 
