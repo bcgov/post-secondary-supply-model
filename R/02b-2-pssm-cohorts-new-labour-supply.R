@@ -249,7 +249,7 @@ t_cohorts_recoded %>%
   summarise(N = n(), .groups = "drop") %>%
   arrange(SURVEY, SURVEY_YEAR, CURRENT_REGION_PSSM_CODE)
 
-# create base weights for the full cohort
+# ------ create base weights for the full cohort
 # dbExecute(decimal_con, DACSO_Q005_Z01_Base_NLS)
 z01_base_nls <- t_cohorts_recoded %>%
   filter(
@@ -276,7 +276,7 @@ z01_base_nls <- t_cohorts_recoded %>%
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Region_9999)
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Union)
 
-# ------ create base and nls weights
+# ------ create nls weights
 #dbExecute(decimal_con, DACSO_Q005_Z02c_Weight_tmp)
 z02c_weight_tmp <- t_cohorts_recoded %>%
   filter(
@@ -419,32 +419,362 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
   ) %>%
   select(-NEW_VAL)
 
-# check weights
-dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
-dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
+# ------ check weights and clear interim tables
+# dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
+z09_check_weights <- t_cohorts_recoded %>%
+  inner_join(z01_base_nls |> select(STQU_ID, BASE), by = "STQU_ID") %>%
+  group_by(
+    SURVEY_YEAR,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    WEIGHT_NLS
+  ) %>%
+  summarise(
+    RESPONDENTS = sum(
+      if_else(RESPONDENT == '1' & CURRENT_REGION_PSSM_CODE != -1, 1, 0),
+      na.rm = TRUE
+    ),
+    WEIGHTED = RESPONDENTS * as.numeric(WEIGHT_NLS),
+    BASE = sum(BASE, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(SURVEY_YEAR, WEIGHT_NLS)
 
-dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight_tmp")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z03_Weight_Total")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z04_Weight_Adj_Fac")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z02c_Weight")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q005_Z01_Base_NLS")
+# dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
+z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
+  filter(
+    NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3),
+    as.numeric(WEIGHT) > 0,
+    (WEIGHT_NLS == 0 | is.na(WEIGHT_NLS)),
+    CURRENT_REGION_PSSM_CODE != -1,
+    !is.na(AGE_GROUP_ROLLUP),
+    GRAD_STATUS %in% c('1', '2', '3')
+  ) %>%
+  group_by(
+    SURVEY,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    TTRAIN,
+    LCIP4_CRED,
+    GRAD_STATUS
+  ) %>%
+  summarise(BASE = n(), .groups = "drop") %>%
+  select(SURVEY, INST_CD, AGE_GROUP_ROLLUP, TTRAIN, LCIP4_CRED, BASE)
+
+rm(
+  z01_base_nls,
+  z02c_weight_tmp,
+  z02c_weight,
+  z03_weight_total,
+  z04_weight_adj_fac,
+  tmp_tbl_weights_nls
+)
+
 
 # apply nls weights to group totals
-dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
+# dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
+dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
+  inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
+  inner_join(
+    t_current_region_pssm_rollup_codes,
+    by = "CURRENT_REGION_PSSM_CODE_ROLLUP"
+  ) %>%
+  filter(
+    RESPONDENT == '1',
+    as.numeric(WEIGHT) > 0,
+    CURRENT_REGION_PSSM_CODE_ROLLUP != 9999,
+    !is.na(AGE_GROUP_ROLLUP),
+    GRAD_STATUS %in% c('1', '3'),
+    NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    SURVEY_YEAR,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    GRAD_STATUS,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    NEW_LABOUR_SUPPLY,
+    WEIGHT_NLS
+  ) %>%
+  summarise(COUNT = n(), .groups = "drop") %>%
+  mutate(WEIGHTED = COUNT * as.numeric(WEIGHT_NLS)) %>%
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    SURVEY_YEAR,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    GRAD_STATUS,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    NEW_LABOUR_SUPPLY,
+    COUNT,
+    WEIGHT_NLS,
+    WEIGHTED
+  )
 
-# calculate weighted new labor supply - various distribution
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_No_TT)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT)
+# calculate weighted new labor supply - various distributions
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_No_TT)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT)
+# DACSO_Q006b_Weighted_New_Labour_Supply
+dacso_q006b_weighted_new_labour_supply <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(
+    NEW_COUNT = sum(WEIGHTED, na.rm = TRUE),
+    UNWEIGHTED_COUNT = sum(COUNT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  rename(COUNT = NEW_COUNT)
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_0
+dacso_q006b_weighted_new_labour_supply_0 <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY == 0) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D
+dacso_q006b_weighted_new_labour_supply_0_2d <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY == 0) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    TTRAIN,
+    LCP2_CRED = LCIP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT
+dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY == 0) %>%
+  mutate(
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    PREFIX = if_else(
+      substr(PSSM_CRED, 1, 1) %in% c('1', '3'),
+      paste0(substr(PSSM_CRED, 1, 1), " - "),
+      ""
+    ),
+    LCP2_CRED = paste0(PREFIX, LCP2_CD, " - ", PSSM_CREDENTIAL)
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD,
+    LCP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT
+dacso_q006b_weighted_new_labour_supply_0_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY == 0) %>%
+  mutate(
+    GS_PREFIX = if_else(
+      is.na(GRAD_STATUS),
+      NA_character_,
+      paste0(as.character(GRAD_STATUS), " - ")
+    ),
+    LCIP4_CRED = paste0(GS_PREFIX, LCP4_CD, " - ", PSSM_CREDENTIAL),
+    LCIP2_CRED = paste0(
+      GS_PREFIX,
+      substr(LCP4_CD, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_2D
+dacso_q006b_weighted_new_labour_supply_2d <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    TTRAIN,
+    LCP2_CRED = LCIP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT
+dacso_q006b_weighted_new_labour_supply_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
+  mutate(
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    PREFIX = if_else(
+      substr(PSSM_CRED, 1, 1) %in% c('1', '3'),
+      paste0(substr(PSSM_CRED, 1, 1), " - "),
+      ""
+    ),
+    LCP2_CRED = paste0(PREFIX, LCP2_CD, " - ", PSSM_CREDENTIAL)
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD,
+    LCP2_CRED
+  ) %>%
+  summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_No_TT
+dacso_q006b_weighted_new_labour_supply_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
+  mutate(
+    GS_PREFIX = if_else(
+      is.na(GRAD_STATUS),
+      NA_character_,
+      paste0(as.character(GRAD_STATUS), " - ")
+    ),
+    LCIP4_CRED = paste0(GS_PREFIX, LCP4_CD, " - ", PSSM_CREDENTIAL),
+    LCIP2_CRED = paste0(
+      GS_PREFIX,
+      substr(LCP4_CD, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(
+    NEW_COUNT = sum(WEIGHTED, na.rm = TRUE),
+    UNWEIGHTED_COUNT = sum(COUNT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  rename(COUNT = NEW_COUNT)
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total
+dacso_q006b_weighted_new_labour_supply_total <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D
+dacso_q006b_weighted_new_labour_supply_total_2d <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    TTRAIN,
+    LCP2_CRED = LCIP2_CRED
+  ) %>%
+  summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT
+dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
+  mutate(
+    LCP2_CD = substr(LCP4_CD, 1, 2),
+    PREFIX = if_else(
+      substr(PSSM_CRED, 1, 1) %in% c('1', '3'),
+      paste0(substr(PSSM_CRED, 1, 1), " - "),
+      ""
+    ),
+    LCP2_CRED = paste0(PREFIX, LCP2_CD, " - ", PSSM_CREDENTIAL)
+  ) %>%
+  group_by(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP_ROLLUP, LCP2_CD, LCP2_CRED) %>%
+  summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT
+dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+  filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
+  mutate(
+    GS_PREFIX = if_else(
+      is.na(GRAD_STATUS),
+      NA_character_,
+      paste0(as.character(GRAD_STATUS), " - ")
+    ),
+    LCIP4_CRED = paste0(GS_PREFIX, LCP4_CD, " - ", PSSM_CREDENTIAL),
+    LCIP2_CRED = paste0(
+      GS_PREFIX,
+      substr(LCP4_CD, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  ) %>%
+  group_by(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED
+  ) %>%
+  summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
+
 
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
