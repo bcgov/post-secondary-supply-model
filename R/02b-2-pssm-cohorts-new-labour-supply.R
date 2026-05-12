@@ -97,7 +97,7 @@ assert_that(
 years <- c(2019, 2020, 2021, 2022, 2023)
 
 # ------ set column names and table names ------
-t_cohort_recoded <- t_cohorts_recoded |>
+t_cohorts_recoded <- t_cohorts_recoded |>
   rename_with(toupper)
 t_current_region_pssm_codes <- t_current_region_pssm_codes |>
   rename_with(toupper)
@@ -119,6 +119,7 @@ t_cohorts_recoded |>
 # ---- invalid noc codes
 # dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
 # dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+
 t_cohorts_recoded |>
   left_join(
     t_noc_broad_categories,
@@ -146,7 +147,7 @@ t_cohorts_recoded |>
 # in 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999
 # in 2021 there were some invalid nocs: 4122X were set to 99999
 
-t_cohort_recoded <- t_cohort_recoded |>
+t_cohorts_recoded <- t_cohorts_recoded |>
   mutate(NOC_CD = if_else(NOC_CD == "4122X", "99999", NOC_CD))
 
 # ---- recode new labour supply for those with an NLS-2 record and no NLS1
@@ -275,7 +276,7 @@ z01_base_nls <- t_cohorts_recoded %>%
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Region_9999)
 #dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Union)
 
-# create base and nls weights
+# ------ create base and nls weights
 #dbExecute(decimal_con, DACSO_Q005_Z02c_Weight_tmp)
 z02c_weight_tmp <- t_cohorts_recoded %>%
   filter(
@@ -316,26 +317,107 @@ z02c_weight_tmp <- t_cohorts_recoded %>%
     WEIGHT_YEAR
   )
 
-dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
-dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
-dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
-dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
+#dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
+z02c_weight <- z02c_weight_tmp %>%
+  mutate(
+    WEIGHT_PROB = if_else(
+      RESPONDENTS == 0,
+      1,
+      as.numeric(COUNT) / as.numeric(RESPONDENTS)
+    ),
+    WEIGHT = WEIGHT_PROB * WEIGHT_YEAR,
+    WEIGHTED = RESPONDENTS * WEIGHT_PROB * WEIGHT_YEAR
+  )
 
-# if (regular_run == T | ptib_run == T){
-# dbExecute(decimal_con, DACSO_Q005_Z06_Add_Weight_NLS_Field) # which is DACSO_Q005_Z06_Add_Weight_NLS_Field <- "ALTER TABLE T_Cohorts_Recoded ADD Weight_NLS Float NULL;". In "process_steps.docx", Amelia mentions "Ignore error about Weight_NLS column existing.", so we can comment out this line
-dbExecute(
-  decimal_con,
-  "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_NLS Float NULL;"
-)
-# }
-#
-# if (qi_run == T ) {
-#   dbExecute(decimal_con, "ALTER TABLE T_Cohorts_Recoded ALTER COLUMN Weight_NLS Float NULL;")
-# }
+#dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
+z03_weight_total <- z02c_weight %>%
+  group_by(
+    SURVEY,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED
+  ) %>%
+  summarise(
+    BASE = sum(COUNT, na.rm = TRUE),
+    WEIGHTED = sum(WEIGHTED, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
+z04_weight_adj_fac <- z03_weight_total %>%
+  mutate(WEIGHT_ADJ_FAC = if_else(WEIGHTED == 0, 0, BASE / WEIGHTED))
+
+# dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
+tmp_tbl_weights_nls <- z02c_weight %>%
+  inner_join(
+    z04_weight_adj_fac |>
+      select(
+        SURVEY,
+        INST_CD,
+        AGE_GROUP_ROLLUP,
+        GRAD_STATUS,
+        LCIP4_CRED,
+        WEIGHT_ADJ_FAC
+      ),
+    by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
+  ) %>%
+  mutate(WEIGHT_NLS = WEIGHT * WEIGHT_ADJ_FAC) %>%
+  select(
+    SURVEY,
+    SURVEY_YEAR,
+    INST_CD,
+    AGE_GROUP_ROLLUP,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    COUNT,
+    RESPONDENTS,
+    WEIGHT_PROB,
+    WEIGHT_YEAR,
+    WEIGHT,
+    WEIGHTED,
+    WEIGHT_ADJ_FAC,
+    WEIGHT_NLS
+  )
 
 # null Weight_NLS field and update (if you’ve been messing with iterations)
-dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null)
-dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update)
+# dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update)
+# dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null)
+
+t_cohorts_recoded <- t_cohorts_recoded |> mutate(WEIGHT_NLS = NA_real_)
+
+t_cohorts_recoded <- t_cohorts_recoded %>%
+  left_join(
+    tmp_tbl_weights_nls %>%
+      select(
+        SURVEY,
+        SURVEY_YEAR,
+        INST_CD,
+        AGE_GROUP_ROLLUP,
+        GRAD_STATUS,
+        LCIP4_CRED,
+        NEW_VAL = WEIGHT_NLS
+      ),
+    by = c(
+      "SURVEY",
+      "SURVEY_YEAR",
+      "INST_CD",
+      "AGE_GROUP_ROLLUP",
+      "GRAD_STATUS",
+      "LCIP4_CRED"
+    )
+  ) %>%
+  mutate(
+    # Only update if current_region_pssm_code != -1 and we have a new value
+    WEIGHT_NLS = if_else(
+      CURRENT_REGION_PSSM_CODE != -1 & !is.na(NEW_VAL),
+      NEW_VAL,
+      WEIGHT_NLS
+    )
+  ) %>%
+  select(-NEW_VAL)
 
 # check weights
 dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
