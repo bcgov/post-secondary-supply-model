@@ -1621,7 +1621,7 @@ copy_to(
   overwrite = TRUE
 )
 
-src_tbl <- tbl(con, "matched_2d_cips")
+src_tbl <- tbl(con, "matched_2d_cips_r")
 src_tbl |> glimpse()
 src_tbl |> tally()
 # 1593
