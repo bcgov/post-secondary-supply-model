@@ -3470,11 +3470,11 @@ t_bgs_updated <- t_bgs_updated %>%
       src_STP_CIP_CODE_4_NAME,
       STP_CIP_CODE_4_NAME
     ),
-    # FINAL_CONSIDER_A_MATCH = if_else(
-    #   step1_update == TRUE,
-    #   src_FINAL_CONSIDER_A_MATCH,
-    #   FINAL_CONSIDER_A_MATCH
-    # ),
+     FINAL_CONSIDER_A_MATCH = if_else(
+       step1_update == TRUE,
+       src_FINAL_CONSIDER_A_MATCH,
+       FINAL_CONSIDER_A_MATCH
+    ),
     FINAL_PROBABLE_MATCH = if_else(
       step1_update == TRUE,
       src_FINAL_PROBABLE_MATCH,
