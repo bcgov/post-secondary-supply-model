@@ -3381,6 +3381,10 @@ t_bgs_updated <- t_bgs_updated %>%
   # Left join on STQU_ID to bring in matched CIP codes and flags
   # Rename source columns with "src_" prefix to avoid naming conflicts during updates
   left_join(
+   bgs_matching_final %>%  
+     filter(!is.na(FINAL_CONSIDER_A_MATCH) & FINAL_CONSIDER_A_MATCH != "") %>%
+       group_by(STQU_ID) %>%
+       slice_min(order_by = YEAR, n=1, with_ties =FALSE) %>%
     bgs_matching_final %>%
       select(
         STQU_ID,
