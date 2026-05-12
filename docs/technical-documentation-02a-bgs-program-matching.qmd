@@ -187,17 +187,18 @@ All credential records are checked to ensure they have a final, valid, well-docu
 
 ##### Manual Override for Unmatched Programs
 
-- Identifies credential programs that defaulted to the STP CIP code because no BGS/STP match was found.
-- Builds an evidence table of programs where BGS CIP was confidently used, and an audit table of unmatched programs.
-- Compares unmatched programs to matched ones to find candidates for manual override, summarizes these for analyst review, and applies a curated list of approved overrides (where BGS CIP is preferred for consistency).  The override table is unique by program description.
-
-##### Apply Overrides and Refill Metadata
-
-- Updates the main credential table, applying the approved BGS CIP overrides only to records that were never matched earlier.
-- After applying overrides, refills missing CIP names and cluster fields from official lookup tables to ensure all descriptive metadata is present and consistent.
-- Pads CIP codes to standard lengths for consistency.
+Credential programs that defaulted to the STP CIP code (i.e. no BGS/STP match was found) are isolated for audit.  These are compared with an evidence table of programs where BGS CIP was confidently used.  If matched candidates are found, they are summarized for analyst review.  A curated list of approved overrides (where BGS CIP is preferred for consistency) is applied to records that were never matched earlier.  Missing CIP names and cluster fields are re-filled from official lookup tables to ensure all descriptive metadata is present and consistent.
 
 Final validation checks are performed to confirm that all records have final CIP codes, names, and cluster assignments, with no missing values remaining.
+
+#### Part 5
+
+##### Part 5A
+This final section updates the BGS outcomes table with the results of the program matching process, ensuring that the BGS source data reflects the final CIP code decisions:
+
+Matching results from the credential-level matching table are joined back to the BGS outcomes table using the unique record identifier. New columns are populated with the final CIP codes and metadata, first for high-confidence (auto-matched) records, then for manually reviewed matches, ensuring that auto-matches take precedence. A flag is added to indicate whether the final code came from BGS or STP for each record.
+
+The updated table is now ready for downstream analysis and reporting, with all matching logic and manual overrides fully reflected. The BGS outcomes data is fully synchronized with the results of the matching process, providing a consistent and traceable record of how each program’s final classification was determined.
 
 
 #### Key Output Tables - Data Dictionary
