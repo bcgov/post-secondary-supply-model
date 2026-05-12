@@ -203,31 +203,105 @@ The updated table is now ready for downstream analysis and reporting, with all m
 
 #### Key Output Tables - Data Dictionary
 
-##### [Table 1 Name]
+##### T_BGS_Data_Final_for_OutcomesMatching
 
+This table contains the final, matched Baccalaureate Graduate Survey (BGS) data, where survey responses have been linked to administrative student credential records. It includes the original data from both sources as well as the final, authoritative program codes (CIP) determined through automated and manual matching processes.
 
 <ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+  <li><b>PEN</b> (Character): Personal Education Number, used to link BGS and STP records.</li>
+  <li><b>STUDID</b> (Character): Student identifier from the Student Outcomes survey data.</li>
+  <li><b>STQU_ID</b> (Double): Unique identifier for a survey record.</li>
+  <li><b>SRV_Y_N</b> (Double): Flag indicating if the student was surveyed (1 for Yes, 0 for No).</li>
+  <li><b>RESPONDENT</b> (Double): Flag indicating if the student responded to the survey (1 for Yes, 0 for No).</li>
+  <li><b>Year</b> (Double): The year the BGS survey was conducted (YYYY-format).</li>
+  <li><b>SUBM_CD</b> (Character):  The survey cycle in which the BGS survey was conducted (e.g. "C_Outc19").</li>
+  <li><b>INSTITUTION_CODE</b> (Character): The institution code from the BGS data.</li>
+  <li><b>INSTITUTION</b> (Character): The full name of the institution from the BGS data.</li>
+  <li><b>CIP2DIG</b> (Character): The original 2-digit Classification of Instructional Programs (CIP) code from BGS.</li>
+  <li><b>CIP2DIG_NAME</b> (Character): The descriptive name for the 2-digit CIP code from BGS.</li>
+  <li><b>CIP4DIG</b> (Character): The original 4-digit CIP code from BGS, including a period.</li>
+  <li><b>CIP_4DIGIT_NO_PERIOD</b> (Character): The original 4-digit CIP code from BGS, without a period.</li>
+  <li><b>CIP4DIG_NAME</b> (Character): The descriptive name for the 4-digit CIP code from BGS.</li>
+  <li><b>CIP_6DIGIT_1</b> (Character): The original 6-digit CIP code from BGS.</li>
+  <li><b>CIP_6DIGIT_NO_PERIOD</b> (Character): The original 6-digit CIP code from BGS, without a period.</li>
+  <li><b>CIP6DIG_NAME</b> (Character): The descriptive name for the 6-digit CIP code from BGS.</li>
+  <li><b>PROGRAM</b> (Character): The program name or description from the BGS data.</li>
+  <li><b>DASHBOARD_PROGRAM</b> (Character): The program name as it appears on the dashboard.</li>
+  <li><b>CPC</b> (Character): College Program Code from the BGS data.</li>
+  <li><b>PSSM_CREDENTIAL</b> (Character): The credential type relevant to the Post-Secondary Supply Model (PSSM), set to "BACH" for this table.</li>
+  <li><b>STP_CIP_CODE_4</b> (Character): The standardized 4-digit CIP code from the STP credential data.</li>
+  <li><b>STP_CIP_CODE_4_NAME</b> (Character): The descriptive name for the 4-digit STP CIP code.</li>
 </ul>
 
 Key variables computed in this analysis:
 
 <ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
+  <li><b>Final_Consider_A_Match</b> (Character): Flag ("Yes") for high-confidence matches determined automatically.</li>
+  <li><b>Final_Probable_Match</b> (Character): Flag ("Yes") for matches determined through manual review.</li>
+  <li><b>USE_STP_CIP</b> (Character): Flag indicating if the final CIP code was sourced from STP data ("Yes", "No", or "No because no match").</li>
+  <li><b>FINAL_CIP_CODE_4</b> (Character): The final, authoritative 4-digit CIP code to use, after all matching and review logic has been applied.</li>
+  <li><b>FINAL_CIP_CODE_4_NAME</b> (Character): The descriptive name for the final 4-digit CIP code to use.</li>
+  <li><b>FINAL_CIP_CODE_2</b> (Character): The final, authoritative 2-digit CIP code, aligned with the final 4-digit code to use.</li>
+  <li><b>FINAL_CIP_CODE_2_NAME</b> (Character): The descriptive name for the final 2-digit CIP code to use.</li>
+  <li><b>FINAL_CIP_CLUSTER_CODE</b> (Character): The broader program cluster code associated with the final 2-digit CIP to use.</li>
+  <li><b>FINAL_CIP_CLUSTER_NAME</b> (Character): The descriptive name for the final CIP cluster to use.</li>
 </ul>
 
- Variables not used in this analysis: 
+##### Credential_Non_Dup_BGS_IDs
+
+This table contains credential records from the Student Transitions Project (STP) that have been successfully linked to Baccalaureate Graduate Survey (BGS) respondents. It includes detailed program and credential information from the administrative data, along with the final, authoritative program codes (CIP) determined through the matching process.
 
 <ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
+  <li><b>ID</b> (Integer): A unique identifier for each credential record.</li>
+  <li><b>PSI_CODE</b> (Character): The code for the post-secondary institution.</li>
+  <li><b>PSI_PROGRAM_CODE</b> (Character): The institution-specific program code.</li>
+  <li><b>PSI_CREDENTIAL_PROGRAM_DESCRIPTION</b> (Character): The full description of the credential program from the institution.</li>
+  <li><b>PSI_CREDENTIAL_CIP</b> (Character): The original Classification of Instructional Programs (CIP) code provided by the institution.</li>
+  <li><b>PSI_AWARD_SCHOOL_YEAR</b> (Character): The academic year in which the credential was awarded.</li>
+  <li><b>OUTCOMES_CRED</b> (Character): The standardized credential type used for outcomes analysis.</li>
+  <li><b>STP_CIP_CODE_4</b> (Character): The standardized 4-digit CIP code from the STP data.</li>
+  <li><b>STP_CIP_CODE_4_NAME</b> (Character): The descriptive name for the 4-digit STP CIP code.</li>
+  <li><b>STP_CIP_CODE_2</b> (Character): The standardized 2-digit CIP code from the STP data.</li>
+  <li><b>STP_CIP_CODE_2_NAME</b> (Character): The descriptive name for the 2-digit STP CIP code.</li>
+  <li><b>PSI_PEN</b> (Character): The Personal Education Number (PEN) associated with the credential record.</li>
+  <li><b>OUTCOMES_CIP_CODE_4</b> (Character): The 4-digit CIP code used in the outcomes model, derived from the matching process.</li>
+  <li><b>OUTCOMES_CIP_CODE_4_NAME</b> (Character): The descriptive name for the outcomes 4-digit CIP code.</li>
 </ul>
 
-## Key Output Tables
+Key variables computed in this analysis:
+
+<ul class="list-variable-names">
+  <li><b>Final_Consider_A_Match</b> (Character): Flag ("Yes") for high-confidence matches determined automatically.</li>
+  <li><b>Final_Probable_Match</b> (Character): Flag ("Yes") for matches determined through manual review.</li>
+  <li><b>USE_BGS_CIP</b> (Character): Flag indicating if the final CIP code was sourced from BGS data.</li>
+  <li><b>FINAL_CIP_CODE_4</b> (Character): The final, authoritative 4-digit CIP code after all matching and review logic has been applied.</li>
+  <li><b>FINAL_CIP_CODE_4_NAME</b> (Character): The descriptive name for the final 4-digit CIP code.</li>
+  <li><b>FINAL_CIP_CODE_2</b> (Character): The final, authoritative 2-digit CIP code, aligned with the final 4-digit code.</li>
+  <li><b>FINAL_CIP_CODE_2_NAME</b> (Character): The descriptive name for the final 2-digit CIP code.</li>
+  <li><b>FINAL_CIP_CLUSTER_CODE</b> (Character): The broader program cluster code associated with the final 2-digit CIP.</li>
+  <li><b>FINAL_CIP_CLUSTER_NAME</b> (Character): The descriptive name for the final CIP cluster.</li>
+</ul>
+
+
+##### Credential_Non_Dup_GRAD_IDs
+
+This table contains credential records for graduates who were not surveyed in the Baccalaureate Graduate Survey (BGS). It represents the population of graduates who are not BGS respondents but are included in the overall outcomes analysis. The program codes (CIP) in this table are taken directly from the administrative data without a matching process against survey data.
+
+<ul class="list-variable-names">
+  <li><b>ID</b> (Integer): A unique identifier for each credential record.</li>
+  <li><b>PSI_CODE</b> (Character): The code for the post-secondary institution.</li>
+  <li><b>PSI_PROGRAM_CODE</b> (Character): The institution-specific program code.</li>
+  <li><b>PSI_CREDENTIAL_PROGRAM_DESCRIPTION</b> (Character): The full description of the credential program from the institution.</li>
+  <li><b>PSI_CREDENTIAL_CIP</b> (Character): The original Classification of Instructional Programs (CIP) code provided by the institution.</li>
+  <li><b>PSI_AWARD_SCHOOL_YEAR</b> (Character): The academic year in which the credential was awarded.</li>
+  <li><b>OUTCOMES_CRED</b> (Character): The standardized credential type used for outcomes analysis.</li>
+  <li><b>FINAL_CIP_CODE_4</b> (Character): The final 4-digit CIP code, sourced directly from the administrative credential data.</li>
+  <li><b>FINAL_CIP_CODE_4_NAME</b> (Character): The descriptive name for the final 4-digit CIP code.</li>
+  <li><b>FINAL_CIP_CODE_2</b> (Character): The final 2-digit CIP code, aligned with the final 4-digit code.</li>
+  <li><b>FINAL_CIP_CODE_2_NAME</b> (Character): The descriptive name for the final 2-digit CIP code.</li>
+</ul>
+
+
 
 ## Suggested Improvements
 
