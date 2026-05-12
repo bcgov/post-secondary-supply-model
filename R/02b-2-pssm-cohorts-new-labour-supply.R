@@ -57,7 +57,7 @@ lan <- config::get("lan")
 #   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
 # ))
 #
-# Labour_Supply_Distribution_Stat_Can <- tibble(dbReadTable(
+# labour_supply_distribution_stat_can <- tibble(dbReadTable(
 #   decimal_con,
 #   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
 # ))
@@ -68,7 +68,7 @@ lan <- config::get("lan")
 # t_current_region_pssm_rollup_codes <-
 #   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"), col_types = cols(.default = col_guess())) %>%
 #   janitor::clean_names(case = "all_caps")
-# T_NOC_Broad_Categories <-
+# t_noc_broad_categories <-
 #   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"), col_types = cols(.default = col_guess())) %>%
 #   janitor::clean_names(case = "all_caps")
 
@@ -77,8 +77,8 @@ required_tables <- c(
   "t_cohorts_recoded",
   "t_current_region_pssm_rollup_codes",
   "t_current_region_pssm_codes",
-  "T_NOC_Broad_Categories",
-  "Labour_Supply_Distribution_Stat_Can"
+  "t_noc_broad_categories",
+  "labour_supply_distribution_stat_can"
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -103,9 +103,9 @@ t_current_region_pssm_codes <- t_current_region_pssm_codes |>
   rename_with(toupper)
 t_current_region_pssm_rollup_codes <- t_current_region_pssm_rollup_codes |>
   rename_with(toupper)
-t_noc_broad_categories <- T_NOC_Broad_Categories |>
+t_noc_broad_categories <- t_noc_broad_categories |>
   rename_with(toupper)
-labour_supply_distribution_stat_can <- Labour_Supply_Distribution_Stat_Can |>
+labour_supply_distribution_stat_can <- labour_supply_distribution_stat_can |>
   rename_with(toupper)
 
 # -------------------------- initial data checks ---------------------
