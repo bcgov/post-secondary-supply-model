@@ -776,51 +776,158 @@ dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_lab
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
 
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_No_TT)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_No_TT)
 
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006a_Weight_New_Labour_Supply")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_0_2D")
-dbExecute(
-  decimal_con,
-  "DROP TABLE dacso_q006b_weighted_new_labour_supply_0_2d_no_tt"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE dacso_q006b_weighted_new_labour_supply_0_no_tt"
-)
-dbExecute(decimal_con, "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_2D")
-dbExecute(
-  decimal_con,
-  "DROP TABLE dacso_q006b_weighted_new_labour_supply_2d_no_tt"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE dacso_q006b_weighted_new_labour_supply_total_no_tt"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE dacso_q006b_weighted_new_labour_supply_no_tt"
+# DACSO_Q007a_Weighted_New_Labour_Supply
+dacso_q007a_weighted_new_labour_supply <- dacso_q006b_weighted_new_labour_supply_total %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCIP4_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCIP4_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
+  mutate(PERC = COUNT / TOTAL)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_0
+dacso_q007a_weighted_new_labour_supply_0 <- dacso_q006b_weighted_new_labour_supply_total %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_0 %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCIP4_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCIP4_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  mutate(PERC = 1 - (COUNT / TOTAL)) %>%
+  filter(COUNT > 0, PERC == 0)
+
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D
+dacso_q007a_weighted_new_labour_supply_0_2d <- dacso_q006b_weighted_new_labour_supply_total_2d %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_0_2d %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCP2_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCP2_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  mutate(PERC = 1 - (COUNT / TOTAL)) %>%
+  filter(COUNT > 0, PERC == 0)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT
+dacso_q007a_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006b_weighted_new_labour_supply_total_2d_no_tt %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_0_2d_no_tt %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCP2_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCP2_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  mutate(PERC = 1 - (COUNT / TOTAL)) %>%
+  filter(COUNT > 0, PERC == 0)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT
+dacso_q007a_weighted_new_labour_supply_0_no_tt <- dacso_q006b_weighted_new_labour_supply_total_no_tt %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_0_no_tt %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCIP4_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCIP4_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  mutate(PERC = 1 - (COUNT / TOTAL)) %>%
+  filter(COUNT > 0, PERC == 0)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_2D
+dacso_q007a_weighted_new_labour_supply_2d <- dacso_q006b_weighted_new_labour_supply_total_2d %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_2d %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCP2_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCP2_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
+  mutate(PERC = COUNT / TOTAL)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT
+dacso_q007a_weighted_new_labour_supply_2d_no_tt <- dacso_q006b_weighted_new_labour_supply_total_2d_no_tt %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_2d_no_tt %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCP2_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCP2_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
+  mutate(PERC = COUNT / TOTAL)
+
+# DACSO_Q007a_Weighted_New_Labour_Supply_No_TT
+dacso_q007a_weighted_new_labour_supply_no_tt <- dacso_q006b_weighted_new_labour_supply_total_no_tt %>%
+  left_join(
+    dacso_q006b_weighted_new_labour_supply_no_tt %>%
+      select(
+        AGE_GROUP_ROLLUP,
+        LCIP4_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        COUNT
+      ),
+    by = c("AGE_GROUP_ROLLUP", "LCIP4_CRED")
+  ) %>%
+  replace_na(list(COUNT = 0)) %>%
+  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
+  mutate(PERC = COUNT / TOTAL)
+
+rm(
+  dacso_q006a_weight_new_labour_supply,
+  dacso_q006b_weighted_new_labour_supply,
+  dacso_q006b_weighted_new_labour_supply_0,
+  dacso_q006b_weighted_new_labour_supply_0_2d,
+  dacso_q006b_weighted_new_labour_supply_0_2d_no_tt,
+  dacso_q006b_weighted_new_labour_supply_0_no_tt,
+  dacso_q006b_weighted_new_labour_supply_2d,
+  dacso_q006b_weighted_new_labour_supply_2d_no_tt,
+  dacso_q006b_weighted_new_labour_supply_no_tt,
+  dacso_q006b_weighted_new_labour_supply_total,
+  dacso_q006b_weighted_new_labour_supply_total_2d,
+  dacso_q006b_weighted_new_labour_supply_total_2d_no_tt,
+  dacso_q006b_weighted_new_labour_supply_total_no_tt
 )
 
 # ---- Final Distributions ----
