@@ -1616,7 +1616,7 @@ stage_cols <- c(
 copy_to(
   con,
   matched_2d_cips |> select(stage_cols),
-  name = "matched_2d_cips",
+  name = "matched_2d_cips_r",
   temporary = FALSE,
   overwrite = TRUE
 )
