@@ -2319,7 +2319,7 @@ bgs_matching_final <- bgs_matching_updated %>%
 # Materialize the update to the physical database
 
 output_name <- "BGS_Matching_STP_Credential_PEN_r"
-temp_name <- "BGS_Matching_STP_Credential_PEN_temp"
+temp_name <- "BGS_Matching_STP_Credential_PEN_temp_r"
 
 # Compute to temporary table first to ensure success before modifying the original
 bgs_matching_final <- bgs_matching_final |>
