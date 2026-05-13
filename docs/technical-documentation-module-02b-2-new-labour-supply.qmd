@@ -1,0 +1,176 @@
+---
+title: "02b-2 New Labour Supply"
+subtitle: "Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+## Data Sources and Storage (Not completed)
+
+### External Data Sources
+
+#### [External Data Source Name]
+
+#### 
+
+Source:
+Access Method:
+Description:
+
+#### 
+### Internal/Processed Data Sources (Not completed)
+
+#### 
+#### 
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
+- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
+
+
+#### Authentication Setup
+
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
+```r
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+```
+
+## Methodology Overview
+
+#### Create New Labour Supply Distribution(s)
+
+##### Initial Data Checks
+
+- check inital base weights by year, this check is to ensure the year weights have been applied according to the desired weighting
+strategy
+- recode invalid NOC codes: 
+in 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999
+in 2021 there were some invalid nocs: 4122X were set to 99999
+
+##### Recode New Labour Supply
+
+To ensure robust statistical weighting and valid group comparisons, the methodology includes a validation step for respondents initially categorized as "New Labour Supply 2" (NLS-2).
+
+The demographic and educational profile (specifically the combination of geographic region, age group, institution, and credential) of each NLS-2 respondent is compared against the population of "New Labour Supply 1" (NLS-1) respondents.
+
+If an NLS-2 respondent belongs to a specific cohort that is completely unrepresented in the NLS-1 baseline group, their classification is re-assigned to NLS-3. This adjustment ensures that NLS-2 records are only retained in cases where a corresponding NLS-1 cohort exists, preventing orphaned records from distorting subsequent weighting or labor supply distribution calculations.
+
+##### Base Weights
+
+A baseline population is established by isolating a valid subset of survey respondents from the master cohort dataset. Respondents are retained only if they meet all of the following conditions:
+
+- They possess a valid New Labour Supply classification (levels 0 through 3).
+- They have a positive statistical weight (greater than 0), ensuring only active and mathematically valid records contribute to the model.
+- Their age group classification is known and not missing.
+- Their graduation status is confirmed as either 1 or 3 (denoting specific relevant graduate or completion categories).
+
+The main dataset (t_cohorts_recoded) is then stratified by key demographic and educational dimensions (survey, insititution code, age_group, cip code, credential, grad status and ttrain). A base count (BASE) is generated for each individual student record within these strata. This serves as the foundational, unweighted baseline dataset upon which subsequent labour supply distributions and weight adjustment factors are calculated.
+
+##### Calculation and Normalization of New Labour Supply (NLS) Weights
+
+A multi-step weighting and normalization procedure is undertaken which adjusts both for survey non-response and the effect of pooling multiple survey years into a single analytic dataset.
+
+The valid baseline population is first stratified into specific cohorts based on survey type, year, institution, age group, graduation status, training type, and credential. Within each yearly stratum, a probability weight (WEIGHT_PROB) is calculated as the ratio of the total cohort count to the number of geographically valid respondents. This weight is multiplied by an existing year-specific base weight to create an intermediate weight, effectively scaling the respondents to represent the full target population for that specific year and stratum.
+
+Because the model aggregates pooled data across multiple survey years, simply applying the yearly weights would result in inflated population estimates. To correct for this, the total unweighted baseline population (BASE) and the total sum of the previously weighted populations (WEIGHTED) are aggregated across all years for each demographic and educational profile (ignoring the specific survey year).
+
+An adjustment factor (WEIGHT_ADJ_FAC) is calculated for each profile by dividing its true unweighted base population by its inflated multi-year weighted total (i.e., BASE / WEIGHTED).
+
+The yearly intermediate weights are multiplied by this overall adjustment factor to produce the final New Labour Supply weight (WEIGHT_NLS). This normalization ensures that the final respondent weights properly adjust for non-response while safely scaling the multi-year pooled data back down to the true population size of the full cohort. These normalized weights are then merged back into the master dataset for all respondents with valid geographic data.
+
+##### New Labour Supply Weighted Counts - Foundational Weighted Aggregation
+
+The previously calculated normalized weights (WEIGHT_NLS) are applied to the valid respondent population. Respondents are strictly filtered for valid geographic regions, age groups, graduation statuses, and NLS classifications. The data is then grouped into highly specific cohorts (by survey year, institution, credential, region, age, and training type). Within each cohort, the raw respondent count is multiplied by the new labour supply weight, producing an absolute weighted population count (WEIGHTED). This scales the survey sample up to represent the full target population.
+
+##### New Labour Supply Weighted Counts -  Sub-Distributions
+
+To support varying levels of reporting and analysis, several distinct summary tables are derived from the foundational weighted dataset based on different inclusion criteria and grouping hierarchies. This establishes the absolute weighted numeric counts necessary to calculate the final regional and demographic percentage distributions of the emerging workforce.
+
+- Active/Non-active Labour: The population is divided into groupings isolating active NLS participants (levels 1, 2, 3) from those who are not part of the active new labour supply (level 0). Grand totals across all levels are also calculated to serve as denominators for eventual percentage derivations. 
+- CIP Level: Distributions are calculated at both the detailed 4-digit occupational/classification level and a rolled-up 2-digit level.
+- TTRAIN: Parallel tables are generated that either retain the (TTRAIN) dimension or exclude it entirely, allowing for aggregate reporting where training type is not a necessary delineator.
+
+##### New Labour Supply Weighted Proportions
+
+This segment of the methodology calculates the final regional and demographic proportions (percentages) for the New Labour Supply (NLS). It achieves this by combining the absolute weighted counts (numerators) from specific NLS subsets with their corresponding overall cohort totals (denominators) created in the previous step.
+
+Proportional calculations are repeated across multiple layers of aggregation to support different reporting needs:
+- Active/Non-active Labour: The population is divided into groupings isolating active NLS participants (levels 1, 2, 3) from those who are not part of the active new labour supply (level 0). Grand totals across all levels are also calculated to serve as denominators for eventual percentage derivations. 
+- CIP Level: Distributions are calculated at both the detailed 4-digit occupational/classification level and a rolled-up 2-digit level.
+- TTRAIN: Parallel tables are generated that either retain the (TTRAIN) dimension or exclude it entirely, allowing for aggregate reporting where training type is not a necessary delineator.
+
+
+##### Final New Labour Supply Distributions
+
+Previously calculated distributions are consolidated into singular, unified distribution tables ready for downstream analysis or reporting.
+
+- Proportional data for active labour supply participants (levels 1, 2, and 3) is appended to the data for non-participants (level 0). This creates a complete view of the survey cohort within a single dataset.
+- A universal static identifier (Survey = "Student Outcomes") is appended to all records to maintain data lineage when these outputs are eventually combined with other data sources (such as Statistics Canada data). Calculated percentages are uniformly renamed to New_Labour_Supply, and a strict column selection is applied to ensure structural consistency.
+- Multiple distinct output distributions are created. One primary distribution structure retains the "Type of Training" specification (TTRAIN), while a secondary distribution excludes the TTRAIN dimension.
+
+#### Data Dictionary
+
+## Key Output Tables
+
+##### Table: Labour Supply Distribution
+
+<ul class="list-variable-names">
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
+<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
+
+## Suggested Improvements
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
