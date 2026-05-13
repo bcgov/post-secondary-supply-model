@@ -775,7 +775,7 @@ dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_lab
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-
+# ----- 07 Series
 # dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
 # dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
 # dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D)
@@ -931,88 +931,136 @@ rm(
 )
 
 # ---- Final Distributions ----
-nls_def <- c(
-  Survey = "nvarchar(50)",
-  PSSM_Credential = "nvarchar(50)",
-  PSSM_CRED = "nvarchar(50)",
-  LCP4_CD = "nvarchar(50)",
-  TTRAIN = "nvarchar(50)",
-  LCIP4_CRED = "nvarchar(50)",
-  LCIP2_CRED = "nvarchar(50)",
-  Current_Region_PSSM_Code_Rollup = "integer",
-  Age_Group_Rollup = "integer",
-  Count = "float",
-  Total = "float",
-  New_Labour_Supply = "float"
-)
 
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"'))
-  )
-) {
-  dbCreateTable(decimal_con, "Labour_Supply_Distribution", nls_def)
-}
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"'))
-  )
-) {
-  dbCreateTable(decimal_con, "Labour_Supply_Distribution_No_TT", nls_def)
-}
-
-dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
+# nls_def <- c(
+#   Survey = "nvarchar(50)",
+#   PSSM_Credential = "nvarchar(50)",
+#   PSSM_CRED = "nvarchar(50)",
+#   LCP4_CD = "nvarchar(50)",
+#   TTRAIN = "nvarchar(50)",
+#   LCIP4_CRED = "nvarchar(50)",
+#   LCIP2_CRED = "nvarchar(50)",
+#   Current_Region_PSSM_Code_Rollup = "integer",
+#   Age_Group_Rollup = "integer",
+#   Count = "float",
+#   Total = "float",
+#   New_Labour_Supply = "float"
+# )
+#
+# if (
+#   !dbExistsTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"'))
+#   )
+# ) {
+#   dbCreateTable(decimal_con, "Labour_Supply_Distribution", nls_def)
+# }
+# if (
+#   !dbExistsTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"'))
+#   )
+# ) {
+#   dbCreateTable(decimal_con, "Labour_Supply_Distribution_No_TT", nls_def)
+# }
+#
+# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
+# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
 # dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
 # dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_QI)
-dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
-dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
-dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
 
-nls_def <- c(
-  Survey = "nvarchar(50)",
-  PSSM_Credential = "nvarchar(50)",
-  PSSM_CRED = "nvarchar(50)",
-  LCP2_CD = "nvarchar(50)",
-  TTRAIN = "nvarchar(50)",
-  LCP2_CRED = "nvarchar(50)",
-  Current_Region_PSSM_Code_Rollup = "integer",
-  Age_Group_Rollup = "integer",
-  Count = "float",
-  Total = "float",
-  New_Labour_Supply = "float"
-)
+# dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
+# dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
 
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"'))
+labour_supply_distribution <- bind_rows(
+  dacso_q007a_weighted_new_labour_supply %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC),
+  dacso_q007a_weighted_new_labour_supply_0 %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC)
+) %>%
+  select(
+    Survey,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply
   )
-) {
-  dbCreateTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')),
-    nls_def
-  )
-}
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"'))
-  )
-) {
-  dbCreateTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')),
-    nls_def
-  )
-}
 
-dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)
-dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
+# dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
+labour_supply_distribution_no_tt <- bind_rows(
+  dacso_q007a_weighted_new_labour_supply_no_tt %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC),
+  dacso_q007a_weighted_new_labour_supply_0_no_tt %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC)
+) %>%
+  select(
+    Survey,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply
+  )
+
+
+# nls_def <- c(
+#   Survey = "nvarchar(50)",
+#   PSSM_Credential = "nvarchar(50)",
+#   PSSM_CRED = "nvarchar(50)",
+#   LCP2_CD = "nvarchar(50)",
+#   TTRAIN = "nvarchar(50)",
+#   LCP2_CRED = "nvarchar(50)",
+#   Current_Region_PSSM_Code_Rollup = "integer",
+#   Age_Group_Rollup = "integer",
+#   Count = "float",
+#   Total = "float",
+#   New_Labour_Supply = "float"
+# )
+#
+# if (
+#   !dbExistsTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"'))
+#   )
+# ) {
+#   dbCreateTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')),
+#     nls_def
+#   )
+# }
+# if (
+#   !dbExistsTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"'))
+#   )
+# ) {
+#   dbCreateTable(
+#     decimal_con,
+#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')),
+#     nls_def
+#   )
+# }
+#
+# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)
+# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT)
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI)
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_QI)
 dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D)
