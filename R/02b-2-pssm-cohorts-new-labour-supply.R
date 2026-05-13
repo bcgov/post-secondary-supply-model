@@ -19,8 +19,7 @@
 #   Weights each year up to the cohort (Prob_Weight) and apply year weights
 #     (1,2,3,4,5) and adjust to the cohort.
 #   Create weights for new labour supply (Weight_NLS)
-#   Create weights for occupational distribution (Weight_OCC).
-#
+
 # Includes records with a labour force status for those aged 17 to 64,
 # Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
 
@@ -31,32 +30,39 @@
 # FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
 # FIXME Missing Non-Student Outcomes and PDEG at this point.  To be brought in after
 
+# -------------------------- Libraries and Global Variables  ---------------------
+
 library(tidyverse)
 library(config)
 library(glue)
 library(assertthat)
 
-# ---- Configure LAN and file paths ----
+
+years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
+
+# -------------------------- DEVELOPMENT ONLY -------------------------------------
+# use this section for development and checking against the SQL versions
+# remove whatever we don't use when done, depending on final design decisions
+
+library(RODBC)
+library(DBI)
+
 lan <- config::get("lan")
+my_schema <- config::get("myschema")
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
-# library(RODBC)
-# library(DBI)
-# my_schema <- config::get("myschema")
-# db_config <- config::get("decimal")
-# decimal_con <- dbConnect(
-#   odbc::odbc(),
-#   Driver = db_config$driver,
-#   Server = db_config$server,
-#   Database = db_config$database,
-#   Trusted_Connection = "True"
-# )
+t_cohorts_recoded <- tibble(dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
+))
 
-# Load necessary libraries
-# t_cohorts_recoded <- tibble(dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
-# ))
-#
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
@@ -70,6 +76,7 @@ t_current_region_pssm_codes <-
     col_types = cols(.default = col_guess())
   ) %>%
   janitor::clean_names(case = "all_caps")
+
 t_current_region_pssm_rollup_codes <-
   readr::read_csv(
     glue::glue(
@@ -78,6 +85,7 @@ t_current_region_pssm_rollup_codes <-
     col_types = cols(.default = col_guess())
   ) %>%
   janitor::clean_names(case = "all_caps")
+
 t_noc_broad_categories <-
   readr::read_csv(
     glue::glue(
@@ -87,7 +95,8 @@ t_noc_broad_categories <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-# List of required tables
+# -------------------------- Required Tables -----------------------------------------
+
 required_tables <- c(
   "t_cohorts_recoded",
   "t_current_region_pssm_rollup_codes",
@@ -108,10 +117,7 @@ assert_that(
   )
 )
 
-## set years
-years <- c(2019, 2020, 2021, 2022, 2023)
-
-# ------ set column names and table names ------
+# --------------------------  Standardize Names -----------------------------
 t_cohorts_recoded <- t_cohorts_recoded |>
   rename_with(toupper)
 t_current_region_pssm_codes <- t_current_region_pssm_codes |>
@@ -123,17 +129,19 @@ t_noc_broad_categories <- t_noc_broad_categories |>
 labour_supply_distribution_stat_can <- labour_supply_distribution_stat_can |>
   rename_with(toupper)
 
-# -------------------------- initial data checks ---------------------
 
+# -------------------------- Initial Data Checks ---------------------
 # ---- base weights
-# dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights) # Check base weights
+# DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights
 t_cohorts_recoded |>
   count(SURVEY, SURVEY_YEAR, WEIGHT) |>
   select(-n)
 
 # ---- invalid noc codes
-# dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
-# dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
+# in 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999
+# in 2021 there were some invalid nocs: 4122X were set to 99999
+# DACSO_Q99A_STQUI_ID
+# DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid
 t_cohorts_recoded |>
   left_join(
     t_noc_broad_categories,
@@ -154,21 +162,21 @@ t_cohorts_recoded |>
   ) |>
   distinct(STQU_ID_ONLY, STQU_ID, SURVEY, SURVEY_YEAR, NOC_CD, UNIT_GROUP_CODE)
 
-# dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding)
-# dbExecute(decimal_con, DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding)
-
-# No invalid nocs in dacso survey data. If there were, we would need to account for them.
-# in 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999
-# in 2021 there were some invalid nocs: 4122X were set to 99999
+# These two queries weren't done last year as we are missing the tables.
+# DACSO_Q005_DACSO_Data_Part_1b7_Update_After_Recoding
+# DACSO_Q005_DACSO_Data_Part_1b8_Update_After_Recoding
+# details: NOC codes from t_bgs_data_final and t_dacso_data underwent a recoding or
+# imputing process.  Todo: check documentation for details and consider how/if
+# to implement.
 
 t_cohorts_recoded <- t_cohorts_recoded |>
   mutate(NOC_CD = if_else(NOC_CD == "4122X", "99999", NOC_CD))
 
-# ---- recode new labour supply for those with an NLS-2 record and no NLS1
-
-# dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS1)
-# dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2)
-# dbExecute(decimal_con, DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode)
+# -------------------------- Recode New Labour Supply ----------------------
+# for records with an NLS-2 record and no NLS1, set to 3
+# DACSO_Q005_DACSO_DATA_Part_1c_NLS1
+# DACSO_Q005_DACSO_DATA_Part_1c_NLS2
+# DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode
 dacso_q005_dacso_data_part_1c_nls1 <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   inner_join(
@@ -217,7 +225,6 @@ dacso_q005_dacso_data_part_1c_nls2 <- t_cohorts_recoded %>%
     STQU_ID
   )
 
-# DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode
 # Identify STQU_IDs where no match exists in NLS1 based on the specified columns
 target_ids <- dacso_q005_dacso_data_part_1c_nls2 %>%
   left_join(
@@ -244,8 +251,8 @@ rm(
   target_ids
 )
 
-# count the number of records in the cohort for the years included
-# dbGetQuery(decimal_con, DACSO_Q005_Z_Cohort_Resp_by_Region)
+# check the number of records in the cohort for the years included
+# DACSO_Q005_Z_Cohort_Resp_by_Region
 t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   filter(
@@ -263,8 +270,9 @@ t_cohorts_recoded %>%
   summarise(N = n(), .groups = "drop") %>%
   arrange(SURVEY, SURVEY_YEAR, CURRENT_REGION_PSSM_CODE)
 
-# ------ create base weights for the full cohort
-# dbExecute(decimal_con, DACSO_Q005_Z01_Base_NLS)
+# -------------------------- Create Base Weights --------------------------
+# this is for the full cohort
+# DACSO_Q005_Z01_Base_NLS
 z01_base_nls <- t_cohorts_recoded %>%
   filter(
     NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3),
@@ -285,13 +293,18 @@ z01_base_nls <- t_cohorts_recoded %>%
   select(SURVEY, INST_CD, AGE_GROUP_ROLLUP, TTRAIN, LCIP4_CRED, BASE, STQU_ID)
 
 # not used but consider investigating (see documentation)
-#dbExecute(decimal_con, DACSO_Q005_Z02a_Base)
-#dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents)
-#dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Region_9999)
-#dbExecute(decimal_con, DACSO_Q005_Z02b_Respondents_Union)
+#DACSO_Q005_Z02a_Base
+#DACSO_Q005_Z02b_Respondents
+#DACSO_Q005_Z02b_Respondents_Region_9999
+#DACSO_Q005_Z02b_Respondents_Union
 
-# ------ create nls weights
-#dbExecute(decimal_con, DACSO_Q005_Z02c_Weight_tmp)
+# -------------------------- Create NLS Weights --------------------------
+# DACSO_Q005_Z02c_Weight_tmp
+# DACSO_Q005_Z02c_Weight
+# DACSO_Q005_Z03_Weight_Total
+# DACSO_Q005_Z04_Weight_Adj_Fac
+# DACSO_Q005_Z05_Weight_NLS
+
 z02c_weight_tmp <- t_cohorts_recoded %>%
   filter(
     NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3),
@@ -331,7 +344,6 @@ z02c_weight_tmp <- t_cohorts_recoded %>%
     WEIGHT_YEAR
   )
 
-#dbExecute(decimal_con, DACSO_Q005_Z02c_Weight)
 z02c_weight <- z02c_weight_tmp %>%
   mutate(
     WEIGHT_PROB = if_else(
@@ -343,7 +355,6 @@ z02c_weight <- z02c_weight_tmp %>%
     WEIGHTED = RESPONDENTS * WEIGHT_PROB * WEIGHT_YEAR
   )
 
-#dbExecute(decimal_con, DACSO_Q005_Z03_Weight_Total)
 z03_weight_total <- z02c_weight %>%
   group_by(
     SURVEY,
@@ -359,11 +370,9 @@ z03_weight_total <- z02c_weight %>%
     .groups = "drop"
   )
 
-# dbExecute(decimal_con, DACSO_Q005_Z04_Weight_Adj_Fac)
 z04_weight_adj_fac <- z03_weight_total %>%
   mutate(WEIGHT_ADJ_FAC = if_else(WEIGHTED == 0, 0, BASE / WEIGHTED))
 
-# dbExecute(decimal_con, DACSO_Q005_Z05_Weight_NLS)
 tmp_tbl_weights_nls <- z02c_weight %>%
   inner_join(
     z04_weight_adj_fac |>
@@ -396,10 +405,11 @@ tmp_tbl_weights_nls <- z02c_weight %>%
     WEIGHT_NLS
   )
 
-# null Weight_NLS field and update (if you’ve been messing with iterations)
-# dbExecute(decimal_con, DACSO_Q005_Z08_Weight_NLS_Update)
-# dbExecute(decimal_con, DACSO_Q005_Z07_Weight_NLS_Null)
-
+# ---- null Weight_NLS field and update
+# Mainly if working in SQL but maybe needed for QI run depending on how we handle the QI weights.
+# Todo: check documentation and consider how/if to implement.
+# DACSO_Q005_Z08_Weight_NLS_Update
+# DACSO_Q005_Z07_Weight_NLS_Null
 t_cohorts_recoded <- t_cohorts_recoded |> mutate(WEIGHT_NLS = NA_real_)
 
 t_cohorts_recoded <- t_cohorts_recoded %>%
@@ -433,8 +443,9 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
   ) %>%
   select(-NEW_VAL)
 
-# ------ check weights and clear interim tables
-# dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights)
+# ----- check weights
+# DACSO_Q005_Z09_Check_Weights
+# DACSO_Q005_Z09_Check_Weights_No_Weight_CIP
 z09_check_weights <- t_cohorts_recoded %>%
   inner_join(z01_base_nls |> select(STQU_ID, BASE), by = "STQU_ID") %>%
   group_by(
@@ -457,7 +468,6 @@ z09_check_weights <- t_cohorts_recoded %>%
   ) %>%
   arrange(SURVEY_YEAR, WEIGHT_NLS)
 
-# dbGetQuery(decimal_con, DACSO_Q005_Z09_Check_Weights_No_Weight_CIP)
 z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
   filter(
     NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3),
@@ -478,6 +488,7 @@ z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
   summarise(BASE = n(), .groups = "drop") %>%
   select(SURVEY, INST_CD, AGE_GROUP_ROLLUP, TTRAIN, LCIP4_CRED, BASE)
 
+# ---- clear environment
 rm(
   z01_base_nls,
   z02c_weight_tmp,
@@ -487,9 +498,9 @@ rm(
   tmp_tbl_weights_nls
 )
 
-# -------  create new weighted labour supply distributions
+# -------------------------- Weighted New Labour Supply --------------------------
 # apply nls weights to group totals
-# dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
+# DACSO_Q006a_Weight_New_Labour_Supply
 dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   inner_join(
@@ -539,20 +550,21 @@ dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
     WEIGHTED
   )
 
-# calculate weighted new labor supply - various distributions
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_No_TT)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT)
+# -------------------------- Weighted Counts - NLS Distributions --------------------------
+# calculate weighted counts of new labor supply - various distributions
 # DACSO_Q006b_Weighted_New_Labour_Supply
+# DACSO_Q006b_Weighted_New_Labour_Supply_0
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT
+# DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT
+# DACSO_Q006b_Weighted_New_Labour_Supply_2D
+# DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT
+# DACSO_Q006b_Weighted_New_Labour_Supply_No_TT
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT
+# DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT
+
 dacso_q006b_weighted_new_labour_supply <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
   group_by(
@@ -572,7 +584,6 @@ dacso_q006b_weighted_new_labour_supply <- dacso_q006a_weight_new_labour_supply %
   ) |>
   rename(COUNT = NEW_COUNT)
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_0
 dacso_q006b_weighted_new_labour_supply_0 <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   group_by(
@@ -587,7 +598,6 @@ dacso_q006b_weighted_new_labour_supply_0 <- dacso_q006a_weight_new_labour_supply
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D
 dacso_q006b_weighted_new_labour_supply_0_2d <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   group_by(
@@ -601,7 +611,6 @@ dacso_q006b_weighted_new_labour_supply_0_2d <- dacso_q006a_weight_new_labour_sup
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_0_2D_No_TT
 dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   mutate(
@@ -623,7 +632,6 @@ dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006a_weight_new_labo
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_0_No_TT
 dacso_q006b_weighted_new_labour_supply_0_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   mutate(
@@ -651,7 +659,6 @@ dacso_q006b_weighted_new_labour_supply_0_no_tt <- dacso_q006a_weight_new_labour_
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_2D
 dacso_q006b_weighted_new_labour_supply_2d <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
   group_by(
@@ -665,7 +672,6 @@ dacso_q006b_weighted_new_labour_supply_2d <- dacso_q006a_weight_new_labour_suppl
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_2D_No_TT
 dacso_q006b_weighted_new_labour_supply_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
   mutate(
@@ -687,7 +693,6 @@ dacso_q006b_weighted_new_labour_supply_2d_no_tt <- dacso_q006a_weight_new_labour
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_No_TT
 dacso_q006b_weighted_new_labour_supply_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
   mutate(
@@ -720,7 +725,6 @@ dacso_q006b_weighted_new_labour_supply_no_tt <- dacso_q006a_weight_new_labour_su
   ) |>
   rename(COUNT = NEW_COUNT)
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_Total
 dacso_q006b_weighted_new_labour_supply_total <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   group_by(
@@ -734,7 +738,6 @@ dacso_q006b_weighted_new_labour_supply_total <- dacso_q006a_weight_new_labour_su
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D
 dacso_q006b_weighted_new_labour_supply_total_2d <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   group_by(
@@ -747,7 +750,6 @@ dacso_q006b_weighted_new_labour_supply_total_2d <- dacso_q006a_weight_new_labour
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT
 dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   mutate(
@@ -762,7 +764,6 @@ dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- dacso_q006a_weight_new_
   group_by(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP_ROLLUP, LCP2_CD, LCP2_CRED) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT
 dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   mutate(
@@ -789,17 +790,17 @@ dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_lab
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-# ----- 07 Series
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q007a_Weighted_New_Labour_Supply_No_TT)
-
+# -------------------------- Weighted Proportions - NLS Distributions --------------------------
+# calculate weighted proportions/percentages of new labor supply - various distributions
 # DACSO_Q007a_Weighted_New_Labour_Supply
+# DACSO_Q007a_Weighted_New_Labour_Supply_0
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT
+# DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT
+# DACSO_Q007a_Weighted_New_Labour_Supply_2D
+# DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT
+# DACSO_Q007a_Weighted_New_Labour_Supply_No_TT
+
 dacso_q007a_weighted_new_labour_supply <- dacso_q006b_weighted_new_labour_supply_total %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply %>%
@@ -815,7 +816,6 @@ dacso_q007a_weighted_new_labour_supply <- dacso_q006b_weighted_new_labour_supply
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
   mutate(PERC = COUNT / TOTAL)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_0
 dacso_q007a_weighted_new_labour_supply_0 <- dacso_q006b_weighted_new_labour_supply_total %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_0 %>%
@@ -831,8 +831,6 @@ dacso_q007a_weighted_new_labour_supply_0 <- dacso_q006b_weighted_new_labour_supp
   mutate(PERC = 1 - (COUNT / TOTAL)) %>%
   filter(COUNT > 0, PERC == 0)
 
-
-# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D
 dacso_q007a_weighted_new_labour_supply_0_2d <- dacso_q006b_weighted_new_labour_supply_total_2d %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_0_2d %>%
@@ -848,7 +846,6 @@ dacso_q007a_weighted_new_labour_supply_0_2d <- dacso_q006b_weighted_new_labour_s
   mutate(PERC = 1 - (COUNT / TOTAL)) %>%
   filter(COUNT > 0, PERC == 0)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT
 dacso_q007a_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006b_weighted_new_labour_supply_total_2d_no_tt %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_0_2d_no_tt %>%
@@ -864,7 +861,6 @@ dacso_q007a_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006b_weighted_new_la
   mutate(PERC = 1 - (COUNT / TOTAL)) %>%
   filter(COUNT > 0, PERC == 0)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT
 dacso_q007a_weighted_new_labour_supply_0_no_tt <- dacso_q006b_weighted_new_labour_supply_total_no_tt %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_0_no_tt %>%
@@ -880,7 +876,6 @@ dacso_q007a_weighted_new_labour_supply_0_no_tt <- dacso_q006b_weighted_new_labou
   mutate(PERC = 1 - (COUNT / TOTAL)) %>%
   filter(COUNT > 0, PERC == 0)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_2D
 dacso_q007a_weighted_new_labour_supply_2d <- dacso_q006b_weighted_new_labour_supply_total_2d %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_2d %>%
@@ -896,7 +891,6 @@ dacso_q007a_weighted_new_labour_supply_2d <- dacso_q006b_weighted_new_labour_sup
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
   mutate(PERC = COUNT / TOTAL)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT
 dacso_q007a_weighted_new_labour_supply_2d_no_tt <- dacso_q006b_weighted_new_labour_supply_total_2d_no_tt %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_2d_no_tt %>%
@@ -912,7 +906,6 @@ dacso_q007a_weighted_new_labour_supply_2d_no_tt <- dacso_q006b_weighted_new_labo
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
   mutate(PERC = COUNT / TOTAL)
 
-# DACSO_Q007a_Weighted_New_Labour_Supply_No_TT
 dacso_q007a_weighted_new_labour_supply_no_tt <- dacso_q006b_weighted_new_labour_supply_total_no_tt %>%
   left_join(
     dacso_q006b_weighted_new_labour_supply_no_tt %>%
@@ -928,6 +921,7 @@ dacso_q007a_weighted_new_labour_supply_no_tt <- dacso_q006b_weighted_new_labour_
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
   mutate(PERC = COUNT / TOTAL)
 
+# ----- clear environment
 rm(
   dacso_q006a_weight_new_labour_supply,
   dacso_q006b_weighted_new_labour_supply,
@@ -944,14 +938,16 @@ rm(
   dacso_q006b_weighted_new_labour_supply_total_no_tt
 )
 
-# ---- Create Final Distributions ----
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
-# dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_QI)
+# -------------------------- Final NLS Distributions --------------------------
+# DACSO_Q007b0_Delete_New_Labour_Supply
+# DACSO_Q007b0_Delete_New_Labour_Supply_No_TT
+# DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI
+# DACSO_Q007b0_Delete_New_Labour_Supply_QI
+# DACSO_Q007b1_Append_New_Labour_Supply
+# DACSO_Q007b2_Append_New_Labour_Supply_0
+# DACSO_Q007b1_Append_New_Labour_Supply_No_TT
+# DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT
 
-# dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
-# dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
 labour_supply_distribution <- bind_rows(
   dacso_q007a_weighted_new_labour_supply %>%
     mutate(Survey = "Student Outcomes") %>%
@@ -975,8 +971,6 @@ labour_supply_distribution <- bind_rows(
     New_Labour_Supply
   )
 
-# dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply_No_TT)
-# dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0_No_TT)
 labour_supply_distribution_no_tt <- bind_rows(
   dacso_q007a_weighted_new_labour_supply_no_tt %>%
     mutate(Survey = "Student Outcomes") %>%
@@ -999,15 +993,19 @@ labour_supply_distribution_no_tt <- bind_rows(
     New_Labour_Supply
   )
 
-# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)
-# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI)
-# dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_QI)
-# dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D)
-# dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT)
-# dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D)
-# dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT)
+# ----- not implemented
+# these should make final distributions similar to above, but
+# todo: describe these
+# DACSO_Q007c0_Delete_New_Labour_Supply_2D
+# DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT
+# DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI
+# DACSO_Q007c0_Delete_New_Labour_Supply_2D_QI
+# DACSO_Q007c1_Append_New_Labour_Supply_2D
+# DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT
+# DACSO_Q007c2_Append_New_Labour_Supply_0_2D
+# DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT
 
+# -------------------------   Include StatCan Data -------------------------
 # there'e no TTRAIN variable in the statcan data, this should coerce NA in that column, though.
 labour_supply_distribution <- labour_supply_distribution %>%
   bind_rows(
