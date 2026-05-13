@@ -57,20 +57,35 @@ lan <- config::get("lan")
 #   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
 # ))
 #
-# labour_supply_distribution_stat_can <- tibble(dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-# ))
+labour_supply_distribution_stat_can <- tibble(dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
+))
 
-# t_current_region_pssm_codes <-
-#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"), col_types = cols(.default = col_guess())) %>%
-#   janitor::clean_names(case = "all_caps")
-# t_current_region_pssm_rollup_codes <-
-#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"), col_types = cols(.default = col_guess())) %>%
-#   janitor::clean_names(case = "all_caps")
-# t_noc_broad_categories <-
-#   readr::read_csv(glue::glue("{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"), col_types = cols(.default = col_guess())) %>%
-#   janitor::clean_names(case = "all_caps")
+t_current_region_pssm_codes <-
+  readr::read_csv(
+    glue::glue(
+      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"
+    ),
+    col_types = cols(.default = col_guess())
+  ) %>%
+  janitor::clean_names(case = "all_caps")
+t_current_region_pssm_rollup_codes <-
+  readr::read_csv(
+    glue::glue(
+      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"
+    ),
+    col_types = cols(.default = col_guess())
+  ) %>%
+  janitor::clean_names(case = "all_caps")
+t_noc_broad_categories <-
+  readr::read_csv(
+    glue::glue(
+      "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
+    ),
+    col_types = cols(.default = col_guess())
+  ) %>%
+  janitor::clean_names(case = "all_caps")
 
 # List of required tables
 required_tables <- c(
@@ -119,7 +134,6 @@ t_cohorts_recoded |>
 # ---- invalid noc codes
 # dbExecute(decimal_con, DACSO_Q99A_STQUI_ID)
 # dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid)
-
 t_cohorts_recoded |>
   left_join(
     t_noc_broad_categories,
@@ -473,7 +487,7 @@ rm(
   tmp_tbl_weights_nls
 )
 
-
+# -------  create new weighted labour supply distributions
 # apply nls weights to group totals
 # dbExecute(decimal_con, DACSO_Q006a_Weight_New_Labour_Supply)
 dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
@@ -930,40 +944,7 @@ rm(
   dacso_q006b_weighted_new_labour_supply_total_no_tt
 )
 
-# ---- Final Distributions ----
-
-# nls_def <- c(
-#   Survey = "nvarchar(50)",
-#   PSSM_Credential = "nvarchar(50)",
-#   PSSM_CRED = "nvarchar(50)",
-#   LCP4_CD = "nvarchar(50)",
-#   TTRAIN = "nvarchar(50)",
-#   LCIP4_CRED = "nvarchar(50)",
-#   LCIP2_CRED = "nvarchar(50)",
-#   Current_Region_PSSM_Code_Rollup = "integer",
-#   Age_Group_Rollup = "integer",
-#   Count = "float",
-#   Total = "float",
-#   New_Labour_Supply = "float"
-# )
-#
-# if (
-#   !dbExistsTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"'))
-#   )
-# ) {
-#   dbCreateTable(decimal_con, "Labour_Supply_Distribution", nls_def)
-# }
-# if (
-#   !dbExistsTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"'))
-#   )
-# ) {
-#   dbCreateTable(decimal_con, "Labour_Supply_Distribution_No_TT", nls_def)
-# }
-#
+# ---- Create Final Distributions ----
 # dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply)
 # dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT)
 # dbExecute(decimal_con, DACSO_Q007b0_Delete_New_Labour_Supply_No_TT_QI)
@@ -971,7 +952,6 @@ rm(
 
 # dbExecute(decimal_con, DACSO_Q007b1_Append_New_Labour_Supply)
 # dbExecute(decimal_con, DACSO_Q007b2_Append_New_Labour_Supply_0)
-
 labour_supply_distribution <- bind_rows(
   dacso_q007a_weighted_new_labour_supply %>%
     mutate(Survey = "Student Outcomes") %>%
@@ -1019,129 +999,42 @@ labour_supply_distribution_no_tt <- bind_rows(
     New_Labour_Supply
   )
 
-
-# nls_def <- c(
-#   Survey = "nvarchar(50)",
-#   PSSM_Credential = "nvarchar(50)",
-#   PSSM_CRED = "nvarchar(50)",
-#   LCP2_CD = "nvarchar(50)",
-#   TTRAIN = "nvarchar(50)",
-#   LCP2_CRED = "nvarchar(50)",
-#   Current_Region_PSSM_Code_Rollup = "integer",
-#   Age_Group_Rollup = "integer",
-#   Count = "float",
-#   Total = "float",
-#   New_Labour_Supply = "float"
-# )
-#
-# if (
-#   !dbExistsTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"'))
-#   )
-# ) {
-#   dbCreateTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"')),
-#     nls_def
-#   )
-# }
-# if (
-#   !dbExistsTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"'))
-#   )
-# ) {
-#   dbCreateTable(
-#     decimal_con,
-#     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"')),
-#     nls_def
-#   )
-# }
-#
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D)
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT)
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI)
 # dbExecute(decimal_con, DACSO_Q007c0_Delete_New_Labour_Supply_2D_QI)
-dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D)
-dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT)
-dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D)
-dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D)
+# dbExecute(decimal_con, DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT)
+# dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D)
+# dbExecute(decimal_con, DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT)
 
-dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_2D")
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_2D_No_TT"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_0_No_TT"
-)
-dbExecute(decimal_con, "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D")
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_2D_No_TT"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q007a_Weighted_New_Labour_Supply_No_TT"
-)
-
-dbExecute(
-  decimal_con,
-  "DELETE 
-                        FROM Labour_Supply_Distribution
-                        WHERE (((Labour_Supply_Distribution.Survey)='2021 Census PSSM 2023-2024'));"
-)
-
-# uncomment if running for the first time
-# dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD TTRAIN NVARCHAR(50)")
-# dbExecute(decimal_con, "ALTER TABLE Labour_Supply_Distribution_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
-dbExecute(
-  decimal_con,
-  "INSERT INTO Labour_Supply_Distribution (
-	   [SURVEY]
-      ,[PSSM_CREDENTIAL]
-      ,[PSSM_CRED]
-      ,[LCP4_CD]
-      ,[LCIP4_CRED]
-      ,[CURRENT_REGION_PSSM_CODE_ROLLUP]
-      ,[AGE_GROUP_ROLLUP]
-      ,[COUNT]
-      ,[TOTAL]
-      ,[NEW_LABOUR_SUPPLY])
-SELECT '2021 Census PSSM 2023-2024' as Survey
-      ,[PSSM_CREDENTIAL]
-      ,[PSSM_CRED]
-      ,[LCP4_CD]
-      ,[LCIP4_CRED]
-      ,[CURRENT_REGION_PSSM_CODE_ROLLUP]
-      ,[AGE_GROUP_ROLLUP]
-      ,[COUNT]
-      ,[TOTAL]
-      ,[NEW_LABOUR_SUPPLY] FROM Labour_Supply_Distribution_Stat_Can"
-)
-
+# there'e no TTRAIN variable in the statcan data, this should coerce NA in that column, though.
+labour_supply_distribution <- labour_supply_distribution %>%
+  bind_rows(
+    labour_supply_distribution_stat_can %>%
+      transmute(
+        Survey = SURVEY,
+        PSSM_CREDENTIAL,
+        PSSM_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        AGE_GROUP_ROLLUP,
+        LCP4_CD,
+        LCIP4_CRED,
+        LCIP2_CRED,
+        COUNT,
+        TOTAL,
+        New_Labour_Supply = NEW_LABOUR_SUPPLY
+      )
+  )
 
 # ---- Clean Up ----
 
 # ---- Keep ----
-dbExistsTable(decimal_con, "Labour_Supply_Distribution")
-dbExistsTable(decimal_con, "Labour_Supply_Distribution_No_TT")
-dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2")
-dbExistsTable(decimal_con, "Labour_Supply_Distribution_LCP2_No_TT")
-dbExistsTable(decimal_con, "tmp_tbl_Weights_NLS")
+tables_to_keep <- c(
+  "labour_supply_distribution",
+  "labour_supply_distribution_no_tt",
+  "labour_supply_distribution_lcp2",
+  "labour_supply_distribution_lcp2_no_tt"
+)
 
-
-# Make sure in the check weights script, they are all as expected for non QI (e.g., 1,2,3,4,5). If different, then either skipped the right _QI in 02b-1, or in load-appso.
-DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights <- "
-SELECT t_cohorts_recoded.survey,
-       t_cohorts_recoded.survey_year,
-       t_cohorts_recoded.weight
-FROM   t_cohorts_recoded
-GROUP  BY t_cohorts_recoded.survey,
-          t_cohorts_recoded.survey_year,
-          t_cohorts_recoded.weight;"
-dbGetQuery(decimal_con, DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights)
+rm(list = setdiff(ls(), tables_to_keep))
