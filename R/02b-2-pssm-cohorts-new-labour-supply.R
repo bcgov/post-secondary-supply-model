@@ -47,54 +47,54 @@ years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
 library(RODBC)
 library(DBI)
 
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
-t_cohorts_recoded <- tibble(dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
-))
-
-labour_supply_distribution_stat_can <- tibble(dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-))
-
-t_current_region_pssm_codes <-
-  readr::read_csv(
-    glue::glue(
-      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"
-    ),
-    col_types = cols(.default = col_guess())
-  ) %>%
-  janitor::clean_names(case = "all_caps")
-
-t_current_region_pssm_rollup_codes <-
-  readr::read_csv(
-    glue::glue(
-      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"
-    ),
-    col_types = cols(.default = col_guess())
-  ) %>%
-  janitor::clean_names(case = "all_caps")
-
-t_noc_broad_categories <-
-  readr::read_csv(
-    glue::glue(
-      "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
-    ),
-    col_types = cols(.default = col_guess())
-  ) %>%
-  janitor::clean_names(case = "all_caps")
-
+# lan <- config::get("lan")
+# my_schema <- config::get("myschema")
+# db_config <- config::get("decimal")
+# decimal_con <- dbConnect(
+#   odbc::odbc(),
+#   Driver = db_config$driver,
+#   Server = db_config$server,
+#   Database = db_config$database,
+#   Trusted_Connection = "True"
+# )
+#
+# t_cohorts_recoded <- tibble(dbReadTable(
+#   decimal_con,
+#   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
+# ))
+#
+# labour_supply_distribution_stat_can <- tibble(dbReadTable(
+#   decimal_con,
+#   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
+# ))
+#
+# t_current_region_pssm_codes <-
+#   readr::read_csv(
+#     glue::glue(
+#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"
+#     ),
+#     col_types = cols(.default = col_guess())
+#   ) %>%
+#   janitor::clean_names(case = "all_caps")
+#
+# t_current_region_pssm_rollup_codes <-
+#   readr::read_csv(
+#     glue::glue(
+#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"
+#     ),
+#     col_types = cols(.default = col_guess())
+#   ) %>%
+#   janitor::clean_names(case = "all_caps")
+#
+# t_noc_broad_categories <-
+#   readr::read_csv(
+#     glue::glue(
+#       "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
+#     ),
+#     col_types = cols(.default = col_guess())
+#   ) %>%
+#   janitor::clean_names(case = "all_caps")
+#
 # -------------------------- Required Tables -----------------------------------------
 
 required_tables <- c(
@@ -177,6 +177,7 @@ t_cohorts_recoded <- t_cohorts_recoded |>
 # DACSO_Q005_DACSO_DATA_Part_1c_NLS1
 # DACSO_Q005_DACSO_DATA_Part_1c_NLS2
 # DACSO_Q005_DACSO_DATA_Part_1c_NLS2_Recode
+
 dacso_q005_dacso_data_part_1c_nls1 <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   inner_join(
@@ -305,9 +306,11 @@ z01_base_nls <- t_cohorts_recoded %>%
 # DACSO_Q005_Z04_Weight_Adj_Fac
 # DACSO_Q005_Z05_Weight_NLS
 
-z02c_weight_tmp <- t_cohorts_recoded %>%
+# ---- count respondents and total records in each strata
+# strata are (survey, survey_year, inst_cd, age_group_rollup, grad_status, ttrain, lcip4_cred)
+tmp_tbl_weights_nls <- t_cohorts_recoded %>%
   filter(
-    NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3),
+    NEW_LABOUR_SUPPLY %in% 0:3,
     as.numeric(WEIGHT) > 0,
     !is.na(AGE_GROUP_ROLLUP),
     GRAD_STATUS %in% c('1', '3')
@@ -325,37 +328,26 @@ z02c_weight_tmp <- t_cohorts_recoded %>%
   summarise(
     COUNT = n(),
     RESPONDENTS = sum(
-      if_else(RESPONDENT == '1' & CURRENT_REGION_PSSM_CODE != -1, 1, 0),
+      RESPONDENT == '1' & CURRENT_REGION_PSSM_CODE != -1,
       na.rm = TRUE
     ),
     .groups = "drop"
-  ) %>%
-  mutate(WEIGHT_YEAR = WEIGHT) %>%
-  select(
-    SURVEY,
-    SURVEY_YEAR,
-    INST_CD,
-    AGE_GROUP_ROLLUP,
-    GRAD_STATUS,
-    TTRAIN,
-    LCIP4_CRED,
-    COUNT,
-    RESPONDENTS,
-    WEIGHT_YEAR
   )
 
-z02c_weight <- z02c_weight_tmp %>%
+
+# ---- adjusted year weights for each strata
+# strata are (survey, survey_year, inst_cd, age_group_rollup, grad_status, ttrain, lcip4_cred)
+tmp_tbl_weights_nls <- tmp_tbl_weights_nls |>
   mutate(
-    WEIGHT_PROB = if_else(
-      RESPONDENTS == 0,
-      1,
-      as.numeric(COUNT) / as.numeric(RESPONDENTS)
-    ),
+    WEIGHT_YEAR = WEIGHT,
+    WEIGHT_PROB = if_else(RESPONDENTS == 0, 1, as.numeric(COUNT) / RESPONDENTS),
     WEIGHT = WEIGHT_PROB * WEIGHT_YEAR,
-    WEIGHTED = RESPONDENTS * WEIGHT_PROB * WEIGHT_YEAR
+    WEIGHTED = RESPONDENTS * WEIGHT # This is respondents * (count/resp) * weight_year = count * weight_year
   )
 
-z03_weight_total <- z02c_weight %>%
+# ---- calculate final NLS Weight for each strata
+# strata are (survey, inst_cd, age_group_rollup, grad_status, ttrain, lcip4_cred)
+tmp_tbl_weights_nls <- tmp_tbl_weights_nls |>
   group_by(
     SURVEY,
     INST_CD,
@@ -364,46 +356,17 @@ z03_weight_total <- z02c_weight %>%
     TTRAIN,
     LCIP4_CRED
   ) %>%
-  summarise(
-    BASE = sum(COUNT, na.rm = TRUE),
-    WEIGHTED = sum(WEIGHTED, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-z04_weight_adj_fac <- z03_weight_total %>%
-  mutate(WEIGHT_ADJ_FAC = if_else(WEIGHTED == 0, 0, BASE / WEIGHTED))
-
-tmp_tbl_weights_nls <- z02c_weight %>%
-  inner_join(
-    z04_weight_adj_fac |>
-      select(
-        SURVEY,
-        INST_CD,
-        AGE_GROUP_ROLLUP,
-        GRAD_STATUS,
-        LCIP4_CRED,
-        WEIGHT_ADJ_FAC
-      ),
-    by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
+  mutate(
+    BASE_TOTAL = sum(COUNT, na.rm = TRUE),
+    WEIGHTED_TOTAL = sum(WEIGHTED, na.rm = TRUE),
+    WEIGHT_ADJ_FAC = if_else(
+      WEIGHTED_TOTAL == 0,
+      0,
+      BASE_TOTAL / WEIGHTED_TOTAL
+    ),
+    WEIGHT_NLS = WEIGHT * WEIGHT_ADJ_FAC
   ) %>%
-  mutate(WEIGHT_NLS = WEIGHT * WEIGHT_ADJ_FAC) %>%
-  select(
-    SURVEY,
-    SURVEY_YEAR,
-    INST_CD,
-    AGE_GROUP_ROLLUP,
-    GRAD_STATUS,
-    TTRAIN,
-    LCIP4_CRED,
-    COUNT,
-    RESPONDENTS,
-    WEIGHT_PROB,
-    WEIGHT_YEAR,
-    WEIGHT,
-    WEIGHTED,
-    WEIGHT_ADJ_FAC,
-    WEIGHT_NLS
-  )
+  ungroup()
 
 # ---- null Weight_NLS field and update
 # Mainly if working in SQL but maybe needed for QI run depending on how we handle the QI weights.
@@ -499,9 +462,19 @@ rm(
 )
 
 # -------------------------- Weighted New Labour Supply --------------------------
-# apply nls weights to group totals
+# apply nls weights to group totals and filter to observations of interest
+# include only records with
+#  - a valid NLS value (0-3)
+#  - valid age group
+#  - grad status of 1 or 3
+#  - a weight greater than 0
+#  - a current region pssm code that is not -1 or 9999
+# then calulate the weighted count of records for each strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, survey_year,
+# inst_cd, age_group_rollup, grad_status, lcp4_cd, ttrain
+
 # DACSO_Q006a_Weight_New_Labour_Supply
-dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
+weight_new_labour_supply <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   inner_join(
     t_current_region_pssm_rollup_codes,
@@ -551,7 +524,7 @@ dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
   )
 
 # -------------------------- Weighted Counts - NLS Distributions --------------------------
-# calculate weighted counts of new labor supply - various distributions
+# calculate weighted counts of new labor supply - various distributions.  There are 12 of these
 # DACSO_Q006b_Weighted_New_Labour_Supply
 # DACSO_Q006b_Weighted_New_Labour_Supply_0
 # DACSO_Q006b_Weighted_New_Labour_Supply_0_2D
@@ -565,7 +538,11 @@ dacso_q006a_weight_new_labour_supply <- t_cohorts_recoded %>%
 # DACSO_Q006b_Weighted_New_Labour_Supply_Total_2D_No_TT
 # DACSO_Q006b_Weighted_New_Labour_Supply_Total_No_TT
 
-dacso_q006b_weighted_new_labour_supply <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted and unweighted count of new labour supply by full strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, grad_status, lcp4_cd, ttrain
+# include only records with
+#  - a valid NLS value (1-3)
+dacso_q006b_weighted_new_labour_supply <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -584,7 +561,11 @@ dacso_q006b_weighted_new_labour_supply <- dacso_q006a_weight_new_labour_supply %
   ) |>
   rename(COUNT = NEW_COUNT)
 
-dacso_q006b_weighted_new_labour_supply_0 <- dacso_q006a_weight_new_labour_supply %>%
+
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, grad_status, lcp4_cd, ttrain
+# include only records with a valid NLS value of 0
+dacso_q006b_weighted_new_labour_supply_0 <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -598,7 +579,10 @@ dacso_q006b_weighted_new_labour_supply_0 <- dacso_q006a_weight_new_labour_supply
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_0_2d <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, grad_status, lcp2_cd, ttrain
+# include only records with a valid NLS value of 0 and group by lcp2_cd instead of lcp4_cd
+dacso_q006b_weighted_new_labour_supply_0_2d <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -611,7 +595,10 @@ dacso_q006b_weighted_new_labour_supply_0_2d <- dacso_q006a_weight_new_labour_sup
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, grad_status, lcp2_cd
+# include only records with a valid NLS value of 0
+dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   mutate(
     LCP2_CD = substr(LCP4_CD, 1, 2),
@@ -632,7 +619,10 @@ dacso_q006b_weighted_new_labour_supply_0_2d_no_tt <- dacso_q006a_weight_new_labo
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_0_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, grad_status, lcp4_cd
+# include only records with a valid NLS value of 0
+dacso_q006b_weighted_new_labour_supply_0_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY == 0) %>%
   mutate(
     GS_PREFIX = if_else(
@@ -659,7 +649,10 @@ dacso_q006b_weighted_new_labour_supply_0_no_tt <- dacso_q006a_weight_new_labour_
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_2d <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, ttrain, lcp2_cd
+# include only records with a valid NLS value of 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_2d <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -672,7 +665,10 @@ dacso_q006b_weighted_new_labour_supply_2d <- dacso_q006a_weight_new_labour_suppl
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, ttrain, lcp2_cd
+# include only records with a valid NLS value of 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_2d_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3)) %>%
   mutate(
     LCP2_CD = substr(LCP4_CD, 1, 2),
@@ -693,7 +689,10 @@ dacso_q006b_weighted_new_labour_supply_2d_no_tt <- dacso_q006a_weight_new_labour
   ) %>%
   summarise(COUNT = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, current_region_pssm_code_rollup, age_group_rollup, lcp4_cd
+# include only records with a valid NLS value of 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(1, 2, 3), !is.na(AGE_GROUP_ROLLUP)) %>%
   mutate(
     GS_PREFIX = if_else(
@@ -725,7 +724,10 @@ dacso_q006b_weighted_new_labour_supply_no_tt <- dacso_q006a_weight_new_labour_su
   ) |>
   rename(COUNT = NEW_COUNT)
 
-dacso_q006b_weighted_new_labour_supply_total <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, age_group_rollup, lcp4_cd, ttrain
+# include only records with a valid NLS value of 0, 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_total <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -738,7 +740,10 @@ dacso_q006b_weighted_new_labour_supply_total <- dacso_q006a_weight_new_labour_su
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_total_2d <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, age_group_rollup, ttrain, lcp2_cd
+# include only records with a valid NLS value of 0, 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_total_2d <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   group_by(
     PSSM_CREDENTIAL,
@@ -750,7 +755,10 @@ dacso_q006b_weighted_new_labour_supply_total_2d <- dacso_q006a_weight_new_labour
   ) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, age_group_rollup, lcp2_cd
+# include only records with a valid NLS value of 0, 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   mutate(
     LCP2_CD = substr(LCP4_CD, 1, 2),
@@ -764,7 +772,10 @@ dacso_q006b_weighted_new_labour_supply_total_2d_no_tt <- dacso_q006a_weight_new_
   group_by(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP_ROLLUP, LCP2_CD, LCP2_CRED) %>%
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
-dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_labour_supply %>%
+# calculate weighted count of new labour supply by strata
+# stratum are: pssm_credential, age_group_rollup, lcp4_cd
+# include only records with a valid NLS value of 0, 1, 2, or 3
+dacso_q006b_weighted_new_labour_supply_total_no_tt <- weight_new_labour_supply %>%
   filter(NEW_LABOUR_SUPPLY %in% c(0, 1, 2, 3)) %>%
   mutate(
     GS_PREFIX = if_else(
@@ -791,7 +802,9 @@ dacso_q006b_weighted_new_labour_supply_total_no_tt <- dacso_q006a_weight_new_lab
   summarise(TOTAL = sum(WEIGHTED, na.rm = TRUE), .groups = "drop")
 
 # -------------------------- Weighted Proportions - NLS Distributions --------------------------
-# calculate weighted proportions/percentages of new labor supply - various distributions
+# calculate weighted proportions/percentages of new labor supply - 8 various distributions.  Each
+# query/code chunk below is a combination of one of the 12 weighted counts tables above.
+
 # DACSO_Q007a_Weighted_New_Labour_Supply
 # DACSO_Q007a_Weighted_New_Labour_Supply_0
 # DACSO_Q007a_Weighted_New_Labour_Supply_0_2D
@@ -923,7 +936,7 @@ dacso_q007a_weighted_new_labour_supply_no_tt <- dacso_q006b_weighted_new_labour_
 
 # ----- clear environment
 rm(
-  dacso_q006a_weight_new_labour_supply,
+  weight_new_labour_supply,
   dacso_q006b_weighted_new_labour_supply,
   dacso_q006b_weighted_new_labour_supply_0,
   dacso_q006b_weighted_new_labour_supply_0_2d,
@@ -993,9 +1006,7 @@ labour_supply_distribution_no_tt <- bind_rows(
     New_Labour_Supply
   )
 
-# ----- not implemented
-# these should make final distributions similar to above, but
-# todo: describe these
+# these should make final distributions similar to above, but I don't believe we use them.
 # DACSO_Q007c0_Delete_New_Labour_Supply_2D
 # DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT
 # DACSO_Q007c0_Delete_New_Labour_Supply_2D_No_TT_QI
@@ -1004,6 +1015,79 @@ labour_supply_distribution_no_tt <- bind_rows(
 # DACSO_Q007c1_Append_New_Labour_Supply_2D_No_TT
 # DACSO_Q007c2_Append_New_Labour_Supply_0_2D
 # DACSO_Q007c2_Append_New_Labour_Supply_0_2D_No_TT
+
+labour_supply_distribution_lcp2 <- dacso_q007a_weighted_new_labour_supply_2d %>%
+  mutate(Survey = "Student Outcomes") %>%
+  rename(New_Labour_Supply = PERC) %>%
+  select(
+    Survey,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD,
+    TTRAIN,
+    LCP2_CRED,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply
+  )
+
+labour_supply_distribution_lcp2 <- bind_rows(
+  labour_supply_distribution_lcp2,
+  dacso_q007a_weighted_new_labour_supply_0_2d %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC) %>%
+    select(
+      Survey,
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      AGE_GROUP_ROLLUP,
+      LCP2_CD,
+      TTRAIN,
+      LCP2_CRED,
+      COUNT,
+      TOTAL,
+      New_Labour_Supply
+    )
+)
+
+labour_supply_distribution_lcp2_no_tt <- dacso_q007a_weighted_new_labour_supply_2d_no_tt %>%
+  mutate(Survey = "Student Outcomes") %>%
+  rename(New_Labour_Supply = PERC) %>%
+  select(
+    Survey,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP2_CD,
+    LCP2_CRED,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply
+  )
+
+labour_supply_distribution_lcp2_no_tt <- bind_rows(
+  labour_supply_distribution_lcp2_no_tt,
+  dacso_q007a_weighted_new_labour_supply_0_2d_no_tt %>%
+    mutate(Survey = "Student Outcomes") %>%
+    rename(New_Labour_Supply = PERC) %>%
+    select(
+      Survey,
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      AGE_GROUP_ROLLUP,
+      LCP2_CD,
+      LCP2_CRED,
+      COUNT,
+      TOTAL,
+      New_Labour_Supply
+    )
+)
+
 
 # -------------------------   Include StatCan Data -------------------------
 # there'e no TTRAIN variable in the statcan data, this should coerce NA in that column, though.
