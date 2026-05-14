@@ -318,31 +318,30 @@ For students with qualifying secondary awards, the script selects the most recen
 The final processing phase applies institutional and categorical identifiers to standardize records for sector-level reporting. A binary flag, RESEARCH_UNIVERSITY, is assigned to records originating from research-intensive institutions (SFU, UBC, UNBC, UVic, RRU). PSI_CREDENTIAL_CATEGORY is standardized to ensure collapses disparate institutional titles into consistent categories required for provincial performance metrics.
 
 
-#### Data Dictionary (Not Completed)
-
 ### STP Enrolment Data Analysis: 
 
 Source Script: 01d-enrolment-analysis.R
 
 #### Descriptive Methods
 
-**Entry Consolidation and Attribute Refinement**
-Raw administrative enrollment records are merged with derived supplemental variables to establish a baseline cohort characterized by student entry points.  A primary analytical view is constructed of pre-initialized supplemental variables. Only those records flagged as `RecordStatus` == 0 and `MinEnrolment` == 1 (the earliest valid record within a specific reporting cycle) are retained.
+**Cohort Definition and Baseline Initialization**
 
-`AGE_AT_ENROL_DATE` is calculated as the duration between the student’s cleaned birthdate and their minimum start date.  Each student is assigned to a discrete demographic grouping (e.g., "Age 18–24").  
+The analytical cohort is established from enrolment records with $RecordStatus = 0$ and $MinEnrolment = 1$ (the earliest valid record within a specific reporting cycle). A baseline age, $AGE_AT_ENROL_DATE{base}$, is calculated as the number of yearts between the student’s birthdate and their $MinEnrolment$ date.  
 
-**Gender Recovery and Missing Genders**
-Genders are recovered by cross-referencing existing credential data in two-passes: For those with valid `ENCRYPTED_TRUE_PEN`, followed by those without.  For student records with a missing EPEN, a composite of `PSI_STUDENT_NUMBER` and `PSI_CODE` is used.
+**Gender Recovery and Imputation**
 
-Where a single student is associated with multiple conflicting gender or birthdate records across the longitudinal set, the first seen enrolment is used.
+Missing gender identifiers are addressed through a hierarchical recovery protocol. 
 
-For the remaining "Unknown" or missing entries, proportional imputation is performed; the observed frequency distribution of known gender labels within the first-time enrolment cohort is calculated and used as statistical weights to impute the missing population.
+1. `NA` genders are first propogated with a valid gender from `stp_credential`.
+2. Genders from first enrolment records are assigned as the "true" gender for all `NA` records.
+3. A weighting schema,  The remaining gender identifiers classified as "Unknown" are assigned a gender by random draw, with probabiliy equal taken from $W_g = \frac{n_g}{\sum n}$, derived from the frequency distribution of valid genders (Male, Female, Gender Diverse). This  maintains population-level representative ratios. Consequent to the forward-fill procedures established in preceding stages, imputed genders are propagated forward in time for each student.
 
-**Missing AGE_AT_ENROL_DATE**
+**Age Imputation**
 
-To address missing ages, a stratified proportional imputation based on gender-specific age distributions is employed to ensure that the imputed ages are statistically representative. Empirical age distributions are generated from the known population, stratified by gender, as age profiles may vary significantly across gender demographics.  Distributions then become the weights for a weighted random draw, performed for each unknown record. If a specific gender-age profile is unavailable, a global population weight is used.
+For records lacking a calculated age, a baseline value is established via a weighted random draw from gender-specific age distributions, denoted as $A_{imputed} \sim P(A \mid G)$. In instances where gender-specific distributions are unavailable, a global population weight is applied. 
 
-Following the assignment of a baseline age to a student's first enrolment record, subsequent enrolment records for the same student are updated through chronological increments (Current Year - Baseline Year), maintaining longitudinal consistency across the student's entire academic history.
+Subsequent enrollment records for the same student are updated via chronological increments, $\Delta t$, defined as:
+$$A_{t} = A_{base} + (Year_{t} - Year_{base})$$
 
 **Final Distributions for Enrolment Forecasting**
 
