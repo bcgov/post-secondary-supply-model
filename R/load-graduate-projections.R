@@ -81,7 +81,7 @@ credentials <- dbReadTable(
 dbWriteTable(
   decimal_con,
   name = SQL(glue::glue('"{my_schema}"."population_projections"')),
-  raw_data_file
+  population_projections
 )
 
 # ---- Disconnect ----
