@@ -79,7 +79,7 @@ ptib_data <- cleaned_data %>%
   rename(cip = cip3)
 
 # ---- Read Outcomes Data ----
-infoware <- read_csv(
+INFOWARE_L_CIP_6DIGITS_CIP2016 <- read_csv(
   (glue::glue(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
   ))
@@ -132,7 +132,7 @@ dbWriteTable(
 dbWriteTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
-  infoware
+  INFOWARE_L_CIP_6DIGITS_CIP2016
 )
 
 # Main dataset

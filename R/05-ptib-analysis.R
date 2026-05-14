@@ -84,7 +84,9 @@ t_private_institutions_credentials |>
 t_private_institutions_credentials |>
   select(LCIP_CD) |>
   left_join(
-    infoware |> mutate(exists = "yes") |> select(LCIP_CD, exists),
+    INFOWARE_L_CIP_6DIGITS_CIP2016 |>
+      mutate(exists = "yes") |>
+      select(LCIP_CD, exists),
     by = c("LCIP_CD" = "LCIP_CD")
   ) |>
   filter(is.na(exists))
@@ -93,7 +95,7 @@ t_private_institutions_credentials |>
 # Exclude not for credit and ESL programs and unclassified 99.9999 manually with “Exclude=1”
 t_private_institutions_credentials <- t_private_institutions_credentials |>
   left_join(
-    infoware |> distinct(LCIP_CD, LCIP_NAME),
+    INFOWARE_L_CIP_6DIGITS_CIP2016 |> distinct(LCIP_CD, LCIP_NAME),
     by = "LCIP_CD"
   ) |>
   mutate(
