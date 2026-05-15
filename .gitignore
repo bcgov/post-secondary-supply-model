@@ -6,3 +6,7 @@
 config.yml
 scratch/*
 *_log.txt
+.github/copilot-instructions.md
+docs/technical-documentation-module-01.html
+docs/technical-documentation-near-completers-ttrain.html
+R/gender_cleaning.r
