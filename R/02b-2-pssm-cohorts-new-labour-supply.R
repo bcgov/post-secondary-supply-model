@@ -105,6 +105,7 @@ required_tables <- c(
   "labour_supply_distribution_stat_can"
 )
 
+
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
 # Assert that the table exists in the database
@@ -1116,7 +1117,17 @@ tables_to_keep <- c(
   "labour_supply_distribution",
   "labour_supply_distribution_no_tt",
   "labour_supply_distribution_lcp2",
-  "labour_supply_distribution_lcp2_no_tt"
+  "labour_supply_distribution_lcp2_no_tt",
+  "t_cohorts_recoded",
+  "t_current_region_pssm_codes",
+  "t_current_region_pssm_rollup_codes",
+  "tmp_tbl_weights_nls",
+  "t_noc_broad_categories",
+  "appso_graduates",
+  "t_cohorts_recoded",
+  "t_dacso_data_part_1",
+  "trd_graduates"
 )
+
 
 rm(list = setdiff(ls(), tables_to_keep))
