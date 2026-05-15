@@ -47,17 +47,17 @@ years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
 library(RODBC)
 library(DBI)
 
-# lan <- config::get("lan")
-# my_schema <- config::get("myschema")
-# db_config <- config::get("decimal")
-# decimal_con <- dbConnect(
-#   odbc::odbc(),
-#   Driver = db_config$driver,
-#   Server = db_config$server,
-#   Database = db_config$database,
-#   Trusted_Connection = "True"
-# )
-#
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 # t_cohorts_recoded <- tibble(dbReadTable(
 #   decimal_con,
 #   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
@@ -458,8 +458,7 @@ rm(
   z02c_weight_tmp,
   z02c_weight,
   z03_weight_total,
-  z04_weight_adj_fac,
-  tmp_tbl_weights_nls
+  z04_weight_adj_fac
 )
 
 # -------------------------- Weighted New Labour Supply --------------------------
