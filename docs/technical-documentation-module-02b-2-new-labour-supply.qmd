@@ -1,0 +1,285 @@
+---
+title: "02b-2 New Labour Supply"
+subtitle: "Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+## Data Sources and Storage (Not completed)
+
+### External Data Sources
+
+#### [External Data Source Name]
+
+#### 
+
+Source:
+
+Access Method:
+
+Description:
+
+#### 
+
+### Internal/Processed Data Sources (Not completed)
+
+#### T_Cohorts_Recoded
+
+<ul class="list-variable-names">
+<li>STQU_ID (Integer): A unique identifier for each student.</li>
+<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
+<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
+<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
+<li>LCIP_CD (String): A 6-digit numeric code representing the associated CIP instructional program class. </li>
+<li>LCP4_CD (String): A 4-digit numeric code representing the associated CIP subseries. </li>
+<li>NOC_CD (String): A 5-digit numeric code representing the associated NOC unit group. </li>
+<li>AGE_AT_SURVEY (Integer): Age of former student at the time of survey. </li>
+<li>AGE_GROUP_ROLLUP (Integer): Age group of former student at the time of survey. </li>
+<li>GRAD_STATUS (Integer): A status flag of 1, 2, or 3 represeting a students final graduation status. "1" means a student completed a credential and is of interest to this analysis. </li>
+<li>RESPONDENT (Integer): A flag representing student response type.  Values take a 1 (student responded to survey) or a 0 (student didn't respond to survey). </li>
+<li>NEW_LABOUR_SUPPLY(Integer): A flag representing whether a student is considered new labour suppply.  Derived from flags in student outcomes data, specific to each survey. </li>
+<li>PSSM_CREDENTIAL: Type of credential earned as reported by the institution (e.g. "DIPL") </li>
+<li>PSSM_CRED: A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g. "1 - DIPL"). </li>
+<li>LCIP4_CRED: A concatenated label made from LCP4_CD and PSSM_CRED (e.g. "0100 - BACH").</li>
+<li>CURRENT_REGION_PSSM_CODE: Numeric code representing a student's residential economic development region at the time of <mark> (verify survey or graduation)</mark> (derived) </li>
+<li>Weight (Integer): A year-specific weighting factor, ranging from 1 to 5, applied during analysis.</li>
+</ul>
+
+Variables recalculated in this analysis:
+
+<ul class="list-variable-names">
+<li>Weight_NLS(Integer): RECALCULATED IN THIS ANALYSIS</li>
+</ul>
+
+
+#### 
+## Technical Specifications
+
+### Dependencies and Environment Requirements
+
+#### System Requirements
+
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
+- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
+
+#### R Package Dependencies
+
+The following R packages are required for this module:
+
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
+
+
+#### Authentication Setup
+
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
+```r
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
+```
+
+## Methodology Overview
+
+### Pre-processing
+
+#### Initial Data Checks
+
+1. Check inital base weights by year to ensure the year weights have been applied according to the desired weighting
+strategy
+2. Recode invalid NOC codes.  In 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999.  Again in 2021/23, NOC codes 4122X were set to 99999
+
+#### Recode New Labour Supply
+
+Survey responses for those individuals who meet the definition for "NEW_LABOUR_SUPPLY 1" (NLS-1) and have a valid NOC code are identified and compared against survey responses for those who are "NEW_LABOUR_SUPPLY 2" (NLS-2). Student responses where NLS-2 but the student has no history of a matching NLS-1 record are recoded; the NEW_LABOUR_SUPPLY for this record is set to 3. 
+
+NEW LABOUR SUPPLY codes definitions:  
+
+- 0: individuals do not qualify as new labour supply, or didn't respond to survey (BGS only)
+- 1: individulas were in the work force at time of survey
+- 2: studying and working (DAC only)
+- 3: derived
+
+### Weighting Approach
+
+#### Definitons
+
+Weights are calculated and applied to the data to account for non-response, as well as variation in program graduation and employment across survey years, regions, institutions and age bands.
+
+To formalize the weighting procedures applied to the data, the following notation is used:
+
+- $i$: Index representing a specific grouping of responses by survey, age group, grad status, CIP and credential. 
+
+- $j$: Index representing a specific year.
+
+- $k$: Index representing a specific institution. 
+
+- $l$: Index representing a specific geographical region.
+
+- $R$: Total # of respondents.
+
+- $N$: Total # of surveys.
+
+- $YW$: The year weight assigned to a record. More details in [Year Weights](#year-weights).
+
+The overall goal of the weighting procedure is to adjust individual records so as to minimize bias caused by factors such as non-response or differences in population characteristics. The weights assigned to individual records reflect the impact of several factors, and the methodology is described in the following sections.
+
+##### Year Weights
+
+The distribution of initial year weights are expected to be in the range 1-5, based on the assumption is that survey responses from earlier years are less relevent to the current labour supply than more recent survey responses.  Thus, more recent survey data receive a larger weight than those from prior years.   The design accounts for a quality indicator run (QI); year weights are rolled back by 1 and the weight for 2023 survey responses is set to 0.  The QI model can be used to assess the quality for each NOC.  
+
+##### Base Weights
+
+Base (Person) weights were assigned for individuals aged 17-34, with NLS = 0 to 3. All person weights are "1".  Data was further filtered to exclude individuals outside of the age band 17-34, as well as those with NLS other than 0 to 3.  Year weights ensure only records from the past five survey years are included.
+
+##### Final New Labour Supply Distributions
+
+Multiple calculated distributions are consolidated into singular, unified distribution tables (see data dictionary). 
+
+- `labour_supply_distribution`: used last model run
+- `labour_supply_distribution_no_tt`: excludes the ttrain variable.
+- `labour_supply_distribution_lcp2`: distributions at the 2-digit CIP level.
+- `labour_supply_distribution_lcp2_no_tt`: distributions at the 2-digit CIP level + excludes the ttrain variable.
+
+Proportional data for active labour supply participants (levels 1, 2, and 3) is appended to the data for non-participants (level 0). This creates a complete view of the survey cohort within a single dataset.  A universal static identifier (Survey = "Student Outcomes") is appended to all records to maintain data lineage when these outputs are eventually combined with other data sources (such as Statistics Canada data). Calculated percentages are uniformly renamed to New_Labour_Supply, and a strict column selection is applied to ensure structural consistency.
+
+Only the `labour_supply_distribution` was used last model run; the methodolgy is described below:
+
+### NLS Weights - labour_supply_distribution table only
+
+Person weights were assigned for individuals aged 17-34, with NLS = 0 to 3. All person weights are "1".  Data was further filtered to exclude individuals outside of the age band 17-34, as well as those with NLS other than 0 to 3.  Year weights ensure only records from the past five survey years are included.
+
+Survey counts were calculated for each (survey, survey year, institution, age group, credential, CIP and grad status) combination, then used to adjust the year weights.  Year weights were adjusted by the inverse proportion of survey respondents to total surveys.
+
+$SW_{ijk} = YW_{j} * N_{ijk}/R_{ijk}$ { = year weight if total survey respondents = 0}
+
+$n_{ijk} = R_{ijk} * SW_{ijk}$
+
+
+A weight adjustment factor was calculated for each (survey, institution, age group, credential and CIP) combination (i.e. removing the year level). This is done to maintain proportional distributions of the combined person and year weights.  The adjustment factor was used to derive the final NLS weight.
+
+$F_{ik} = \sum_j{N_{ik}}/\sum_j{n_{ik}}$, { = 0 if number weighted = 0}
+
+$NLSW_{ijk} = F_{ik} * SW_{ijk}$
+
+
+### NLS Weighted Estimates - labour_supply_distribution table only
+
+Unweighted counts were calculated by survey, survey year, region, age, group, credential, CIP, institution, grad status and NLS for respondents.   The NLS weights were applied to the unweighted counts to create weighted estimates for each of these grouping levels.  Estimates for grad status <> 1 and null age groups were removed from further analysis.
+
+$a_{ijkl} = N_{ijkl} * NLSW_{ijkl}$
+
+For NLS = 1 to 3, weighted regional proportions to weighted provincial estimates were calculated for each survey, age group, credential and CIP (removing year and institution levels).  Regional proportions for NLS = 0 were also calculated, but only those whose percentage complement = 0 were kept <mark> (explain) </mark>.
+
+$p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
+
+
+#### Data Dictionary
+
+## Key Output Tables
+
+##### Table: labour_supply_distribution
+
+<ul class="list-variable-names">
+  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
+  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
+  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
+  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
+  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
+  <li><b>LCP4_CD</b> (String): A 4-digit character code representing the associated CIP subseries.</li>
+  <li><b>TTRAIN</b> (Numeric): A numeric code representing the type of training.</li>
+  <li><b>LCIP4_CRED</b> (String): A concatenated label combining GRAD_STATUS, LCP4_CD, and PSSM_CREDENTIAL (e.g., "1 - 0100 - BACH").</li>
+  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
+  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
+  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
+  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
+</ul>
+
+##### Table: labour_supply_distribution_no_tt
+
+<ul class="list-variable-names">
+  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
+  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
+  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
+  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
+  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
+  <li><b>LCP4_CD</b> (String): A 4-digit character code representing the associated CIP subseries.</li>
+  <li><b>LCIP4_CRED</b> (String): A concatenated label combining GRAD_STATUS, LCP4_CD, and PSSM_CREDENTIAL (e.g., "1 - 0100 - BACH").</li>
+  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
+  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
+  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
+  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
+</ul>
+
+##### Table: labour_supply_distribution_lcp2
+
+<ul class="list-variable-names">
+  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
+  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
+  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
+  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
+  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
+  <li><b>LCP2_CD</b> (String): A 2-digit character code representing the associated CIP subseries.</li>
+  <li><b>TTRAIN</b> (Numeric): A numeric code representing the type of training.</li>
+  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
+  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
+  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
+  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
+</ul>
+
+##### Table: labour_supply_distribution_lcp2_no_tt
+
+<ul class="list-variable-names">
+  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
+  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
+  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
+  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
+  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
+  <li><b>LCP2_CD</b> (String): A 2-digit character code representing the associated CIP subseries.</li>
+  <li><b>TTRAIN</b> (Numeric): A numeric code representing the type of training.</li>
+  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
+  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
+  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
+  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
+</ul>
+
+## Suggested Improvements
+
+## Additional Details
+
+_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._

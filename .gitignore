@@ -17,3 +17,5 @@ docs/technical-documentation-module-01.html
 docs/technical-documentation-near-completers-ttrain.html
 R/gender_cleaning.r
 
+R/pssm_sql_dplyr_validation.qmd
+.github/copilot-instructions.md
