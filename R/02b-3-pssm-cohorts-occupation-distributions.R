@@ -771,27 +771,77 @@ compare(
 
 
 # ----- Create Final Occupation Distribution Tables -----
-occs_def <- c(
-  Survey = "nvarchar(50)",
-  PSSM_Credential = "nvarchar(50)",
-  PSSM_CRED = "nvarchar(50)",
-  LCP4_CD = "nvarchar(50)",
-  TTRAIN = "nvarchar(50)",
-  LCIP4_CRED = "nvarchar(50)",
-  LCIP2_CRED = "nvarchar(50)",
-  NOC = "nvarchar(50)",
-  Current_Region_PSSM_Code_Rollup = "integer",
-  Age_Group_Rollup = "integer",
-  Count = "float",
-  Total = "float",
-  Percent = "float"
-)
+# Noting that the original SQL have seperate queries to clear occupation distributions
+# for qi run.  here, we are assuming that qi run weights are handled in the 02b-1 script.
 
+# dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
+occupation_distributions <- dacso_q010_weighted_occs_dist |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
-#dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_No_TT_QI)
-#dbExecute(decimal_con, DACSO_Q010a0_Delete_Occupational_Distribution_QI)
-dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
-dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
+# dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
+occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
+
+# dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
+occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD,
+    TTRAIN,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
+
+# dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
+occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2D_no_tt |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
+
 
 occs_def <- c(
   Survey = "nvarchar(50)",
@@ -801,100 +851,17 @@ occs_def <- c(
   TTRAIN = "nvarchar(50)",
   LCIP2_CRED = "nvarchar(50)",
   NOC = "nvarchar(50)",
-  Current_Region_PSSM_Code_Rollup = "integer",
-  Age_Group_Rollup = "integer",
   Count = "float",
   Total = "float",
   Percent = "float"
 )
 
-
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"'))
-  )
-) {
-  dbCreateTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"')),
-    occs_def
-  )
-}
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"'))
-  )
-) {
-  dbCreateTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"')),
-    occs_def
-  )
-}
-
-dbExecute(decimal_con, DACSO_Q010b0_Delete_Occupational_Distribution_LCP2)
-dbExecute(decimal_con, DACSO_Q010b0_Delete_Occupational_Distribution_LCP2_No_TT)
-# dbExecute(decimal_con, DACSO_Q010b0_Delete_Occupational_Distribution_LCP2_No_TT_QI)
-# dbExecute(decimal_con, DACSO_Q010b0_Delete_Occupational_Distribution_LCP2_QI)
-dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
-dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
-
-occs_def <- c(
-  Survey = "nvarchar(50)",
-  PSSM_Credential = "nvarchar(50)",
-  PSSM_CRED = "nvarchar(50)",
-  LCP2_CD = "nvarchar(50)",
-  TTRAIN = "nvarchar(50)",
-  LCIP2_CRED = "nvarchar(50)",
-  NOC = "nvarchar(50)",
-  Count = "float",
-  Total = "float",
-  Percent = "float"
-)
-
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC"'))
-  )
-) {
-  dbCreateTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC"')),
-    occs_def
-  )
-}
-
-if (
-  !dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_BC_No_TT"'))
-  )
-) {
-  dbCreateTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT", occs_def)
-}
-
-dbExecute(decimal_con, DACSO_Q010c0_Delete_Occupational_Distribution_LCP2_BC)
-dbExecute(
-  decimal_con,
-  DACSO_Q010c0_Delete_Occupational_Distribution_LCP2_BC_No_TT
-)
-# dbExecute(decimal_con, DACSO_Q010c0_Delete_Occupational_Distribution_LCP2_BC_No_TT_QI)
-# dbExecute(decimal_con, DACSO_Q010c0_Delete_Occupational_Distribution_LCP2_BC_QI)
-dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
+# dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
 dbExecute(
   decimal_con,
   DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC_No_TT
 )
 
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT")
-dbExecute(decimal_con, "DROP TABLE dacso_q010_weighted_occs_dist_2d_no_tt")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_No_TT")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_2D")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010_Weighted_Occs_Dist_2D_BC")
 
 dbExecute(
   decimal_con,
@@ -907,13 +874,6 @@ dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
 dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
 
-dbExecute(
-  decimal_con,
-  "DROP TABLE DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply"
-)
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010d2_NLS_PDEG_07_Count")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010d3_NLS_PDEG_07_Subtotal")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010d4_NLS_PDEG_07_Total")
 
 dbExecute(
   decimal_con,
@@ -924,10 +884,6 @@ dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
-
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010e2_Weighted_Occs_PDEG_07")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010e3_Weighted_Occs_Total_PDEG_07")
-dbExecute(decimal_con, "DROP TABLE DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07")
 
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 
@@ -953,9 +909,6 @@ dbExecute(
                         WHERE (((Occupation_Distributions.Survey)='2021 Census PSSM 2023-2024'));"
 )
 
-# uncomment if running for the first time
-# dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD TTRAIN NVARCHAR(50)")
-# dbExecute(decimal_con, "ALTER TABLE Occupation_Distributions_Stat_Can ADD LCIP2_CRED NVARCHAR(50)")
 dbExecute(
   decimal_con,
   "INSERT INTO Occupation_Distributions ([Survey]
@@ -987,25 +940,16 @@ dbExecute(
 )
 
 # ---- Clean Up ----
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_OCC")
-dbExecute(decimal_con, "DROP TABLE tmp_tbl_Weights_NLS")
-dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
-dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
-dbExecute(decimal_con, "DROP TABLE tbl_Age")
-dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE T_Weights")
-dbExecute(decimal_con, "DROP TABLE t_year_survey_year")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes")
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_bc")
 
 # ---- Keep ----
-dbExistsTable(decimal_con, "Occupation_Distributions")
-dbExistsTable(decimal_con, "Occupation_Distributions_No_TT")
-dbExistsTable(decimal_con, "Occupation_Distributions_LCP2")
-dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_No_TT")
-dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC")
-dbExistsTable(decimal_con, "Occupation_Distributions_LCP2_BC_No_TT")
-
+tables_to_keep <- c(
+  "occupation_distributions",
+  "occupation_distributions_no_tt",
+  "occupation_distributions_lcp2",
+  "occupation_distributions_lcp2_no_tt",
+  "occupation_distributions_lcp2_bc",
+  "occupation_distributions_lcp2_bc_no_tt"
+)
+rm(list = setdiff(ls(), tables_to_keep))
 
 dbDisconnect(decimal_con)
