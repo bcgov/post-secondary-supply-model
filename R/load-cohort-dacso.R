@@ -107,7 +107,8 @@ t_cohorts_recoded <-
     ),
     n_max = 1
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  filter(FALSE)
 
 t_current_region_pssm_codes <-
   readr::read_csv(
