@@ -8,3 +8,4 @@ scratch/*
 *_log.txt
 tmp
 *.html
+.github/copilot-instructions.md
