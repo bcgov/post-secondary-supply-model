@@ -19,3 +19,4 @@ R/test-sql-r-comparison.r
 .gitignore
 sql/pssm-refactor01-code-review.txt
 R/pssm_sql_dplyr_validation.qmd
+.github/copilot-instructions.md
