@@ -747,6 +747,11 @@ dacso_q009b_weighted_occs_no_tt <- dacso_q009_weight_occs |>
     .groups = "drop"
   )
 
+compare(
+  "dacso_q009b_weighted_occs_no_tt",
+  dacso_q009b_weighted_occs_no_tt
+)
+
 dacso_q009b_weighted_occs_total_no_tt <- dacso_q009_weight_occs |>
   mutate(
     LCIP4_CRED = make_lcip_cred(GRAD_STATUS, LCP4_CD, PSSM_CREDENTIAL),
@@ -758,10 +763,18 @@ dacso_q009b_weighted_occs_total_no_tt <- dacso_q009_weight_occs |>
     .groups = "drop"
   )
 
-# not working as expected...
+
+# this query was not working as expected, so I double-checked the original SQl carefully.
+# It casts LCIP4_CRED to nvarchar(20), which actually drops the following groups:
+#   - ADCT or ADIP
+#   - PDCT or PDDP
+#   - ADGR or UT
+# I don't understand the purpose, but have replicated this logic filtering to LCIP4_CRED with 20 or fewer characters.
+
 dacso_q010_weighted_occs_dist_no_tt <- dacso_q009b_weighted_occs_total_no_tt |>
   left_join(
-    dacso_q009b_weighted_occs_no_tt,
+    dacso_q009b_weighted_occs_no_tt |>
+      filter(str_length(LCIP4_CRED) <= 20),
     by = c(group_vars)
   ) |>
   mutate(
@@ -776,7 +789,7 @@ compare(
 
 # ----- Create Final Occupation Distribution Tables -----
 # Noting that the original SQL have seperate queries to clear occupation distributions
-# for qi run.  here, we are assuming that qi run weights are handled in the 02b-1 script.
+# for qi run.  In R, we assume that qi run weights are handled in the 02b-1 script.
 
 # dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
 occupation_distributions <- dacso_q010_weighted_occs_dist |>
@@ -797,6 +810,7 @@ occupation_distributions <- dacso_q010_weighted_occs_dist |>
   )
 
 # ---- For testing purposes only
+# some differences noted due to rounding
 occupation_distributions$TTRAIN <- as.character(occupation_distributions$TTRAIN)
 compare("occupation_distributions", occupation_distributions)
 # ----
@@ -813,12 +827,17 @@ occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
     NOC = NOC_CD,
     Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
     Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    TTRAIN = NA_character_, # to match the SQL tables
     Count = COUNT,
     Total = TOTAL,
     Percent = PERC_DIST
   )
 
 # ---- For testing purposes only
+# no differences, but is missing the following credential groups:
+#  - ADCT or ADIP
+#  - PDCT or PDDP
+#  - ADGR or UT
 compare("occupation_distributions_no_tt", occupation_distributions_no_tt)
 # ----
 
@@ -840,6 +859,7 @@ occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist_2d |>
   )
 
 # ---- For testing only
+# differences noted due to rounding
 occupation_distributions_lcp2$TTRAIN <- as.character(
   occupation_distributions_lcp2$TTRAIN
 )
@@ -857,12 +877,14 @@ occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2d_no_tt |>
     NOC = NOC_CD,
     Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
     Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    TTRAIN = NA_character_, # to match the SQL tables
     Count = COUNT,
     Total = TOTAL,
     Percent = PERC_DIST
   )
 
 # ---- For testing purposes only
+# no differences notes
 compare(
   "occupation_distributions_lcp2_no_tt",
   occupation_distributions_lcp2_no_tt
@@ -885,18 +907,38 @@ occupation_distributions_lcp2_bc <- dacso_q010_weighted_occs_dist_2d_bc |>
   )
 
 # ---- For testing purposes only
+# no differences noted
 occupation_distributions_lcp2_bc$TTRAIN <- as.character(
   occupation_distributions_lcp2_bc$TTRAIN
 )
 compare("occupation_distributions_lcp2_bc", occupation_distributions_lcp2_bc)
 # ----
 
+occupation_distributions_lcp2_bc_no_tt <- dacso_q010_weighted_occs_dist_2d_bc_no_tt |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD = LCP2_CD,
+    LCIP2_CRED = LCIP2_CRED,
+    TTRAIN = NA_character_, # to match the SQL tables
+    NOC = NOC_CD,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
+
+compare(
+  "occupation_distributions_lcp2_bc_no_tt",
+  occupation_distributions_lcp2_bc_no_tt
+)
+
 # ------  create distribution for pdeg/law
 # as with the other distributions, double check that the logic for a qi run makes sense.
 # our design should mean we don't need to account for a seperate qi weight/distributions because
 # qi weight is abstracted out in the 02b1 script.  The weight in this code should represent either qi or non-qi run.
 # we shouldn't need to run a seperate query like this:
-#dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
+# dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
 
 dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
 dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
