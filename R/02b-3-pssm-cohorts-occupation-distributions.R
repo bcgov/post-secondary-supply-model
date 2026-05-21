@@ -533,6 +533,44 @@ dacso_q009_weight_occs <- t_cohorts_recoded |>
     !is.na(WEIGHT_OCC)
   )
 
+
+# I collapsed the following 3 queries into one for readability.
+# - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs)
+# - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total)
+# - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist)
+group_vars <- c(
+  "PSSM_CREDENTIAL",
+  "PSSM_CRED",
+  "CURRENT_REGION_PSSM_CODE_ROLLUP",
+  "AGE_GROUP_ROLLUP",
+  "LCP4_CD",
+  "TTRAIN",
+  "LCIP4_CRED",
+  "LCIP2_CRED"
+)
+dacso_q010_weighted_occs_dist <- dacso_q009_weight_occs |>
+  group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
+  summarize(
+    COUNT = sum(WEIGHTED, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(
+    dacso_q009_weight_occs |>
+      group_by(across(all_of(group_vars))) |>
+      summarize(
+        TOTAL = sum(WEIGHTED, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = group_vars
+  ) |>
+  mutate(
+    PERC_DIST = COUNT / TOTAL
+  )
+
+compare("dacso_q010_weighted_occs_dist", dacso_q010_weighted_occs_dist)
+
+
+# not working as expected...
 # I collapsed the following 3 queries into one for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D)
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D)
@@ -547,7 +585,7 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q010_weighted_occs_dist <-
+dacso_q010_weighted_occs_dist_2d <-
   dacso_q009_weight_occs |>
   group_by(across(all_of(group_vars))) |>
   summarize(
@@ -566,14 +604,16 @@ dacso_q010_weighted_occs_dist <-
   mutate(PERC_DIST = COUNT / TOTAL)
 
 compare(
-  "dacso_q009_weighted_occs_total_2d",
-  dacso_q009_weighted_occs_total_2d
+  "dacso_q010_weighted_occs_dist_2d",
+  dacso_q010_weighted_occs_dist_2d
 )
+
 
 # I collapsed the following 3 queries into one for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_BC)
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D_BC)
 #  - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC)
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -581,7 +621,6 @@ group_vars <- c(
   "TTRAIN",
   "LCIP2_CRED"
 )
-
 
 dacso_q010_weighted_occs_dist_2d_bc <- dacso_q009_weight_occs |>
   filter(IN_BC == TRUE) |>
@@ -611,6 +650,7 @@ compare(
 # - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_BC_No_TT)
 # - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D_BC_No_TT)
 # - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT)
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -643,7 +683,6 @@ compare(
   "dacso_q010_weighted_occs_dist_2d_bc_no_tt",
   dacso_q010_weighted_occs_dist_2d_bc_no_tt
 )
-
 
 # I collapsed the following 3 queries into one for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_No_TT)
@@ -681,41 +720,6 @@ compare(
   "dacso_q010_weighted_occs_dist_2d_no_tt",
   dacso_q010_weighted_occs_dist_2d_no_tt
 )
-
-# I collapsed the following 3 queries into one for readability.
-# - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs)
-# - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total)
-# - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist)
-group_vars <- c(
-  "PSSM_CREDENTIAL",
-  "PSSM_CRED",
-  "CURRENT_REGION_PSSM_CODE_ROLLUP",
-  "AGE_GROUP_ROLLUP",
-  "LCP4_CD",
-  "TTRAIN",
-  "LCIP4_CRED",
-  "LCIP2_CRED"
-)
-dacso_q010_weighted_occs_dist <- dacso_q009_weight_occs |>
-  group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
-  summarize(
-    COUNT = sum(WEIGHTED, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  left_join(
-    dacso_q009_weight_occs |>
-      group_by(across(all_of(group_vars))) |>
-      summarize(
-        TOTAL = sum(WEIGHTED, na.rm = TRUE),
-        .groups = "drop"
-      ),
-    by = group_vars
-  ) |>
-  mutate(
-    PERC_DIST = COUNT / TOTAL
-  )
-
-compare("dacso_q010_weighted_occs_dist", dacso_q010_weighted_occs_dist)
 
 
 # I collapsed the following 3 queries into one for readability.
@@ -792,6 +796,11 @@ occupation_distributions <- dacso_q010_weighted_occs_dist |>
     Percent = PERC_DIST
   )
 
+# ---- For testing purposes only
+occupation_distributions$TTRAIN <- as.character(occupation_distributions$TTRAIN)
+compare("occupation_distributions", occupation_distributions)
+# ----
+
 # dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
 occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
   transmute(
@@ -809,8 +818,12 @@ occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
     Percent = PERC_DIST
   )
 
+# ---- For testing purposes only
+compare("occupation_distributions_no_tt", occupation_distributions_no_tt)
+# ----
+
 # dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
-occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist |>
+occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist_2d |>
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -826,8 +839,15 @@ occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist |>
     Percent = PERC_DIST
   )
 
+# ---- For testing only
+occupation_distributions_lcp2$TTRAIN <- as.character(
+  occupation_distributions_lcp2$TTRAIN
+)
+compare("occupation_distributions_lcp2", occupation_distributions_lcp2)
+# ----
+
 # dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
-occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2D_no_tt |>
+occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2d_no_tt |>
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -841,6 +861,13 @@ occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2D_no_tt |>
     Total = TOTAL,
     Percent = PERC_DIST
   )
+
+# ---- For testing purposes only
+compare(
+  "occupation_distributions_lcp2_no_tt",
+  occupation_distributions_lcp2_no_tt
+)
+# ----
 
 # dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
 occupation_distributions_lcp2_bc <- dacso_q010_weighted_occs_dist_2d_bc |>
@@ -857,6 +884,12 @@ occupation_distributions_lcp2_bc <- dacso_q010_weighted_occs_dist_2d_bc |>
     Percent = PERC_DIST
   )
 
+# ---- For testing purposes only
+occupation_distributions_lcp2_bc$TTRAIN <- as.character(
+  occupation_distributions_lcp2_bc$TTRAIN
+)
+compare("occupation_distributions_lcp2_bc", occupation_distributions_lcp2_bc)
+# ----
 
 # ------  create distribution for pdeg/law
 # as with the other distributions, double check that the logic for a qi run makes sense.
