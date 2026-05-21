@@ -842,39 +842,34 @@ occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2D_no_tt |>
     Percent = PERC_DIST
   )
 
-
-occs_def <- c(
-  Survey = "nvarchar(50)",
-  PSSM_Credential = "nvarchar(50)",
-  PSSM_CRED = "nvarchar(50)",
-  LCP2_CD = "nvarchar(50)",
-  TTRAIN = "nvarchar(50)",
-  LCIP2_CRED = "nvarchar(50)",
-  NOC = "nvarchar(50)",
-  Count = "float",
-  Total = "float",
-  Percent = "float"
-)
-
 # dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
-dbExecute(
-  decimal_con,
-  DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC_No_TT
-)
+occupation_distributions_lcp2_bc <- dacso_q010_weighted_occs_dist_2d_bc |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD = LCP2_CD,
+    TTRAIN = TTRAIN,
+    LCIP2_CRED = LCIP2_CRED,
+    NOC = NOC_CD,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
 
-dbExecute(
-  decimal_con,
-  DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply
-)
+# ------  create distribution for pdeg/law
+# as with the other distributions, double check that the logic for a qi run makes sense.
+# our design should mean we don't need to account for a seperate qi weight/distributions because
+# qi weight is abstracted out in the 02b1 script.  The weight in this code should represent either qi or non-qi run.
+# we shouldn't need to run a seperate query like this:
 #dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
+
 dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
 dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
 dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
 dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
-
-
 dbExecute(
   decimal_con,
   DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist
@@ -885,6 +880,7 @@ dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
 dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
 
+# ------  extra stuff that I am not sure where it fits in yet but want to make sure I don't lose it.
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 
 if (qi_run == TRUE | ptib_run == TRUE) {
@@ -902,42 +898,29 @@ if (regular_run == TRUE) {
   )
 }
 
-dbExecute(
-  decimal_con,
-  "DELETE 
-                        FROM Occupation_Distributions
-                        WHERE (((Occupation_Distributions.Survey)='2021 Census PSSM 2023-2024'));"
-)
-
-dbExecute(
-  decimal_con,
-  "INSERT INTO Occupation_Distributions ([Survey]
-      ,[PSSM_Credential]
-      ,[PSSM_CRED]
-      ,[LCP4_CD]
-      ,[TTRAIN]
-      ,[LCIP4_CRED]
-      ,[LCIP2_CRED]
-      ,[NOC]
-      ,[Current_Region_PSSM_Code_Rollup]
-      ,[Age_Group_Rollup]
-      ,[Count]
-      ,[Total]
-      ,[Percent])
-          SELECT '2021 Census PSSM 2023-2024' as Survey
-      ,[PSSM_Credential]
-      ,[PSSM_CRED]
-      ,[LCP4_CD]
-      ,[TTRAIN]
-      ,[LCIP4_CRED]
-      ,[LCIP2_CRED]
-      ,[NOC]
-      ,[Current_Region_PSSM_Code_Rollup]
-      ,[Age_Group_Rollup]
-      ,[Count]
-      ,[Total]
-      ,[Percent] FROM Occupation_Distributions_Stat_Can"
-)
+# ---- include post-bach degrees from stats can data
+# leaving here becuase it's where this was run in the original SQL.
+# but we should check that it makes sense to include here, as opposed to above.
+# don't think it should matter but noting for self anyways.
+occupation_distributions <- occupation_distributions |>
+  rbind(
+    occupation_distributions_stat_can |>
+      transmute(
+        Survey = "2021 Census PSSM 2023-2024",
+        PSSM_Credential,
+        PSSM_CRED,
+        LCP4_CD,
+        TTRAIN,
+        LCIP4_CRED,
+        LCIP2_CRED,
+        NOC,
+        Current_Region_PSSM_Code_Rollup,
+        Age_Group_Rollup,
+        Count,
+        Total,
+        Percent
+      )
+  )
 
 # ---- Clean Up ----
 
