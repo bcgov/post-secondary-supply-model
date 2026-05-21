@@ -255,7 +255,7 @@ t_dacso_data_part_1 <- dbReadTable(
 )
 credential_non_dup <- dbReadTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"'))
 )
 stp_credential <- dbReadTable(
   decimal_con,
