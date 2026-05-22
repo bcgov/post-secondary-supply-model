@@ -1084,6 +1084,16 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain <- near_completes_total_by_ci
     )
   )
 
+# write to sql server
+dbWriteTable(
+  conn = decimal_con,
+  name = SQL(glue::glue(
+    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain"'
+  )),
+  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain,
+  overwrite = TRUE
+)
+
 # ---- HISTORICAL TTRAIN tables ----
 
 # Mirrors: Near_completes_total_by_CIP4_TTRAIN (all years)
@@ -1184,6 +1194,18 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_tot
       near_completers_stp_credentials
     )
   )
+
+
+# write to sql server
+dbWriteTable(
+  conn = decimal_con,
+  name = SQL(glue::glue(
+    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain_history"'
+  )),
+  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain_history,
+  overwrite = TRUE
+)
+
 
 # ---- Clean Up ----
 # TODO: clean up this section
