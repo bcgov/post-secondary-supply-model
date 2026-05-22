@@ -27,21 +27,15 @@
 library(tidyverse)
 library(glue)
 library(assertthat)
-
-# -------------------------- DEVELOPMENT ONLY -------------------------------------
-# use this section for development and checking against the SQL versions
-# remove whatever we don't use when done, depending on final design decisions
-
 library(RODBC)
 library(DBI)
 library(config)
-#
-#
-# # ---- Configure LAN and file paths ----
+
+# ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-#
+
 # ----Connection to database ----
 db_config <- config::get("decimal")
 decimal_con <- dbConnect(
@@ -52,20 +46,12 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
+# -------------------------- Required Tables -----------------------------------------
+# move this into load scripts?
 occupation_distributions_stat_can <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"Occupation_Distributions_Stat_Can"'))
 )
-
-#dbDisconnect(decimal_con)
-
-#
-# # ---- Source Queries ----
-# source(glue::glue(
-#   "./sql/02b-pssm-cohorts/02b-pssm-cohorts-occupation-distributions.R"
-# ))
-
-# -------------------------- Required Tables -----------------------------------------
 
 # List of required tables
 required_tables <- c(
@@ -101,15 +87,14 @@ t_noc_broad_categories <- t_noc_broad_categories |>
 occupation_distributions_stat_can <- occupation_distributions_stat_can |>
   rename_with(toupper)
 
-
-# ---- Execute SQL ----
+# --------------------------  Calculate Weights --------------------------
 
 # Identify the "Universe" of graduates, grouping by key demographics.
-# These records are included in the ‘base’ for the occupational distribution
-# Base represents the number of respondents and can be verified by summing
-# DACSO_Q006b_Weighted_New_Labour_Supply.Unweighted_Count
-
-# dbExecute(decimal_con, DACSO_Q008_Z01_Base_OCC)
+# BASE represents the number of valid respondents and can be verified by summing
+# sum(DACSO_Q006b_Weighted_New_Labour_Supply.Unweighted_Count)
+# filter removes unknown regions, but keeps the rest, including international students.
+# filter includes only NLS 1,2,3 and grad status 1,3.
+# filter keeps only respondents who were 17-34 at age of survey
 dacso_q008_z01_base_occ <- t_cohorts_recoded %>%
   filter(WEIGHT > 0, CURRENT_REGION_PSSM_CODE != -1) %>%
   group_by(
@@ -131,6 +116,9 @@ dacso_q008_z01_base_occ <- t_cohorts_recoded %>%
   select(-GRAD_STATUS)
 
 # calculates the Weighted NLS: Base: Count(*)*[Weight_NLS];
+# filter join removes NA regions and any regions outside of BC.
+# filter includes only NLS 1,2,3 and grad status 1,3.
+# filter keeps only respondents who were 17-34 at age of survey
 # dbExecute(decimal_con, DACSO_Q008_Z02a_Base)
 dacso_q008_z02a_base <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
@@ -159,15 +147,16 @@ dacso_q008_z02a_base <- t_cohorts_recoded %>%
   ) %>%
   summarise(COUNT = n(), BASE = n() * unique(WEIGHT_NLS), .groups = "drop")
 
-# original queries first created a table with only respondents with a NOC and NLS=1,3;
+# I collapsed the following 4 queries for readability.
+# - DACSO_Q008_Z02b_Respondents
+# - DACSO_Q008_Z02b_Respondents_NOC_99999
+# - DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc
+# - DACSO_Q008_Z02b_Respondents_Union
+# Reasoning: original queries first created a table with only respondents with a NOC and NLS=1,3;
 # then split the table into 2: NOC_CD=9999 (Unknown) and NOC_CD != 9999 (Known).
-# For Unknowns, kept only those demographic group where every respondent in thad an 9999 NOC.
+# For Unknowns, kept only those demographic group where every respondent had a 9999 NOC.
 # The two tables were unioned back together.
-# DACSO_Q008_Z02b_Respondents
-# DACSO_Q008_Z02b_Respondents_NOC_99999
-# DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc
-# DACSO_Q008_Z02b_Respondents_Union
-# I've done this in two steps: 1) create a table of respondents,
+# I've done this in two steps: 1) create a table of respondents
 # then 2) filter to those with a known NOC, or where all respondents in the demographic group are unknowns.
 dacso_q008_z02b_respondents <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
@@ -329,18 +318,17 @@ tmp_tbl_weights_occ <- dacso_q008_z02c_weight %>%
 # ---------- Check Distributions for Missing Dsitributions, nls/occ ratios -------
 # Data Quality check - find any demographic groups that missing from the occupational weights
 # dbExecute(decimal_con, DACSO_Q008_Z05b_Finding_NLS2_Missing)
-tmp_tbl_weights_nls %>%
+chk_missing_occ <- tmp_tbl_weights_nls %>%
   anti_join(
     tmp_tbl_weights_occ,
     by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
   )
 
-tmp_tbl_weights_occ %>%
+chk_missing_nls <- tmp_tbl_weights_occ %>%
   anti_join(
     tmp_tbl_weights_nls,
     by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
   )
-
 
 # show the volume of graduate survey respondents across different occupations,
 # broken down by age group and specific labor supply classifications
@@ -534,10 +522,23 @@ dacso_q009_weight_occs <- t_cohorts_recoded |>
   )
 
 
-# I collapsed the following 3 queries into one for readability.
+# ----- Create Final Occupation Distribution Tables -----
+# The weight in this code should work for either a qi or non-qi run,
+# so we shouldn't need to run a separate query like:
+# dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
+# To do: Double-check that the logic for qi vs. regular runs makes sense.
+# In theory, our design means we don't need to handle separate qi weights,
+# distributions, or queries in this script, because the qi/regular weight
+# choice is abstracted out in the 02b1 script.
+
+# 1. occupation_distributions
+# collapsed the following 4 queries into tidyverse block for readability.
 # - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs)
 # - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total)
 # - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist)
+# - dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
+# Tested against my_schema.occupation_distributions: some differences noted due to rounding
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -548,7 +549,8 @@ group_vars <- c(
   "LCIP4_CRED",
   "LCIP2_CRED"
 )
-dacso_q010_weighted_occs_dist <- dacso_q009_weight_occs |>
+
+occupation_distributions <- dacso_q009_weight_occs |>
   group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
   summarize(
     COUNT = sum(WEIGHTED, na.rm = TRUE),
@@ -565,16 +567,31 @@ dacso_q010_weighted_occs_dist <- dacso_q009_weight_occs |>
   ) |>
   mutate(
     PERC_DIST = COUNT / TOTAL
+  ) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP4_CD,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
   )
 
-compare("dacso_q010_weighted_occs_dist", dacso_q010_weighted_occs_dist)
-
-
-# not working as expected...
-# I collapsed the following 3 queries into one for readability.
+# 2. occupation_distributions_lcp2
+# collapse the following 4 queries into tidyverse block for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D)
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D)
 #  - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D)
+#  - dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
+# Tested against my_schema.occupation_distributions_lcp2: some differences noted due to rounding
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -585,7 +602,7 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q010_weighted_occs_dist_2d <-
+occupation_distributions_lcp2 <-
   dacso_q009_weight_occs |>
   group_by(across(all_of(group_vars))) |>
   summarize(
@@ -601,18 +618,29 @@ dacso_q010_weighted_occs_dist_2d <-
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL)
+  mutate(PERC_DIST = COUNT / TOTAL) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD,
+    TTRAIN,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
-compare(
-  "dacso_q010_weighted_occs_dist_2d",
-  dacso_q010_weighted_occs_dist_2d
-)
-
-
-# I collapsed the following 3 queries into one for readability.
+# 3. occupation_distributions_lcp2_bc
+# collapse the following 4 queries into tidyverse block for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_BC)
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D_BC)
 #  - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC)
+# - dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
+# Tested against my_schema.occupation_distributions_lcp2_bc: some differences noted due to rounding
 
 group_vars <- c(
   "PSSM_CREDENTIAL",
@@ -622,7 +650,7 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q010_weighted_occs_dist_2d_bc <- dacso_q009_weight_occs |>
+occupation_distributions_lcp2_bc <- dacso_q009_weight_occs |>
   filter(IN_BC == TRUE) |>
   group_by(across(all_of(group_vars))) |>
   summarize(
@@ -639,17 +667,27 @@ dacso_q010_weighted_occs_dist_2d_bc <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL)
+  mutate(PERC_DIST = COUNT / TOTAL) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD = LCP2_CD,
+    TTRAIN = TTRAIN,
+    LCIP2_CRED = LCIP2_CRED,
+    NOC = NOC_CD,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
-compare(
-  "dacso_q010_weighted_occs_dist_2d_bc",
-  dacso_q010_weighted_occs_dist_2d_bc
-)
-
-# I collapsed the following 3 queries into one for readability.
+# 4. occupation_distributions_lcp2_bc_no_tt
+# collapse the following 4 queries into tidyverse block for readability.
 # - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_BC_No_TT)
 # - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D_BC_No_TT)
 # - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_BC_No_TT)
+# - dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC_No_TT)
+# Tested against my_schema.occupation_distributions_lcp2_bc_no_tt: no differences noted
 
 group_vars <- c(
   "PSSM_CREDENTIAL",
@@ -658,7 +696,8 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q010_weighted_occs_dist_2d_bc_no_tt <- dacso_q009_weight_occs |>
+
+occupation_distributions_lcp2_bc_no_tt <- dacso_q009_weight_occs |>
   filter(IN_BC == TRUE) |>
   mutate(LCIP2_CRED = remove_ttrain(LCIP2_CRED)) |>
   group_by(across(all_of(group_vars))) |>
@@ -677,17 +716,29 @@ dacso_q010_weighted_occs_dist_2d_bc_no_tt <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL)
+  mutate(PERC_DIST = COUNT / TOTAL) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD = LCP2_CD,
+    LCIP2_CRED = LCIP2_CRED,
+    TTRAIN = NA_character_, # to match the SQL tables
+    NOC = NOC_CD,
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
-compare(
-  "dacso_q010_weighted_occs_dist_2d_bc_no_tt",
-  dacso_q010_weighted_occs_dist_2d_bc_no_tt
-)
 
+# 5. occupation_distributions_lcp2_no_tt
 # I collapsed the following 3 queries into one for readability.
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_2D_No_TT)
 #  - dbExecute(decimal_con, DACSO_Q009_Weighted_Occs_Total_2D_No_TT)
 #  - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_2D_No_TT)
+#  - dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
+# Tested against my_schema.occupation_distributions_lcp2_no_tt: no differences noted
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -697,7 +748,7 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q010_weighted_occs_dist_2d_no_tt <- dacso_q009_weight_occs |>
+occupation_distributions_lcp2_no_tt <- dacso_q009_weight_occs |>
   mutate(LCIP2_CRED = remove_ttrain(LCIP2_CRED)) |>
   group_by(across(all_of(group_vars))) |>
   summarize(
@@ -714,18 +765,39 @@ dacso_q010_weighted_occs_dist_2d_no_tt <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL)
+  mutate(PERC_DIST = COUNT / TOTAL) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_Credential = PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED,
+    LCP2_CD,
+    LCIP2_CRED,
+    NOC = NOC_CD,
+    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
+    Age_Group_Rollup = AGE_GROUP_ROLLUP,
+    TTRAIN = NA_character_, # to match the SQL tables
+    Count = COUNT,
+    Total = TOTAL,
+    Percent = PERC_DIST
+  )
 
-compare(
-  "dacso_q010_weighted_occs_dist_2d_no_tt",
-  dacso_q010_weighted_occs_dist_2d_no_tt
-)
 
-
-# I collapsed the following 3 queries into one for readability.
+# 6. occupation_distributions_no_tt
+# Collapsed the following 4 queries into one for readability.
 # - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_No_TT)
 # - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_Total_No_TT)
 # - dbExecute(decimal_con, DACSO_Q010_Weighted_Occs_Dist_No_TT)
+# - dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
+# BA Notes:
+# I double-checked the original SQl carefully.
+# It casts LCIP4_CRED to nvarchar(20), which actually drops the following groups:
+#   - ADCT or ADIP
+#   - PDCT or PDDP
+#   - ADGR or UT
+# I don't understand the purpose, but have replicated this logic filtering to LCIP4_CRED with 20 or fewer characters.
+# Tested against my_schema.occupation_distributions_no_tt: no differences noted, but I am concerned
+# with why we are dropping groups with LCIP4_CRED longer than 20 characters.
+
 group_vars <- c(
   "PSSM_CREDENTIAL",
   "PSSM_CRED",
@@ -736,23 +808,7 @@ group_vars <- c(
   "LCIP2_CRED"
 )
 
-dacso_q009b_weighted_occs_no_tt <- dacso_q009_weight_occs |>
-  mutate(
-    LCIP4_CRED = make_lcip_cred(GRAD_STATUS, LCP4_CD, PSSM_CREDENTIAL),
-    LCIP2_CRED = make_lcip_cred(GRAD_STATUS, LCP2_CD, PSSM_CREDENTIAL)
-  ) |>
-  group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
-  summarize(
-    COUNT = sum(WEIGHTED, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-compare(
-  "dacso_q009b_weighted_occs_no_tt",
-  dacso_q009b_weighted_occs_no_tt
-)
-
-dacso_q009b_weighted_occs_total_no_tt <- dacso_q009_weight_occs |>
+occupation_distributions_no_tt <- dacso_q009_weight_occs |>
   mutate(
     LCIP4_CRED = make_lcip_cred(GRAD_STATUS, LCP4_CD, PSSM_CREDENTIAL),
     LCIP2_CRED = make_lcip_cred(GRAD_STATUS, LCP2_CD, PSSM_CREDENTIAL)
@@ -761,67 +817,24 @@ dacso_q009b_weighted_occs_total_no_tt <- dacso_q009_weight_occs |>
   summarize(
     TOTAL = sum(WEIGHTED, na.rm = TRUE),
     .groups = "drop"
-  )
-
-
-# this query was not working as expected, so I double-checked the original SQl carefully.
-# It casts LCIP4_CRED to nvarchar(20), which actually drops the following groups:
-#   - ADCT or ADIP
-#   - PDCT or PDDP
-#   - ADGR or UT
-# I don't understand the purpose, but have replicated this logic filtering to LCIP4_CRED with 20 or fewer characters.
-
-dacso_q010_weighted_occs_dist_no_tt <- dacso_q009b_weighted_occs_total_no_tt |>
+  ) |>
   left_join(
-    dacso_q009b_weighted_occs_no_tt |>
-      filter(str_length(LCIP4_CRED) <= 20),
+    dacso_q009_weight_occs |>
+      mutate(
+        LCIP4_CRED = make_lcip_cred(GRAD_STATUS, LCP4_CD, PSSM_CREDENTIAL),
+        LCIP2_CRED = make_lcip_cred(GRAD_STATUS, LCP2_CD, PSSM_CREDENTIAL)
+      ) |>
+      group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
+      summarize(
+        COUNT = sum(WEIGHTED, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      filter(str_length(LCIP4_CRED) <= 20), # I don't understand the purpose of this filter.  See notes above.
     by = c(group_vars)
   ) |>
   mutate(
     PERC_DIST = COUNT / TOTAL
-  )
-
-compare(
-  "dacso_q010_weighted_occs_dist_no_tt",
-  dacso_q010_weighted_occs_dist_no_tt
-)
-
-
-# ----- Create Final Occupation Distribution Tables -----
-# The weight in this code should work for either a qi or non-qi run,
-# so we shouldn't need to run a separate query like:
-# dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
-# To do: Double-check that the logic for qi vs. regular runs makes sense.
-# In theory, our design means we don't need to handle separate qi weights,
-# distributions, or queries in this script, because the qi/regular weight
-# choice is abstracted out in the 02b1 script.
-
-# dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
-occupation_distributions <- dacso_q010_weighted_occs_dist |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_Credential = PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED,
-    LCP4_CD,
-    TTRAIN,
-    LCIP4_CRED,
-    LCIP2_CRED,
-    NOC = NOC_CD,
-    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
-    Age_Group_Rollup = AGE_GROUP_ROLLUP,
-    Count = COUNT,
-    Total = TOTAL,
-    Percent = PERC_DIST
-  )
-
-# ---- For testing purposes only
-# some differences noted due to rounding
-occupation_distributions$TTRAIN <- as.character(occupation_distributions$TTRAIN)
-compare("occupation_distributions", occupation_distributions)
-# ----
-
-# dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution_No_TT)
-occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
+  ) |>
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -837,110 +850,10 @@ occupation_distributions_no_tt <- dacso_q010_weighted_occs_dist_no_tt |>
     Total = TOTAL,
     Percent = PERC_DIST
   )
-
-# ---- For testing purposes only
-# no differences, but is missing the following credential groups:
-#  - ADCT or ADIP
-#  - PDCT or PDDP
-#  - ADGR or UT
-compare("occupation_distributions_no_tt", occupation_distributions_no_tt)
-# ----
-
-# dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2)
-occupation_distributions_lcp2 <- dacso_q010_weighted_occs_dist_2d |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_Credential = PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED,
-    LCP2_CD,
-    TTRAIN,
-    LCIP2_CRED,
-    NOC = NOC_CD,
-    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
-    Age_Group_Rollup = AGE_GROUP_ROLLUP,
-    Count = COUNT,
-    Total = TOTAL,
-    Percent = PERC_DIST
-  )
-
-# ---- For testing only
-# differences noted due to rounding
-occupation_distributions_lcp2$TTRAIN <- as.character(
-  occupation_distributions_lcp2$TTRAIN
-)
-compare("occupation_distributions_lcp2", occupation_distributions_lcp2)
-# ----
-
-# dbExecute(decimal_con, DACSO_Q010b1_Append_Occupational_Distribution_LCP2_No_TT)
-occupation_distributions_lcp2_no_tt <- dacso_q010_weighted_occs_dist_2d_no_tt |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_Credential = PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED,
-    LCP2_CD,
-    LCIP2_CRED,
-    NOC = NOC_CD,
-    Current_Region_PSSM_Code_Rollup = CURRENT_REGION_PSSM_CODE_ROLLUP,
-    Age_Group_Rollup = AGE_GROUP_ROLLUP,
-    TTRAIN = NA_character_, # to match the SQL tables
-    Count = COUNT,
-    Total = TOTAL,
-    Percent = PERC_DIST
-  )
-
-# ---- For testing purposes only
-# no differences notes
-compare(
-  "occupation_distributions_lcp2_no_tt",
-  occupation_distributions_lcp2_no_tt
-)
-# ----
-
-# dbExecute(decimal_con, DACSO_Q010c1_Append_Occupational_Distribution_LCP2_BC)
-occupation_distributions_lcp2_bc <- dacso_q010_weighted_occs_dist_2d_bc |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_Credential = PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED,
-    LCP2_CD = LCP2_CD,
-    TTRAIN = TTRAIN,
-    LCIP2_CRED = LCIP2_CRED,
-    NOC = NOC_CD,
-    Count = COUNT,
-    Total = TOTAL,
-    Percent = PERC_DIST
-  )
-
-# ---- For testing purposes only
-# no differences noted
-occupation_distributions_lcp2_bc$TTRAIN <- as.character(
-  occupation_distributions_lcp2_bc$TTRAIN
-)
-compare("occupation_distributions_lcp2_bc", occupation_distributions_lcp2_bc)
-# ----
-
-occupation_distributions_lcp2_bc_no_tt <- dacso_q010_weighted_occs_dist_2d_bc_no_tt |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_Credential = PSSM_CREDENTIAL,
-    PSSM_CRED = PSSM_CRED,
-    LCP2_CD = LCP2_CD,
-    LCIP2_CRED = LCIP2_CRED,
-    TTRAIN = NA_character_, # to match the SQL tables
-    NOC = NOC_CD,
-    Count = COUNT,
-    Total = TOTAL,
-    Percent = PERC_DIST
-  )
-
-compare(
-  "occupation_distributions_lcp2_bc_no_tt",
-  occupation_distributions_lcp2_bc_no_tt
-)
 
 # ------  create distribution for pdeg/law distribution ------
 # These queries calculate New Labour Supply Distribution for Law/PDEG
-# Move to 02b-2 and check they make sense bc Subtotal removes region grouping.
+# TODO: Move to 02b-2 and rewrite in tidyverse.
 dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
 dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
 dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
@@ -948,10 +861,14 @@ dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
 
 # ---- Calculate Occupational Distribution for Law/PDEG
-# dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
-# dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
-# dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
-# dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
+# Collapse the following 4 queries into one for readability.
+# - dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
+# - dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
+# - dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
+# - dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
+# Tested against my_schema.dacso_q010e2_weighted_occs_pdeg_07: no differences noted
+# but I am concerned that we are double counting PDEG respondents:
+# LCP2_CD == '22' are not dropped from BACH.
 
 group_vars <- c(
   "Survey",
@@ -959,6 +876,7 @@ group_vars <- c(
   "Current_Region_PSSM_Code_Rollup",
   "Age_Group_Rollup"
 )
+
 dacso_q010e2_weighted_occs_pdeg_07 <- occupation_distributions |>
   filter(
     substr(LCP4_CD, 1, 2) == "22",
@@ -978,35 +896,41 @@ dacso_q010e2_weighted_occs_pdeg_07 <- occupation_distributions |>
     LCIP4_CRED = "07 - PDEG",
   )
 
-# ---- For testing
-compare(
-  "dacso_q010e4_weighted_occs_dist_pdeg_07",
-  dacso_q010e3_weighted_occs_total_pdeg_07
-)
-# ----
 
-# ------  extra stuff that I am not sure where it fits in yet but want to make sure I don't lose it.
+# Keeping this, but not at all sure why we need it.
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 
-if (qi_run == TRUE | ptib_run == TRUE) {
-  # do  nothing
-}
+# ------ create t_suppression_public_release_noc
+# t_suppression_public_release_noc seems to be a list of NOCS we want to suppress though not
+# sure why it's here and not in the final report section 07/08
+# Since t_age_group_rollup isn't in the R environment, I've used age group rollup filter
+# and it does filter to 17-64 as the SQL version does, but the label is missing.
+# dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
+
 if (regular_run == TRUE) {
-  tryCatch(
-    {
-      dbExecute(decimal_con, DACSO_qry99_Suppression_Public_Release_NOC)
-    },
-    error = function(e) {
-      print(paste("Error:", e$message))
-      stop()
-    }
-  )
+  t_suppression_public_release_noc <- t_cohorts_recoded |>
+    filter(WEIGHT > 0) |> # does nothing
+    filter(!is.na(AGE_GROUP_ROLLUP)) |>
+    summarize(
+      Expr1 = n(),
+      .by = c(AGE_GROUP_ROLLUP, NOC_CD)
+    ) |>
+    filter(Expr1 < 5) |>
+    mutate(
+      AGE_GROUP_ROLLUP_LABEL = case_when(
+        AGE_GROUP_ROLLUP == 1 ~ "17 to 29",
+        AGE_GROUP_ROLLUP == 2 ~ "30 to 44",
+        AGE_GROUP_ROLLUP == 3 ~ "45 to 64",
+        TRUE ~ NA_character_
+      )
+    ) |>
+    arrange(Expr1)
 }
 
 # ---- include post-bach degrees from stats can data
-# leaving here becuase it's where this was run in the original SQL.
-# but we should check that it makes sense to include here, as opposed to above.
-# don't think it should matter but noting for self anyways.
+# this was included here in the original SQL but means the stats can data isn't included
+# in the Public Release above?
+# Definitely a TODO to check that it makes sense to include here
 occupation_distributions <- occupation_distributions |>
   rbind(
     occupation_distributions_stat_can |>
