@@ -788,8 +788,13 @@ compare(
 
 
 # ----- Create Final Occupation Distribution Tables -----
-# Noting that the original SQL have seperate queries to clear occupation distributions
-# for qi run.  In R, we assume that qi run weights are handled in the 02b-1 script.
+# The weight in this code should work for either a qi or non-qi run,
+# so we shouldn't need to run a separate query like:
+# dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
+# To do: Double-check that the logic for qi vs. regular runs makes sense.
+# In theory, our design means we don't need to handle separate qi weights,
+# distributions, or queries in this script, because the qi/regular weight
+# choice is abstracted out in the 02b1 script.
 
 # dbExecute(decimal_con, DACSO_Q010a1_Append_Occupational_Distribution)
 occupation_distributions <- dacso_q010_weighted_occs_dist |>
@@ -933,27 +938,52 @@ compare(
   occupation_distributions_lcp2_bc_no_tt
 )
 
-# ------  create distribution for pdeg/law
-# as with the other distributions, double check that the logic for a qi run makes sense.
-# our design should mean we don't need to account for a seperate qi weight/distributions because
-# qi weight is abstracted out in the 02b1 script.  The weight in this code should represent either qi or non-qi run.
-# we shouldn't need to run a seperate query like this:
-# dbExecute(decimal_con, DACSO_Q010d1_Delete_PDEG_CIP_Cluster_07_Law_New_Labour_Supply_QI)
-
+# ------  create distribution for pdeg/law distribution ------
+# These queries calculate New Labour Supply Distribution for Law/PDEG
+# Move to 02b-2 and check they make sense bc Subtotal removes region grouping.
 dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
 dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
 dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
 dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
 dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
-dbExecute(
-  decimal_con,
-  DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist
+
+# ---- Calculate Occupational Distribution for Law/PDEG
+# dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
+# dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
+# dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
+# dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
+
+group_vars <- c(
+  "Survey",
+  "TTRAIN",
+  "Current_Region_PSSM_Code_Rollup",
+  "Age_Group_Rollup"
 )
-#dbExecute(decimal_con, DACSO_Q010e1_Delete_PDEG_CIP_Cluster_07_Law_Occupation_Dist_QI)
-dbExecute(decimal_con, DACSO_Q010e2_Weighted_Occs_PDEG_07)
-dbExecute(decimal_con, DACSO_Q010e3_Weighted_Occs_Total_PDEG_07)
-dbExecute(decimal_con, DACSO_Q010e4_Weighted_Occs_Dist_PDEG_07)
-dbExecute(decimal_con, DACSO_Q010e5_Append_Occupational_Distribution_PDEG_07)
+dacso_q010e2_weighted_occs_pdeg_07 <- occupation_distributions |>
+  filter(
+    substr(LCP4_CD, 1, 2) == "22",
+    PSSM_Credential == "BACH",
+    Survey == "Student Outcomes"
+  ) |>
+  group_by(across(c(all_of(group_vars), "NOC"))) |>
+  mutate(Count = sum(Count, na.rm = TRUE)) |>
+  group_by(across(all_of(group_vars))) |>
+  mutate(Total = sum(Count, na.rm = TRUE)) |>
+  ungroup() |>
+  mutate(perc_Dist = Count / Total) |>
+  mutate(
+    PSSM_Credential = "PDEG",
+    PSSM_CRED = "PDEG",
+    LCP4_CD = "07",
+    LCIP4_CRED = "07 - PDEG",
+  )
+
+# ---- For testing
+compare(
+  "dacso_q010e4_weighted_occs_dist_pdeg_07",
+  dacso_q010e3_weighted_occs_total_pdeg_07
+)
+# ----
 
 # ------  extra stuff that I am not sure where it fits in yet but want to make sure I don't lose it.
 dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
