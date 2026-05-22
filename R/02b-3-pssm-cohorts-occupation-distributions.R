@@ -18,12 +18,7 @@ library(DBI)
 library(config)
 
 # ---- Helper Functions ----
-
 remove_ttrain <- function(x) {
-  # Function removes the TTRAIN component from a string and returns the string.
-  # Examples:
-  # 1) 1234 - APPSOAPPSO remains the same as there is no TTRAIN component.
-  # 2) 1234 - BACH - 1 - becomes 1234 - BACH
   purrr::map_chr(x, function(str) {
     parts <- strsplit(str, " - ", fixed = TRUE)[[1]]
     if (length(parts) == 4) {
@@ -35,10 +30,6 @@ remove_ttrain <- function(x) {
 }
 
 make_lcip_cred <- function(grad_status, lcp_cd, pssm_credential) {
-  # Function creates a concatenated string from 3 variables.
-  # Example 1: "1 - 1234 - BACH"
-  # Example 2: NA - returns NA
-
   if_else(
     is.na(grad_status),
     NA_character_,
