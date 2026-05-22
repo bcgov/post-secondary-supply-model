@@ -10,26 +10,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script processes cohort data from student outcomes and derives occupation distributions.
-# Outcomes data has been standardized so all cohorts/surveys are combined in a single dataset before
-# processing.
-#
-#   Create weights for occupational distribution (Weight_OCC).
-#
-# Includes records with a labour force status for those aged 17 to 64,
-# Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
-
-# Note:  create Weight_Age is used to calculate the age for the private institution credentials
-# and needed if the data set doesn’t have age.
-# Check PDCT or PDDP
-# DACSO_Q008_Z01_Base_OCC documentation - records should be the same as equivalent NLS query
-
 library(tidyverse)
 library(glue)
 library(assertthat)
 library(RODBC)
 library(DBI)
 library(config)
+
+# ---- Helper Functions ----
+
+remove_ttrain <- function(x) {
+  # Function removes the TTRAIN component from a string and returns the string.
+  # Examples:
+  # 1) 1234 - APPSOAPPSO remains the same as there is no TTRAIN component.
+  # 2) 1234 - BACH - 1 - becomes 1234 - BACH
+  purrr::map_chr(x, function(str) {
+    parts <- strsplit(str, " - ", fixed = TRUE)[[1]]
+    if (length(parts) == 4) {
+      paste(c(parts[1:2], parts[4:length(parts)]), collapse = " - ")
+    } else {
+      str
+    }
+  })
+}
+
+make_lcip_cred <- function(grad_status, lcp_cd, pssm_credential) {
+  # Function creates a concatenated string from 3 variables.
+  # Example 1: "1 - 1234 - BACH"
+  # Example 2: NA - returns NA
+
+  if_else(
+    is.na(grad_status),
+    NA_character_,
+    str_c(as.character(grad_status), " - ", lcp_cd, " - ", pssm_credential)
+  )
+}
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -115,7 +130,7 @@ dacso_q008_z01_base_occ <- t_cohorts_recoded %>%
   ) |>
   select(-GRAD_STATUS)
 
-# calculates the Weighted NLS: Base: Count(*)*[Weight_NLS];
+# calculate the Weighted NLS: Base: Count(*)*[Weight_NLS];
 # filter join removes NA regions and any regions outside of BC.
 # filter includes only NLS 1,2,3 and grad status 1,3.
 # filter keeps only respondents who were 17-34 at age of survey
@@ -147,17 +162,20 @@ dacso_q008_z02a_base <- t_cohorts_recoded %>%
   ) %>%
   summarise(COUNT = n(), BASE = n() * unique(WEIGHT_NLS), .groups = "drop")
 
+# Create a table of respondents that we want to keep
 # I collapsed the following 4 queries for readability.
 # - DACSO_Q008_Z02b_Respondents
 # - DACSO_Q008_Z02b_Respondents_NOC_99999
 # - DACSO_Q008_Z02b_Respondents_NOC_99999_100_perc
 # - DACSO_Q008_Z02b_Respondents_Union
-# Reasoning: original queries first created a table with only respondents with a NOC and NLS=1,3;
-# then split the table into 2: NOC_CD=9999 (Unknown) and NOC_CD != 9999 (Known).
-# For Unknowns, kept only those demographic group where every respondent had a 9999 NOC.
+# Reasoning: original queries create a table with only respondents with a NOC and NLS=1,3.
+# Then split the table into: NOC_CD=99999 (Unknown) and !NOC_CD=99999 (Known).
+# For the NOC_CD=99999 (Unknown) group, kept only the demographic groups where every respondent in the group had a 99999 NOC.
 # The two tables were unioned back together.
-# I've done this in two steps: 1) create a table of respondents
-# then 2) filter to those with a known NOC, or where all respondents in the demographic group are unknowns.
+# I've done this in two steps and get the same results.
+# 1) create a table of respondents then
+# 2) filter to those with !NOC_CD=99999 (Known), or where all respondents in the demographic group are unknowns.
+
 dacso_q008_z02b_respondents <- t_cohorts_recoded %>%
   inner_join(t_current_region_pssm_codes, by = "CURRENT_REGION_PSSM_CODE") %>%
   inner_join(
@@ -210,7 +228,13 @@ dacso_q008_z02b_respondents_union <-
   ) |>
   select(-COUNT)
 
-# calculate the weighted and weighted nls
+# calculate the weighted and weighted nls for all of the ppl in z02a_base
+# this is all respondents with NLS=1-3, GRAD_STATUS=1,3, aged 17-34 at time of survey, living in BC
+# bring in the count of respondents for each group.  If there are no respondents for a group, the overall count
+# of weighted (n_ppl) will be 0.
+# otherwise, the weighted base count will be "weighted up" by some factor
+# I beleive what this is doing is up-wieghitng the NLS=2 group into the NLS = 1,3 group.
+# for those in the list of respondents we want to condsider
 # dbExecute(decimal_con, DACSO_Q008_Z02c_Weight)
 dacso_q008_z02c_weight <- dacso_q008_z02a_base %>%
   left_join(
@@ -274,8 +298,9 @@ dacso_q008_z03_weight_total <- dacso_q008_z02c_weight %>%
     .groups = "drop"
   )
 
+# ---- adjustment factor
 # dbExecute(decimal_con, DACSO_Q008_Z04_Weight_Adj_Fac)
-# calculate the adjustment factor required for the weighted counts to equal the base
+# WEIGHT_ADJ_FACis the adjustment factor required for the weighted counts to equal the base
 dacso_q008_z04_weight_adj_fac <- dacso_q008_z03_weight_total %>%
   mutate(WEIGHT_ADJ_FAC = ifelse(WEIGHTED == 0, 0, BASE / WEIGHTED))
 
@@ -283,7 +308,6 @@ dacso_q008_z04_weight_adj_fac <- dacso_q008_z03_weight_total %>%
 # applies the adjustment factor to raw weight (Weight_OCC: [Weight_NLS_Base]*[Weight_Adj_Fac])
 # remember we are weighting up NLS=1,2,3 as the probability and year weights are already incorporated in the NLS weights
 # creates a temporary table to hold the weights
-
 # dbExecute(decimal_con, DACSO_Q008_Z05_Weight_OCC)
 tmp_tbl_weights_occ <- dacso_q008_z02c_weight %>%
   select(-WEIGHTED) %>%
@@ -315,8 +339,8 @@ tmp_tbl_weights_occ <- dacso_q008_z02c_weight %>%
   select(-WEIGHT_NLS)
 
 
-# ---------- Check Distributions for Missing Dsitributions, nls/occ ratios -------
-# Data Quality check - find any demographic groups that missing from the occupational weights
+# ---------- Data Quality Checks Check -------
+# 1) find any demographic groups that missing from the occupational weights
 # dbExecute(decimal_con, DACSO_Q008_Z05b_Finding_NLS2_Missing)
 chk_missing_occ <- tmp_tbl_weights_nls %>%
   anti_join(
@@ -324,22 +348,22 @@ chk_missing_occ <- tmp_tbl_weights_nls %>%
     by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
   )
 
+# 2) find any demographic groups that are missing from the NLS weights
 chk_missing_nls <- tmp_tbl_weights_occ %>%
   anti_join(
     tmp_tbl_weights_nls,
     by = c("SURVEY", "INST_CD", "AGE_GROUP_ROLLUP", "GRAD_STATUS", "LCIP4_CRED")
   )
 
-# show the volume of graduate survey respondents across different occupations,
-# broken down by age group and specific labor supply classifications
-# not implemented as it was too complicated and I don't know why we need it.
+# 3) show the volume of graduate survey respondents across different occupations, age group and labor supply
 # dbExecute(decimal_con, DACSO_Q008_Z05b_NOC4D_NLS_XTab)
+# BA notes: not implemented as it was too complicated and I don't know why we need it.
 
+# 4) Examine the ratio between the nls and occ weights
 # dbExecute(decimal_con, DACSO_Q008_Z05b_Weight_Comparison)
-# look at the ratio between the nls and occ weights
 # examine extreme values of 20+ for Weight_OCC
-# from 2019 notes - these differences are as a result of dropping the records in the above queries (unknown region and NOC)
-# but I am concerned that there are so many that are the same (i.e. dropping unknown region and NOC's affected far fewer groups
+# these differences should be the result of dropping records in the above queries (such as unknown region and NOC)
+# BA Notes: I am concerned that there many with no change.  This says to me that dropping unknown region and NOC's affected far fewer groups
 # than in 2019 Access database - we should investigate why.
 dacso_q008_z05b_weight_comparison <- tmp_tbl_weights_nls %>%
   select(-RESPONDENTS) %>%
@@ -383,15 +407,17 @@ dacso_q008_z05b_weight_comparison <- tmp_tbl_weights_nls %>%
     TTRAIN
   )
 
-# ----------  Add OCC Weights to Cohort Data and Calculate Occupation Distributions -------
-# dbExecute(decimal_con, DACSO_Q008_Z06_Add_Weight_OCC_Field)
+# -------------------  Add OCC Weights to Cohort Data ---------------------
+# calculate and add WEIGHT_OCC to the main cohort table.
+# Implements these queries:
+#  - DACSO_Q008_Z06_Add_Weight_OCC_Field
+#  - DACSO_Q008_Z08_Weight_OCC_Update
+#  - DACSO_Q008_Z08_Weight_OCC_Update_NOC_99999_100_perc
+
 t_cohorts_recoded <- t_cohorts_recoded %>%
-  mutate(WEIGHT_OCC = as.numeric(NA))
+  mutate(WEIGHT_OCC = as.numeric(NA)) # initialize the field to
 
-# DACSO_Q008_Z08_Weight_OCC_Update
-# DACSO_Q008_Z08_Weight_OCC_Update_NOC_99999_100_perc
-
-# grab only those records where the entire CIP is 100% NOC 9999
+# only those records where the entire CIP is 100% NOC 9999
 w_100p_9999 <- tmp_tbl_weights_occ %>%
   inner_join(
     dacso_q008_z02b_respondents_union |> filter(NOC_CD_99999_FLAG == 1),
@@ -416,12 +442,11 @@ w_100p_9999 <- tmp_tbl_weights_occ %>%
   )
 
 # the case_when at the bottom is pretty confusing but it is basically
-# updating weight_occ following these rules:
+# calculating weight_occ following these rules:
 # where unknown PSSM region or NOC is null or 9999: keep original weight_occ
 # where STQU_ID is not in the original occ_base (NLS = 1,2,3 and GradStatus = 1,3 and a few other conditions) or region code is not valid: keep original weight_occ
-# where NOC_CD != "99999", keep either W_STD or original weight_occ
+# where NOC_CD != "99999", keep either W_STD or original weight_occ if W_STD is NA
 # otherwise update weight_occ to W_100P_9999, which is the weight where the entire CIP is 100% NOC 9999
-# the logic is strange though since
 t_cohorts_recoded <- t_cohorts_recoded %>%
   left_join(
     tmp_tbl_weights_occ |>
@@ -464,11 +489,16 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
   ) %>%
   select(-W_TMP_TBL, -W_100P_9999)
 
-# didn't implement this as it is just a check.
-#dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
+# didn't implement this as it is another check.
+# dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
 
 # ----- Create Occupation Distributions -----
 #dbExecute(decimal_con, DACSO_Q009_Weight_Occs)
+# this is the main table that feeds into the occupation distributions tables.
+# filter join to remove unknown regions
+# filter includes only NLS 1,3 and grad status 1,3.
+# add a flag to indicate whether a record is in BC or not.
+# add a variable for LCP2 by truncating the LCP4 code.
 dacso_q009_weight_occs <- t_cohorts_recoded |>
   inner_join(
     t_current_region_pssm_codes |>
@@ -486,7 +516,7 @@ dacso_q009_weight_occs <- t_cohorts_recoded |>
     WEIGHT > 0
   ) |>
   mutate(
-    NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD)
+    NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD) # not sure this is necessary as we should have recoded the NOC's already.
   ) |>
   group_by(
     PSSM_CREDENTIAL,
@@ -781,7 +811,6 @@ occupation_distributions_lcp2_no_tt <- dacso_q009_weight_occs |>
     Percent = PERC_DIST
   )
 
-
 # 6. occupation_distributions_no_tt
 # Collapsed the following 4 queries into one for readability.
 # - dbExecute(decimal_con, DACSO_Q009b_Weighted_Occs_No_TT)
@@ -877,28 +906,50 @@ group_vars <- c(
   "Age_Group_Rollup"
 )
 
-dacso_q010e2_weighted_occs_pdeg_07 <- occupation_distributions |>
+occupation_distributions_pdeg <- occupation_distributions |>
   filter(
     substr(LCP4_CD, 1, 2) == "22",
     PSSM_Credential == "BACH",
     Survey == "Student Outcomes"
+  )
+
+dacso_q010e4_weighted_occs_dist_pdeg_07 <- occupation_distributions_pdeg |>
+  group_by(across(all_of(c(group_vars, "NOC")))) |>
+  summarize(
+    Count = sum(Count, na.rm = TRUE),
+    .groups = "drop"
   ) |>
-  group_by(across(c(all_of(group_vars), "NOC"))) |>
-  mutate(Count = sum(Count, na.rm = TRUE)) |>
-  group_by(across(all_of(group_vars))) |>
-  mutate(Total = sum(Count, na.rm = TRUE)) |>
-  ungroup() |>
-  mutate(perc_Dist = Count / Total) |>
-  mutate(
+  left_join(
+    occupation_distributions_pdeg |>
+      group_by(across(all_of(group_vars))) |>
+      summarize(
+        Total = sum(Count, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = group_vars
+  ) |>
+  transmute(
+    Survey,
     PSSM_Credential = "PDEG",
     PSSM_CRED = "PDEG",
     LCP4_CD = "07",
+    TTRAIN,
     LCIP4_CRED = "07 - PDEG",
+    LCIP2_CRED = NA_character_,
+    NOC,
+    Current_Region_PSSM_Code_Rollup,
+    Age_Group_Rollup,
+    Count,
+    Total,
+    Percent = Count / Total
   )
 
+occupation_distributions <- occupation_distributions |>
+  rbind(dacso_q010e4_weighted_occs_dist_pdeg_07)
 
-# Keeping this, but not at all sure why we need it.
-dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
+
+# Not at all sure why we need  DACSO_Q99A so leaving it for now.
+# dbExecute(decimal_con, DACSO_Q99A_ENDDT_IMPUTED)
 
 # ------ create t_suppression_public_release_noc
 # t_suppression_public_release_noc seems to be a list of NOCS we want to suppress though not
