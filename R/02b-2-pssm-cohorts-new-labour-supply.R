@@ -47,6 +47,7 @@ years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
 library(RODBC)
 library(DBI)
 
+# ---- Connect to SQL Server and read StatCan Tables ----
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
@@ -63,10 +64,10 @@ decimal_con <- dbConnect(
 #   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
 # ))
 #
-# labour_supply_distribution_stat_can <- tibble(dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-# ))
+labour_supply_distribution_stat_can <- tibble(dbReadTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
+))
 #
 # t_current_region_pssm_codes <-
 #   readr::read_csv(
@@ -410,7 +411,7 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
 # ----- check weights
 # DACSO_Q005_Z09_Check_Weights
 # DACSO_Q005_Z09_Check_Weights_No_Weight_CIP
-z09_check_weights <- t_cohorts_recoded %>%
+z09_check_weights3 <- t_cohorts_recoded %>%
   inner_join(z01_base_nls |> select(STQU_ID, BASE), by = "STQU_ID") %>%
   group_by(
     SURVEY_YEAR,
@@ -426,10 +427,10 @@ z09_check_weights <- t_cohorts_recoded %>%
       if_else(RESPONDENT == '1' & CURRENT_REGION_PSSM_CODE != -1, 1, 0),
       na.rm = TRUE
     ),
-    WEIGHTED = RESPONDENTS * as.numeric(WEIGHT_NLS),
     BASE = sum(BASE, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(WEIGHTED = RESPONDENTS * as.numeric(WEIGHT_NLS)) %>%
   arrange(SURVEY_YEAR, WEIGHT_NLS)
 
 z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
