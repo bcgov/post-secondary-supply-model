@@ -51,7 +51,7 @@ Description:
 <li>NOC_CD (String): A 5-digit numeric code representing the associated NOC unit group. </li>
 <li>AGE_AT_SURVEY (Integer): Age of former student at the time of survey. </li>
 <li>AGE_GROUP_ROLLUP (Integer): Age group of former student at the time of survey. </li>
-<li>GRAD_STATUS (Integer): A status flag of 1, 2, or 3 represeting a students final graduation status. "1" means a student completed a credential and is of interest to this analysis. </li>
+<li>GRAD_STATUS (Integer): A status flag of 1, 2, or 3 represeting a students final graduation status. "1" means a student completed a credential, "2" indicates a sudent completed an entire set of activity at an institution, but the institution doesn't offer final credential. "3" indicates a student completed at least 24 credits at the institution, but receive no credential at that institution." </li>
 <li>RESPONDENT (Integer): A flag representing student response type.  Values take a 1 (student responded to survey) or a 0 (student didn't respond to survey). </li>
 <li>NEW_LABOUR_SUPPLY(Integer): A flag representing whether a student is considered new labour suppply.  Derived from flags in student outcomes data, specific to each survey. </li>
 <li>PSSM_CREDENTIAL: Type of credential earned as reported by the institution (e.g. "DIPL") </li>
@@ -64,7 +64,7 @@ Description:
 Variables recalculated in this analysis:
 
 <ul class="list-variable-names">
-<li>Weight_NLS(Integer): RECALCULATED IN THIS ANALYSIS</li>
+<li>Weight_NLS(Integer): A weighting factor used in downstream analysis.</li>
 </ul>
 
 
@@ -161,7 +161,7 @@ The overall goal of the weighting procedure is to adjust individual records so a
 
 ##### Year Weights
 
-The distribution of initial year weights are expected to be in the range 1-5, based on the assumption is that survey responses from earlier years are less relevent to the current labour supply than more recent survey responses.  Thus, more recent survey data receive a larger weight than those from prior years.   The design accounts for a quality indicator run (QI); year weights are rolled back by 1 and the weight for 2023 survey responses is set to 0.  The QI model can be used to assess the quality for each NOC.  
+The distribution of initial year weights are expected to be in the range 1-5, based on the assumption is that survey responses from earlier years are less relevent to the current labour supply than more recent survey responses.  Thus, more recent survey data receive a larger weight than those from prior years.   The design accounts for a quality indicator run (QI); year weights are rolled back by 1 and the weight for 2023 survey responses is set to 0.  The QI model can be used to assess the quality for each NOC in later analysis.
 
 ##### Base Weights
 

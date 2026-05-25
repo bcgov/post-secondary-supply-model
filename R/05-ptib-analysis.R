@@ -264,3 +264,10 @@ tables_to_keep <- c(
   "qry_Private_Credentials_05i1_Grads_by_Year",
   "Graduate_Projections_PTIB"
 )
+
+dbWriteTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"')),
+  qry_Private_Credentials_06d1_Cohort_Dist,
+  overwrite = TRUE
+)
