@@ -461,12 +461,15 @@ dacso_update[setdiff(
 t_cohorts_recoded <- t_cohorts_recoded |>
   rbind(dacso_update |> select(any_of(names(t_cohorts_recoded))))
 
-# ---- Keep A Key Tables ----
+# ---- Keep Key Tables ----
 tables_to_keep <- c(
   "trd_graduates",
   "t_dacso_data_part_1",
   "t_cohorts_recoded",
-  "appso_graduates"
+  "appso_graduates",
+  "t_current_region_pssm_codes",
+  "t_current_region_pssm_rollup_codes",
+  "t_noc_broad_categories"
 )
 
 rm(list = setdiff(ls(), tables_to_keep))
