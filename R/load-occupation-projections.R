@@ -120,14 +120,6 @@ cohort_program_distributions_static <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-# Cohort_Program_Distributions
-cohort_program_distributions <-
-  dbReadTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions"'))
-  ) %>%
-  janitor::clean_names(case = "all_caps")
-
 # Graduate_Projection
 graduate_projections <-
   dbReadTable(

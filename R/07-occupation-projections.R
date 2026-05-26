@@ -31,9 +31,10 @@
 #	  - T_Exclude_from_Projections_LCP4_CD
 #	  - T_Exclude_from_Projections_PSSM_Credential
 #
-# When switching between models, copy Static/Projected into Cohort_Program_Distributions
+
 # Fixes To do: some of the CIP2 variable names are missing an "I" in the Labour_Supply_Distribution datasets.
 
+# ------------------------  libraries and global variables ------------------------
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -41,9 +42,11 @@ library(DBI)
 library(glue)
 library(assertthat)
 
+model <- "static" # toogle between static and projected models
+
 # source("./sql/07-occupation-projections/occupation-projections.R")
 
-# ---- Check for required data tables ----
+# ------------------------ Check for required data tables ------------------------
 
 # List of required tables for Derived Tables and Lookups
 # Might get FALSE that Cohort_Program_Distributions exists during first run-through.
@@ -88,77 +91,112 @@ for (table_name in required_tables) {
   )
 }
 
-
-# ---- SQL Commands ----
 # toggle static or projected.
-
-#dbExecute(decimal_con, "SELECT * INTO Cohort_Program_Distributions
-#                        FROM Cohort_Program_Distributions_Projected;")
-if (
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions"'))
-  ) ==
-    FALSE
-) {
-  dbExecute(
-    decimal_con,
-    "SELECT * INTO Cohort_Program_Distributions 
-                         FROM Cohort_Program_Distributions_Static;"
-  )
+if (model == "static") {
+  cohort_program_distributions <- cohort_program_distributions_static
+} else {
+  cohort_program_distributions <- cohort_program_distributions_projected
 }
 
-
-# Checks
-dbGetQuery(decimal_con, Count_Cohort_Program_Distributions)
-dbGetQuery(decimal_con, Count_Labour_Supply_Distribution1)
-dbGetQuery(decimal_con, Count_Labour_Supply_Distribution2)
-dbGetQuery(decimal_con, Count_Occupation_Distributions1) # We want this to contain all of our PSSM Credentials
-dbGetQuery(decimal_con, Count_Occupation_Distributions2)
-dbGetQuery(decimal_con, Occupation_Unknown)
+# --------------------   implement checks --------------------------
+# in the interest of time, we aren't doing this.
+# dbGetQuery(decimal_con, Count_Cohort_Program_Distributions)
+# dbGetQuery(decimal_con, Count_Labour_Supply_Distribution1)
+# dbGetQuery(decimal_con, Count_Labour_Supply_Distribution2)
+# dbGetQuery(decimal_con, Count_Occupation_Distributions1) # We want this to contain all of our PSSM Credentials
+# dbGetQuery(decimal_con, Count_Occupation_Distributions2)
+# dbGetQuery(decimal_con, Occupation_Unknown)
 
 # creates mapping for LCIP4 to LCIP2
-if (
-  dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"'))) ==
-    FALSE
-) {
-  dbExecute(decimal_con, Q_0_LCP2_LCP4) # The table “T_LCP2_LCP4” has already been create in previous script: load-occupation-projections.R
-} # the code is: Q_0_LCP2_LCP4 <-
-# "SELECT INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP2_CD,
-# INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD INTO T_LCP2_LCP4
-# FROM INFOWARE_L_CIP_6DIGITS_CIP2016
-# GROUP BY INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP2_CD,
-# INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_LCP4_CD;"
+t_lcp2_lcp4 <- infoware_l_cip_6digits_cip2016 |>
+  distinct(LCIP_LCP2_CD, LCIP_LCP4_CD)
 
-# essentially duplicates records (as a placeholder to insert graduate records for ptib later?)
+# ---------------------------- add PTIB to labour supply and occupation distributions ------------------------
+# Should this be moved to 2b-2 and 2b-3?
+# use existing labour supply and occ_dists as a proxy for private training institutions.
+# note to self - be mindful that count and total doesn't represent true counts/total for PTIB, but the
+# NLS and PERCENT columns can, as the represent a ratio.
+
+# --- delete existing PTIB Surveys
+labour_supply_distribution_no_tt <- labour_supply_distribution_no_tt |>
+  filter(!SURVEY == "PTIB")
+labour_supply_distribution_lcp2_no_tt <- labour_supply_distribution_lcp2_no_tt |>
+  filter(!SURVEY == "PTIB")
+occupation_distributions_no_tt <- occupation_distributions_no_tt |>
+  filter(!SURVEY == "PTIB")
+occupation_distributions_no_tt <- occupation_distributions_no_tt |>
+  filter(!SURVEY == "PTIB")
+
 if (ptib_run == TRUE) {
-  dbExecute(
-    decimal_con,
-    Q_0b_Append_Private_Institution_Labour_Supply_Distribution
-  )
-  dbExecute(
-    decimal_con,
-    Q_0b_Append_Private_Institution_Labour_Supply_Distribution_2D
-  )
-  dbExecute(
-    decimal_con,
-    Q_0c_Append_Private_Institution_Occupation_Distribution
-  )
-  dbExecute(
-    decimal_con,
-    Q_0c_Append_Private_Institution_Occupation_Distribution_2D
-  )
-}
+  # ---- Create new ptib distributions
+  ptib_labour_supply_no_tt <- labour_supply_distribution_no_tt |>
+    filter(
+      PSSM_CREDENTIAL %in%
+        c("CERT", "DIPL", "ADGR or UT", "BACH", "MAST", "DOCT"),
+      !str_starts(LCIP4_CRED, "3 - ")
+    ) |>
+    mutate(
+      SURVEY = "PTIB",
+      PSSM_CRED = paste0("P - ", PSSM_CREDENTIAL),
+      LCIP4_CRED = paste0("P - ", LCP4_CD, " - ", PSSM_CREDENTIAL)
+    )
 
-# use these to delete PTIB for running a model without private institutions
-if (ptib_run == FALSE) {
-  dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Labour_Supply_Distribution)
-  dbExecute(
-    decimal_con,
-    Q_0a_Delete_Private_Inst_Labour_Supply_Distribution_LCP2
+  ptib_labour_supply_lcp2_no_tt <- labour_supply_distribution_lcp2_no_tt |>
+    filter(
+      PSSM_CREDENTIAL %in%
+        c("CERT", "DIPL", "ADGR or UT", "BACH", "MAST", "DOCT"),
+      !str_starts(LCP2_CRED, "3 - ")
+    ) |>
+    mutate(
+      SURVEY = "PTIB",
+      PSSM_CRED = paste0("P - ", PSSM_CREDENTIAL),
+      LCIP2_CRED = paste0("P - ", LCP2_CD, " - ", PSSM_CREDENTIAL)
+    )
+
+  ptib_occupation_distributions_lcp2_no_tt <- occupation_distributions_lcp2_no_tt |>
+    filter(
+      PSSM_CREDENTIAL %in%
+        c("CERT", "DIPL", "ADGR or UT", "BACH", "MAST", "DOCT"),
+      !str_starts(LCIP2_CRED, "3 - ")
+    ) |>
+    mutate(
+      SURVEY = "PTIB",
+      PSSM_CRED = paste0("P - ", PSSM_CREDENTIAL),
+      LCIP2_CRED = paste0("P - ", LCP2_CD, " - ", PSSM_CREDENTIAL)
+    )
+
+  ptib_occupation_distributions_no_tt <- occupation_distributions_no_tt |>
+    filter(
+      PSSM_CREDENTIAL %in%
+        c("CERT", "DIPL", "ADGR or UT", "BACH", "MAST", "DOCT"),
+      !str_starts(LCIP4_CRED, "3 - ")
+    ) |>
+    mutate(
+      SURVEY = "PTIB",
+      PSSM_CRED = paste0("P - ", PSSM_CREDENTIAL),
+      LCIP4_CRED = paste0("P - ", LCP4_CD, " - ", PSSM_CREDENTIAL)
+    )
+
+  # ---- Append new ptib distributions to labour supply and occupation distributions
+  labour_supply_distribution_no_tt <- bind_rows(
+    labour_supply_distribution_no_tt,
+    ptib_labour_supply_no_tt
   )
-  dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution)
-  dbExecute(decimal_con, Q_0a_Delete_Private_Inst_Occupation_Distribution_LCP2)
+
+  labour_supply_distribution_lcp2_no_tt <- bind_rows(
+    labour_supply_distribution_lcp2_no_tt,
+    ptib_labour_supply_lcp2_no_tt
+  )
+
+  occupation_distributions_no_tt <- bind_rows(
+    occupation_distributions_no_tt,
+    ptib_occupation_distributions_no_tt
+  )
+
+  occupation_distributions_lcp2_no_tt <- bind_rows(
+    occupation_distributions_lcp2_no_tt,
+    ptib_occupation_distributions_lcp2_no_tt
+  )
 }
 
 # ---- Q_1 Series ----
