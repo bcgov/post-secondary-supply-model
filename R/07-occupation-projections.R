@@ -44,6 +44,13 @@ library(assertthat)
 
 model <- "static" # toogle between static and projected models
 
+# toggle static or projected.
+if (model == "static") {
+  cohort_program_distributions <- cohort_program_distributions_static
+} else {
+  cohort_program_distributions <- cohort_program_distributions_projected
+}
+
 # source("./sql/07-occupation-projections/occupation-projections.R")
 
 # ------------------------ Check for required data tables ------------------------
@@ -91,12 +98,6 @@ for (table_name in required_tables) {
   )
 }
 
-# toggle static or projected.
-if (model == "static") {
-  cohort_program_distributions <- cohort_program_distributions_static
-} else {
-  cohort_program_distributions <- cohort_program_distributions_projected
-}
 
 # --------------------   implement checks --------------------------
 # in the interest of time, we aren't doing this.
@@ -138,7 +139,8 @@ if (ptib_run == TRUE) {
     mutate(
       SURVEY = "PTIB",
       PSSM_CRED = paste0("P - ", PSSM_CREDENTIAL),
-      LCIP4_CRED = paste0("P - ", LCP4_CD, " - ", PSSM_CREDENTIAL)
+      LCIP4_CRED = paste0("P - ", LCP4_CD, " - ", PSSM_CREDENTIAL),
+      LCIP2_CRED = NA_character_
     )
 
   ptib_labour_supply_lcp2_no_tt <- labour_supply_distribution_lcp2_no_tt |>
@@ -200,29 +202,358 @@ if (ptib_run == TRUE) {
 }
 
 # ---- Q_1 Series ----
-dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
-dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
-dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
-dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program)
-dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
+
+graduate_projections <- graduate_projections |>
+  mutate(PSSM_CRED = str_replace(PSSM_CRED, " OR ", " or ")) |>
+  mutate(PSSM_CREDENTIAL = str_replace(PSSM_CREDENTIAL, " OR ", " or "))
+
+cohort_program_distributions <- cohort_program_distributions |>
+  mutate(PSSM_CRED = str_replace(PSSM_CRED, " OR ", " or ")) |>
+  mutate(PSSM_CREDENTIAL = str_replace(PSSM_CREDENTIAL, " OR ", " or "))
+
+#dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
+q_1_grad_projections_by_age_by_program <- graduate_projections |>
+  select(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
+  inner_join(
+    cohort_program_distributions,
+    by = join_by(PSSM_CRED, AGE_GROUP, YEAR)
+  ) |>
+  anti_join(
+    t_exclude_from_projections_lcp4_cd,
+    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+  ) |>
+  anti_join(
+    t_exclude_from_projections_pssm_credential,
+    by = "PSSM_CREDENTIAL"
+  ) |>
+  anti_join(
+    t_exclude_from_projections_lcip4_cred,
+    by = "LCIP4_CRED"
+  ) |>
+  mutate(
+    GRADS = GRADUATES * PERCENT
+  )
+
+#dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
+# this will be identical to the query above, if the model toggle is set to
+# static (odd choice but we can deal with this later).
+q_1_grad_projections_by_age_by_program_static <- graduate_projections |>
+  select(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
+  inner_join(
+    cohort_program_distributions_static,
+    by = join_by(PSSM_CRED, AGE_GROUP, YEAR)
+  ) |>
+  anti_join(
+    t_exclude_from_projections_pssm_credential,
+    by = "PSSM_CREDENTIAL"
+  ) |>
+  anti_join(
+    t_exclude_from_projections_lcp4_cd,
+    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+  ) |>
+  anti_join(
+    t_exclude_from_projections_lcip4_cred,
+    by = "LCIP4_CRED"
+  ) |>
+  mutate(
+    GRADS = GRADUATES * PERCENT,
+    LCIP4_CRED = NA_character_
+  )
+
+# dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
+# shows that this query is still being handled differently in R and SQL
+# primarily because of the OR vs or issue in credential labels
+q_1_grad_projections_by_age_by_program |>
+  group_by(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP, YEAR) |>
+  summarise(GRADS = sum(GRADS), .groups = "drop") |>
+  pivot_wider(names_from = YEAR, values_from = GRADS, values_fill = 0) |>
+  arrange(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP)
+
+#dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program)
+q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
+  inner_join(tbl_age_groups, by = c("AGE_GROUP" = "AGE_GROUP_LABEL")) |>
+  inner_join(tbl_age_groups_rollup, by = "AGE_GROUP_ROLLUP") |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      YEAR,
+      GRAD_STATUS,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED
+    )
+  )
+
+#dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
+q_1c_grad_projections_by_program_lcp2 <- q_1_grad_projections_by_age_by_program |>
+  inner_join(tbl_age_groups, by = c("AGE_GROUP" = "AGE_GROUP_LABEL")) |>
+  inner_join(tbl_age_groups_rollup, by = "AGE_GROUP_ROLLUP") |>
+  mutate(
+    LCP2_CD = str_sub(LCP4_CD, 1, 2),
+    LCIP2_CRED = paste0(
+      case_when(
+        str_sub(PSSM_CRED, 1, 1) %in% c("1", "3", "P") ~ paste0(
+          str_sub(PSSM_CRED, 1, 1),
+          " - "
+        ),
+        TRUE ~ ""
+      ),
+      LCP2_CD,
+      " - ",
+      if_else(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      YEAR,
+      LCP2_CD,
+      GRAD_STATUS,
+      TTRAIN,
+      LCIP2_CRED
+    )
+  )
 
 # ---- Q_2 Series ----
-dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
-dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
-dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
-dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
-dbExecute(decimal_con, Q_2a4_Labour_Supply)
-dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
-dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
-dbExecute(
-  decimal_con,
-  Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union
+# dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
+q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
+  inner_join(
+    labour_supply_distribution |>
+      select(
+        LCIP4_CRED,
+        NEW_LABOUR_SUPPLY,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        AGE_GROUP_ROLLUP
+      ),
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
+  select(-GRADS, -GRAD_STATUS)
+
+# dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
+# dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
+# dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
+# dbExecute(decimal_con, Q_2a4_Labour_Supply)
+q_2a_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    labour_supply_distribution,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
+
+q_2a2_labour_supply_unknown_no_tt_proxy <- q_2a_labour_supply_unknown |>
+  select(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR, TTRAIN) |>
+  inner_join(
+    q_1c_grad_projections_by_program |> select(-TTRAIN),
+    by = join_by(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR)
+  ) |>
+  inner_join(
+    labour_supply_distribution_no_tt |>
+      select(
+        LCIP4_CRED,
+        AGE_GROUP_ROLLUP,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        NEW_LABOUR_SUPPLY
+      ),
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY)
+
+q_2a3_labour_supply_by_lcip4_cred_no_tt_proxy_union <- bind_rows(
+  q_2_labour_supply_by_lcip4_cred,
+  q_2a2_labour_supply_unknown_no_tt_proxy |>
+    select(names(q_2_labour_supply_by_lcip4_cred))
 )
-dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
-dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
-dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
-dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
-dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
+
+tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp <-
+  q_2a3_labour_supply_by_lcip4_cred_no_tt_proxy_union
+
+#  ----- 2B Series
+# dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
+# dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
+# dbExecute(decimal_con, Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+# dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
+
+q_2b_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
+
+# ---- Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy ----
+q_2b2_labour_supply_unknown_private_cred_proxy <- q_2b_labour_supply_unknown |>
+  select(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR) |>
+  inner_join(
+    q_1c_grad_projections_by_program,
+    by = join_by(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR)
+  ) |>
+  inner_join(
+    labour_supply_distribution_no_tt |>
+      select(
+        AGE_GROUP_ROLLUP,
+        LCP4_CD,
+        PSSM_CRED,
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        NEW_LABOUR_SUPPLY
+      ) |>
+      rename(PSSM_CRED_LSD = PSSM_CRED),
+    by = join_by(AGE_GROUP_ROLLUP, LCP4_CD)
+  ) |>
+  filter(
+    (PSSM_CRED == "P - CERT" & PSSM_CRED_LSD == "P - DIPL") |
+      (PSSM_CRED == "P - DIPL" & PSSM_CRED_LSD == "P - CERT")
+  ) |>
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    TTRAIN,
+    LCP4_CD,
+    LCIP4_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    NEW_LABOUR_SUPPLY,
+    NLS
+  )
+
+# ---- Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union ----
+q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
+  tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp,
+  q_2b2_labour_supply_unknown_private_cred_proxy |>
+    select(names(tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp))
+)
+
+# ---- Q_2b4_Labour_Supply_Unknown ----
+q_2b4_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
+
+# 2C Series
+# dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
+# dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
+# dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
+# dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
+# ---- Q_2c_Labour_Supply_Unknown_LCP2_Proxy ----
+q_2c_labour_supply_unknown_lcp2_proxy <- q_2b4_labour_supply_unknown |>
+  filter(
+    !LCP4_CD %in%
+      t_exclude_from_labour_supply_unknown_lcp2_proxy$LCIP_LCP4_CD |
+      str_starts(LCIP4_CRED, "P - ")
+  ) |>
+  inner_join(
+    t_lcp2_lcp4,
+    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+  ) |>
+  inner_join(
+    labour_supply_distribution_lcp2 |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    by = join_by(AGE_GROUP_ROLLUP, PSSM_CRED, LCIP_LCP2_CD == LCP2_CD)
+  ) |>
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
+  select(-GRADS, -LCIP_LCP2_CD, -SURVEY, -LCP2_CRED, -COUNT, -TOTAL)
+
+# ---- Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union ----
+q_2c2_labour_supply_unknown_lcp2_proxy_union <- bind_rows(
+  q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
+  q_2c_labour_supply_unknown_lcp2_proxy |>
+    select(names(q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union))
+)
+
+# ---- Q_2c3_Labour_Supply_Unknown ----
+q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    q_2c2_labour_supply_unknown_lcp2_proxy_union,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
+compare("q_2c3_labour_supply_unknown", q_2c3_labour_supply_unknown)
+
+
+# ---- Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT ----
+q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- q_2c3_labour_supply_unknown |>
+  left_join(
+    t_exclude_from_labour_supply_unknown_lcp2_proxy |>
+      select(LCIP_LCP4_CD) |>
+      mutate(LCIP_LCP4_CD = as.character(LCIP_LCP4_CD)),
+    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+  ) |>
+  inner_join(
+    t_lcp2_lcp4,
+    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+  ) |>
+  inner_join(
+    labour_supply_distribution_lcp2_no_tt |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    by = join_by(AGE_GROUP_ROLLUP, PSSM_CRED, LCIP_LCP2_CD == LCP2_CD)
+  )
+
+compare(
+  "q_2c4_labour_supply_unknown_lcp2_proxy_no_tt",
+  q_2c4_labour_supply_unknown_lcp2_proxy_no_tt
+)
+
+# ---- 2d series
 dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
 dbExecute(decimal_con, Q_2d2_Labour_Supply)
 dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)

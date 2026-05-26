@@ -150,7 +150,8 @@ t_exclude_from_projections_lcp4_cd <-
     ),
     col_types = cols(.default = col_guess())
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") %>%
+  mutate(across(everything(), ~ as.character(.)))
 
 t_exclude_from_projections_lcip4_cred <-
   readr::read_csv(
