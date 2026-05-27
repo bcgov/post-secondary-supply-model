@@ -153,6 +153,7 @@ t_exclude_from_projections_lcp4_cd <-
   janitor::clean_names(case = "all_caps") %>%
   mutate(across(everything(), ~ as.character(.)))
 
+# this is an empty table!!
 t_exclude_from_projections_lcip4_cred <-
   readr::read_csv(
     glue::glue(
@@ -160,8 +161,10 @@ t_exclude_from_projections_lcip4_cred <-
     ),
     col_types = cols(.default = col_guess())
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") %>%
+  mutate(across(everything(), ~ as.character(.)))
 
+# this is an empty table!!
 t_exclude_from_projections_pssm_credential <-
   readr::read_csv(
     glue::glue(
@@ -169,7 +172,8 @@ t_exclude_from_projections_pssm_credential <-
     ),
     col_types = cols(.default = col_guess())
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") %>%
+  mutate(across(everything(), ~ as.character(.)))
 
 t_exclude_from_labour_supply_unknown_lcp2_proxy <-
   readr::read_csv(
@@ -178,14 +182,16 @@ t_exclude_from_labour_supply_unknown_lcp2_proxy <-
     ),
     col_types = cols(.default = col_guess())
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") %>%
+  mutate(across(everything(), ~ as.character(.)))
 
 t_lcp2_lcp4 <-
   readr::read_csv(
     glue::glue("{lan}/development/csv/gh-source/lookups/07/T_LCP2_LCP4.csv"),
     col_types = cols(.default = col_guess())
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") %>%
+  mutate(across(everything(), ~ as.character(.)))
 
 tbl_age_groups <-
   readr::read_csv(
