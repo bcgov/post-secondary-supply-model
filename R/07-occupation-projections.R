@@ -781,6 +781,8 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
     OccsN
   )
 
+## GOOD TO HERE
+
 # --- 03D Series
 dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
 dbExecute(decimal_con, Q_3d2_Occupations)
