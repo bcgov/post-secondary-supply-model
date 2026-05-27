@@ -731,8 +731,6 @@ q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
     select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
 )
 
-compare("q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union", q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union)
-
 # dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
 q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
@@ -746,7 +744,42 @@ q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union
   )
 
 # --- 03C Series
-dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy)
+#dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy)
+q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
+  left_join(
+    t_exclude_from_labour_supply_unknown_lcp2_proxy |> transmute(LCP4_CD = LCIP_LCP4_CD, LCIP_LCP4_CD),
+    by = join_by(LCP4_CD)
+  ) |>
+  filter(
+    is.na(LCIP_LCP4_CD) | str_starts(LCIP4_CRED, "P - ")
+  ) |>
+  inner_join(
+    t_lcp2_lcp4 |> rename(LCP4_CD = LCIP_LCP4_CD),
+    by = join_by(LCP4_CD)
+  ) |>
+  inner_join(
+    occupation_distributions_lcp2 |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    by = join_by(
+      LCIP_LCP2_CD == LCP2_CD,
+      AGE_GROUP_ROLLUP,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      PSSM_CRED
+    )) |>
+  mutate(OccsN = NLS * PERCENT) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    TTRAIN,
+    LCP4_CD,
+    LCIP4_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    NOC,
+    PERCENT,
+    OccsN
+  )
 
 # --- 03D Series
 dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
