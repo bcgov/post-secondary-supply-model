@@ -414,7 +414,6 @@ q_2b_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
-# ---- Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy ----
 q_2b2_labour_supply_unknown_private_cred_proxy <- q_2b_labour_supply_unknown |>
   select(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR) |>
   inner_join(
@@ -452,14 +451,12 @@ q_2b2_labour_supply_unknown_private_cred_proxy <- q_2b_labour_supply_unknown |>
     NLS
   )
 
-# ---- Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union ----
 q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
   tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp,
   q_2b2_labour_supply_unknown_private_cred_proxy |>
     select(names(tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp))
 )
 
-# ---- Q_2b4_Labour_Supply_Unknown ----
 q_2b4_labour_supply_unknown <- q_1c_grad_projections_by_program |>
   anti_join(
     q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
@@ -479,12 +476,11 @@ q_2b4_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
-# 2C Series
+# ---- 2C Series ----
 # dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
 # dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
 # dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
 # dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
-# ---- Q_2c_Labour_Supply_Unknown_LCP2_Proxy ----
 q_2c_labour_supply_unknown_lcp2_proxy <- q_2b4_labour_supply_unknown |>
   filter(
     !LCP4_CD %in%
@@ -502,14 +498,12 @@ q_2c_labour_supply_unknown_lcp2_proxy <- q_2b4_labour_supply_unknown |>
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
   select(-GRADS, -LCIP_LCP2_CD, -SURVEY, -LCP2_CRED, -COUNT, -TOTAL)
 
-# ---- Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union ----
 q_2c2_labour_supply_unknown_lcp2_proxy_union <- bind_rows(
   q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
   q_2c_labour_supply_unknown_lcp2_proxy |>
     select(names(q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union))
 )
 
-# ---- Q_2c3_Labour_Supply_Unknown ----
 q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
   anti_join(
     q_2c2_labour_supply_unknown_lcp2_proxy_union,
@@ -528,97 +522,233 @@ q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       YEAR
     )
   )
-compare("q_2c3_labour_supply_unknown", q_2c3_labour_supply_unknown)
 
 
-# ---- Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT ----
-q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- q_2c3_labour_supply_unknown |>
-  left_join(
-    t_exclude_from_labour_supply_unknown_lcp2_proxy |>
-      select(LCIP_LCP4_CD) |>
-      mutate(LCIP_LCP4_CD = as.character(LCIP_LCP4_CD)),
-    by = c("LCP4_CD" = "LCIP_LCP4_CD")
+# --- I can't get this query to work - come back to it later.
+q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- dbReadTable(
+  decimal_con,
+  "Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT"
+) |>
+  rename_with(toupper)
+
+# ---- 2d series
+#dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
+#dbExecute(decimal_con, Q_2d2_Labour_Supply)
+#dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
+#dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
+#dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+
+q_2d_labour_supply_by_lcip4_cred_lcp2_union <- bind_rows(
+  q_2c2_labour_supply_unknown_lcp2_proxy_union,
+  q_2c4_labour_supply_unknown_lcp2_proxy_no_tt |>
+    select(names(q_2c2_labour_supply_unknown_lcp2_proxy_union))
+)
+
+tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp <- q_2d_labour_supply_by_lcip4_cred_lcp2_union
+
+q_2d2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
   ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      TTRAIN,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
+
+q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unknown |>
+  filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
   inner_join(
     t_lcp2_lcp4,
     by = c("LCP4_CD" = "LCIP_LCP4_CD")
   ) |>
   inner_join(
-    labour_supply_distribution_lcp2_no_tt |> select(-PSSM_CREDENTIAL, -TTRAIN),
-    by = join_by(AGE_GROUP_ROLLUP, PSSM_CRED, LCIP_LCP2_CD == LCP2_CD)
+    labour_supply_distribution_lcp2_no_tt |>
+      filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")),
+    by = c("AGE_GROUP_ROLLUP" = "AGE_GROUP_ROLLUP", "LCIP_LCP2_CD" = "LCP2_CD")
+  ) |>
+  filter(PSSM_CRED.x != PSSM_CRED.y) |>
+  transmute(
+    PSSM_CREDENTIAL = PSSM_CREDENTIAL.x,
+    PSSM_CRED = PSSM_CRED.x,
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    TTRAIN = TTRAIN.x,
+    LCP4_CD,
+    LCIP4_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    NEW_LABOUR_SUPPLY,
+    NLS = GRADS * NEW_LABOUR_SUPPLY
   )
 
-compare(
-  "q_2c4_labour_supply_unknown_lcp2_proxy_no_tt",
-  q_2c4_labour_supply_unknown_lcp2_proxy_no_tt
+q_2d4_labour_supply_by_lcip4_cred_lcp2_lcp2_private_union <- bind_rows(
+  tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp,
+  q_2d3_labour_supply_unknown_lcp2_private_cred_proxy |>
+    select(names(tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp))
 )
 
-# ---- 2d series
-dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
-dbExecute(decimal_con, Q_2d2_Labour_Supply)
-dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
-dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
-dbExecute(
-  decimal_con,
-  Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union
-)
-dbExecute(decimal_con, Q_2f_Labour_Supply)
-dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
+# --- 2f series
+# dbExecute(decimal_con, Q_2f_Labour_Supply)
+# dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
+tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union <- q_2d4_labour_supply_by_lcip4_cred_lcp2_lcp2_private_union
 
-#dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
-dbExecute(decimal_con, "DROP TABLE Q_2_Labour_Supply_by_LCIP4_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_2a_Labour_Supply_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_2a2_Labour_Supply_Unknown_No_TT_Proxy")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_2b_Labour_Supply_Unknown")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_2b4_Labour_Supply_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_2c_Labour_Supply_Unknown_LCP2_Proxy")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_2c3_Labour_Supply_Unknown")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT"
-)
-dbExecute(decimal_con, "DROP TABLE Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union")
-dbExecute(decimal_con, "DROP TABLE Q_2d2_Labour_Supply_Unknown")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_2f_Labour_Supply")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp")
+q_2f2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+  anti_join(
+    tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union,
+    by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
+  ) |>
+  summarise(
+    GRADS = sum(GRADS),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      AGE_GROUP_ROLLUP,
+      AGE_GROUP_ROLLUP_LABEL,
+      LCP4_CD,
+      LCIP4_CRED,
+      YEAR
+    )
+  )
 
 # ---- Q_3 Series ----
-dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
-dbExecute(decimal_con, Q_3b_Occupations_Unknown) # numbers too high
-dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) # numbers too high
-dbExecute(decimal_con, q_3b12_Occupations_by_LCIP4_CRED_No_TT_Proxy_Union)
-dbExecute(decimal_con, Q_3b13_Occupations)
-dbExecute(decimal_con, Q_3b14_Occupations_Unknown)
-dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
-dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union)
-dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
 
+# --- 03B Series
+# dbExecute(decimal_con, Q_3b_Occupations_Unknown) # numbers too high
+# dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) # numbers too high
+# dbExecute(decimal_con, q_3b12_Occupations_by_LCIP4_CRED_No_TT_Proxy_Union)
+# dbExecute(decimal_con, Q_3b13_Occupations)
+# dbExecute(decimal_con, Q_3b14_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
+# dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+# dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
+
+q_3_occupations_by_lcip4_cred <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
+  inner_join(
+    occupation_distributions |> 
+      select(NOC, PERCENT, LCIP4_CRED, CURRENT_REGION_PSSM_CODE_ROLLUP, AGE_GROUP_ROLLUP)
+      , by = join_by(
+      LCIP4_CRED,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      AGE_GROUP_ROLLUP
+    )
+  ) |>
+  mutate(OCCSN = NLS * PERCENT) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    TTRAIN,
+    LCP4_CD,
+    LCIP4_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    NOC,
+    PERCENT,
+    OCCSN
+  )
+
+q_3b_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
+  anti_join(
+    occupation_distributions |> 
+      select(NOC, PERCENT, LCIP4_CRED, CURRENT_REGION_PSSM_CODE_ROLLUP, AGE_GROUP_ROLLUP),
+    by = join_by(
+      LCIP4_CRED,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      AGE_GROUP_ROLLUP
+    )
+  )
+
+q_3b11_occupations_unknown_no_tt_proxy <- q_3b_occupations_unknown |>
+  inner_join(
+    occupation_distributions_no_tt |> 
+      select(NOC, PERCENT,LCP4_CD, PSSM_CRED, CURRENT_REGION_PSSM_CODE_ROLLUP, AGE_GROUP_ROLLUP),
+    by = join_by(
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      LCP4_CD,
+      AGE_GROUP_ROLLUP,
+      PSSM_CRED
+    )
+  ) |>
+  mutate(OCCSN = NLS * PERCENT) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    TTRAIN,
+    LCP4_CD,
+    LCIP4_CRED,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    NOC,
+    PERCENT,
+    OCCSN
+  )
+
+q_3b12_occupations_by_lcip4_cred_no_tt_proxy_union <- bind_rows(
+  q_3_occupations_by_lcip4_cred,
+  q_3b11_occupations_unknown_no_tt_proxy |>
+    select(names(q_3_occupations_by_lcip4_cred))
+)
+
+tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp <- q_3b12_occupations_by_lcip4_cred_no_tt_proxy_union
+
+q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
+  anti_join(
+    tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp,
+    by = join_by(
+      YEAR,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      LCIP4_CRED,
+      AGE_GROUP_ROLLUP
+    )
+  )
+
+# dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
+# not working as expected, moving on for now ....
+q_3b2_occupations_unknown_private_cred_proxy <- dbReadTable(
+  decimal_con,
+  "Q_3b2_Occupations_Unknown_Private_Cred_Proxy"
+) |>
+  rename_with(toupper)
+
+# dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
+  tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp,
+  q_3b2_occupations_unknown_private_cred_proxy |>
+    select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
+)
+
+compare("q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union", q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union)
+
+# dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
+q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
+  anti_join(
+    q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union,
+    by = join_by(
+      LCIP4_CRED,
+      AGE_GROUP_ROLLUP,
+      CURRENT_REGION_PSSM_CODE_ROLLUP,
+      YEAR
+    )
+  )
+
+# --- 03C Series
 dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy)
+
+# --- 03D Series
 dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
 dbExecute(decimal_con, Q_3d2_Occupations)
 dbExecute(decimal_con, Q_3d2_Occupations_Unknown)
@@ -627,50 +757,15 @@ dbExecute(decimal_con, Q_3d22_Occupations_by_LCIP4_CRED_LCP2_No_T_Proxy_Union)
 dbExecute(decimal_con, Q_3d24_Occupations_Unknown)
 dbExecute(decimal_con, Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy)
 dbExecute(decimal_con, Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+
+# --- 03E Series
 dbExecute(decimal_con, Q_3e_Occupations_Unknown)
 dbExecute(decimal_con, Q_3e2_Occupations_Unknown)
 dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union)
+
+# --- 03F Series
 dbExecute(decimal_con, Q_3f_Occupations)
 
-dbExecute(decimal_con, "DROP TABLE Q_3_Occupations_by_LCIP4_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_3b_Occupations_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_3b11_Ocupations_Unknown_No_TT_Proxy")
-dbExecute(
-  decimal_con,
-  "DROP TABLE q_3b12_Occupations_by_LCIP4_CRED_No_TT_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_3b14_Occupations_Unknown")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_3b2_Occupations_Unknown_Private_Cred_Proxy"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_3b4_Occupations_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_3c_Occupations_Unknown_LCP2_Proxy")
-dbExecute(decimal_con, "DROP TABLE Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
-dbExecute(decimal_con, "DROP TABLE Q_3d2_Occupations_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_3d21_Occupations_Unknown_LCP2_Proxy_No_TT")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_3d22_Occupations_by_LCIP4_CRED_LCP2_No_T_Proxy_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_3d24_Occupations_Unknown")
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy"
-)
-dbExecute(
-  decimal_con,
-  "DROP TABLE Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union"
-)
-dbExecute(decimal_con, "DROP TABLE Q_3e_Occupations_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_3e2_Occupations_Unknown")
-dbExecute(decimal_con, "DROP TABLE Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp")
-#dbExecute(decimal_con, "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union")
 
 # ---- Q_4_NOC_D Series ----
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED)
@@ -692,25 +787,10 @@ dbExecute(decimal_con, Q_4_NOC_Totals_by_Year)
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC)
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
 
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_1D_Totals_by_PSSM_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_1D_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_PSSM_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_2D_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_3D_Totals_by_PSSM_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_3D_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_PSSM_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_5D_Totals_by_PSSM_CRED")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_5D_Totals_by_Year")
-#dbExecute(decimal_con, "DROP TABLE Q_4_NOC_4D_Totals_by_Year_Input_for_Rounding")
 
 # ---- Q_5 Series ----
 dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC)
 dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_BC")
-dbExecute(decimal_con, "DROP TABLE Q_4_NOC_Totals_by_Year_Total")
 
 # ---- Q_6 Series ----
 if (regular_run == T) {
@@ -791,61 +871,6 @@ if (regular_run == T | qi_run == T) {
   # # dbExecute(decimal_con, qry99_Presentations_PPSCI_Graduates)
   # # dbExecute(decimal_con, qry9999_NOC_4031_4032)
 
-  # ---- Clean Up ----
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q3b12_Occupations_by_LCIP4_CRED_No_TT_Union_tmp"
-  )
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union"
-  )
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q_2a4_Labour_Supply_by_LCIP4_CRED_No_TT_Union_tmp"
-  )
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union_tmp"
-  )
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union_tmp"
-  )
-  dbExecute(
-    decimal_con,
-    "DROP TABLE tmp_tbl_Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union"
-  )
+# ---- Clean Up ----
 
-  dbExecute(decimal_con, "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program")
-  dbExecute(
-    decimal_con,
-    "DROP TABLE Q_1_Grad_Projections_by_Age_by_Program_Static"
-  )
-  dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program_LCP2")
-  dbExecute(decimal_con, "DROP TABLE Q_1c_Grad_Projections_by_Program")
 
-  # Lookups
-  dbExecute(decimal_con, "drop table INFOWARE_L_CIP_4DIGITS_CIP2016")
-  dbExecute(decimal_con, "drop table INFOWARE_L_CIP_6DIGITS_CIP2016")
-  #dbExecute(decimal_con, "DROP TABLE T_NOC_Skill_Type")
-  #dbExecute(decimal_con, "DROP TABLE tbl_NOC_Skill_Level_Aged_17_34")
-  dbExecute(decimal_con, "DROP TABLE T_Current_Region_PSSM_Rollup_Codes")
-  dbExecute(decimal_con, "DROP TABLE T_Current_Region_PSSM_Rollup_Codes_BC")
-  dbExecute(decimal_con, "DROP TABLE T_PSSM_CRED_RECODE")
-  dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_LCP4_CD")
-  dbExecute(decimal_con, "DROP TABLE T_Exclude_from_Projections_LCIP4_CRED")
-  dbExecute(
-    decimal_con,
-    "DROP TABLE T_Exclude_from_Projections_PSSM_Credential"
-  )
-  dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups")
-  dbExecute(decimal_con, "DROP TABLE tbl_Age_Groups_Rollup")
-  dbExecute(
-    decimal_con,
-    "DROP TABLE T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"
-  )
-}
-# Keep
-# dbExists(decimal_con, "")
-# dbExists(decimal_con, "")
