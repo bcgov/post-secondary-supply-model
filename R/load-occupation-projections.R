@@ -45,7 +45,12 @@ labour_supply_distribution <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Labour_Supply_Distribution_LCP2
 labour_supply_distribution_lcp2 <-
@@ -53,7 +58,12 @@ labour_supply_distribution_lcp2 <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Labour_Supply_Distribution_No_TT
 labour_supply_distribution_no_tt <-
@@ -61,7 +71,12 @@ labour_supply_distribution_no_tt <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Labour_Supply_Distribution_LCP2_No_TT
 labour_supply_distribution_lcp2_no_tt <-
@@ -69,7 +84,12 @@ labour_supply_distribution_lcp2_no_tt <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Occupation_Distributions
 occupation_distributions <-
@@ -77,7 +97,13 @@ occupation_distributions <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Occupation_Distributions"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
+
 
 # Occupation_Distributions_No_TT
 occupation_distributions_no_tt <-
@@ -85,7 +111,12 @@ occupation_distributions_no_tt <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Occupation_Distributions_LCP2
 occupation_distributions_lcp2 <-
@@ -93,7 +124,12 @@ occupation_distributions_lcp2 <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 
 # Occupation_Distributions_LCP2_No_TT
@@ -102,7 +138,12 @@ occupation_distributions_lcp2_no_tt <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  )) |>
+  filter(!SURVEY == "PTIB")
 
 # Cohort_Program_Distributions_Projected
 cohort_program_distributions_projected <-
@@ -110,7 +151,11 @@ cohort_program_distributions_projected <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  ))
 
 # Cohort_Program_Distributions_Static
 cohort_program_distributions_static <-
@@ -118,7 +163,11 @@ cohort_program_distributions_static <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  ))
 
 # Graduate_Projection
 graduate_projections <-
@@ -126,7 +175,11 @@ graduate_projections <-
     decimal_con,
     SQL(glue::glue('"{my_schema}"."Graduate_Projections"'))
   ) %>%
-  janitor::clean_names(case = "all_caps")
+  janitor::clean_names(case = "all_caps") |>
+  mutate(across(
+    any_of(c("PSSM_CRED", "PSSM_CREDENTIAL", "LCP2_CRED", "LCIP2_CRED")),
+    ~ str_replace(., " OR ", " or ")
+  ))
 
 infoware_l_cip_4digits_cip2016 <-
   dbReadTable(
