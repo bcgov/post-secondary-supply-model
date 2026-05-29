@@ -98,6 +98,14 @@ for (table_name in required_tables) {
   )
 }
 
+# compare all required tables to SQL versions
+for (table_name in required_tables) {
+  print(glue("Comparing {table_name} to SQL version..."))
+  compare(table_name, base::get(table_name))
+  cat("\n\n\n")
+}
+
+
 
 # --------------------   implement checks --------------------------
 # in the interest of time, we aren't doing this.
@@ -220,6 +228,8 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
     GRADS = GRADUATES * PERCENT
   )
 
+compare("q_1_grad_projections_by_age_by_program", q_1_grad_projections_by_age_by_program)
+
 #dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
 # this will be identical to the query above, if the model toggle is set to
 # static (odd choice but we can deal with this later).
@@ -245,6 +255,11 @@ q_1_grad_projections_by_age_by_program_static <- graduate_projections |>
     GRADS = GRADUATES * PERCENT,
     LCIP4_CRED = NA_character_
   )
+
+compare(
+  "q_1_grad_projections_by_age_by_program_static",
+  q_1_grad_projections_by_age_by_program_static
+)
 
 # dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
 # shows that this query is still being handled differently in R and SQL
@@ -273,6 +288,11 @@ q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
       LCIP4_CRED
     )
   )
+
+compare(
+  "q_1c_grad_projections_by_program",
+  q_1c_grad_projections_by_program
+)
 
 #dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
 q_1c_grad_projections_by_program_lcp2 <- q_1_grad_projections_by_age_by_program |>
@@ -307,10 +327,18 @@ q_1c_grad_projections_by_program_lcp2 <- q_1_grad_projections_by_age_by_program 
       TTRAIN,
       LCIP2_CRED
     )
-  )
+  ) 
+
+# differences due to OR/or issue in credential labels
+compare(
+  "q_1c_grad_projections_by_program_lcp2",
+  q_1c_grad_projections_by_program_lcp2
+)
 
 # ---- Q_2 Series ----
 # dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
+# Find all records where there are respondents for 4-digit CIP and age group rollup; 
+# Calc NLS using No Labour Supply Distribution.
 q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
   inner_join(
     labour_supply_distribution |>
@@ -325,11 +353,18 @@ q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
   select(-GRADS, -GRAD_STATUS)
 
-# dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
-# dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
-# dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
-# dbExecute(decimal_con, Q_2a4_Labour_Supply)
-q_2a_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
+# - dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
+# - dbExecute(decimal_con, Q_2a4_Labour_Supply)
+# 1 Finds all records where there are no respondents for 4-digit CIP and age group rollup; 
+# Basically those where TTRAIN was blank in LCIP4_CRED and in the Labour_Supply_Distribution table bc it had TTRAIN=0 injected + 
+# private training institutions, as these aren't in the Labour_Supply_Distribution table at all.
+# 2. Calc NLS using No TT Labour Supply Distribution. This is the labour supply distribution without the TTRAIN variable 
+# embedded in LCIP4_CRED to capture those programs that don’t have TTRAIN specified; 
+
+q_2a2_labour_supply_unknown_no_tt_proxy <- q_1c_grad_projections_by_program |>
   anti_join(
     labour_supply_distribution,
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
@@ -346,13 +381,6 @@ q_2a_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       LCIP4_CRED,
       YEAR
     )
-  )
-
-q_2a2_labour_supply_unknown_no_tt_proxy <- q_2a_labour_supply_unknown |>
-  select(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR, TTRAIN) |>
-  inner_join(
-    q_1c_grad_projections_by_program |> select(-TTRAIN),
-    by = join_by(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR)
   ) |>
   inner_join(
     labour_supply_distribution_no_tt |>
@@ -364,28 +392,35 @@ q_2a2_labour_supply_unknown_no_tt_proxy <- q_2a_labour_supply_unknown |>
       ),
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
   ) |>
-  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY)
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
+  select(names(q_2_labour_supply_by_lcip4_cred))
 
-q_2a3_labour_supply_by_lcip4_cred_no_tt_proxy_union <- bind_rows(
+# add to labour supply by LCIP4_CRED
+tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp <- bind_rows(
   q_2_labour_supply_by_lcip4_cred,
-  q_2a2_labour_supply_unknown_no_tt_proxy |>
-    select(names(q_2_labour_supply_by_lcip4_cred))
+  q_2a2_labour_supply_unknown_no_tt_proxy
 )
+rm(q_2a2_labour_supply_unknown_no_tt_proxy)
 
-tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp <-
-  q_2a3_labour_supply_by_lcip4_cred_no_tt_proxy_union
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union)
 
-#  ----- 2B Series
-# dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
-# dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
-# dbExecute(decimal_con, Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union)
-# dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for private institutions for 4-digit CIPs were no survey respondents 
+# Note 1. substituting CERT for DIPL and DIPL for CERT 4-digit CIP results b/c the 
+# Private Training Institution Branch says that private institutions do not have a 
+# hard and fast definition of credentials by length so CERT and DIPL used interchangeably; 
+# Note 2. use Labour_Supply_Distribution_No_TT table b/c obviously private institutions don’t have trades training variable; 
+# Note 3. because of the CERT/DIPL substitution,  actual total will be larger, reducing the unknown
 
-q_2b_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+q_2b2_labour_supply_unknown_private_cred_proxy <- q_1c_grad_projections_by_program |>
   anti_join(
     tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp,
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
   ) |>
+  filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
   summarise(
     GRADS = sum(GRADS),
     .by = c(
@@ -396,54 +431,51 @@ q_2b_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       TTRAIN,
       LCP4_CD,
       LCIP4_CRED,
-      YEAR
+      YEAR,
+      GRAD_STATUS
     )
-  )
-
-q_2b2_labour_supply_unknown_private_cred_proxy <- q_2b_labour_supply_unknown |>
-  select(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR) |>
-  inner_join(
-    q_1c_grad_projections_by_program,
-    by = join_by(PSSM_CRED, AGE_GROUP_ROLLUP, LCIP4_CRED, YEAR)
   ) |>
   inner_join(
     labour_supply_distribution_no_tt |>
+      filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
       select(
         AGE_GROUP_ROLLUP,
         LCP4_CD,
         PSSM_CRED,
         CURRENT_REGION_PSSM_CODE_ROLLUP,
         NEW_LABOUR_SUPPLY
-      ) |>
-      rename(PSSM_CRED_LSD = PSSM_CRED),
+      ),
     by = join_by(AGE_GROUP_ROLLUP, LCP4_CD)
   ) |>
   filter(
-    (PSSM_CRED == "P - CERT" & PSSM_CRED_LSD == "P - DIPL") |
-      (PSSM_CRED == "P - DIPL" & PSSM_CRED_LSD == "P - CERT")
+    (PSSM_CRED.x != PSSM_CRED.y)
   ) |>
-  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
-  select(
-    PSSM_CREDENTIAL,
-    PSSM_CRED,
-    AGE_GROUP_ROLLUP,
-    AGE_GROUP_ROLLUP_LABEL,
-    YEAR,
-    TTRAIN,
-    LCP4_CD,
-    LCIP4_CRED,
-    CURRENT_REGION_PSSM_CODE_ROLLUP,
-    NEW_LABOUR_SUPPLY,
-    NLS
-  )
+  mutate(NLS = GRADS * NEW_LABOUR_SUPPLY, 
+        PSSM_CRED = PSSM_CRED.x) |>
+  select(names(tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp))
 
 q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
   tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp,
-  q_2b2_labour_supply_unknown_private_cred_proxy |>
-    select(names(tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp))
+  q_2b2_labour_supply_unknown_private_cred_proxy 
 )
 
-q_2b4_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+rm(q_2b_labour_supply_unknown, q_2b2_labour_supply_unknown_private_cred_proxy)
+
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
+# - dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for all 4-digit CIPs with no survey respondents (matching all the filter criteria) 
+# Note 1. connecting to the 2-digit CIP as a proxy via T_LCP2_LCP4 (2-digit to 4-digit CIP link); 
+# (make sure this is up-to-date - shouldn’t change until CIP 2016 updated again). 
+# Must have links between Q_2b4_Labour_Supply_Unknown and Q_2_Labour_Supply_by_LCIP2_CRED on PSSM_CRED, Year and Age_Group_Rollup_Label; 
+# Note 2. excludes programs that we don’t want 2-digit CIP to serve as a proxy for 4-digit CIPs (51 medical programs due to close program occ linkage). 
+# Note 3. allow the private institutions to use this proxy for all programs since the alternative is using an NHS tab which doesn’t have economic region in it. 
+# Note 4. Updated filter to “P - “ since now have the PDEG degree.
+
+q_2c_labour_supply_unknown_lcp2_proxy <- q_1c_grad_projections_by_program |>
   anti_join(
     q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
@@ -458,16 +490,10 @@ q_2b4_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       TTRAIN,
       LCP4_CD,
       LCIP4_CRED,
-      YEAR
+      YEAR,
+      GRAD_STATUS
     )
-  )
-
-# ---- 2C Series ----
-# dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
-# dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
-# dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
-# dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
-q_2c_labour_supply_unknown_lcp2_proxy <- q_2b4_labour_supply_unknown |>
+  ) |>
   filter(
     !LCP4_CD %in%
       t_exclude_from_labour_supply_unknown_lcp2_proxy$LCIP_LCP4_CD |
@@ -482,13 +508,22 @@ q_2c_labour_supply_unknown_lcp2_proxy <- q_2b4_labour_supply_unknown |>
     by = join_by(AGE_GROUP_ROLLUP, PSSM_CRED, LCIP_LCP2_CD == LCP2_CD)
   ) |>
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
-  select(-GRADS, -LCIP_LCP2_CD, -SURVEY, -LCP2_CRED, -COUNT, -TOTAL)
+  select(names(q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union))
+
 
 q_2c2_labour_supply_unknown_lcp2_proxy_union <- bind_rows(
   q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union,
-  q_2c_labour_supply_unknown_lcp2_proxy |>
-    select(names(q_2b3_labour_supply_by_lcip4_cred_private_cred_proxy_union))
+  q_2c_labour_supply_unknown_lcp2_proxy 
 )
+
+rm(q_2c_labour_supply_unknown_lcp2_proxy)
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
+# - dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
 
 q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
   anti_join(
@@ -509,28 +544,27 @@ q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
-
 # --- I can't get this query to work - come back to it later.
 q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- dbReadTable(
   decimal_con,
   "Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT"
 ) |>
-  rename_with(toupper)
-
-# ---- 2d series
-#dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
-#dbExecute(decimal_con, Q_2d2_Labour_Supply)
-#dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
-#dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
-#dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
-
-q_2d_labour_supply_by_lcip4_cred_lcp2_union <- bind_rows(
-  q_2c2_labour_supply_unknown_lcp2_proxy_union,
-  q_2c4_labour_supply_unknown_lcp2_proxy_no_tt |>
+  rename_with(toupper)|>
     select(names(q_2c2_labour_supply_unknown_lcp2_proxy_union))
-)
 
-tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp <- q_2d_labour_supply_by_lcip4_cred_lcp2_union
+tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp  <- bind_rows(
+  q_2c2_labour_supply_unknown_lcp2_proxy_union,
+  q_2c4_labour_supply_unknown_lcp2_proxy_no_tt)
+
+rm(q_2c4_labour_supply_unknown_lcp2_proxy_no_tt, q_2c2_labour_supply_unknown_lcp2_proxy_union, q_2c3_labour_supply_unknown)
+
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+# - dbExecute(decimal_con, Q_2f_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
 
 q_2d2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
   anti_join(
@@ -577,18 +611,21 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
     NLS = GRADS * NEW_LABOUR_SUPPLY
   )
 
-q_2d4_labour_supply_by_lcip4_cred_lcp2_lcp2_private_union <- bind_rows(
+
+tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union  <- bind_rows(
   tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp,
   q_2d3_labour_supply_unknown_lcp2_private_cred_proxy |>
     select(names(tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp))
 )
 
-# --- 2f series
-# dbExecute(decimal_con, Q_2f_Labour_Supply)
-# dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
-tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union <- q_2d4_labour_supply_by_lcip4_cred_lcp2_lcp2_private_union
+rm(q_2d2_labour_supply_unknown, q_2d3_labour_supply_unknown_lcp2_private_cred_proxy)
 
-q_2f2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
+# --- 2f series
+# dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
+
+
+# not used?
+q_2f_labour_supply <- q_1c_grad_projections_by_program |>
   anti_join(
     tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union,
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
@@ -605,6 +642,12 @@ q_2f2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       YEAR
     )
   )
+
+compare(
+  "q_2f_labour_supply",
+  q_2f_labour_supply
+)
+rm(q_2f_labour_supply)
 
 # ---- Q_3 Series ----
 # dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
@@ -645,6 +688,11 @@ q_3_occupations_by_lcip4_cred <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_u
     OCCSN
   )
 
+compare(
+  "q_3_occupations_by_lcip4_cred",
+  q_3_occupations_by_lcip4_cred
+)
+
 q_3b_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
     occupation_distributions |> 
@@ -655,6 +703,11 @@ q_3b_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union 
       AGE_GROUP_ROLLUP
     )
   )
+
+compare(
+  "q_3b_occupations_unknown",
+  q_3b_occupations_unknown
+)
 
 q_3b11_occupations_unknown_no_tt_proxy <- q_3b_occupations_unknown |>
   inner_join(
@@ -691,6 +744,11 @@ q_3b12_occupations_by_lcip4_cred_no_tt_proxy_union <- bind_rows(
 
 tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp <- q_3b12_occupations_by_lcip4_cred_no_tt_proxy_union
 
+compare(
+  "tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp",
+  tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp
+)
+
 q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
     tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp,
@@ -701,6 +759,11 @@ q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_unio
       AGE_GROUP_ROLLUP
     )
   )
+
+compare(
+  "q_3b14_occupations_unknown",
+  q_3b14_occupations_unknown
+)
 
 # dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
 # not working as expected, moving on for now ....
@@ -717,6 +780,11 @@ q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
     select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
 )
 
+compare(
+  "q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union",
+  q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union
+)
+
 # dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
 q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
@@ -728,6 +796,12 @@ q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union
       YEAR
     )
   )
+
+compare(
+  "q_3b4_occupations_unknown", q_3b4_occupations_unknown)
+
+rm(q_3_occupations_by_lcip4_cred, q_3b_occupations_unknown, q_3b11_occupations_unknown_no_tt_proxy, 
+  q_3b12_occupations_by_lcip4_cred_no_tt_proxy_union, q_3b14_occupations_unknown, q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union)
 
 # --- 03C Series
 #dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy)
@@ -767,6 +841,9 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
     OCCSN
   )
 
+compare(
+  "q_3c_occupations_unknown_lcp2_proxy", q_3c_occupations_unknown_lcp2_proxy)
+
 # --- 03D Series
 # dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
 # dbExecute(decimal_con, Q_3d2_Occupations)
@@ -783,6 +860,11 @@ q_3d_occupations_by_lcip4_cred_lcp2_union <- bind_rows(
   q_3c_occupations_unknown_lcp2_proxy
 )
 
+compare(
+  "q_3d_occupations_by_lcip4_cred_lcp2_union",
+  q_3d_occupations_by_lcip4_cred_lcp2_union
+)
+
 tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union_tmp <- q_3d_occupations_by_lcip4_cred_lcp2_union
 
 q_3d2_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
@@ -796,6 +878,11 @@ q_3d2_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union
     )
   )
 
+compare(
+  "q_3d2_occupations_unknown",
+  q_3d2_occupations_unknown
+)
+
 q_3d21_occupations_unknown_lcp2_proxy_no_tt <- dbReadTable(
   decimal_con,
   "Q_3d21_Occupations_Unknown_LCP2_Proxy_No_TT"
@@ -805,6 +892,11 @@ q_3d21_occupations_unknown_lcp2_proxy_no_tt <- dbReadTable(
 q_3d22_occupations_by_lcip4_cred_lcp2_no_t_proxy_union <- bind_rows(
   tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union_tmp,
   q_3d21_occupations_unknown_lcp2_proxy_no_tt
+)
+
+compare(
+  "q_3d22_occupations_by_lcip4_cred_lcp2_no_t_proxy_union",
+  q_3d22_occupations_by_lcip4_cred_lcp2_no_t_proxy_union
 )
 
 q_3d24_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
@@ -830,6 +922,10 @@ q_3d24_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_unio
     is.na(CURRENT_REGION_PSSM_CODE_ROLLUP.y)
   ) |> select(-ends_with(".y")) |> rename_with(~str_replace(., "\\.x$", ""))
 
+compare(
+  "q_3d24_occupations_unknown",
+  q_3d24_occupations_unknown
+)
 
 q_3d3_occupations_unknown_lcp2_private_cred_proxy <- q_3d24_occupations_unknown |>
   filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
@@ -863,10 +959,20 @@ q_3d3_occupations_unknown_lcp2_private_cred_proxy <- q_3d24_occupations_unknown 
     OCCSN
   )
 
+compare(
+  "q_3d3_occupations_unknown_lcp2_private_cred_proxy",
+  q_3d3_occupations_unknown_lcp2_private_cred_proxy
+)
+
 q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union <- bind_rows(
   tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union_tmp,
   q_3d21_occupations_unknown_lcp2_proxy_no_tt,
   q_3d3_occupations_unknown_lcp2_private_cred_proxy
+)
+
+compare(
+  "q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union",
+  q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union
 )
 
 # --- 03E Series
@@ -900,6 +1006,10 @@ q_3e_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union 
     .groups = "drop"
   )
 
+compare(
+  "q_3e_occupations_unknown",
+  q_3e_occupations_unknown
+)
 
 q_3e2_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
@@ -941,14 +1051,24 @@ q_3e2_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
-    NOC = as.character(NOC),
+    NOC,
     PERCENT,
     OCCSN
   )
 
-q_3e3_occupations_by_lcip4_cred_lcp2_union <- bind_rows(
-  q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union,
+compare(
+  "q_3e2_occupations_unknown",
   q_3e2_occupations_unknown
+)
+
+q_3e3_occupations_by_lcip4_cred_lcp2_union <- bind_rows(
+  q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union |> mutate(NOC = as.double(NOC)),
+  q_3e2_occupations_unknown |> mutate(NOC = as.double(NOC))
+)
+
+compare(
+  "q_3e3_occupations_by_lcip4_cred_lcp2_union",
+  q_3e3_occupations_by_lcip4_cred_lcp2_union
 )
 
 # --- 03F Series
@@ -969,6 +1089,11 @@ tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union <- q_3e3_occupations_by_lcip4_
     PERCENT,
     OCCSN
   )
+
+compare(
+  "tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union",
+  tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union
+)
 
 # ---- Q_4_NOC_D Series ----
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED)

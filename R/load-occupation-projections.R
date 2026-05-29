@@ -310,7 +310,6 @@ t_noc_broad_categories <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-
 # -------------------- DEVELOPMENT ONLY ------------------------
 dbWriteTable(
   decimal_con,
@@ -363,7 +362,6 @@ if (regular_run == T | ptib_run == T) {
     t_pssm_credential_grouping_appendix,
     overwrite = T
   )
-
   dbWriteTable(
     decimal_con,
     SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"')),
@@ -387,6 +385,7 @@ dbWriteTable(
 )
 # dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
 #dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
+
 dbWriteTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes_BC"')),
@@ -401,6 +400,5 @@ dbWriteTable(
   overwrite = T
 )
 
-
 # ---- Disconnect ----
-dbDisconnect(decimal_con)
+# dbDisconnect(decimal_con)
