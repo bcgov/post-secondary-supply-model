@@ -311,94 +311,94 @@ t_noc_broad_categories <-
   janitor::clean_names(case = "all_caps")
 
 # -------------------- DEVELOPMENT ONLY ------------------------
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCP4_CD"')),
-  t_exclude_from_projections_lcp4_cd,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_noc_broad_categories"')),
-  t_noc_broad_categories,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCIP4_CRED"')),
-  t_exclude_from_projections_lcip4_cred,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_PSSM_Credential"')),
-  t_exclude_from_projections_pssm_credential,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue(
-    '"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"'
-  )),
-  t_exclude_from_labour_supply_unknown_lcp2_proxy,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes"')),
-  t_current_region_pssm_rollup_codes,
-  overwrite = T
-)
-
-if (regular_run == T | ptib_run == T) {
-  dbWriteTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping_Appendix"')),
-    t_pssm_credential_grouping_appendix,
-    overwrite = T
-  )
-  dbWriteTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"')),
-    t_lcp2_lcp4,
-    overwrite = T
-  )
-}
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
-  tbl_age_groups,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')),
-  tbl_age_groups_rollup,
-  overwrite = T
-)
-# dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
-#dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes_BC"')),
-  t_current_region_pssm_rollup_codes_bc,
-  overwrite = T
-)
-
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_CRED_RECODE"')),
-  t_pssm_cred_recode,
-  overwrite = T
-)
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCP4_CD"')),
+#  t_exclude_from_projections_lcp4_cd,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_noc_broad_categories"')),
+#  t_noc_broad_categories,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_LCIP4_CRED"')),
+#  t_exclude_from_projections_lcip4_cred,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_Exclude_from_Projections_PSSM_Credential"')),
+#  t_exclude_from_projections_pssm_credential,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue(
+#    '"{my_schema}"."T_Exclude_from_Labour_Supply_Unknown_LCP2_Proxy"'
+#  )),
+#  t_exclude_from_labour_supply_unknown_lcp2_proxy,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes"')),
+#  t_current_region_pssm_rollup_codes,
+#  overwrite = T
+#)
+#
+#if (regular_run == T | ptib_run == T) {
+#  dbWriteTable(
+#    decimal_con,
+#    SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping_Appendix"')),
+#    t_pssm_credential_grouping_appendix,
+#    overwrite = T
+#  )
+#  dbWriteTable(
+#    decimal_con,
+#    SQL(glue::glue('"{my_schema}"."T_LCP2_LCP4"')),
+#    t_lcp2_lcp4,
+#    overwrite = T
+#  )
+#}
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."tbl_Age_Groups"')),
+#  tbl_age_groups,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."tbl_Age_Groups_Rollup"')),
+#  tbl_age_groups_rollup,
+#  overwrite = T
+#)
+## dbWriteTable(decimal_con, name = "tbl_NOC_Skill_Level_Aged_17_34",  tbl_NOC_Skill_Level_Aged_17_34)
+##dbWriteTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_NOC_Skill_Type"')),  T_NOC_Skill_Type)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_Current_Region_PSSM_Rollup_Codes_BC"')),
+#  t_current_region_pssm_rollup_codes_bc,
+#  overwrite = T
+#)
+#
+#dbWriteTable(
+#  decimal_con,
+#  SQL(glue::glue('"{my_schema}"."T_PSSM_CRED_RECODE"')),
+#  t_pssm_cred_recode,
+#  overwrite = T
+#)
 
 # ---- Disconnect ----
 # dbDisconnect(decimal_con)

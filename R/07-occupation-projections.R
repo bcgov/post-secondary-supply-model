@@ -101,7 +101,7 @@ for (table_name in required_tables) {
 # compare all required tables to SQL versions
 for (table_name in required_tables) {
   print(glue("Comparing {table_name} to SQL version..."))
-  compare(table_name, base::get(table_name))
+  res <- compare(table_name, base::get(table_name))
   cat("\n\n\n")
 }
 
@@ -558,6 +558,9 @@ tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp  <- bind_rows(
 
 rm(q_2c4_labour_supply_unknown_lcp2_proxy_no_tt, q_2c2_labour_supply_unknown_lcp2_proxy_union, q_2c3_labour_supply_unknown)
 
+compare(
+  "tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp",
+  tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp)
 
 # Combine the following queries for readability
 # - dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
@@ -618,7 +621,14 @@ tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union  <- bind_rows(
     select(names(tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp))
 )
 
+compare(
+  "tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union",
+  tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union
+)
+
 rm(q_2d2_labour_supply_unknown, q_2d3_labour_supply_unknown_lcp2_private_cred_proxy)
+
+
 
 # --- 2f series
 # dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
@@ -649,6 +659,10 @@ compare(
 )
 rm(q_2f_labour_supply)
 
+# remove q1 queries
+removers <- ls()[grep("q_1", ls())]
+rm(list = removers)
+  
 # ---- Q_3 Series ----
 # dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
 
@@ -1071,6 +1085,10 @@ compare(
   q_3e3_occupations_by_lcip4_cred_lcp2_union
 )
 
+# remove q2 queries
+removers <- ls()[grep("q_2", ls())]
+rm(list = removers)
+
 # --- 03F Series
 # dbExecute(decimal_con, Q_3f_Occupations)
 tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union <- q_3e3_occupations_by_lcip4_cred_lcp2_union |>
@@ -1095,25 +1113,213 @@ compare(
   tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union
 )
 
+# remove q3 queries except for the final union table
+removers <- ls()[grep("q_3|q3", ls())]
+removers <- setdiff(removers, "tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union")
+rm(list = removers)
+
 # ---- Q_4_NOC_D Series ----
-dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED)
+# Theses haven't been translated - do we use them?
+# dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_PSSM_CRED)
+# dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED)
+# dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix)
+# dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED)
+# dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED)
+# dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_PSSM_CRED)
+
 dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED)
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_PSSM_CRED_Appendix)
 dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_PSSM_CRED)
 dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED)
 dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_PSSM_CRED)
 dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year)
 # FIXME dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year_Input_for_Rounding)
+
+noc_projections_base <- tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union |>
+  mutate(NOC = str_pad(as.character(NOC), width = 5, side = "left", pad = "0")) |>
+  inner_join(
+    t_current_region_pssm_rollup_codes |> select(-OLD_CURRENT_REGION_PSSM_CODE_ROLLUP), 
+    by = "CURRENT_REGION_PSSM_CODE_ROLLUP"
+  ) |>
+  inner_join(
+    t_noc_broad_categories, 
+    by = c("NOC" = "UNIT_GROUP_CODE")
+  )
+
+compacted_noc_data <- noc_projections_base |>
+  transmute(
+    NOC_1 = BROAD_CATEGORY_CODE, 
+    NOC_2 = MAJOR_GROUP_CODE, 
+    NOC_3 = SUB_MAJOR_GROUP_CODE, 
+    NOC_4 = MINOR_GROUP_CODE, 
+    NOC_5 = NOC,
+    NOC_1_ENGLISH_NAME = BROAD_CATEGORY_ENGLISH_NAME, 
+    NOC_2_ENGLISH_NAME = MAJOR_GROUP_ENGLISH_NAME, 
+    NOC_3_ENGLISH_NAME = SUB_MAJOR_ENGLISH_NAME, 
+    NOC_4_ENGLISH_NAME = MINOR_GROUP_ENGLISH_NAME, 
+    NOC_5_ENGLISH_NAME = ENGLISH_NAME,
+    NOC_1_LEVEL = str_length(NOC_1),
+    NOC_2_LEVEL = str_length(NOC_2),
+    NOC_3_LEVEL = str_length(NOC_3),
+    NOC_4_LEVEL = str_length(NOC_4),
+    NOC_5_LEVEL = str_length(NOC_5),
+    AGE_GROUP_ROLLUP,
+    AGE_GROUP_ROLLUP_LABEL,
+    YEAR,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    OCCSN
+  )
+
+q_4_noc_1d_totals_by_year <- compacted_noc_data |>
+  group_by(
+    YEAR, 
+    AGE_GROUP_ROLLUP_LABEL, 
+    CURRENT_REGION_PSSM_CODE_ROLLUP, 
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    NOC_1, 
+    NOC_1_LEVEL, 
+    NOC_1_ENGLISH_NAME, 
+) |> 
+  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
+  pivot_wider(
+    names_from = YEAR,
+    values_from = OCCSN,
+    values_fill = 0
+  ) |>
+  rename(
+    NOC = NOC_1,
+    NOC_LEVEL = NOC_1_LEVEL,
+    ENGLISH_NAME = NOC_1_ENGLISH_NAME
+  )
+
+q_4_noc_2d_totals_by_year <- compacted_noc_data |>
+  group_by(
+    YEAR, 
+    AGE_GROUP_ROLLUP_LABEL, 
+    CURRENT_REGION_PSSM_CODE_ROLLUP, 
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    NOC_2, 
+    NOC_2_LEVEL, 
+    NOC_2_ENGLISH_NAME, 
+) |> 
+  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
+  pivot_wider(
+    names_from = YEAR,
+    values_from = OCCSN,
+    values_fill = 0
+  ) |>
+  rename(
+    NOC = NOC_2,
+    NOC_LEVEL = NOC_2_LEVEL,
+    ENGLISH_NAME = NOC_2_ENGLISH_NAME
+  )
+
+q_4_noc_3d_totals_by_year <- compacted_noc_data |>
+  group_by(
+    YEAR, 
+    AGE_GROUP_ROLLUP_LABEL, 
+    CURRENT_REGION_PSSM_CODE_ROLLUP, 
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    NOC_3, 
+    NOC_3_LEVEL, 
+    NOC_3_ENGLISH_NAME, 
+) |> 
+  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
+  pivot_wider(
+    names_from = YEAR,
+    values_from = OCCSN,
+    values_fill = 0
+  ) |>
+  rename(
+    NOC = NOC_3,
+    NOC_LEVEL = NOC_3_LEVEL,
+    ENGLISH_NAME = NOC_3_ENGLISH_NAME
+  )
+
+q_4_noc_4d_totals_by_year <- compacted_noc_data |>
+  group_by(
+    YEAR, 
+    AGE_GROUP_ROLLUP_LABEL, 
+    CURRENT_REGION_PSSM_CODE_ROLLUP, 
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    NOC_4, 
+    NOC_4_LEVEL, 
+    NOC_4_ENGLISH_NAME, 
+) |> 
+  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
+  pivot_wider(
+    names_from = YEAR,
+    values_from = OCCSN,
+    values_fill = 0
+  ) |>
+  rename(
+    NOC = NOC_4,
+    NOC_LEVEL = NOC_4_LEVEL,
+    ENGLISH_NAME = NOC_4_ENGLISH_NAME
+  )
+
+q_4_noc_5d_totals_by_year <- compacted_noc_data |>
+  group_by(
+    YEAR, 
+    AGE_GROUP_ROLLUP_LABEL, 
+    CURRENT_REGION_PSSM_CODE_ROLLUP, 
+    CURRENT_REGION_PSSM_NAME_ROLLUP,
+    NOC_5, 
+    NOC_5_LEVEL, 
+    NOC_5_ENGLISH_NAME, 
+) |> 
+  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
+  pivot_wider(
+    names_from = YEAR,
+    values_from = OCCSN,
+    values_fill = 0
+  ) |>
+  rename(
+    NOC = NOC_5,
+    NOC_LEVEL = NOC_5_LEVEL,
+    ENGLISH_NAME = NOC_5_ENGLISH_NAME
+  )
 
 # ---- Q_4_NOC_Totals Series ----
 # FIXME dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED)
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year)
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC)
 dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
+
+q_4_noc_totals_by_year <- rbind(
+  q_4_noc_4d_totals_by_year,
+  q_4_noc_3d_totals_by_year,
+  q_4_noc_2d_totals_by_year,
+  q_4_noc_1d_totals_by_year,
+  q_4_noc_5d_totals_by_year
+) |> 
+  (\(x) x[order(x[[6]], x[[4]], x[[2]], x[[8]]), ])()
+
+q_4_noc_totals_by_year_bc <- q_4_noc_totals_by_year |>
+  inner_join(t_current_region_pssm_rollup_codes_bc, by = "CURRENT_REGION_PSSM_CODE_ROLLUP") |> select(-CURRENT_REGION_PSSM_NAME_ROLLUP) |>
+  inner_join(t_current_region_pssm_rollup_codes, by = c("CURRENT_REGION_PSSM_CODE_ROLLUP_BC" = "CURRENT_REGION_PSSM_CODE_ROLLUP")) |>
+  group_by(
+    AGE_GROUP_ROLLUP_LABEL,
+    NOC_LEVEL,
+    NOC,
+    ENGLISH_NAME,
+    CURRENT_REGION_PSSM_CODE_ROLLUP_BC,
+    CURRENT_REGION_PSSM_NAME_ROLLUP
+  ) |>
+  summarise(across(starts_with("20"), sum))|>
+  rename(CURRENT_REGION_PSSM_CODE_ROLLUP = CURRENT_REGION_PSSM_CODE_ROLLUP_BC) 
+
+q_4_noc_totals_by_year_total <- q_4_noc_totals_by_year %>%
+  group_by(
+    AGE_GROUP_ROLLUP_LABEL,
+    NOC_LEVEL,
+    NOC,
+    ENGLISH_NAME
+  ) |>
+  summarise(across(starts_with("20"), sum))|>
+  mutate(
+    CURRENT_REGION_PSSM_CODE_ROLLUP = "0",
+    CURRENT_REGION_PSSM_NAME_ROLLUP = "Total") 
 
 
 # ---- Q_5 Series ----
