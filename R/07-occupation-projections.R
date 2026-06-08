@@ -1127,11 +1127,12 @@ rm(list = removers)
 # dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_PSSM_CRED)
 # dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_PSSM_CRED)
 
-dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year)
+# the following section handles these queries together
+# dbExecute(decimal_con, Q_4_NOC_1D_Totals_by_Year)
+# dbExecute(decimal_con, Q_4_NOC_2D_Totals_by_Year)
+# dbExecute(decimal_con, Q_4_NOC_3D_Totals_by_Year)
+# dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
+# dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year)
 # FIXME dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year_Input_for_Rounding)
 
 noc_projections_base <- tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union |>
@@ -1143,9 +1144,7 @@ noc_projections_base <- tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union |>
   inner_join(
     t_noc_broad_categories, 
     by = c("NOC" = "UNIT_GROUP_CODE")
-  )
-
-compacted_noc_data <- noc_projections_base |>
+  ) |>
   transmute(
     NOC_1 = BROAD_CATEGORY_CODE, 
     NOC_2 = MAJOR_GROUP_CODE, 
@@ -1170,121 +1169,34 @@ compacted_noc_data <- noc_projections_base |>
     OCCSN
   )
 
-q_4_noc_1d_totals_by_year <- compacted_noc_data |>
-  group_by(
-    YEAR, 
-    AGE_GROUP_ROLLUP_LABEL, 
-    CURRENT_REGION_PSSM_CODE_ROLLUP, 
-    CURRENT_REGION_PSSM_NAME_ROLLUP,
-    NOC_1, 
-    NOC_1_LEVEL, 
-    NOC_1_ENGLISH_NAME, 
-) |> 
-  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
-  pivot_wider(
-    names_from = YEAR,
-    values_from = OCCSN,
-    values_fill = 0
-  ) |>
-  rename(
-    NOC = NOC_1,
-    NOC_LEVEL = NOC_1_LEVEL,
-    ENGLISH_NAME = NOC_1_ENGLISH_NAME
-  )
+sum_noc_totals <- function(data, level) {
+  noc_cols <- paste0(c("NOC_", "NOC_", "NOC_"), level, c("", "_LEVEL", "_ENGLISH_NAME"))
+  
+  data |>
+    summarise(
+      OCCSN = sum(OCCSN), 
+      .by = c(YEAR, AGE_GROUP_ROLLUP_LABEL, CURRENT_REGION_PSSM_CODE_ROLLUP, 
+              CURRENT_REGION_PSSM_NAME_ROLLUP, all_of(noc_cols))
+    ) |> 
+    pivot_wider(names_from = YEAR, values_from = OCCSN, values_fill = 0) |>
+    rename(
+      NOC = !!sym(noc_cols[1]),
+      NOC_LEVEL = !!sym(noc_cols[2]),
+      ENGLISH_NAME = !!sym(noc_cols[3])
+    ) 
+}
 
-q_4_noc_2d_totals_by_year <- compacted_noc_data |>
-  group_by(
-    YEAR, 
-    AGE_GROUP_ROLLUP_LABEL, 
-    CURRENT_REGION_PSSM_CODE_ROLLUP, 
-    CURRENT_REGION_PSSM_NAME_ROLLUP,
-    NOC_2, 
-    NOC_2_LEVEL, 
-    NOC_2_ENGLISH_NAME, 
-) |> 
-  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
-  pivot_wider(
-    names_from = YEAR,
-    values_from = OCCSN,
-    values_fill = 0
-  ) |>
-  rename(
-    NOC = NOC_2,
-    NOC_LEVEL = NOC_2_LEVEL,
-    ENGLISH_NAME = NOC_2_ENGLISH_NAME
-  )
-
-q_4_noc_3d_totals_by_year <- compacted_noc_data |>
-  group_by(
-    YEAR, 
-    AGE_GROUP_ROLLUP_LABEL, 
-    CURRENT_REGION_PSSM_CODE_ROLLUP, 
-    CURRENT_REGION_PSSM_NAME_ROLLUP,
-    NOC_3, 
-    NOC_3_LEVEL, 
-    NOC_3_ENGLISH_NAME, 
-) |> 
-  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
-  pivot_wider(
-    names_from = YEAR,
-    values_from = OCCSN,
-    values_fill = 0
-  ) |>
-  rename(
-    NOC = NOC_3,
-    NOC_LEVEL = NOC_3_LEVEL,
-    ENGLISH_NAME = NOC_3_ENGLISH_NAME
-  )
-
-q_4_noc_4d_totals_by_year <- compacted_noc_data |>
-  group_by(
-    YEAR, 
-    AGE_GROUP_ROLLUP_LABEL, 
-    CURRENT_REGION_PSSM_CODE_ROLLUP, 
-    CURRENT_REGION_PSSM_NAME_ROLLUP,
-    NOC_4, 
-    NOC_4_LEVEL, 
-    NOC_4_ENGLISH_NAME, 
-) |> 
-  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
-  pivot_wider(
-    names_from = YEAR,
-    values_from = OCCSN,
-    values_fill = 0
-  ) |>
-  rename(
-    NOC = NOC_4,
-    NOC_LEVEL = NOC_4_LEVEL,
-    ENGLISH_NAME = NOC_4_ENGLISH_NAME
-  )
-
-q_4_noc_5d_totals_by_year <- compacted_noc_data |>
-  group_by(
-    YEAR, 
-    AGE_GROUP_ROLLUP_LABEL, 
-    CURRENT_REGION_PSSM_CODE_ROLLUP, 
-    CURRENT_REGION_PSSM_NAME_ROLLUP,
-    NOC_5, 
-    NOC_5_LEVEL, 
-    NOC_5_ENGLISH_NAME, 
-) |> 
-  summarise(OCCSN = sum(OCCSN), .groups = "drop") |>
-  pivot_wider(
-    names_from = YEAR,
-    values_from = OCCSN,
-    values_fill = 0
-  ) |>
-  rename(
-    NOC = NOC_5,
-    NOC_LEVEL = NOC_5_LEVEL,
-    ENGLISH_NAME = NOC_5_ENGLISH_NAME
-  )
+q_4_noc_1d_totals_by_year <- sum_noc_totals(compacted_noc_data, 1)
+q_4_noc_2d_totals_by_year <- sum_noc_totals(compacted_noc_data, 2)
+q_4_noc_3d_totals_by_year <- sum_noc_totals(compacted_noc_data, 3)
+q_4_noc_4d_totals_by_year <- sum_noc_totals(compacted_noc_data, 4)
+q_4_noc_5d_totals_by_year <- sum_noc_totals(compacted_noc_data, 5)
 
 # ---- Q_4_NOC_Totals Series ----
 # FIXME dbGetQuery(decimal_con, Q_4_NOC_Totals_by_Year_and_PSSM_CRED)
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year)
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC)
-dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
+# dbExecute(decimal_con, Q_4_NOC_Totals_by_Year)
+# dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_BC)
+# dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
 
 q_4_noc_totals_by_year <- rbind(
   q_4_noc_4d_totals_by_year,
@@ -1292,22 +1204,23 @@ q_4_noc_totals_by_year <- rbind(
   q_4_noc_2d_totals_by_year,
   q_4_noc_1d_totals_by_year,
   q_4_noc_5d_totals_by_year
-) |> 
-  (\(x) x[order(x[[6]], x[[4]], x[[2]], x[[8]]), ])()
+) 
 
-q_4_noc_totals_by_year_bc <- q_4_noc_totals_by_year |>
-  inner_join(t_current_region_pssm_rollup_codes_bc, by = "CURRENT_REGION_PSSM_CODE_ROLLUP") |> select(-CURRENT_REGION_PSSM_NAME_ROLLUP) |>
-  inner_join(t_current_region_pssm_rollup_codes, by = c("CURRENT_REGION_PSSM_CODE_ROLLUP_BC" = "CURRENT_REGION_PSSM_CODE_ROLLUP")) |>
+q_4_noc_totals_by_year_bc <- q_4_noc_totals_by_year %>%
+  filter(str_starts(CURRENT_REGION_PSSM_CODE_ROLLUP, "59")) |>
+  mutate(
+    CURRENT_REGION_PSSM_CODE_ROLLUP = 5900,
+    CURRENT_REGION_PSSM_NAME_ROLLUP = "British Columbia"
+  ) |>
   group_by(
     AGE_GROUP_ROLLUP_LABEL,
     NOC_LEVEL,
     NOC,
     ENGLISH_NAME,
-    CURRENT_REGION_PSSM_CODE_ROLLUP_BC,
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
     CURRENT_REGION_PSSM_NAME_ROLLUP
   ) |>
-  summarise(across(starts_with("20"), sum))|>
-  rename(CURRENT_REGION_PSSM_CODE_ROLLUP = CURRENT_REGION_PSSM_CODE_ROLLUP_BC) 
+  summarise(across(starts_with("20"), sum), .groups = "drop")
 
 q_4_noc_totals_by_year_total <- q_4_noc_totals_by_year %>%
   group_by(
@@ -1316,29 +1229,46 @@ q_4_noc_totals_by_year_total <- q_4_noc_totals_by_year %>%
     NOC,
     ENGLISH_NAME
   ) |>
-  summarise(across(starts_with("20"), sum))|>
+  summarise(across(starts_with("20"), sum), .groups = "drop")|>
   mutate(
-    CURRENT_REGION_PSSM_CODE_ROLLUP = "0",
+    CURRENT_REGION_PSSM_CODE_ROLLUP = 0,
     CURRENT_REGION_PSSM_NAME_ROLLUP = "Total") 
 
-
 # ---- Q_5 Series ----
-dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC)
-dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
+# dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC)
+# dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
+
+q_5_noc_totals_by_year_and_bc <- bind_rows(
+  q_4_noc_totals_by_year,
+  q_4_noc_totals_by_year_bc
+)
+
+q_5_noc_totals_by_year_and_bc_and_total <- bind_rows(
+  q_4_noc_totals_by_year,
+  q_4_noc_totals_by_year_bc,
+  q_4_noc_totals_by_year_total
+)
 
 # ---- Q_6 Series ----
+# this logic should be handled elsewhere
 if (regular_run == T) {
-  dbExecute(decimal_con, Q_6_tmp_tbl_Model)
+  #dbExecute(decimal_con, Q_6_tmp_tbl_Model)
+  tmp_tbl_model <- q_5_noc_totals_by_year_and_bc_and_total
 }
 
 if (qi_run == T) {
-  dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
+  #dbExecute(decimal_con, Q_6_tmp_tbl_Model_QI) # QI toggle
+  tmp_tbl_qi <- q_5_noc_totals_by_year_and_bc_and_total
 }
 
 if (ptib_run == T) {
-  dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst)
+  #dbExecute(decimal_con, Q_6_tmp_tbl_Model_Inc_Private_Inst)
+  tmp_tbl_model_inc_private_inst <- q_5_noc_totals_by_year_and_bc_and_total
 }
-#dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection)
+# dbExecute(decimal_con, Q_6_tmp_tbl_Model_Program_Projection)
+if(model == "program_projection"){
+  tmp_tbl_model_program_projection <- q_5_noc_totals_by_year_and_bc_and_total
+}
 
 if (regular_run == T | qi_run == T) {
   dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
