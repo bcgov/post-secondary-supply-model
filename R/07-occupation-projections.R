@@ -83,7 +83,12 @@ required_tables <- c(
   "t_exclude_from_labour_supply_unknown_lcp2_proxy",
   "tbl_age_groups",
   "tbl_age_groups_rollup",
-  "t_noc_broad_categories"
+  "t_noc_broad_categories",
+  "t_lcp2_lcp4",
+  "t_current_region_pssm_rollup_codes",
+  "t_current_region_pssm_rollup_codes_bc",
+  "t_pssm_cred_recode",
+  "t_pssm_credential_grouping_appendix"
 )
 
 # Check for required data tables in global environment
