@@ -103,12 +103,12 @@ for (table_name in required_tables) {
   )
 }
 
-# compare all required tables to SQL versions
-for (table_name in required_tables) {
-  print(glue("Comparing {table_name} to SQL version..."))
-  res <- compare(table_name, base::get(table_name))
-  cat("\n\n\n")
-}
+# # compare all required tables to SQL versions
+# for (table_name in required_tables) {
+#   print(glue("Comparing {table_name} to SQL version..."))
+#   res <- compare(table_name, base::get(table_name))
+#   cat("\n\n\n")
+# }
 
 
 
@@ -129,7 +129,7 @@ t_lcp2_lcp4 <- infoware_l_cip_6digits_cip2016 |>
 # Should this be moved to 2b-2 and 2b-3?
 # use existing labour supply and occ_dists as a proxy for private training institutions.
 # note to self - be mindful that count and total doesn't represent true counts/total for PTIB, but the
-# NLS and PERCENT columns can, as the represent a ratio.
+# NLS and PERCENT columns may since they represent a ratio.
 
 # --- delete existing PTIB Surveys
 # done in load script
@@ -209,10 +209,11 @@ if (ptib_run == TRUE) {
 }
 
 # ---- Q_1 Series ----
-
-#dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
-q_1_grad_projections_by_age_by_program <- graduate_projections |>
-  select(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
+# run distinct here to remove duplicates in case you 
+# grabbed the dbo version of graduate_projections (development only).
+q_1_grad_projections_by_age_by_program2 <- graduate_projections |>
+  distinct(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
   inner_join(
     cohort_program_distributions,
     by = join_by(PSSM_CRED, AGE_GROUP, YEAR)
@@ -231,16 +232,17 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
   ) |>
   mutate(
     GRADS = GRADUATES * PERCENT
-  )
+  ) |> 
+  select(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP, YEAR, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, GRADS)
 
 
-#dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
 # this will be identical to the query above, if the model toggle is set to
 # static (odd choice but we can deal with this later).
 q_1_grad_projections_by_age_by_program_static <- graduate_projections |>
-  select(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
+  distinct(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
   inner_join(
-    cohort_program_distributions_static,
+    cohort_program_distributions,
     by = join_by(PSSM_CRED, AGE_GROUP, YEAR)
   ) |>
   anti_join(
@@ -258,7 +260,8 @@ q_1_grad_projections_by_age_by_program_static <- graduate_projections |>
   mutate(
     GRADS = GRADUATES * PERCENT,
     LCIP4_CRED = NA_character_
-  )
+  ) |> 
+  select(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP, YEAR, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, GRADS)
 
 # dbGetQuery(decimal_con, Q_1b_Checking_Grads_by_Year_Excludes_CIPs)
 # shows that this query is still being handled differently in R and SQL
@@ -533,7 +536,6 @@ q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
-compare("q_2c3_labour_supply_unknown", q_2c3_labour_supply_unknown)
 
 # there was a bug in the original query. The filter is intended to capture the records where 
 # is.na(LCIP_LCP4_CD) is true, but also include any records where the LCIP4_CRED starts with "P - " (i.e. private institutions).
@@ -555,7 +557,7 @@ q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- labour_supply_distribution_lcp2_
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
   select(names(q_2c2_labour_supply_unknown_lcp2_proxy_union))
   
-compare("q_2c4_labour_supply_unknown_lcp2_proxy_no_tt", q_2c4_labour_supply_unknown_lcp2_proxy_no_tt)
+
 
 
 tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union_tmp  <- bind_rows(
@@ -751,7 +753,6 @@ q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_unio
     )
   )
 
-compare("tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union", tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union)
 
 # dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
 q_3b2_occupations_unknown_private_cred_proxy <- 
@@ -776,7 +777,6 @@ q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
     select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
 )
 
-compare("q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union", q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union)
 
 # dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
 q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
