@@ -807,6 +807,8 @@ near_completes_total_by_gender <- base |>
     name = "count"
   )
 
+
+# ---------------------??????????????????????????
 #2: paste to col F (C_Outc12_13_14RatiosByGender)
 near_completes_total_with_stp_by_gender <- base |>
   inner_join(
@@ -912,11 +914,11 @@ near_completes_total_by_gender_year <- base |>
 near_completes_total_with_stp_by_gender_year <- base |>
   # This inner join only brings in has_stp_credentials - it has no other purpose
   # If we leave has_stp_credentials in base, there is no need for this.
-  inner_join(
-    t_dacso_data_part_1_tempselection |>
-      select(coci_stqu_id, has_stp_credential),
-    by = "coci_stqu_id"
-  ) |>
+  # inner_join(
+  #   t_dacso_data_part_1_tempselection |>
+  #     select(coci_stqu_id, has_stp_credential),
+  #   by = "coci_stqu_id"
+  # ) |>
   filter(
     has_stp_credential == "Yes"
   ) |>
@@ -989,23 +991,238 @@ t_dacso_near_completers_ratio_by_gender_year <-
 # GOT TO HERE...leaving for now but the TTRAIN flag is available if we want to include it.
 
 # ---- TTRAIN tables ----
-# This part is not completed  - see documentation
-# Note: the first query filters on cosc_grad_status_lgds_cd_group = '3'
-#dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN)
-#dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN)
-#dbExecute(decimal_con, qry99_Near_completes_program_dist_count)
-#
-#dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-#dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
-#
-## ---- HISTORICAL TTRAIN queries ----
-## note: this uses the same intermediate table names as the above, so make sure the 2 drops are performed
-#dbExecute(decimal_con, qry99_Near_completes_total_by_CIP4_TTRAIN_history)
-#dbExecute(decimal_con, qry99_Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN_history)
-#dbExecute(decimal_con, qry99_Near_completes_program_dist_count_history)
-#
-#dbExecute(decimal_con, "DROP TABLE Near_completes_total_by_CIP4_TTRAIN")
-#dbExecute(decimal_con, "DROP TABLE Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN")
+
+# Mirrors: Near_completes_total_by_CIP4_TTRAIN (C_Outc19/20 only)
+near_completes_total_by_cip4_ttrain <- t_dacso_data_part_1 |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "3",
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20")
+  ) |> select(-age_group)
+  # age group already introduced from lookup table
+   inner_join(
+     age_group_lookup,
+     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+   ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
+  ) |>
+  count(
+    age_group,
+    prgm_credential_awarded_name,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    ttrain,
+    cosc_grad_status_lgds_cd_group,
+    name = "Count"
+  )
+
+# Mirrors: Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN (C_Outc19/20 only)
+near_completes_total_with_stp_credential_bycip4_ttrain <- t_dacso_data_part_1 |>
+  filter(
+    coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
+    has_stp_credential == "Yes"
+  ) |>
+|> select(-age_group)
+  # age group already introduced from lookup table
+   inner_join(
+     age_group_lookup,
+     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+   ) 
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
+  ) |>
+  count(
+    age_group,
+    prgm_credential_awarded_name,
+    has_stp_credential,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    ttrain,
+    cosc_grad_status_lgds_cd_group,
+    name = "Count"
+  )
+
+# Mirrors: T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN
+t_dacso_near_completers_ratiosageatgradcip4_ttrain <- near_completes_total_by_cip4_ttrain |>
+  inner_join(
+    t_pssm_projection_cred_grp |>
+      rename_with(tolower) |>
+      mutate(
+        pssm_projection_credential = gsub(
+          "Post-Degree",
+          "Post-degree",
+          pssm_projection_credential
+        ),
+        pssm_credential = gsub(
+          " OR ",
+          " or ",
+          pssm_credential
+        )
+      ),
+    by = c("prgm_credential_awarded_name" = "pssm_projection_credential")
+  ) |>
+  left_join(
+    near_completes_total_with_stp_credential_bycip4_ttrain |>
+      select(
+        ttrain,
+        age_group,
+        prgm_credential_awarded_name,
+        lcip4_cred,
+        nc_with_stp = Count
+      ),
+    by = c("ttrain", "age_group", "prgm_credential_awarded_name", "lcip4_cred")
+  ) |>
+  mutate(
+    nc_with_stp = replace_na(nc_with_stp, 0),
+    pssm_cred = paste0(cosc_grad_status_lgds_cd_group, " - ", pssm_credential),
+    near_completers_stp_credentials = Count - nc_with_stp
+  ) |>
+  summarise(
+    Count = sum(Count),
+    near_completers_from_c_outc19_20_with_earlier_or_later_stp = sum(
+      nc_with_stp
+    ),
+    .by = c(
+      pssm_credential,
+      pssm_cred,
+      age_group,
+      lcip4_cred,
+      lcp4_cd,
+      lcp4_cip_4digits_name,
+      cosc_grad_status_lgds_cd_group,
+      ttrain,
+      near_completers_stp_credentials
+    )
+  )
+
+# write to sql server
+dbWriteTable(
+  conn = decimal_con,
+  name = SQL(glue::glue(
+    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain"'
+  )),
+  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain,
+  overwrite = TRUE
+)
+
+# ---- HISTORICAL TTRAIN tables ----
+
+# Mirrors: Near_completes_total_by_CIP4_TTRAIN (all years)
+near_completes_total_by_cip4_ttrain_history <- t_dacso_data_part_1 |>
+  filter(
+    cosc_grad_status_lgds_cd_group == "3"
+  ) |>
+select(-age_group) |>
+  # age group already introduced from lookup table
+   inner_join(
+     age_group_lookup,
+     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+   ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
+  ) |>
+  count(
+    age_group,
+    coci_subm_cd,
+    prgm_credential_awarded_name,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    ttrain,
+    cosc_grad_status_lgds_cd_group,
+    name = "Count"
+  )
+
+# Mirrors: Near_completes_total_with_STP_Credential_ByCIP4_TTRAIN (all years)
+near_completes_total_with_stp_credential_bycip4_ttrain_history <- t_dacso_data_part_1 |>
+  filter(
+    has_stp_credential == "Yes"
+  ) |>
+  # inner_join(
+  #   age_group_lookup,
+  #   by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  # ) |>
+  left_join(
+    credential_rank,
+    by = c("prgm_credential_awarded_name" = "psi_credential_category")
+  ) |>
+  count(
+    age_group,
+    coci_subm_cd,
+    prgm_credential_awarded_name,
+    has_stp_credential,
+    lcip4_cred,
+    lcp4_cd,
+    lcp4_cip_4digits_name,
+    ttrain,
+    cosc_grad_status_lgds_cd_group,
+    name = "Count"
+  )
+
+# Mirrors: T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history
+t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_total_by_cip4_ttrain_history |>
+  inner_join(
+    t_pssm_projection_cred_grp |> rename_with(tolower),
+    by = c("prgm_credential_awarded_name" = "pssm_projection_credential")
+  ) |>
+  left_join(
+    near_completes_total_with_stp_credential_bycip4_ttrain_history |>
+      select(
+        ttrain,
+        coci_subm_cd,
+        age_group,
+        prgm_credential_awarded_name,
+        lcip4_cred,
+        nc_with_stp = Count
+      ),
+    by = c(
+      "ttrain",
+      "coci_subm_cd",
+      "age_group",
+      "prgm_credential_awarded_name",
+      "lcip4_cred"
+    )
+  ) |>
+  mutate(
+    nc_with_stp = replace_na(nc_with_stp, 0),
+    pssm_cred = paste0(cosc_grad_status_lgds_cd_group, " - ", pssm_credential),
+    near_completers_stp_credentials = Count - nc_with_stp
+  ) |>
+  summarise(
+    Count = sum(Count),
+    near_completers_from_c_outc19_20_with_earlier_or_later_stp = sum(
+      nc_with_stp
+    ),
+    .by = c(
+      pssm_credential,
+      pssm_cred,
+      age_group,
+      coci_subm_cd,
+      lcip4_cred,
+      lcp4_cd,
+      lcp4_cip_4digits_name,
+      cosc_grad_status_lgds_cd_group,
+      ttrain,
+      near_completers_stp_credentials
+    )
+  )
+
+
+# write to sql server
+dbWriteTable(
+  conn = decimal_con,
+  name = SQL(glue::glue(
+    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain_history"'
+  )),
+  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain_history,
+  overwrite = TRUE
+)
+
 
 # ---- Clean Up ----
 # TODO: clean up this section
