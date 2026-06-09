@@ -997,12 +997,12 @@ near_completes_total_by_cip4_ttrain <- t_dacso_data_part_1 |>
   filter(
     cosc_grad_status_lgds_cd_group == "3",
     coci_subm_cd %in% c("C_Outc19", "C_Outc20")
-  ) |>
+  ) |> select(-age_group)
   # age group already introduced from lookup table
-  # inner_join(
-  #   age_group_lookup,
-  #   by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  # ) |>
+   inner_join(
+     age_group_lookup,
+     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+   ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "psi_credential_category")
