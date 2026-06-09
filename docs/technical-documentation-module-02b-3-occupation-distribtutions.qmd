@@ -245,7 +245,6 @@ $$
 
 This table is the basis for all occupation distribution aggregations that follow (by CIP level, region, training type, etc.).
 
-This table is the basis for all occupation distribution aggregations that follow (by CIP level, region, training type, etc.).
 
 #### Occupation Distribution Variations
 
