@@ -28,6 +28,28 @@
 
 library(tidyverse)
 library(config)
+library(DBI)
+library(odbc)
+
+# ---- Configure SQL Server Connection ----
+my_schema <- config::get("myschema")
+
+db_config <- config::get("decimal")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
+# ---- Read T_BGS_Data_Final from SQL Server ----
+t_bgs_data_final_for_outcomesmatching <- dbReadTable(
+  decimal_con,
+  Id(schema = my_schema, table = "t_bgs_data_final_for_outcomesmatching")
+)
+
+dbDisconnect(decimal_con)
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
@@ -63,6 +85,7 @@ t_bgs_inst_recode <-
     col_types = cols(.default = col_character())
   ) %>%
   janitor::clean_names(case = "all_caps")
+
 
 # ---- Read Outcomes Data ----
 if (regular_run == T | ptib_run == T) {
