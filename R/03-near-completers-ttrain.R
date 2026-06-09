@@ -1116,7 +1116,7 @@ near_completes_total_by_cip4_ttrain_history <- t_dacso_data_part_1 |>
   filter(
     cosc_grad_status_lgds_cd_group == "3"
   ) |>
-select(-age_group)
+select(-age_group) |>
   # age group already introduced from lookup table
    inner_join(
      age_group_lookup,
