@@ -1,5 +1,6 @@
 ---
-title: "Module 01 - Technical Documentation"
+title: "STP Credental and Enrolment Preprocessing and Analysis"
+subtitle: "Technical Documentation"
 format:
   html:
     toc: true
@@ -20,55 +21,53 @@ format:
 
 ## Overview
 
-01a: performs automated data ingestion and preprocessing for student enrolment records within a SQL database environment. It acts as a data-cleansing pipeline that standardizes raw administrative records into a "clean" format suitable for longitudinal analysis.
+Script 01a executes ingestion and preprocessing of the Student Transition Program (STP) enrolment dataset. Temporal inconsistencies in birthdates are resolved and records are evaluated against a multi-tiered classification hierarchy to isolate valid post-secondary activity from developmental, skills-based, or malformed entries. This process generates a refined Record Type Table and validated dataset featuring binary markers for initial entry and annual registration milestones for downstream analysis.
 
-01b: manages the ingestion and cleansing of credential records by normalizing award dates and assigning status-based classifications to filter out non-academic or developmental achievements. It specifically synchronizes credential data with previously processed enrolment records to maintain consistency in how skills-based and developmental records are identified across the dataset.
+Script 01b executes ingestion, preprocessing and validation of the Student Transition Program (STP) credential dataset to ensure longitudinal consistency with enrolment records. The pipeline applies programmatic century resolution for temporal alignment and implements a multi-tiered classification hierarchy to attribute record statuses (0–8).  Credential records are cross-referenced against previously isolated enrolment metadata to identify and flag non-credit, developmental, or skills-based training. This process generates a refined credential baseline for downstream analysis.
 
-01d: script implements a rigorous data-cleansing framework to identify and isolate first-time enrolment events within the Student Transition Project (STP) dataset. By integrating complex identity-resolution logic and stratified proportional imputation, it resolves discrepancies in student gender and age across multiple reporting periods, ultimately generating a standardized suite of supplemental variables for downstream institutional reporting.
+Script 01c executes attribute enrichment and final analysis of the credential dataset, synchronize academic awards with enrolment metadata. The methodology employs a hierarchical recovery protocol for missing gender, birthdate, and VISA status markers, supplemented by stratified stochastic imputation to resolve residual gaps in gender nad age attributes, while preserving the empirical demographic variance of the graduate population.  Academic achievements are prioritized through a dual-ranking system to identify a student's peak educational attainment. Category-specific "delayed award" logic reconciles longitudinal exit points to ensure the data accurately reflects provincial graduation and performance metrics.
 
-## Data Sources and Storage
+Script 01d executes the final consolidation of the enrolment baseline. A high-fidelity "Entry Cohort" is created by isolating the earliest valid record for each student within a reporting cycle. Conflicting identity markers are reconciled by prioritizing the student’s initial institutional contact.  Stratified stochastic imputation fills in gaps in missing gender and age values, leveraging empirical population weights to maintain statistical variance. Ages are incremented across the student’s academic history to ensure longitudinal consistency for downstream analysis and forecasting.
+
+Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partitioned by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling. 
+
+Standardized frequency distributions are generated from the `min_enrolment` baseline, quantifying student entry points across stratified academic and socio-demographic cohorts. The data is partitioned by residency, credential category, and disciplinary cluster to isolate specific cohorts for longitudinal provincial modeling.
+
+## Data Sources and Storage (Not completed)
 
 ### External Data Sources
 
 #### [External Data Source Name]
 
-Source: [Data provider or organization]  
-Access Method: [Describe how data is accessed, e.g., API, direct download, R package]
+#### STP_Credential Data
+Source: Retrieved from Secure Database
+Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
 
-  - [List any required credentials, API keys, or setup steps]
-  - Function calls: [Relevant function or method]
+  - Requirements: Standardized database credentials; kept in config.yml file
+  - Function calls: `dbExceute()` or `dbGetQuery()`
 
-Description: [Brief description of the data, coverage, and structure]
+Description: This dataset contains raw academic award records including student identifiers (ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER), institutional markers (PSI_CODE), and academic variables such as award dates and Classification of Instructional Programs (CIP) codes. Coverage spans the provincial post-secondary system.
 
-<!-- Repeat the above callout for each external data source -->
+#### STP_Enrolment Data
+Source: Retrieved from Secure Database
+Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
 
-### Internal/Processed Data Sources
+  - Requirements: Standardized database credentials; kept in config.yml file
+  - Function calls: `dbExecute()` or `dbGetQuery()`
 
-#### [Internal Data Product Name]
+Description: The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
 
-Source: [Describe how/where the data is generated or stored]  
-Access Method: [Describe how to access the data]
+### Internal/Processed Data Sources (Not completed)
 
-  - File location: [Path or variable]
-  - Processing methodology: [Link to documentation or code if available]
+#### STP_Enrolment_Valid (Processed Baseline)
+Source: Generated within the pipeline scripts.  
+Access Method: <mark>(TBD)</mark>
+Description: A high-fidelity, standardized version of the enrolment dataset featuring unique student-level identifiers (CONCATENATED_ID) and longitudinal flags for initial and annual registration milestones, isolated from developmental and skills-based records.
 
-Description: [Brief description of the processed data]
-
-
-### Data Storage Structure
-
-All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+#### Credential_Supvars (Enriched Achievement Baseline)
+Source: Generated within the pipeline scripts.  
+Access Method: <mark>(TBD)</mark>
+Description: This data product represents the peak educational attainment for each student. It contains enriched markers for age at graduation, academic rank, and reconciled award dates, serving as the primary input for provincial transition modeling and frequency distribution matrices.
 
 ## Technical Specifications
 
@@ -76,68 +75,72 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
 
 #### System Requirements
 
-- Network Access: [List required network resources]
-- Storage: [Note storage requirements]
-- Memory: [Note memory requirements]
-- External Data: [List any required external data]
+- Network Access: Secure LAN
+- Database Connection: Project database connection - SQL Server
+- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
+- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
 
 #### R Package Dependencies
 
 The following R packages are required for this module:
 
-- [List core data processing packages]
-- [List spatial analysis packages]
-- [List visualization/statistics packages]
-- [List file management packages]
-
+- `tidyverse` (data manipulation and cleaning)
+- `DBI` (to connect to database)
+- `odbc` (to connect to database)
+- `config` (to connect to database)
 
 
 #### Authentication Setup
 
+To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
+
 ```r
-# Example: API key configuration
-[package]::set_api_key('YOUR_API_KEY', install = TRUE)
+library(DBI)
+library(odbc)
+library(config)
+
+# get configuration from config file 
+db_config <- config::get("decimal")
+
+# connect to database
+con <- dbConnect(odbc(),
+                 Driver = db_config$driver,
+                 Server = db_config$server,
+                 Database = db_config$database,
+                 Trusted_Connection = "True")
+
+# pull data from database 
+strSQL <- "SELECT * FROM <table>.<name>"
+df <- dbGetQuery(con, strSQL)
 ```
-
-### Global Constants and Configuration
-
-Global constants and configuration settings are centralized in a configuration file (e.g., `settings.R`). This file defines key parameters, file paths, and data validation requirements. Below is a summary of the most critical settings. For a complete list, refer to the configuration file in the project repository.
-
-#### Data Processing and Filtering
-
-  - `REFERENCE_YEAR`: [Year] - Reference year for primary data.
-  - `CURRENT_YEAR`: [Year] - Current year for projections/analysis.
-  - `FACILITY_TAG`: [Tag] - Identifier for facilities/entities.
-  - `REQUIRED_COLS`: [List of required columns for validation]
-  - `POP_COLS`: [List of population-related columns]
-
-
-#### File Path Configuration
-
-  - `BASE_FOLDER`: Base folder for storage.
-  - `SRC_DATA_FOLDER`: Directory for source data files.
-  - `RAW_DATA_FOLDER`: Directory for raw input data.
-  - `OUTPUTS_FOLDER`: Directory for outputs.
-
-[Add other relevant settings as needed]
 
 
 ## Methodology Overview
 
 ### STP Enrolment Data Pre-processing 
 
-#### Source Code: (01a-enrolment-preprocessing.R)
+Source Script: 01a-enrolment-preprocessing.R
 
-Raw administrative records for STP Enrolment data are transformed into a standardized dataset for longitudinal analysis. Initial processing involves temporal normalization, where legacy two-digit year formats are converted into four-digit ISO standards to ensure chronological consistency.
+#### Descriptive Methods
 
-Conflicting birthdates are resolved through a hierarchical tie-breaker routine to establish a consistent "single source of truth" for each student. The script applies the following priority sequence:
+Raw administrative records are preocessed into a standardized dataset for longitudinal analysis. 
 
-- Temporal Authority: Prioritizes the date matching the most recent "Last Seen" administrative record.
-- Frequency: If no temporal match is found, the date with the highest frequency of occurrence (the mode) is selected.
+Date formatted data are programmatically corrected for truncated dates via a custom function, where legacy two-digit year formats are converted into four-digit ISO 8601 standards to ensure chronological consistency across the date-type fields. Records where the year component is less than 24 are assigned a "20" prefix (e.g., "10-01-01" becomes "2010-01-01").  Records with year values of 24 or greater are assigned a "19" prefix (e.g., "85-05-15" becomes "1985-05-15"). 
 
-A multi-tiered validation logic is used to assign status codes to each record, allowing for the systematic filtering of non-standard entries such as developmental or continuing education courses. Finally, identity discrepancies are resolved through concatenated deduplication and sequencing techniques, which ensure that each student is represented by a single, logically consistent record across the reporting period.
+**Birthdate Resolution**
 
-**STP Enrolment Records**
+Conflicting birthdates are resolved through a hierarchical priority sequence to establish a consistent "single source of truth" for each student:
+
+- If only one distinct date exists, it is automatically accepted as the correct birthdate.
+- If a conflict exists, the student’s LastSeenBirthdate is used, treating the most recently observed date as the correct birthdate.
+- If the "Last Seen Birthdate" is inconclusive or non-existent script the most frequently seen birthdate across the student's entire history is used.
+- If frequency is equal, the script defaults to the earliest chronological birthdate.
+
+
+**Enrolment Record Classification**
+
+A multi-tiered classification logic is used to assign status codes (0–8) to each record, enabling the systematic filtering of records into categories such as developmental or continuing education courses. Each record is assigned one of the status codes:
+
 
 ::: {.table-condensed}
 | Status Code | Label | Primary Logic / Criteria |
@@ -152,6 +155,9 @@ A multi-tiered validation logic is used to assign status codes to each record, a
 | **8** | **Certification** | Recommendation for Certification (defined in code comments). |
 :::
 
+Each student's "first" and "minimum" enrolment events are identified establishing markers used in downstream analysis.
+
+The main enrolment data is subset into a "valid" baseline containing only records with RecordStatus == 0; developmental, administrative, and out-of-province entries are discarded.  Only core identifiers and key temporal markers are retained.  The population is further partitioned into two cohorts, those with a unique `ENCRYPTED_TRUE_PEN` and those without.  For records lacking a PEN, the script utilizes the institutional composite key (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  Flags are created for the absolute first record in their history (`is_first_enrol`) and the first record within each distinct academic year (`is_min_enrol`) and integrated back into the `stp_enrolment_record_type` table (see data dictionary, below)
 
 #### Data Dictionary
 
@@ -188,11 +194,21 @@ Key variables used in this analysis, calculated varaiables are in bold font.
 
 ### STP Credential Data Pre-processing
 
-#### Source Code: 01b-credential-preprocessing.R
+Source Script: 01b-credential-preprocessing.R
 
-01b: The methodology centers on a cross-referential validation logic that aligns credential records with validated enrolment statuses. A critical initial phase involves temporal normalization, where a custom transformation function reconciles legacy two-digit year strings into four-digit ISO dates by applying a century-prefix logic (assigning years 00-25 to the 21st century and 26-99 to the 20th). Following this standardization, the script implements a lookup-driven classification system. It generates a reference set from enrolment data to identify "Skills Based" achievements and applies specialized exclusion rules for Developmental CIP codes, allowing for specific program-level exceptions (e.g., professional certificates or specialized technical training). This process ensures that only substantive academic credentials are coded as "Good," while administrative outliers—such as missing student identifiers or recommendations for certification—are systematically flagged for exclusion or targeted analysis. 
+#### Descriptive Methods
 
-STP Credential Records:
+Raw administrative records are preocessed into a standardized dataset for longitudinal analysis. 
+
+Date formatted data are programmatically corrected for truncated dates via a custom function, where legacy two-digit year formats are converted into four-digit ISO 8601 standards to ensure chronological consistency across the date-type fields. Records where the year component is less than 24 are assigned a "20" prefix (e.g., "10-01-01" becomes "2010-01-01").  Records with year values of 24 or greater are assigned a "19" prefix (e.g., "85-05-15" becomes "1985-05-15"). 
+
+**Record Classification**
+
+A multi-tiered classification logic is used to assign status codes (0–8) to each record, synchronizing exclusion criteria between enrolment and credential records.  That is, non-standard academic activities such as skills-only courses or developmental programs are consistently identified across the administrative lifecycle.  Previously established enrolment metadata is used to help identify credential records that should be excluded based on their association with non-credit or skills-based training.
+
+"Status 6" records from the enrolment baseline are isolated and aggregated their unique program attributes (CIP, Description, and Category).  Credentials for programs matching these attributes are flagged for exclusion. These typically represent continuing education or skills-only courses.
+
+For other records, a process similar to the enrollment preprocessing is applied.  A multi-tiered classification logic is used to assign status codes (0–8) to each record, enabling the systematic filtering of records into categories such as developmental or continuing education courses. Each record is assigned one of the status codes:
 
 ::: {.table-condensed}
 | Status Code | Label | Primary Logic / Criteria |
@@ -206,108 +222,184 @@ STP Credential Records:
 :::
 
 
-#### Data Dictionary
+#### Data Dictionary (Not Completed)
 
-##### [Table 1 Name]
+### STP Credential Data Processing: 
 
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
-
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
-
-### STP Credential Data Processing
-
-#### Source Code: (01c-credential-analysis.R)
+Source Script: 01c-credential-analysis.R
 
 #### Descriptive Methods
 
-To standardize gender and birthdate attributes, a student’s most recent [valid?] enrolment record across the entire enrolment history is used to backfill enrolment records. For the remaining "Unknown" or missing entries, the proportional distribution of known genders within specific credential categories is used as probability weights to impute values. 
+**Credential Supvars Enrolment Table**
 
-A longitudinal hierarchy is used to identify a student’s "primary" academic achievement. Each record for a student to flag the Highest Credential by Rank (e.g., prioritizing a Doctorate over a Diploma) and the Highest Credential by Date. This allows the analysis to distinguish between a student's most advanced achievement and their most recent one.
+Records for credentials associated with a valid (non-null) award date and whose `RecordStatus == 0` are synchronized with the most recent enrolment metadata to establish a high-fidelity baseline cohort (`credential_supvars_enrolment`) enriched with the most recent available enrolment metadata. The pipeline utilizes a two-tiered join:
 
-01c: Temporal "Delay Effect" Reconciliation: To account for non-linear graduation paths, the script calculates a Delay Award Effect. This reconciles credentials earned shortly after a student’s highest-ranked degree. By applying a time-sensitive windowing logic—ranging from 18 months for certificates to 36 months for advanced diplomas—the script determines if a secondary award should be collapsed into the student's primary graduation window or treated as a separate educational event.
+* For students with a valid `ENCRYPTED_TRUE_PEN`, the script isolates the most recent enrolment record (determined by the maximum `PSI_SCHOOL_YEAR`). This cohort represents the highest-confidence matches.
+* For records lacking a valid `ENCRYPTED_TRUE_PEN`, the script utilizes a composite identifier (`PSI_CODE` and `PSI_STUDENT_NUMBER`). It similarliy isolates the most recent enrolment record.
 
-#### Data Dictionary
+**Credential Supvars Table**
 
-##### [Table 1 Name]
+A second high-fidelity baseline cohort is created by linking credential records with foundational student metadata from STP Enrolment dataset. Validated birthdates, gender markers, and visa statuses are incorporated and formal date objects (CREDENTIAL_AWARD_DATE_D), are typecast and recoded where necessary.
+
+Records categorized as "Developmental," "Short Certificate," or "Other/None" are tagged with a DropCredCategory = "Yes" indicator. By utilizing a left_join back to the record type table, the script preserves the full data lineage while programmatically isolating these records for targeted exclusion in final reporting.
+
+**Missing Gender Recovery**
+
+A hierarchical backfilling protocol resolves missing gender attributes using the most contemporary administrative evidence available for each student with missing gender. A multi-pass recovery queries `credential_supvars_enrolment` (Pass 1) and `stp_enrolment` (Pass 2). Values are reconciled via `coalesce` based on the most recent institutional contact and joined back to the main `credential_supvars` table.  The routine prioritizes PEN-based matches, falling back to student-ID composites or the `LAST_SEEN_BIRTHDATE` administrative placeholder.
+
+**Birthdate Recovery**
+
+The script attempts to recover cleaned birthdates using a prioritized hierarchy: first by primary student identifier (`ENCRYPTED_TRUE_PEN`), and subsequently by institutional composite keys (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  In instances where primary cleaned dates are absent, the script utilizes the `LAST_SEEN_BIRTHDATE` attribute from the STP Enrollment data sets as a final administrative authority.  
+
+Enrichment markers—including cleaned gender, birthdates, and standardized award dates—are merged back into the core credential table.  Filters are applied to the credential table to retain only records meeting three critical integrity criteria:
+
+- A valid administrative record status (`RecordStatus` == 0).
+- Exclusion of non-standard or developmental awards (`DropCredCategory` == NA).
+- Exclusion of incomplete reporting cycles (`DropPartialYear` == NA).
+
+**Age At Graduation and Academic School Year**
+
+Age-at-graduation and academic school year markers are derived and aligned with standard institutional reporting cycles
+
+Student's age at the time of credential is calculated by measuring the interval between the standardized birthdate and the formal award date.  The integer age is grouped into discrete reporting cohorts, categorizing individual ages into standardized demographic groups (e.g., 18–24, 25–29).
+
+A fiscal PSI_AWARD_SCHOOL_YEAR is derived based on the month of award issuance, ensuring consistency with the provincial academic calendar. A standard September 1st "cutoff." is used; awards issued between January and August (months 1–8) are attributed to the previous calendar year’s cycle (e.g., an award in June 2023 is grouped within the 2022/2023 school year).  Data are standardized into "YYYY/YYYY" format. 
+
+A final gender recovery pass and deduplication routine are executed; missing values are recovered by performing a secondary lookup against the main enrolment table.  A singular, unique record with ID is isolated representing each academic achievement.
+
+**Imputation of Missing Genders**
+
+Stratified stochastic imputation is performed to resolve residual missing gender values. This method ensures the final dataset maintains the statistical distribution of the known population, preventing the bias inherent in simple mode substitution.  
+
+An empirical baseline is established by calculating observed gender ratios within the population.  The credential dataset is grouped by PSI_CREDENTIAL_CATEGORY, calculating the specific frequency and corresponding probability ($n / \sum n$) of each gender marker within those cohorts.  These distributions are aggregated into a reference list of weights and categories, effectively creating a specific "probability profile" for every award type (e.g., the gender distribution for Engineering Diplomas may differ from that of Nursing Certificates).  These distributions provide required weights in a random draw, used to reconcile null entries. This "weighted coin flip" ensures the imputed data mirrors the demographic profile of the specific credential cohort.
+
+**Rank Assignment**
+
+The pipeline first integrates a standardized credential_rank reference table, assigning a numerical RANK to each record based on its PSI_CREDENTIAL_CATEGORY (e.g., Doctorate > Master’s > Diploma). To maintain identity resolution across the dataset, records are partitioned into two cohorts for processing:
+
+- PEN Cohort: Students identified via a valid ENCRYPTED_TRUE_PEN.
+- Student Number Cohort: Students identified via the PSI_CODE and PSI_STUDENT_NUMBER composite key.
+
+Within each student partition, the script executes a window-function sorting routine to assign binary "Highest" flags:
+
+- Highest Credential by Date: Determined by sorting records in descending order by CREDENTIAL_AWARD_DATE_D. In instances where multiple awards share a date, the RANK value serves as the secondary tie-breaker. The first chronological record in this sequence is flagged "Yes."
+- Highest Credential by Rank: Determined by sorting records in ascending order by RANK (where lower values represent higher prestige). CREDENTIAL_AWARD_DATE_D serves as the secondary tie-breaker, prioritizing the most recent achievement within the same rank. The top-ranked record is flagged "Yes."
+
+**Missing Age At Grad**
+
+Missing AGE_AT_GRAD values are recovered through stratified stochastic imputation routine, leveraging empirical population distributions to populate gaps while maintaining the statistical variance of the graduate cohort.  Probability weights are derived from a reference set of students flagged as HIGHEST_CRED_BY_DATE == "Yes". Age distributions are stratified by Credential Category and Gender, creating a discrete probability mass function for each demographic strata.  Missing values are resolved through a weighted random draw using a fixed seed (`set.seed(42)`) for reproducibility: For each missing record, an age is sampled based on the probability weights of its specific category-gender strata.  If a strata lacks an observed distribution, the script applies a default uniform sampling range (Ages 19–54).
+
+**VISA Status**
+
+The script executes a hierarchical fallback protocol to synchronize student VISA Status markers between credential records and enrolment metadata. Attribute recovery is performed via a two-stage join to the credential_supvars_enrolment lookup table:
+
+- Tier 1 (Specific): A six-column composite match (identifiers, institution, and program-specific metadata) to ensure program-level accuracy.
+- Tier 2 (Broad): A four-column fallback (identifiers and school year) to capture status for records with inconsistent program descriptions.
+
+The final status is assigned back to the main dataset, prioritizing Tier 1 over Tier 2 results. To resolve potential row duplication from many-to-many joins, ties are broken by choosing the maximum unique record ID.
+
+**Delay Award Effect**
+
+Delay award effect occurs when secondary credentials are awarded shortly after a student’s primary, highest-ranked degree. This procedure aligns longitudinal achievements with the most representative educational exit point.
+
+A CONCATENATED_ID is generated to unify student records, prioritizing the ENCRYPTED_TRUE_PEN followed by a composite institutional key. The pipeline then isolates a baseline dataset containing only records flagged as a student's peak academic achievement (HIGHEST_CRED_BY_RANK == "Yes").
+
+Valid secondary "delayed" awards occurring after the primary achievement are determined by category-specific thresholds:
+
+- Permanent Retention: Apprenticeships, Bachelors, and Professional degrees.
+- 36-Month Window: Advanced Diplomas and Certificates.
+- 30-Month Window: Masters Degrees and Graduate/Post-Degree Diplomas.
+- 18-Month Window: Associate Degrees and basic Certificates.
+
+For students with qualifying secondary awards, the script selects the most recent occurrence to establish a final CREDENTIAL_AWARD_DATE. These values are integrated back into the main dataset ensuring that student records reflect either their original graduation date or their reconciled "delayed" exit point.
+
+**Research University Flag and Outcomes Credential Standardization**
+
+The final processing phase applies institutional and categorical identifiers to standardize records for sector-level reporting. A binary flag, RESEARCH_UNIVERSITY, is assigned to records originating from research-intensive institutions (SFU, UBC, UNBC, UVic, RRU). PSI_CREDENTIAL_CATEGORY is standardized to ensure collapses disparate institutional titles into consistent categories required for provincial performance metrics.
 
 
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
+### STP Enrolment Data Analysis: 
 
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
-
-#### Data Dictionary
-
-##### [Table 1 Name]
-
-
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-</ul>
-
-Key variables computed in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-<li>Weight_OCC_CIP_NOC (Integer): RECALCULATED IN THIS ANALYSIS</li>
-</ul>
-
- Variables not used in this analysis: 
-
-<ul class="list-variable-names">
-<li>AGE_AT_GRAD: NOT USED</li>
-<li>Age_Grad_Group: NOT USED</li>
-</ul>
-
-### 01d-enrolment-analysis.R
+Source Script: 01d-enrolment-analysis.R
 
 #### Descriptive Methods
 
-A dual-identifier strategy is used to leverage both the Encrypted Provincial Education Number (EPEN) and institutional student numbers and harmonize demographic attributes. 
+**Cohort Definition and Baseline Initialization**
 
-Where a single student is associated with multiple conflicting gender or birthdate records across the longitudinal set, the first seen enrolment is used.
+The analytical cohort is established from enrolment records with $RecordStatus = 0$ and $MinEnrolment = 1$ (the earliest valid record within a specific reporting cycle). A baseline age, $AGE_AT_ENROL_DATE{base}$, is calculated as the number of yearts between the student’s birthdate and their $MinEnrolment$ date.  
 
-To standardize gender markers, values are first extracted from the STP Credential dataset to backfill enrolment records. For the remaining "Unknown" or missing entries, proportional imputation is performed; the observed frequency distribution of known gender labels within the first-time enrolment cohort is used as statistical weights to impute the missing population.
+**Gender Recovery and Imputation**
 
-To address missing birthdates, a stratified proportional imputation based on gender-specific age distributions is employed. Following the assignment of a baseline age to a student's first enrolment record, subsequent enrolment records for the same student are updated through chronological increments (Current Year - Baseline Year), maintaining longitudinal consistency across the student's entire academic history.
+Missing gender identifiers are addressed through a hierarchical recovery protocol. 
+
+1. `NA` genders are first propogated with a valid gender from `stp_credential`.
+2. Genders from first enrolment records are assigned as the "true" gender for all `NA` records.
+3. A weighting schema,  The remaining gender identifiers classified as "Unknown" are assigned a gender by random draw, with probabiliy equal taken from $W_g = \frac{n_g}{\sum n}$, derived from the frequency distribution of valid genders (Male, Female, Gender Diverse). This  maintains population-level representative ratios. Consequent to the forward-fill procedures established in preceding stages, imputed genders are propagated forward in time for each student.
+
+**Age Imputation**
+
+For records lacking a calculated age, a baseline value is established via a weighted random draw from gender-specific age distributions, denoted as $A_{imputed} \sim P(A \mid G)$. In instances where gender-specific distributions are unavailable, a global population weight is applied. 
+
+Subsequent enrollment records for the same student are updated via chronological increments, $\Delta t$, defined as:
+$$A_{t} = A_{base} + (Year_{t} - Year_{base})$$
+
+**Final Distributions for Enrolment Forecasting**
+
+These distibutions have not been translated into R yet and will probably be done in 01e.
+
+
+#### Data Dictionary (Not Completed)
+
+### STP Enrolment and Credential Final Distributions: 
+
+Source Script: 01e-stp-distributions.R
+
+#### Descriptive Methods
+
+Valid credential data are aggregated to generate high-resolution frequency distributions. Utilizing the `tbl_credential_highest_rank` cohort as the primary data source, all counts represent unique student achievements.
+
+Records are partitioned into discrete analytical strata through the application of hierarchical filters across institutional, geographic, and disciplinary dimensions:
+
+- An inner_join with the age_group_lookup table translates integer ages into standardized reporting cohorts while simultaneously filtering out observations with invalid age markers.
+- Specific populations are intentionally removed, including Apprenticeships and designated CIP clusters (09 and 10), to align the data with academic forecasting requirements.
+- Subsets are generated that isolate domestic students and differentiate between institutional types, specifically controlling for Research Universities and DACSO outcome reporting mandates.
+- Standardized summary tables are produced that cross-tabulate annual award frequencies by PSI_AWARD_SCHOOL_YEAR_DELAYED, gender, and four-digit CIP codes. These outputs reconcile original award timelines with the previously established "delayed award" logic, providing the granular data lineage required for provincial longitudinal transition modeling.
+
+
+**Enrolment Distribution for Forecasting**
+
+Several standardized frequency distributions are generated from individual student-level records within the min_enrolment baseline dataset. Discrete, stratified cohorts are aggregated to quantify enrolment metrics across school years, academic credential categories, and socio-demographic dimensions. Standardized age groups are defined via a relational join with the age_group_lookup table.
+
+The resulting matrices provide granular frequency counts stratified by residency status (specifically Domestic), academic year, age group, and gender. Furthermore, these distributions facilitate cross-institutional field-of-study comparisons through the application of Classification of Instructional Programs (CIP) codes.
 
 ## Key Output Tables
+
+##### Table: qry09c_MinEnrolment_by_Credential_and_CIP_Code
+
+<ul class="list-variable-names">
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
+<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
+
+##### Table: qry09c_MinEnrolment_Domestic
+
+<ul class="list-variable-names">
+<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>AgeGroup (String): Age of student in the given school year, mapped to discrete a grouping (e.g. "20-24").</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
+
+##### Table: qry09c_MinEnrolment
+
+<ul class="list-variable-names">
+<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>Groups (String): A concatenated demographic identifier, representing Age Group and Gender of a student.</li>
+<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+</ul>
 
 ## Suggested Improvements
 

@@ -1,4 +1,4 @@
-# Copyright 2024 Province of British Columbia
+# Copyright 2026 Province of British Columbia
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,193 +10,264 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ******************************************************************************
-# Private Training Institutions Branch (PTIB)
-# 
-# Required Tables
-#   T_Private_Institutions_Credentials_Raw
-#   T_PSSM_Credential_Grouping
-#   INFOWARE_L_CIP_6DIGITS_CIP2016
-#   T_PTIB_Y1_to_Y10
-#
-# Resulting Tables
-#   qry_Private_Credentials_05i1_Grads_by_Year (PTIB data for Graduate_Projections)
-#   qry_Private_Credentials_06d1_Cohort_Dist (PTIB data for Cohort_Program_Distributions_Projected & _Static)
-#
-# Part 1: Clean PTIB data
-# * Update age groups, CIPs
-# * Add and update exclude column
-#
-# Part 2: Domestic graduates
-#
-# Part 3: Cohort distributions
-#
-# ******************************************************************************
+# ---- Check Required Tables etc. ----
+required_tables <- c(
+  'T_PTIB_Y1_to_Y10',
+  'cpd_proj',
+  'cpd_static',
+  'INFOWARE_L_CIP_6DIGITS_CIP2016',
+  'grad_proj',
+  'ptib_data',
+  'pssm_cred_grps'
+)
 
-library(RODBC)
-library(arrow)
-library(tidyverse)
-library(odbc)
-library(RJDBC) ## loads DBI
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
-# Setup
-# ---- Configure LAN and file paths ----
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
+}
 
-# ---- Connection to database ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
-
-# import sql queries
-## ** IMPORTANT - update queries with table years **
-source("./sql/05-ptib-analysis/05-private-training-institutions.R")
-
-# ---- Required data tables and SQL ----
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')))
-dbExistsTable(decimal_con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
+na_vals <- c("", " ", "(Unspecified)", NA) #this should be updated?
 
 # Part 1 ----
+
 ## ---- Add PSSM_Credential to PTIB data ----
-dbExecute(decimal_con, qry_Private_Credentials_00a_Append)
+t_private_institutions_credentials <- ptib_data |>
+  filter(credential != "None") |>
+  inner_join(
+    pssm_cred_grps |>
+      select("PRGM_CREDENTIAL_AWARDED_NAME", "PSSM_CREDENTIAL") |>
+      filter(!is.na(PSSM_CREDENTIAL)),
+    by = c("credential" = "PRGM_CREDENTIAL_AWARDED_NAME")
+  ) |>
+  transmute(
+    intYear = year,
+    Credential = PSSM_CREDENTIAL,
+    LCIP_CD = cip,
+    Age_Group = age_group,
+    Immigration_Status = immigration_status,
+    Graduates = as.numeric(sum_of_graduates),
+    Enrolled_Not_Graduated = as.numeric(sum_of_enrolments),
+    Enrolment = as.numeric(sum_of_total_enrolments)
+  )
 
 ## ---- Check CIP length ----
-dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length)
+t_private_institutions_credentials |>
+  mutate(Expr1 = str_count(LCIP_CD)) |>
+  filter(Expr1 < 7) |>
+  select(LCIP_CD, Expr1)
 
 ## ---- Remove periods from CIPs ----
-dbExecute(decimal_con, qry_Private_Credentials_00c_Clean_CIP_Period)
-dbGetQuery(decimal_con, qry_Private_Credentials_00b_Check_CIP_Length) %>% filter(Expr1!=6) # sanity check
+t_private_institutions_credentials <- t_private_institutions_credentials |>
+  mutate(
+    # this part replicated the logic from load_ptib.R
+    LCIP_CD = sapply(LCIP_CD, function(x) {
+      parts <- str_split(x, "\\.", simplify = TRUE)
+      prefix <- str_pad(parts[1], width = 2, side = "left", pad = "0")
+      suffix <- str_pad(parts[2], width = 4, side = "right", pad = "0")
+      return(paste0(prefix, ".", suffix))
+    })
+  ) |>
+  mutate(LCIP_CD = str_replace_all(LCIP_CD, "\\.", ""))
+
+## ---- Check CIP length ----
+t_private_institutions_credentials |>
+  mutate(Expr1 = str_count(LCIP_CD)) |>
+  filter(Expr1 < 6) |>
+  select(LCIP_CD, Expr1)
+
 
 ## ---- Check CIPs against infoware 6digit CIPs ----
-dbGetQuery(decimal_con, qry_Private_Credentials_00d_Check_CIPs)
-
+t_private_institutions_credentials |>
+  select(LCIP_CD) |>
+  left_join(
+    INFOWARE_L_CIP_6DIGITS_CIP2016 |>
+      mutate(exists = "yes") |>
+      select(LCIP_CD, exists),
+    by = c("LCIP_CD" = "LCIP_CD")
+  ) |>
+  filter(is.na(exists))
 
 ## ---- Update Exclude column ----
-# Flag not for credit and ESL programs and unclassified 99.9999
-dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials 
-                ADD  Exclude VARCHAR(255), LCIP_NAME VARCHAR(255)")
-
-dbExecute(decimal_con, "UPDATE T_Private_Institutions_Credentials 
-           SET T_Private_Institutions_Credentials.LCIP_NAME = INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_NAME
-           FROM T_Private_Institutions_Credentials 
-           INNER JOIN INFOWARE_L_CIP_6DIGITS_CIP2016
-           ON T_Private_Institutions_Credentials.LCIP_CD = INFOWARE_L_CIP_6DIGITS_CIP2016.LCIP_CD")
-
-dbExecute(decimal_con, "UPDATE T_Private_Institutions_Credentials 
-           SET T_Private_Institutions_Credentials.Exclude = 1
-           WHERE (((T_Private_Institutions_Credentials.LCIP_NAME) ='English as a second language') OR
-          ((T_Private_Institutions_Credentials.LCIP_NAME) LIKE '%not for credit%') OR
-          ((T_Private_Institutions_Credentials.LCIP_CD)='99999') );")
-
-dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
-                DROP COLUMN LCIP_NAME;")
-
+# Exclude not for credit and ESL programs and unclassified 99.9999 manually with “Exclude=1”
+t_private_institutions_credentials <- t_private_institutions_credentials |>
+  left_join(
+    INFOWARE_L_CIP_6DIGITS_CIP2016 |> distinct(LCIP_CD, LCIP_NAME),
+    by = "LCIP_CD"
+  ) |>
+  mutate(
+    Exclude = case_when(
+      LCIP_NAME == "English as a second language" ~ "1",
+      str_detect(LCIP_NAME, "(?i)not for credit") ~ "1", # Case-insensitive LIKE
+      LCIP_CD == "99999" ~ "1",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  select(-LCIP_NAME)
 
 ## ---- Update age groups ----
-dbExecute(decimal_con, qry_Private_Credentials_00f_Recode_Age_Group)
+t_private_institutions_credentials <- t_private_institutions_credentials |>
+  mutate(Age_Group = str_replace_all(Age_Group, "-", " to "))
 
 ## ---- Fix immigration status ----
-# what to do with unknowns? see documentation
-
-## ---- Copy to Clean table ----
-dbExecute(decimal_con, "SELECT *
-                INTO T_Private_Institutions_Credentials_Clean
-                FROM T_Private_Institutions_Credentials;")
-
+# make decision on how to recode (blank, Unknown or NA) - leaving for this run
+t_private_institutions_credentials |>
+  count(Immigration_Status)
 
 ## ---- Age averages ----
-dbExecute(decimal_con, "ALTER TABLE T_Private_Institutions_Credentials
-                ALTER COLUMN intYear VARCHAR(255);")
-
 # check relevant years to update queries below
-tbl(decimal_con, "T_Private_Institutions_Credentials") %>% collect() %>% 
+t_private_institutions_credentials |>
   count(intYear)
 
-## !! update DATA years in below queries
+t_private_institutions_credentials <- t_private_institutions_credentials |>
+  filter(is.na(Exclude)) |>
+  group_by(Credential, LCIP_CD, Age_Group, Immigration_Status, Exclude) |>
+  summarise(
+    Enrolment = sum(Enrolment, na.rm = TRUE) / 2,
+    Enrolled_Not_Graduated = sum(Enrolled_Not_Graduated, na.rm = TRUE) / 2,
+    Graduates = sum(Graduates, na.rm = TRUE) / 2,
+    .groups = "drop"
+  ) |>
+  mutate(intYear = "Avg 2021 & 2022") |>
+  select(
+    intYear,
+    Credential,
+    LCIP_CD,
+    Age_Group,
+    Immigration_Status,
+    Enrolment,
+    Enrolled_Not_Graduated,
+    Graduates,
+    Exclude
+  )
 
-dbExecute(decimal_con, qry_Private_Credentials_00g_Avg)
-dbExecute(decimal_con, "DELETE FROM T_Private_Institutions_Credentials
-                WHERE intYear <> 'Avg 2021 & 2022'")
 
 # Part 2 ----
-## STOP !!! Update MODEL year in queries ----
+private_credentials_summary <- t_private_institutions_credentials |>
+  filter(
+    is.na(Exclude),
+    !is.na(Graduates),
+    Credential %in% c("CERT", "DIPL")
+  ) |>
+  summarise(
+    Domestic = sum(Graduates[Immigration_Status == "Domestic"], na.rm = TRUE),
+    Known_Total = sum(
+      Graduates[Immigration_Status %in% c("Domestic", "International", "#N/A")],
+      na.rm = TRUE
+    ),
+    Blank_Unknown = sum(
+      Graduates[Immigration_Status %in% c("(blank)", "Unknown")],
+      na.rm = TRUE
+    ),
+    .by = c(Credential, LCIP_CD, Age_Group)
+  ) |>
+  mutate(
+    Year = "2023/2024",
+    Percent_Domestic = if_else(Known_Total == 0, 0, Domestic / Known_Total),
+    Grads = Domestic + (Blank_Unknown * Percent_Domestic)
+  ) |>
+  mutate(
+    SumOfGrads = sum(Grads, na.rm = TRUE),
+    .by = c(Year, Credential, Age_Group)
+  )
 
-## ---- Count domestic grads ----
-dbExecute(decimal_con, qry_Private_Credentials_01a_Domestic)
-
-## ---- Count domestic and international grads ----
-dbExecute(decimal_con, qry_Private_Credentials_01b_Domestic_International)
-
-## ---- Compute percent of domestic and international grads that are domestic ----
-dbExecute(decimal_con, qry_Private_Credentials_01c_Percent_Domestic)
-
-## ---- Compute unknown or blank immigration status ----
-dbExecute(decimal_con, qry_Private_Credentials_01d_Grads_Blank)
-
-## ---- Join domestic and blank ----
-dbExecute(decimal_con, qry_Private_Credentials_01e_Grads_Union)
-
-## ---- Sum of union query ----
-dbExecute(decimal_con, qry_Private_Credentials_01f_Grads)
+## ---- Summarize the Grads by Credential/Age/CIP ----
+qry_Private_Credentials_01f_Grads <- private_credentials_summary |>
+  distinct(Year, Credential, LCIP_CD, Age_Group, Grads)
 
 ## ---- Summarize the Grads by Credential/Age ----
-dbExecute(decimal_con, qry_Private_Credentials_05i_Grads)
+qry_Private_Credentials_05i_Grads <- private_credentials_summary |>
+  distinct(Year, Credential, Age_Group, SumOfGrads)
 
-## ---- Get Grads by all years, saved as table  ----
-dbExecute(decimal_con, qry_Private_Credentials_05i1_Grads_by_Year)
+qry_Private_Credentials_05i1_Grads_by_Year <- qry_Private_Credentials_05i_Grads |>
+  inner_join(
+    T_PTIB_Y1_to_Y10,
+    by = c("Year" = "Y1"),
+    relationship = "many-to-many"
+  ) |>
+  transmute(
+    Survey = "PTIB",
+    PSSM_CRED = paste0("P - ", Credential),
+    Age_Group,
+    Year = Y1_TO_Y10,
+    Graduates = SumOfGrads
+  )
 
 ## ---- Delete excess age groups ----
-dbExecute(decimal_con, qry_Private_Credentials_05i2_Delete_AgeGrps)
+qry_Private_Credentials_05i1_Grads_by_Year <- qry_Private_Credentials_05i1_Grads_by_Year |>
+  filter((Survey == "PTIB" & Age_Group != "Unknown") | Survey != "PTIB") |>
+  filter((Survey == "PTIB" & Age_Group != "(blank)") | Survey != "PTIB") |>
+  filter((Survey == "PTIB" & Age_Group != "16 or less") | Survey != "PTIB") |>
+  filter((Survey == "PTIB" & Age_Group != "65+") | Survey != "PTIB")
 
-## ---- Update Graduate_Projections ----
-dbExecute(decimal_con, "INSERT INTO Graduate_Projections ( Survey, PSSM_CRED, Age_Group, [Year], Graduates )
-          SELECT Survey, PSSM_CRED, Age_Group, [Year], Graduates
-          FROM qry_Private_Credentials_05i1_Grads_by_Year;")
 
-
-## ---- Drop tmp part2 qry datasets ----
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01a_Domestic")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01b_Domestic_International")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01c_Percent_Domestic")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01d_Grads_Blank")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01e_Grads_Union")
+## ---- Use to add PTIB rows to Graduate_Projections ----
+# Is this done in 06?
+# Graduate_Projections <- Graduate_Projections |>
+#   filter(Survey!="PTIB") |>
+#   rbind(qry_Private_Credentials_05i1_Grads_by_Year)
 
 # Part 3 ----
-## ---- Counts grads by CIP ----
-dbExecute(decimal_con, qry_Private_Credentials_06b_Cohort_Dist)
+# add PTIB survey data to Cohort_Program_Distributions_Projected and Cohort_Program_Distributions_Static
+qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_01f_Grads |>
+  mutate(
+    LCP4_CD = substr(LCIP_CD, 1, 4)
+  ) |>
+  summarise(
+    Count = sum(Grads, na.rm = TRUE),
+    .by = c(Year, Credential, Age_Group, LCP4_CD)
+  ) |>
+  mutate(
+    Total = sum(Count, na.rm = TRUE),
+    .by = c(Year, Credential, Age_Group)
+  )
 
-## ---- Sums total by age ----
-dbExecute(decimal_con, qry_Private_Credentials_06c_Cohort_Dist_Total)
+qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06d1_Cohort_Dist |>
+  transmute(
+    SURVEY = "PTIB",
+    PSSM_CREDENTIAL = Credential,
+    PSSM_CRED = paste0("P - ", Credential),
+    LCP4_CD = LCP4_CD,
+    LCIP4_CRED = paste0("P - ", LCP4_CD, " - ", Credential),
+    LCIP2_CRED = paste0("P - ", substr(LCP4_CD, 1, 2), " - ", Credential),
+    AGE_GROUP = Age_Group,
+    YEAR = Year,
+    COUNT = Count,
+    TOTAL = Total,
+    PERCENT = if_else(Total == 0, 0, Count / Total),
+    GRAD_STATUS = NA_character_,
+    TTRAIN = NA_character_
+  ) |>
+  filter(
+    !(SURVEY == "PTIB" &
+      AGE_GROUP %in% c("Unknown", "(blank)", "16 or less", "65+"))
+  )
 
-## ---- Prepare and save as table to update necessary tables later ----
-# Use the same table to update Cohort_Program_Distributions_Static and Cohort_Program_Distributions_Projected
-dbExecute(decimal_con, qry_Private_Credentials_06d1_Cohort_Dist)
+## ---- Use to add PTIB rows to Program Projections ----
+# Is this done in 07?
+# Cohort_Program_Distributions_Static <- Cohort_Program_Distributions_Static  |>
+#   filter(Survey!="PTIB") |>
+#   rbind(qry_Private_Credentials_06d1_Cohort_Dist)
 
-## ---- Delete excess age groups ----
-dbExecute(decimal_con, qry_Private_Credentials_06d2_Delete_AgeGrps)
-
+# Cohort_Program_Distributions_Projected <- Cohort_Program_Distributions_Projected  |>
+#   filter(Survey!="PTIB") |>
+#   rbind(qry_Private_Credentials_06d1_Cohort_Dist)
 
 # Clean up ----
-## ---- Drop tmp qry datasets ----
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_01f_Grads")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_05i_Grads")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06b_Cohort_Dist")
-dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06c_Cohort_Dist_Total")
+tables_to_keep <- c(
+  "cpd_static",
+  "cpd_proj",
+  "qry_Private_Credentials_06d1_Cohort_Dist",
+  "qry_Private_Credentials_05i1_Grads_by_Year",
+  "Graduate_Projections_PTIB"
+)
 
-## ---- Drop Main Datasets
-dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials")
-dbExecute(decimal_con, "DROP TABLE T_Private_Institutions_Credentials_Clean")
-
-## ---- Drop Lookups
-dbExecute(decimal_con, "DROP TABLE T_PSSM_Credential_Grouping")
-dbExecute(decimal_con, "DROP TABLE T_PTIB_Y1_to_Y10")
-
-## ---- disconnect_connect ----
-dbDisconnect(decimal_con)
-# rm(list=ls())
+dbWriteTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"')),
+  qry_Private_Credentials_06d1_Cohort_Dist,
+  overwrite = TRUE
+)
