@@ -1049,7 +1049,20 @@ near_completes_total_with_stp_credential_bycip4_ttrain <- t_dacso_data_part_1 |>
 # Mirrors: T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN
 t_dacso_near_completers_ratiosageatgradcip4_ttrain <- near_completes_total_by_cip4_ttrain |>
   inner_join(
-    t_pssm_projection_cred_grp |> rename_with(tolower),
+    t_pssm_projection_cred_grp |>
+      rename_with(tolower) |>
+      mutate(
+        pssm_projection_credential = gsub(
+          "Post-Degree",
+          "Post-degree",
+          pssm_projection_credential
+        ),
+        pssm_credential = gsub(
+          " OR ",
+          " or ",
+          pssm_credential
+        )
+      ),
     by = c("prgm_credential_awarded_name" = "pssm_projection_credential")
   ) |>
   left_join(
