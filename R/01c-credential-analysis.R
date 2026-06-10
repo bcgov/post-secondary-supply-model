@@ -950,7 +950,7 @@ tables_to_keep <- c(
   "credential_supvars",
   "credential_supvars_enrolment",
   "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect",
+  "tbl_credential_delay_effect"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
@@ -959,7 +959,7 @@ write_table_to_db <- function(table_name, schema, con) {
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
     get(table_name, envir = .GlobalEnv),
-    overwrite = FALSE
+    overwrite = TRUE
   )
 }
 
