@@ -11,35 +11,48 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 library(tidyverse)
+library(odbc)
+library(DBI)
 set.seed(123456)
 
-# ---- Check required Tables etc. ----
-# Where is the SQL version: Originally sourced from branch 'main' (line 41)
-# What the code does: Ensures all source dataframes
-#   and lookup tables are present in global environemnt before processing.
-# BA Notes:
-# - Required tables, and "tables to keep" at the end of the script, reflect
-#  tables used/retained from this script only.  Additional changes will be needed
-# if running as a continuous workflow.
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
 
-required_tables <- c(
-  "age_group_lookup",
-  "outcome_credential",
-  "credential",
-  "stp_enrolment",
-  "stp_enrolment_record_type"
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
 )
 
-missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 
-if (length(missing) > 0) {
-  stop(paste(
-    "The following required tables are missing from the environment:",
-    paste(missing, collapse = ", ")
-  ))
-}
+age_group_lookup <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."age_group_lookup_r"'))
+)
 
-# define global variables
+credential <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."credential_r"'))
+)
+
+stp_enrolment <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
+)
+
+stp_enrolment_record_type <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
+)
+
+## ---------------------------------------Global Variables ---------------------------------------
+## -----------------------------------------------------------------------------------------------
 na_vals = c("", " ", "(Unspecified)", NA)
 
 stp_cols <- c(
@@ -55,29 +68,35 @@ stp_cols <- c(
   "PSI_CIP_CODE",
   "PSI_CREDENTIAL_CATEGORY"
 )
-cred_cols <- c("ENCRYPTED_TRUE_PEN", "PSI_CODE", "PSI_STUDENT_NUMBER", "psi_gender_cleaned")
+cred_cols <- c(
+  "ENCRYPTED_TRUE_PEN",
+  "PSI_CODE",
+  "PSI_STUDENT_NUMBER",
+  "psi_gender_cleaned"
+)
 
-# ---- Extract first-time enrolled records ----
-# Where is the SQL version: Originally sourced from branch 'main' (line 46)
-# Replicates: qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry02b (except 03 series)
+## --------------------------Extract first-time enrolled records----------------------------------
+# References:
+# qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry02b (except 03 series)
+#
 # What the code does:
 # - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
 #  record-type filters and previously initialized supplemental variables.
+# - Keep only those records with RecordStatus == 0, MinEnrolment == 1
 # - Calculates the primary 'AGE_AT_ENROL_DATE' intervals
 # - maps age groups via an inequality join.
 # BA Notes:
-# - Non-essential columns have been dropped from STP_Enrolment and Credential tables to speed up processing
+# - Non-essential columns are dropped from STP_Enrolment and Credential tables to speed up processing
+# however, this may not be necessary as code has been since added to prune the STP data tables upstream.
+## -----------------------------------------------------------------------------------------------
 
-
-
-# define min_enrolment dataframe from stp_enrolment and stp_enrolment_record_type
-# keeping only valid first enrolment records (RecordStatus == 0, MinEnrolment == 1)
+# create min_enrolment dataframe keeping only valid first enrolment records
 min_enrolment <- stp_enrolment |>
   select(all_of(stp_cols)) |>
   inner_join(
     stp_enrolment_record_type |>
-      filter(RecordStatus == 0, MinEnrolment == 1) |>
-      select(ID, FirstEnrolment),
+      filter(RecordStatus == 0, is_min_enrol == 1) |>
+      select(ID, is_first_enrol),
     by = "ID"
   ) |>
   rename_with(toupper)
@@ -97,14 +116,14 @@ min_enrolment <- min_enrolment |>
       as.Date(NA),
       as.Date(PSI_MIN_START_DATE)
     ),
-    IS_FIRST_ENROLMENT = if_else(FIRSTENROLMENT == 1, "Yes", NA_character_),
+    IS_FIRST_ENROLMENT = if_else(IS_FIRST_ENROL == 1, "Yes", NA_character_),
     AGE_AT_ENROL_DATE = if_else(
       !is.na(PSI_BIRTHDATE_CLEANED_D) & !is.na(PSI_MIN_START_DATE_D),
       floor(interval(PSI_BIRTHDATE_CLEANED_D, PSI_MIN_START_DATE_D) / years(1)),
       NA_real_
     )
   ) |>
-  select(-FIRSTENROLMENT)
+  select(-IS_FIRST_ENROL)
 
 # map age groups via an inequality join
 min_enrolment <- min_enrolment |>
@@ -115,24 +134,28 @@ min_enrolment <- min_enrolment |>
   mutate(AGE_GROUP_ENROL_DATE = AgeIndex) |>
   select(-AgeIndex, -AgeGroup, -LowerBound, -UpperBound)
 
-
-# ---- Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER  ----
-# Where is the SQL version: Originally sourced from branch 'main' (line 59)
-# Replicates: qry04a1 through qry04a2
-# What the code does: identifies invalid genders  ("", " ", "(Unspecified)", NA) and 
-#   uses genders from the credential view to impute (backfill) gender into min_enrolment.  Accomplished 
-#   by performing two passes - 1) using valid epens, then 2) valid psi code/number combinations for records without valid epens.
+## ----------Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER--------------
+# References: qry04a1 through qry04a2
+#
+# What the code does:
+# Identify invalid genders  ("", " ", "(Unspecified)", NA)
+# Uses genders from the credential view to impute (backfill) gender into min_enrolment.
+# This is accomplished by performing two passes
+# - 1) using valid epens, then
+# - 2) valid psi code/number combinations for records without valid epens.
+#
+#
 # BA Notes:
 # We have 3 quite different methods for imputing invalid genders in the next couple of sections
-# We should consider reducing complexity and create aunified approach
-
-# select the first valid gender for each student in credential data - pass #1 valid epens
-# this mimicks SQL - in SQL when an UPDATE...SET returns multiple options, the engine will choose one, usually the first one
+# We should consider reducing complexity and create a unified approach
+# this code mimics SQL; in SQL when an UPDATE...SET returns multiple options, the engine will choose one, usually the first one
 # this is unpredictable but at this point we only concerned with generating the same counts as the SQL version.
+## -----------------------------------------------------------------------------------------------
+
 credential_epen <- credential |>
   select(all_of(cred_cols)) |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
-  select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |> 
+  select(ENCRYPTED_TRUE_PEN, gender_cred_epen = psi_gender_cleaned) |>
   slice_head(
     by = ENCRYPTED_TRUE_PEN,
     n = 1
@@ -168,12 +191,13 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-gender_cred_epen, -gender_cred_no_epen, -gender_cred)
 
-# ---- Assign one gender/student and update MinEnrolment table ----
-# Where is the SQL version: Originally sourced from branch 'main' (line 78)
-# Replicates: qry04c through qry04e2
+## --------------Assign one gender/student and update MinEnrolment table ------------------------
+# References: qry04c through qry04e2
+#
 # What the code does:
 # - Performs a historic imputation process based on a student’s earliest recorded data in stp_enrolment.
-# - Accomplished in one pass by creating a concatenated ID (encrypted true pen where available, and psi code/number where not) 
+# - Accomplished in one pass by creating a concatenated ID (encrypted true pen where available, and psi code/number where not)
+## -----------------------------------------------------------------------------------------------
 
 # select first-time recorded gender from min-enrolment data
 first_gender_lookup <- min_enrolment |>
@@ -202,14 +226,16 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-FIRST_GENDER)
 
-# ---- impute gender  ----
-# Where is the SQL version: SQL version starts ~line 101 on branch main
+## ---------------------------------impute gender -----------------------------------------------
+# References:
 # Replicates: qry05a1 through qry06a5 and some R code from lines 101 to 170 (main)
+#
 # What the code does:
 # - Performs a proportional imputation for missing gender data.
 # It calculates the distribution of the known population from the set of first enrolment records
 #  and applies that same ratio to missing first records.
-# Simulataneously performs a historical imputation, where the first seen record is carried forward. 
+# Simulataneously performs a historical imputation, where the first seen record is carried forward.
+## -----------------------------------------------------------------------------------------------
 
 na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
 
@@ -228,14 +254,14 @@ gender_weights <- min_enrolment |>
   mutate(TARGET_N = round(PROPORTION * total_unknowns))
 
 # resample unknownws
-imputed_first_enrolments <- extract_no_gender_first |>  
-  mutate(  
-    PSI_GENDER_IMPUTED = sample(  
-      gender_weights$PSI_GENDER,  
-      size = n(),  
-      replace = TRUE,  
-      prob = gender_weights$PROPORTION  
-    )  
+imputed_first_enrolments <- extract_no_gender_first |>
+  mutate(
+    PSI_GENDER_IMPUTED = sample(
+      gender_weights$PSI_GENDER,
+      size = n(),
+      replace = TRUE,
+      prob = gender_weights$PROPORTION
+    )
   )
 
 # carry forward first seen gender for records with valid encrypted true pen
@@ -280,10 +306,9 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-PSI_GENDER_IMPUTED.pen, -PSI_GENDER_IMPUTED.nopen)
 
-
-# ---- Create Age and Gender Distrbutions ----
-# and 
-# ----- Assign age to records with missing age -----
+## --------------------------Create Age and Gender Distrbutions----------------------------------
+# AND
+## ----------------------Assign age to records with missing age----------------------------------
 # Where is the SQL version: Originally sourced from branch 'main' (line 164:281)
 # Replicates: qry07a-qry08 and much R code
 # What the code does:
@@ -295,6 +320,7 @@ min_enrolment <- min_enrolment |>
 # - compare extract_no_age to Extract_No_Age and
 # - compare extract_no_age_first_enrol to Extract_No_Age_First_Enrolment
 # - distribution of assigned (imputed) ages are similar for this version vs last
+## -----------------------------------------------------------------------------------------------
 
 # extract records with missing age at enrolment
 extract_no_age <- min_enrolment |>
@@ -325,7 +351,7 @@ extract_no_age_first_enrol <- min_enrolment |>
   )
 
 # function to impute age by gender
-# assumes that wt contains a p for every age 
+# assumes that wt contains a p for every age
 impute_age_by_gender <- function(df, gender_name, wt) {
   # isolate frequency distribution for specified gender
   dist <- wt |> filter(PSI_GENDER == gender_name)
@@ -390,7 +416,6 @@ calc_ages <- extract_no_age |>
 
 calc_ages <- calc_ages %>% select(ID, AGE_AT_ENROL_DATE)
 
-# 
 extract_no_age <- extract_no_age |>
   left_join(
     calc_ages |> rename(AGE_AT_ENROL_DATE_to_update = AGE_AT_ENROL_DATE)
@@ -401,9 +426,10 @@ extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
 # ---- some manual edits ----
-# BA Notes: Some manual updates were made here to remaining missing ages. 
+# BA Notes: Some manual updates were made here to remaining missing ages.
 # I haven't done the manual fixes as we're getting away from manual work
 
+# Update Min Enrolment
 min_enrolment <- min_enrolment |>
   left_join(
     extract_no_age |>
@@ -428,11 +454,23 @@ min_enrolment <- min_enrolment |>
 # ---- Final Distributions ----
 # !! This section moved to 01e-stp-distributions
 
-
 # ---- Clean Up ----
 tables_to_keep <- c(
-  "age_group_lookup",
   "min_enrolment"
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)
+
+rm(list = ls())
