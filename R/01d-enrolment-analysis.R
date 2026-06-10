@@ -454,7 +454,14 @@ min_enrolment <- min_enrolment |>
 # ---- Final Distributions ----
 # !! This section moved to 01e-stp-distributions
 
-# ---- Clean Up ----
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 tables_to_keep <- c(
   "min_enrolment"
 )
