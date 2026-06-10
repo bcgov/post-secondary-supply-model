@@ -15,10 +15,10 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-# ---- Configure LAN Paths and DB Connection -----
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
 con <- dbConnect(
   odbc(),
@@ -28,27 +28,27 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-## These should be in the R environment already.  If not, toggle.
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 stp_enrolment <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
 )
 stp_credential <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+  SQL(glue::glue('"{my_schema}"."stp_credential_r"'))
 )
-
 stp_enrolment_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
 )
 stp_credential_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
+  SQL(glue::glue('"{my_schema}"."stp_credential_record_type_r"'))
 )
 stp_enrolment_valid <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_valid_r"'))
 )
 
 # Define lookup tables
