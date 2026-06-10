@@ -288,8 +288,6 @@ credential_non_dup_appso_ids <- credential_non_dup_appso_ids %>%
 # write the table back to the database using computing function
 
 # ---- Optional materialization -------------------------------------------------
-
-#
 credential_non_dup_appso_ids %>%
   compute(
     name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs_r"),
