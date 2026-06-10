@@ -15,7 +15,6 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-
 # ---- Configure LAN Paths and DB Connection -----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -27,7 +26,6 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-
 
 # ---- Check Required Tables etc. ----
 stp_credential <- dbReadTable(
