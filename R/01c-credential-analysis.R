@@ -297,8 +297,9 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
   )
 
 
-# ---- 02 Developmental Records ----
-# add a drop credential flag, presumably for later use
+## ----------------------------02 Developmental Records-------------------------------------------
+# add a drop credential flag
+## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
@@ -339,7 +340,7 @@ gc()
 # !! Entire section is replaced with the gender_cleaning.r script
 ## -----------------------------------------------------------------------------------------------
 
-source("R/gender_cleaning.r")
+source("R/01c-gender-cleaning.r")
 
 ## --------------------------------04 Birthdate cleaning (last seen birthdate)--------------------
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
@@ -576,18 +577,8 @@ credential_non_dup <- credential_non_dup |>
   select(-genders, -weights)
 
 rm(
-  cred_supvars_enrol_epen,
-  cred_supvars_enrol_no_pen,
   credential_supvars_birthdate_clean,
-  epen_missing_gender,
-  epen_still_missing_gender,
-  gender_weights,
-  latest_enrolment_epen,
-  latest_enrolment_no_epen,
-  missing_gender,
-  no_epen_still_missing_gender,
-  src_gender_lookup,
-  still_missing_gender
+  gender_weights
 )
 
 ## ---------------------------------08 Credential Ranking-----------------------------------------

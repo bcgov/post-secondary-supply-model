@@ -47,6 +47,7 @@ stp_credential <- dbGetQuery(
     PSI_CREDENTIAL_LEVEL,
     PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
     PSI_FULL_NAME,
+    PSI_PEN,
     PSI_PROGRAM_CODE,
     PSI_PROGRAM_EFFECTIVE_DATE,
     PSI_SCHOOL_YEAR,
@@ -228,7 +229,7 @@ write_table_to_db <- function(table_name, schema, con) {
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
     get(table_name, envir = .GlobalEnv),
-    overwrite = FALSE
+    overwrite = TRUE
   )
 }
 
