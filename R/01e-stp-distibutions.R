@@ -1,4 +1,4 @@
-# Copyright 2026 Province of British Columbia
+# Copyright 2024 Province of British Columbia
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -6,80 +6,104 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
 library(tidyverse)
+library(odbc)
+library(DBI)
 
-required_tables <- c(
-  "age_group_lookup",
-  "min_enrolment",
-  "credential_non_dup",
-  "tbl_credential_highest_rank"
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
+
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
 )
 
-missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 
-if (length(missing) > 0) {
-  stop(paste(
-    "The following required tables are missing from the environment:",
-    paste(missing, collapse = ", ")
-  ))
-}
-
-non_dup_cols <- c(
-  "id",
-  "RESEARCH_UNIVERSITY",
-  "OUTCOMES_CRED",
-  "FINAL_CIP_CLUSTER_CODE",
-  "FINAL_CIP_CODE_4"
+age_group_lookup <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."age_group_lookup_r"'))
 )
 
-min_enrol_cols <- c(
-  "PSI_SCHOOL_YEAR",
-  "PSI_CREDENTIAL_CATEGORY",
-  "PSI_CIP_CODE",
-  "PSI_GENDER",
-  "AGE_GROUP_ENROL_DATE",
-  "PSI_VISA_STATUS"
+min_enrolment <- dbGetQuery(
+  con,
+  glue::glue(
+    'SELECT
+      PSI_SCHOOL_YEAR,
+      PSI_CREDENTIAL_CATEGORY,
+      PSI_CIP_CODE,
+      PSI_GENDER,
+      AGE_GROUP_ENROL_DATE,
+      PSI_VISA_STATUS
+    FROM "{my_schema}"."min_enrolment_r"'
+  )
 )
 
-h_rank_cols <- c(
-  "id",
-  "psi_gender_cleaned",
-  "AGE_GROUP_AT_GRAD",
-  "PSI_CREDENTIAL_CATEGORY",
-  "PSI_AWARD_SCHOOL_YEAR_DELAYED",
-  "PSI_VISA_STATUS"
+credential_non_dup <- dbGetQuery(
+  con,
+  glue::glue(
+    'SELECT
+      id,
+      RESEARCH_UNIVERSITY,
+      OUTCOMES_CRED,
+      FINAL_CIP_CLUSTER_CODE,
+      FINAL_CIP_CODE_4
+    FROM "{my_schema}"."credential_non_dup_r"'
+  )
 )
 
-tbl_credential_highest_rank <- tbl_credential_highest_rank |>
-  select(h_rank_cols)
-min_enrolment <- min_enrolment |> select(min_enrol_cols)
-credential_non_dup <- credential_non_dup |> select(non_dup_cols)
+tbl_credential_highest_rank <-
+  dbGetQuery(
+    con,
+    glue::glue(
+      'SELECT
+      id,
+      psi_gender_cleaned,
+      AGE_GROUP_AT_GRAD,
+      PSI_CREDENTIAL_CATEGORY,
+      PSI_AWARD_SCHOOL_YEAR_DELAYED,
+      PSI_VISA_STATUS
+    FROM "{my_schema}"."tbl_credential_highest_rank_r"'
+    )
+  )
 
-# bring research university and outcomes credential into tbl_credential_highest_rank 
+
+# bring research university and outcomes credential into tbl_credential_highest_rank
 # this should have been done at end of 01c-credential-analysis.R
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
   left_join(
     credential_non_dup |> select(id, RESEARCH_UNIVERSITY, OUTCOMES_CRED),
     by = "id"
-  ) 
+  )
 
+## -----------------------------------------------------------------------------------------------
 # ---- 20 Final Credential Distributions ----
-# From 01c-credential-analysis.R
-# SQL version starts at line 472 on branch main
-# Replicates: qry20a_ series
-# What the code does: Generate aggregated counts of the highest credential earned by various combinations of
+# References: 01c-credential-analysis.R
+#  qry20a_ series
+#
+# What the code does:
+#  - Generate aggregated counts of the highest credential earned by various combinations of
 # gender, school year, age group, credential category, cip code and visa status
+#  - Several aggregations are created but only Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
+# was used last model run (PSSM 2023/2024)
+#
 # BA Notes:
-# there were two others that require a table we don't have:
+# two others in the original SQL queries which require a table we don't have:
 # dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs)
 # dbGetQuery(con, qry20a_4Credential_By_Year_PSI_TYPE_Domestic_Exclude_RU_DACSO_Exclude_CIPs_Not_Highest)
-# Several were created for different use cases; only Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs
-# was used last model run (PSSM 2023/2024)
+
+## -----------------------------------------------------------------------------------------------
+
 qry20a1_credential_by_year_age_group <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |> #filters out invalid ages
   filter(PSI_CREDENTIAL_CATEGORY != "Apprenticeship") |>
@@ -132,7 +156,7 @@ qry20a2_credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_hig
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # Domestic only, exclude research universities and DACSO
-# Notes from 2019 docs suggest we exclude credentials which are 
+# Notes from 2019 docs suggest we exclude credentials which are
 # included in DACSO but that are granted by research universities.
 qry20a3_credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
@@ -265,14 +289,15 @@ qry20a4_credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cip
     PSI_AWARD_SCHOOL_YEAR_DELAYED
   )
 
-# ---- Final Enrolment Distributions ----
-# From 01d-enrolment-analysis.R
-# SQL version starts at line 283 on branch main
+## ------------------------------Final Enrolment Distributions-----------------------------
+# Reference: 01d-enrolment-analysis.R
 # Replicates: qry09c_ series
-# What the code does: Generate aggregated counts of the minimum enrolment records by various combinations of
-# gender, school year, age group, credential category and cip code.
-# Several were created for looking at different scenarios but
-# only qry09c_MinEnrolment was used in enrolment forecasting for 2023/2024 (last model run)
+#
+# What the code does:
+#  - Generate aggregated counts of the minimum enrolment records by various combinations of
+#  gender, school year, age group, credential category and cip code.
+#  - Several were created for looking at different scenarios but
+#  only qry09c_MinEnrolment was used in enrolment forecasting for 2023/2024 (last model run)
 
 qry09c_MinEnrolment_by_Credential_and_CIP_Code <- min_enrolment |>
   count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, name = "Expr1")
@@ -286,6 +311,7 @@ qry09c_MinEnrolment <- min_enrolment |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
   mutate("Groups" = paste0(PSI_GENDER, AgeGroup)) |>
   count(PSI_GENDER, PSI_SCHOOL_YEAR, Groups, name = "Expr1")
+## -----------------------------------------------------------------------------------------------
 
 # ---- Clean Up ----
 tables_to_keep <- c(
