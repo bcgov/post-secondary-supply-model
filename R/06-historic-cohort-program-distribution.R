@@ -1,4 +1,3 @@
-
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -8,28 +7,35 @@ library(DBI)
 db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
-# survey == 'PTIB' ---- 
+# survey == 'PTIB' ----
 ## ptib
 
-ptib <- tbl(decimal_con, "qry_Private_Credentials_06d1_Cohort_Dist") %>% collect() %>%
+ptib <- tbl(decimal_con, "qry_Private_Credentials_06d1_Cohort_Dist") %>%
+  collect() %>%
   rename(PSSM_CREDENTIAL = Credential) %>%
-         mutate(YEAR = 2023) %>%
+  mutate(YEAR = 2023) %>%
   select(-Year)
 names(ptib) <- str_to_upper(names(ptib))
 
 # survey == 'Program_Projections_2023-2024_qry_13d' ----
 ## near completers
-dbExecute(decimal_con,"SELECT * 
+dbExecute(
+  decimal_con,
+  "SELECT * 
               INTO [IDIR\\SYURCHAK].T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history
-              FROM [IDIR\\LFREDRIC].T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history;")
+              FROM [IDIR\\LFREDRIC].T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history;"
+)
 
-near_completers <- dbGetQuery(decimal_con,
+near_completers <- dbGetQuery(
+  decimal_con,
   "SELECT coci_subm_cd AS YEAR,
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history.PSSM_CREDENTIAL, 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history.PSSM_CRED, 
@@ -49,25 +55,42 @@ GROUP BY T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history.PSSM_CREDENT
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history.LCIP4_CRED, 
         CAST([COSC_GRAD_STATUS_LGDS_CD_Group] as NVARCHAR(50)) + ' - ' + Left([LCP4_CD],2) + ' - ' + CAST([TTRAIN] as NVARCHAR(50)) + ' - ' + [PSSM_CREDENTIAL], 
         T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history.Age_Group,
-        coci_subm_cd") %>%
+        coci_subm_cd"
+) %>%
   group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) %>%
-  mutate(TOTAL = sum(COUNT))  %>%
+  mutate(TOTAL = sum(COUNT)) %>%
   ungroup() %>%
-  inner_join(tbl(decimal_con, "tbl_Age_Groups_Near_Completers") %>% collect(),
-            by = c("AGE_GROUP" = "AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION"),
-            relationship = "many-to-many") %>%
-  mutate(SURVEY = 'Program_Projections_2023-2024_qry_13d',
-         AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION,
-         YEAR = paste0("20", str_sub(YEAR, start = -2)) %>% as.numeric(),
-         PERCENT = ifelse(TOTAL == 0, 0, COUNT/TOTAL)) %>%
-  select(SURVEY, PSSM_CREDENTIAL, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, 
-         AGE_GROUP, YEAR, COUNT, TOTAL, PERCENT)
-  
+  inner_join(
+    tbl(decimal_con, "tbl_Age_Groups_Near_Completers") %>% collect(),
+    by = c("AGE_GROUP" = "AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION"),
+    relationship = "many-to-many"
+  ) %>%
+  mutate(
+    SURVEY = 'Program_Projections_2023-2024_qry_13d',
+    AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION,
+    YEAR = paste0("20", str_sub(YEAR, start = -2)) %>% as.numeric(),
+    PERCENT = ifelse(TOTAL == 0, 0, COUNT / TOTAL)
+  ) %>%
+  select(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
 ## survey = Program_Projections_2023-2024_Q012e ----
 ## ADCT or ADIP, ADGR or UT, BACH, CERT, DIPL, PDCT or PDDP
 ## Part 1 - STP
-main_cohorts_stp <- dbGetQuery(decimal_con,
-"SELECT PSI_AWARD_SCHOOL_YEAR_DELAYED AS YEAR,
+main_cohorts_stp <- dbGetQuery(
+  decimal_con,
+  "SELECT PSI_AWARD_SCHOOL_YEAR_DELAYED AS YEAR,
         T_PSSM_Projection_Cred_Grp.PSSM_CREDENTIAL, 
         CONCAT(CASE WHEN COSC_GRAD_STATUS_LGDS_CD IS Null THEN NULL ELSE cast(COSC_GRAD_STATUS_LGDS_CD as nvarchar(50)) + ' - ' END, [PSSM_CREDENTIAL]) AS PSSM_CRED, 
         tbl_Program_Projection_Input.FINAL_CIP_CODE_4 AS LCP4_CD, 
@@ -93,16 +116,20 @@ GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_CREDENTIAL,
         tbl_Program_Projection_Input.AgeGroup, 
         T_Weights_STP.Weight,
         PSI_AWARD_SCHOOL_YEAR_DELAYED
-HAVING (((T_Weights_STP.Weight)>0))") %>%
+HAVING (((T_Weights_STP.Weight)>0))"
+) %>%
   group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) %>%
-  mutate(TOTAL = sum(Weighted))  %>%
+  mutate(TOTAL = sum(Weighted)) %>%
   ungroup() %>%
-  mutate(YEAR = str_sub(YEAR, start = 6) %>% as.numeric(),
-         PERCENT = ifelse(TOTAL == 0, 0, Weighted/TOTAL))
+  mutate(
+    YEAR = str_sub(YEAR, start = 6) %>% as.numeric(),
+    PERCENT = ifelse(TOTAL == 0, 0, Weighted / TOTAL)
+  )
 
 ## Part 2 TTRAIN
-main_cohorts_TTRAIN <- dbGetQuery(decimal_con,
-"SELECT SURVEY_YEAR AS YEAR,
+main_cohorts_TTRAIN <- dbGetQuery(
+  decimal_con,
+  "SELECT SURVEY_YEAR AS YEAR,
         T_Cohorts_Recoded.PSSM_CREDENTIAL, 
         T_Cohorts_Recoded.PSSM_CREDENTIAL AS PSSM_CRED, 
         T_Cohorts_Recoded.LCP4_CD, 
@@ -135,29 +162,67 @@ GROUP BY T_Cohorts_Recoded.PSSM_CREDENTIAL, T_Cohorts_Recoded.LCP4_CD,
         T_Cohorts_Recoded.PSSM_CREDENTIAL,
         SURVEY_YEAR
 HAVING (((T_Cohorts_Recoded.TTRAIN) Is Not Null) 
-AND ((T_Cohorts_Recoded.Weight)>0));") %>%
-  group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, LCP4_CD, GRAD_STATUS, AGE_GROUP) %>%
+AND ((T_Cohorts_Recoded.Weight)>0));"
+) %>%
+  group_by(
+    YEAR,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    AGE_GROUP
+  ) %>%
   mutate(TOTAL = sum(Weighted)) %>%
   ungroup() %>%
-  mutate(PERCENT = ifelse(TOTAL == 0, 0, Weighted/TOTAL))
+  mutate(PERCENT = ifelse(TOTAL == 0, 0, Weighted / TOTAL))
 
 ## combine
-main_cohorts <- main_cohorts_stp %>% 
-  left_join(main_cohorts_TTRAIN %>% select(-PSSM_CRED), 
-            b = c("YEAR", "PSSM_CREDENTIAL", "LCP4_CD", "GRAD_STATUS", "AGE_GROUP"),
-            suffix = c("_STP", "_TTRAIN")) %>%
-  mutate(SURVEY = "Program_Projections_2023-2024_Q012e",
-         LCIP4_CRED = ifelse(is.na(LCIP4_CRED_TTRAIN), LCIP4_CRED_STP, LCIP4_CRED_TTRAIN),
-         LCIP2_CRED = ifelse(is.na(LCIP2_CRED_TTRAIN), LCIP2_CRED_STP, LCIP2_CRED_TTRAIN),
-         COUNT = ifelse(is.na(PERCENT_TTRAIN), Weighted_STP, Weighted_STP*PERCENT_TTRAIN),
-         TOTAL = TOTAL_STP,
-         PERCENT = COUNT/TOTAL) %>%
-  select(SURVEY, PSSM_CREDENTIAL, PSSM_CRED, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, LCIP2_CRED, 
-         AGE_GROUP, YEAR, COUNT, TOTAL, PERCENT)
+main_cohorts <- main_cohorts_stp %>%
+  left_join(
+    main_cohorts_TTRAIN %>% select(-PSSM_CRED),
+    b = c("YEAR", "PSSM_CREDENTIAL", "LCP4_CD", "GRAD_STATUS", "AGE_GROUP"),
+    suffix = c("_STP", "_TTRAIN")
+  ) %>%
+  mutate(
+    SURVEY = "Program_Projections_2023-2024_Q012e",
+    LCIP4_CRED = ifelse(
+      is.na(LCIP4_CRED_TTRAIN),
+      LCIP4_CRED_STP,
+      LCIP4_CRED_TTRAIN
+    ),
+    LCIP2_CRED = ifelse(
+      is.na(LCIP2_CRED_TTRAIN),
+      LCIP2_CRED_STP,
+      LCIP2_CRED_TTRAIN
+    ),
+    COUNT = ifelse(
+      is.na(PERCENT_TTRAIN),
+      Weighted_STP,
+      Weighted_STP * PERCENT_TTRAIN
+    ),
+    TOTAL = TOTAL_STP,
+    PERCENT = COUNT / TOTAL
+  ) %>%
+  select(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
 
 # survey = 'Program_Projections_2023-2024_Q013e' ----
 # pdeg: mast, doc
-pdeg <- dbGetQuery(decimal_con,
+pdeg <- dbGetQuery(
+  decimal_con,
   "SELECT PSI_AWARD_SCHOOL_YEAR_DELAYED AS YEAR,
         T_PSSM_Projection_Cred_Grp.PSSM_CREDENTIAL, 
 		    CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_CREDENTIAL]) AS PSSM_CRED, 
@@ -185,20 +250,34 @@ GROUP BY T_PSSM_Projection_Cred_Grp.PSSM_CREDENTIAL,
       tbl_Program_Projection_Input.AgeGroup, 
       T_Weights_STP.Weight,
       PSI_AWARD_SCHOOL_YEAR_DELAYED
-HAVING (((T_Weights_STP.Weight)>0))") %>%
+HAVING (((T_Weights_STP.Weight)>0))"
+) %>%
   group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) %>%
-  mutate(TOTAL = sum(Weighted)) %>% 
+  mutate(TOTAL = sum(Weighted)) %>%
   ungroup() %>%
-  mutate(SURVEY = 'Program_Projections_2023-2024_Q013e',
-         YEAR = str_sub(YEAR, start = 6) %>% as.numeric(),
-         PERCENT = ifelse(TOTAL == 0, 0, Weighted/TOTAL)) %>%
-  select(SURVEY, PSSM_CREDENTIAL, PSSM_CRED, LCP4_CD = LCIPPC_CD,
-         LCIP4_CRED = LCIPPC_CRED, AGE_GROUP, YEAR, COUNT = Weighted, TOTAL, PERCENT)
+  mutate(
+    SURVEY = 'Program_Projections_2023-2024_Q013e',
+    YEAR = str_sub(YEAR, start = 6) %>% as.numeric(),
+    PERCENT = ifelse(TOTAL == 0, 0, Weighted / TOTAL)
+  ) %>%
+  select(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD = LCIPPC_CD,
+    LCIP4_CRED = LCIPPC_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT = Weighted,
+    TOTAL,
+    PERCENT
+  )
 
 # survey = 'Program_Projections_2023-2024_Q014e' ----
 # apprenticeships
-appso <- dbGetQuery(decimal_con, 
-"SELECT SURVEY_YEAR AS YEAR,
+appso <- dbGetQuery(
+  decimal_con,
+  "SELECT SURVEY_YEAR AS YEAR,
         T_Cohorts_Recoded.PSSM_CREDENTIAL, 
         T_Cohorts_Recoded.PSSM_CREDENTIAL AS PSSM_CRED, 
         T_Cohorts_Recoded.LCP4_CD, 
@@ -220,23 +299,35 @@ GROUP BY T_Cohorts_Recoded.PSSM_CREDENTIAL,
         T_Cohorts_Recoded.Weight, 
         T_Cohorts_Recoded.PSSM_CREDENTIAL,
         SURVEY_YEAR
-HAVING (((T_Cohorts_Recoded.Weight)>0))") %>%
+HAVING (((T_Cohorts_Recoded.Weight)>0))"
+) %>%
   group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) %>%
-  mutate(TOTAL = sum(Weighted)) %>% 
+  mutate(TOTAL = sum(Weighted)) %>%
   ungroup() %>%
-  mutate(SURVEY = 'Program_Projections_2023-2024_Q014e',
-         PERCENT = ifelse(TOTAL == 0, 0, Weighted/TOTAL)) %>%
-  select(SURVEY, PSSM_CREDENTIAL, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, 
-         AGE_GROUP, YEAR, COUNT, TOTAL, PERCENT)
+  mutate(
+    SURVEY = 'Program_Projections_2023-2024_Q014e',
+    PERCENT = ifelse(TOTAL == 0, 0, Weighted / TOTAL)
+  ) %>%
+  select(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
 
 ## combine ----
-Cohort_Program_Distributions_history <- 
-  bind_rows(ptib, 
-            near_completers,
-            main_cohorts,
-            pdeg,
-            appso)
+Cohort_Program_Distributions_history <-
+  bind_rows(ptib, near_completers, main_cohorts, pdeg, appso)
 
-dbWriteTable(decimal_con, 
-             SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_history"')),
-             Cohort_Program_Distributions_history)
+dbWriteTable(
+  decimal_con,
+  SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_history"')),
+  Cohort_Program_Distributions_history
+)
