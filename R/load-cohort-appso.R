@@ -10,22 +10,34 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who have completed the
-# final year of their apprenticeship technical training within the first year of graduation.
-#
-# The following data is read from SQL server database:
-#   t_appso_data_final: unique survey responses for each person/survey year  (a few duplicates)
-#   APPSO_Graduates: a count of graduates by credential type, age and survey year
-
 library(tidyverse)
 library(config)
-library(glue)
+library(DBI)
+library(odbc)
 
+qi_run <- F
+regular_run <- T
+ptib_run <- F
 
-# ---- Configure LAN and file paths ----
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+
+my_schema <- config::get("myschema")
+db_config <- config::get("decimal")
+
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 lan <- config::get("lan")
 
-# ---- Read outcomes data ----
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
+
 # source(glue::glue("./sql/02b-pssm-cohorts/appso-data.sql"))
 t_appso_data_final <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/APPSO_DATA_01_Final.csv"
@@ -89,22 +101,20 @@ t_appso_data_final <-
 
 # When running, make sure to update weights for the regular run.
 # Replace the weights in the appropriate area in the code (~lines 71-77):
-
-if (regular_run == TRUE | ptib_run == T) {
-  t_appso_data_final <-
-    t_appso_data_final %>%
-    mutate(
-      WEIGHT = case_when(
-        SUBM_CD == 'C_Outc19' ~ 1,
-        SUBM_CD == 'C_Outc20' ~ 2,
-        SUBM_CD == 'C_Outc21' ~ 3,
-        SUBM_CD == 'C_Outc22' ~ 4,
-        SUBM_CD == 'C_Outc23' ~ 5,
-        TRUE ~ 0
-      )
+t_appso_data_final <-
+  t_appso_data_final %>%
+  mutate(
+    WEIGHT = case_when(
+      SUBM_CD == 'C_Outc19' ~ 1,
+      SUBM_CD == 'C_Outc20' ~ 2,
+      SUBM_CD == 'C_Outc21' ~ 3,
+      SUBM_CD == 'C_Outc22' ~ 4,
+      SUBM_CD == 'C_Outc23' ~ 5,
+      TRUE ~ 0
     )
-}
+  )
 
+# update the weights for the QI run.
 if (qi_run == TRUE) {
   # check that these years are correct
   # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
@@ -138,3 +148,30 @@ appso_graduates %>%
       TRUE ~ NA
     )
   ) -> appso_graduates
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+tables_to_keep <- c(
+  "appso_graduates",
+  "t_appso_data_final"
+)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)

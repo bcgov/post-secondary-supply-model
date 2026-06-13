@@ -80,14 +80,13 @@ cred_cols <- c(
 # qry01a through qry01e (STP Enrolment Analysis), qry_CreateMinEnrolmentView and qry02a-qry02b (except 03 series)
 #
 # What the code does:
-# - Constructs the core 'min_enrolment' dataframe by joining raw STP data with
-#  record-type filters and previously initialized supplemental variables.
-# - Keep only those records with RecordStatus == 0, MinEnrolment == 1
-# - Calculates the primary 'AGE_AT_ENROL_DATE' intervals
-# - maps age groups via an inequality join.
+# - Constructs the core 'min_enrolment' dataframe from the STP enrolment data
+#   - Keep only those records with RecordStatus == 0, MinEnrolment == 1
+#   - Calculates the primary 'AGE_AT_ENROL_DATE' and 'AGE_GROUP_ENROL_DATE' intervals
 # BA Notes:
 # - Non-essential columns are dropped from STP_Enrolment and Credential tables to speed up processing
 # however, this may not be necessary as code has been since added to prune the STP data tables upstream.
+# also, do we need the _D columns anymore?
 ## -----------------------------------------------------------------------------------------------
 
 # create min_enrolment dataframe keeping only valid first enrolment records
@@ -152,6 +151,7 @@ min_enrolment <- min_enrolment |>
 # this is unpredictable but at this point we only concerned with generating the same counts as the SQL version.
 ## -----------------------------------------------------------------------------------------------
 
+# select the first valid gender for each student in credential data - pass #1 valid epens
 credential_epen <- credential |>
   select(all_of(cred_cols)) |>
   filter(!ENCRYPTED_TRUE_PEN %in% na_vals, !psi_gender_cleaned %in% na_vals) |>
@@ -177,7 +177,7 @@ credential_no_epen <- credential |>
 
 # back fill NA genders in min_enrolment
 min_enrolment <- min_enrolment |>
-  left_join(credential_epen, by = join_by(ENCRYPTED_TRUE_PEN)) |> # some duplicates being introduced here
+  left_join(credential_epen, by = join_by(ENCRYPTED_TRUE_PEN)) |>
   left_join(credential_no_epen, by = join_by(PSI_STUDENT_NUMBER, PSI_CODE)) |>
   mutate(
     gender_cred = coalesce(gender_cred_epen, gender_cred_no_epen)
@@ -425,9 +425,10 @@ extract_no_age <- extract_no_age |>
   ) |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
-# ---- some manual edits ----
+# ---- start manual edits ----
 # BA Notes: Some manual updates were made here to remaining missing ages.
 # I haven't done the manual fixes as we're getting away from manual work
+# ---- end manual edits  ----
 
 # Update Min Enrolment
 min_enrolment <- min_enrolment |>
@@ -450,10 +451,6 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-
-# ---- Final Distributions ----
-# !! This section moved to 01e-stp-distributions
-
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
@@ -471,7 +468,7 @@ write_table_to_db <- function(table_name, schema, con) {
   dbWriteTable(
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
-    get(table_name, envir = .GlobalEnv),
+    base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
 }

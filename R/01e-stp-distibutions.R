@@ -35,6 +35,7 @@ age_group_lookup <- dbReadTable(
   SQL(glue::glue('"{my_schema}"."age_group_lookup_r"'))
 )
 
+# We need to bring in PSI_VISA_STATUS here as well.  (add in 01d)
 min_enrolment <- dbGetQuery(
   con,
   glue::glue(
@@ -43,8 +44,7 @@ min_enrolment <- dbGetQuery(
       PSI_CREDENTIAL_CATEGORY,
       PSI_CIP_CODE,
       PSI_GENDER,
-      AGE_GROUP_ENROL_DATE,
-      PSI_VISA_STATUS
+      AGE_GROUP_ENROL_DATE
     FROM "{my_schema}"."min_enrolment_r"'
   )
 )
@@ -86,8 +86,7 @@ tbl_credential_highest_rank <- tbl_credential_highest_rank |>
     by = "id"
   )
 
-## -----------------------------------------------------------------------------------------------
-# ---- 20 Final Credential Distributions ----
+## ---------------------------- Final Credential Distributions --------------------------------
 # References: 01c-credential-analysis.R
 #  qry20a_ series
 #
@@ -104,7 +103,7 @@ tbl_credential_highest_rank <- tbl_credential_highest_rank |>
 
 ## -----------------------------------------------------------------------------------------------
 
-qry20a1_credential_by_year_age_group <- tbl_credential_highest_rank |>
+credential_by_year_age_group <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |> #filters out invalid ages
   filter(PSI_CREDENTIAL_CATEGORY != "Apprenticeship") |>
   group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
@@ -112,7 +111,7 @@ qry20a1_credential_by_year_age_group <- tbl_credential_highest_rank |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # Exclude CIP clusters 09 and 10
-qry20a1_credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
@@ -128,7 +127,7 @@ qry20a1_credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # Domestic only
-qry20a2_credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
+credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -139,7 +138,7 @@ qry20a2_credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # Domestic only, exclude CIPs
-qry20a2_credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
@@ -158,7 +157,7 @@ qry20a2_credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_hig
 # Domestic only, exclude research universities and DACSO
 # Notes from 2019 docs suggest we exclude credentials which are
 # included in DACSO but that are granted by research universities.
-qry20a3_credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest_rank |>
+credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -171,7 +170,7 @@ qry20a3_credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
 # CIP4, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
-qry20a4_credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
@@ -200,7 +199,7 @@ qry20a4_credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips 
   )
 
 # CIP4, Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
-qry20a4_credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
@@ -232,7 +231,7 @@ qry20a4_credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclud
   )
 
 # Gender, AgeGroup, Domestic, Exclude CIPs
-qry20a4_credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
@@ -260,7 +259,7 @@ qry20a4_credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credenti
   )
 
 # Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
-qry20a4_credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
+credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
@@ -298,35 +297,57 @@ qry20a4_credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cip
 #  gender, school year, age group, credential category and cip code.
 #  - Several were created for looking at different scenarios but
 #  only qry09c_MinEnrolment was used in enrolment forecasting for 2023/2024 (last model run)
+## -----------------------------------------------------------------------------------------------
 
-qry09c_MinEnrolment_by_Credential_and_CIP_Code <- min_enrolment |>
+qry09c_minenrolment_by_credential_and_cip_code <- min_enrolment |>
   count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, name = "Expr1")
 
-qry09c_MinEnrolment_Domestic <- min_enrolment |>
-  inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
-  filter(PSI_VISA_STATUS == 'Domestic') |>
-  count(PSI_GENDER, PSI_SCHOOL_YEAR, AgeGroup, name = "Expr1")
+# We need to bring in PSI_VISA_STATUS to min_enrolment for this  query to work.
+# qry09c_MinEnrolment_Domestic <- min_enrolment |>
+#   inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
+#   filter(PSI_VISA_STATUS == 'Domestic') |>
+#   count(PSI_GENDER, PSI_SCHOOL_YEAR, AgeGroup, name = "Expr1")
 
-qry09c_MinEnrolment <- min_enrolment |>
+qry09c_minenrolment <- min_enrolment |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
   mutate("Groups" = paste0(PSI_GENDER, AgeGroup)) |>
   count(PSI_GENDER, PSI_SCHOOL_YEAR, Groups, name = "Expr1")
-## -----------------------------------------------------------------------------------------------
 
-# ---- Clean Up ----
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 tables_to_keep <- c(
-  'qry20a1_credential_by_year_age_group',
-  'qry20a2_credential_by_year_age_group_domestic',
-  'qry20a2_credential_by_year_age_group_domestic_exclude_cips',
-  'qry20a3_credential_by_year_age_group_domestic_exclude_ru_dacso',
-  'qry20a1_credential_by_year_age_group_exclude_cips',
-  'qry20a4_credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips',
-  'qry20a4_credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips',
-  'qry20a4_credential_by_year_gender_agegroup_domestic_exclude_cips',
-  'qry20a4_credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips',
-  'qry09c_MinEnrolment_by_Credential_and_CIP_Code',
-  'qry09c_MinEnrolment_Domestic',
-  'qry09c_MinEnrolment'
+  'credential_by_year_age_group',
+  'credential_by_year_age_group_domestic',
+  'credential_by_year_age_group_domestic_exclude_cips',
+  'credential_by_year_age_group_domestic_exclude_ru_dacso',
+  'credential_by_year_age_group_exclude_cips',
+  'credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips',
+  'credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips',
+  'credential_by_year_gender_agegroup_domestic_exclude_cips',
+  'credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips',
+  'qry09c_minenrolment_by_credential_and_cip_code',
+  #'qry09c_minenrolment_domestic',
+  'qry09c_minenrolment'
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)
+
+rm(list = ls())

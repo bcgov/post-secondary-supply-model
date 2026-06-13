@@ -21,13 +21,31 @@
 
 library(tidyverse)
 library(config)
-library(glue)
+library(DBI)
+library(odbc)
 
+qi_run <- F
+regular_run <- T
+ptib_run <- T
 
-# ---- Configure LAN and file paths ----
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+
+my_schema <- config::get("myschema")
+db_config <- config::get("decimal")
+
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 lan <- config::get("lan")
 
-# ---- Read LAN data ----
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 
 q000_trd_data_01 <- read_csv(glue::glue(
   "{lan}/data/student-outcomes/csv/so-provision/Q000_TRD_DATA_01.csv"
@@ -88,3 +106,30 @@ trd_graduates <- q000_trd_graduates %>%
       TRUE ~ NA
     )
   )
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+tables_to_keep <- c(
+  "trd_data",
+  "trd_graduates"
+)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)

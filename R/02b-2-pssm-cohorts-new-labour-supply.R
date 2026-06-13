@@ -51,7 +51,7 @@ library(DBI)
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -59,43 +59,12 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# t_cohorts_recoded <- tibble(dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
-# ))
-#
+
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
+  con,
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"'))
 ))
-#
-# t_current_region_pssm_codes <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
-# t_current_region_pssm_rollup_codes <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
-# t_noc_broad_categories <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
+
 # -------------------------- Required Tables -----------------------------------------
 
 required_tables <- c(
@@ -1110,9 +1079,15 @@ labour_supply_distribution <- labour_supply_distribution %>%
       )
   )
 
-# ---- Clean Up ----
 
-# ---- Keep ----
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 tables_to_keep <- c(
   "labour_supply_distribution",
   "labour_supply_distribution_no_tt",
@@ -1129,5 +1104,14 @@ tables_to_keep <- c(
   "trd_graduates"
 )
 
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
 
-rm(list = setdiff(ls(), tables_to_keep))
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)

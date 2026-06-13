@@ -49,8 +49,34 @@
 
 library(tidyverse)
 library(config)
+library(DBI)
+library(odbc)
 library(glue)
 library(assertthat)
+
+regular_run <- T
+qi_run <- F
+ptib_run <- T
+
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+
+my_schema <- config::get("myschema")
+
+db_config <- config::get("decimal")
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
+lan <- config::get("lan")
+
+
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 
 # List of required tables with categories
 # these to be renamed in load scripts
@@ -461,15 +487,28 @@ dacso_update[setdiff(
 t_cohorts_recoded <- t_cohorts_recoded |>
   rbind(dacso_update |> select(any_of(names(t_cohorts_recoded))))
 
-# ---- Keep Key Tables ----
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 tables_to_keep <- c(
-  "trd_graduates",
   "t_dacso_data_part_1",
-  "t_cohorts_recoded",
-  "appso_graduates",
-  "t_current_region_pssm_codes",
-  "t_current_region_pssm_rollup_codes",
-  "t_noc_broad_categories"
+  "t_cohorts_recoded"
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
