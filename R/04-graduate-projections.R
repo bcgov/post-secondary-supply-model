@@ -300,15 +300,6 @@ f_graduates_agg <- f_graduates_agg %>%
 #   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
 #   fill(GRADUATES)
 
-# SAVE TO SQL DATABASE ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
-  f_graduates_agg,
-  overwrite = TRUE
-)
-
-
 # ---- Graduate Projections for Trades ----
 # TODO: add in trades to Graduate Projections (above) and project same as APPSO.
 TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
@@ -521,12 +512,36 @@ hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>%
 #   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
 #   fill(GRADUATES)
 
-# SAVE Historical ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."Graduate_Projections_Include_Historical"'
-  )),
-  hf_grad_nc_appso_agg,
-  overwrite = TRUE
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+# ---- Clean Up ----
+
+Graduate_Projections <- f_graduates_agg
+Graduate_Projections_Include_Historical <- hf_grad_nc_appso_agg
+
+tables_to_keep <- c(
+  "Graduate_Projections_Include_Historical",
+  "Graduate_Projections"
 )
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
+
+dbDisconnect(con)
+
+rm(list = ls())

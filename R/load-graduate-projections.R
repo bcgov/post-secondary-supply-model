@@ -44,32 +44,11 @@ population_projections <- readr::read_csv(
 ) %>%
   janitor::clean_names(case = "all_caps")
 
-# ---- Read data from decimal  ----
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
-  ),
-  msg = "Import qry09c_MinEnrolment; from dbschema or run 01e-stp-distributions.R before continuing."
-)
-
-# this fails but I can still draw from dbo
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue(
-      '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
-    ))
-  ),
-  msg = "Import table 'Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs' from dbschema or run 01e-stp-distributions.R before continuing."
-)
-
-population_projections <- dbReadTable(decimal_con, "population_projections")
-
 min_enrolments <- dbReadTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
 )
+
 credentials <- dbReadTable(
   decimal_con,
   SQL(glue::glue(
@@ -80,7 +59,7 @@ credentials <- dbReadTable(
 # ---- Write to decimal ----
 dbWriteTable(
   decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."population_projections"')),
+  name = SQL(glue::glue('"{my_schema}"."population_projections_r"')),
   population_projections
 )
 
