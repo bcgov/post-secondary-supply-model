@@ -102,43 +102,45 @@ T_PTIB_Y1_to_Y10 <- read_csv(
   janitor::clean_names(case = "all_caps")
 
 # other tables should be in the R environment from earlier analysis
-grad_proj <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{db_schema}"."Graduate_Projections"'))
-)
-
-cpd_proj <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Projected"'))
-)
-
-cpd_static <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{db_schema}"."Cohort_Program_Distributions_Static"'))
-)
+# grad_proj <- dbReadTable(
+#   decimal_con,
+#   SQL(glue::glue('"{my_schema}"."Graduate_Projections"'))
+# )
+#
+# cpd_proj <- dbReadTable(
+#   decimal_con,
+#   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"'))
+# )
+#
+# cpd_static <- dbReadTable(
+#   decimal_con,
+#   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"'))
+# )
 
 # ---- Write to decimal ----
 # Lookups
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping"')),
-  pssm_cred_grps
+  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping_r"')),
+  pssm_cred_grps,
+  overwrite = TRUE
 )
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10"')),
-  T_PTIB_Y1_to_Y10
+  SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10_r"')),
+  T_PTIB_Y1_to_Y10,
 )
+
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
+  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_r"')),
   INFOWARE_L_CIP_6DIGITS_CIP2016
 )
 
 # Main dataset
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')),
+  SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw_r"')),
   ptib_data,
   overwrite = TRUE
 )

@@ -13,10 +13,7 @@
 # ---- Check Required Tables etc. ----
 required_tables <- c(
   'T_PTIB_Y1_to_Y10',
-  'cpd_proj',
-  'cpd_static',
   'INFOWARE_L_CIP_6DIGITS_CIP2016',
-  'grad_proj',
   'ptib_data',
   'pssm_cred_grps'
 )
@@ -256,6 +253,14 @@ qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06d1_Cohort_
 #   filter(Survey!="PTIB") |>
 #   rbind(qry_Private_Credentials_06d1_Cohort_Dist)
 
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 # Clean up ----
 tables_to_keep <- c(
   "cpd_static",
@@ -265,9 +270,14 @@ tables_to_keep <- c(
   "Graduate_Projections_PTIB"
 )
 
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"')),
-  qry_Private_Credentials_06d1_Cohort_Dist,
-  overwrite = TRUE
-)
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
