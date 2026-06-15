@@ -133,14 +133,14 @@ dbWriteTable(
 
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016_r"')),
+  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
   INFOWARE_L_CIP_6DIGITS_CIP2016
 )
 
 # Main dataset
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw_r"')),
+  SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')),
   ptib_data,
   overwrite = TRUE
 )

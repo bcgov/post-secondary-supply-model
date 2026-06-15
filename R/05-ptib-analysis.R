@@ -263,11 +263,9 @@ qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06d1_Cohort_
 
 # Clean up ----
 tables_to_keep <- c(
-  "cpd_static",
-  "cpd_proj",
   "qry_Private_Credentials_06d1_Cohort_Dist",
   "qry_Private_Credentials_05i1_Grads_by_Year",
-  "Graduate_Projections_PTIB"
+  "qry_Private_Credentials_05i_Grads"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
@@ -280,4 +278,4 @@ write_table_to_db <- function(table_name, schema, con) {
   )
 }
 
-walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
