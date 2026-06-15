@@ -181,6 +181,7 @@ credential_cohorts_weighted <- credential_cohorts |>
 
 # apply adjustment ratio
 credential_cohorts_weighted_adjusted <- credential_cohorts_weighted |>
+  mutate(COSC_GRAD_STATUS_LGDS_CD = as.character(COSC_GRAD_STATUS_LGDS_CD)) |>
   left_join(
     cohort_ratios,
     by = join_by(
@@ -333,7 +334,7 @@ final_graduate_credential_cohorts <- graduate_credential_cohorts |>
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q013e$")) |>
-  bind_rows(final_graduate_credential_cohortsl)
+  bind_rows(final_graduate_credential_cohorts)
 
 # survey == 'Program_Projections_2023-2024_Q014e' (Static and Projected) ----
 
@@ -379,7 +380,7 @@ final_apprenticeship_credential <- apprenticeship_credential |>
 
 cohort_program_distributions_projected <- cohort_program_distributions_projected |>
   filter(!str_detect(SURVEY, "Q014e$")) |>
-  bind_rows(final_apprenticeship_credential
+  bind_rows(final_apprenticeship_credential)
 
 cohort_program_distributions_static <- cohort_program_distributions_static |>
   filter(!str_detect(SURVEY, "Q014e$")) |>
@@ -387,13 +388,13 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
 
 # --- move this to graduate_projections.R, I think ---
 # expands static appr in graduate projections - holding counts constant
-graduate_projections <- dbReadTable(decimal_con, "Graduate_Projections")
+graduate_projections <- dbReadTable(decimal_con, "Graduate_Projections_r")
 
 new_projections <- graduate_projections |>
   filter(SURVEY == "APPSO") |>
   inner_join(
     t_appr_y2_to_y10,
-    by = join_by(YEAR == Y1), 
+    by = join_by(YEAR == Y1),
     relationship = "many-to-many"
   ) |>
   transmute(
@@ -417,7 +418,7 @@ graduate_projections <- graduate_projections |>
 static_projected <- cohort_program_distributions_static |>
   inner_join(
     t_cohort_program_distributions_y2_to_y12 |> select(-ID),
-    by = join_by(YEAR == Y1), 
+    by = join_by(YEAR == Y1),
     relationship = "many-to-many"
   )
 
@@ -488,8 +489,10 @@ input_data <- tbl_program_projection_input |>
     "AGE" = "AgeGroup",
     "CRED" = "PSI_CREDENTIAL_CATEGORY"
   ) |>
-  select(CIP, CRED, AGE, 4:ncol(.)) %>%
+  select(everything()) %>%
   arrange(CIP, CRED, AGE)
+
+dir.create("./tmp", showWarnings = FALSE)
 
 write_csv(
   input_data,
@@ -504,6 +507,7 @@ output_data <- read_delim(
   delim = "\t",
   col_names = TRUE
 )
+
 names(output_data) <- paste0(2023:(2023 + 11), "/", 2024:(2024 + 11))
 
 t_predict_cip_cred_age <- cbind(input_data, output_data)
@@ -570,10 +574,10 @@ credential_age_projections <- t_predict_cip_cred_age_flipped |>
       " - ",
       PSSM_CREDENTIAL
     )
-  ) 
+  )
 
-  # calculated weighted sums and proportions
-  credential_age_projections <- credential_age_projections |>
+# calculated weighted sums and proportions
+credential_age_projections <- credential_age_projections |>
   summarise(
     COUNT_VAL = sum(Count, na.rm = TRUE),
     .by = c(
@@ -596,7 +600,7 @@ credential_age_projections <- t_predict_cip_cred_age_flipped |>
     .by = c(PSSM_CRED_TMP, AGE, Year)
   )
 
-# 
+#
 credential_age_projections <- credential_age_projections |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_qry10c",
@@ -646,7 +650,7 @@ credential_age_projections_grads <- t_predict_cip_cred_age_flipped |>
       " - ",
       PSSM_CREDENTIAL
     )
-  ) 
+  )
 
 # calculated weighted sums and proportions
 credential_age_projections_grads <- credential_age_projections_grads |>
@@ -669,9 +673,9 @@ credential_age_projections_grads <- credential_age_projections_grads |>
       as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
     ),
     .by = c(PSSM_CRED_TMP, AGE, Year)
-  ) 
+  )
 
-credential_age_projections_grads <- credential_age_projections_grads |> 
+credential_age_projections_grads <- credential_age_projections_grads |>
   transmute(
     SURVEY = "Program_Projections_2023-2024_qry12c",
     PSSM_CREDENTIAL,
@@ -713,12 +717,33 @@ cohort_program_distributions_static |>
   )
 
 
-# ---- Clean Up ----
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 tables_to_keep <- c(
   "cohort_program_distributions_projected",
   "cohort_program_distributions_static",
   "graduate_projections",
   "tbl_program_projection_input"
 )
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
+
+dbDisconnect(decimal_con)
 
 rm(list = setdiff(ls(), tables_to_keep))
