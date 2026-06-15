@@ -10,8 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ---- Data Requirements and SQL Definitons ----
-# See load-near-completers-ttrain.R for notes on this section.
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 
 # these should now be in the R environment
 required_tables <- c(
@@ -40,9 +40,7 @@ na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
 # replicates lines 69:87 (main branch)
-# testing: t_dacso_data_part_1_tempselection in SQL vs R
-#          output of query at line 87 (main branch) vs line 116 (R version)
-# Notes: re. the output at line 116 this is a "Check" used to pick representitive years
+# Notes: re. the output at line 116 is a "Check" used to pick representitive years
 # from which to calculate the completers to near-completers ratio.
 
 # combine all age data from previous and new years
@@ -125,12 +123,17 @@ t_dacso_data_part_1_tempselection |>
 
 # ---- Add PEN to Non-Dup table ----
 # replicates lines 90:101 (main branch)
-# testing: compare credential_non_dup in SQL to R
 # Notes:
 #  There's a note from main branch script that says -  "Move to earlier workflow - 02 series.
 #  This updates credential non-dup in current schema only".  We should
 #  confirm that we only need the psi_pen in the current R environment.
-names(credential_non_dup) <- tolower(names(credential_non_dup))
+
+if ("psi_pen" %in% names(credential_non_dup)) {
+  # drop psi pen
+  credential_non_dup <- credential_non_dup |>
+    select(-psi_pen)
+}
+
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
@@ -997,12 +1000,13 @@ near_completes_total_by_cip4_ttrain <- t_dacso_data_part_1 |>
   filter(
     cosc_grad_status_lgds_cd_group == "3",
     coci_subm_cd %in% c("C_Outc19", "C_Outc20")
-  ) |> select(-age_group)
+  ) |>
+  select(-age_group) |>
   # age group already introduced from lookup table
-   inner_join(
-     age_group_lookup,
-     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-   ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "psi_credential_category")
@@ -1024,12 +1028,12 @@ near_completes_total_with_stp_credential_bycip4_ttrain <- t_dacso_data_part_1 |>
     coci_subm_cd %in% c("C_Outc19", "C_Outc20"),
     has_stp_credential == "Yes"
   ) |>
-|> select(-age_group)
+  select(-age_group) |>
   # age group already introduced from lookup table
-   inner_join(
-     age_group_lookup,
-     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-   ) 
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "psi_credential_category")
@@ -1099,15 +1103,6 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain <- near_completes_total_by_ci
     )
   )
 
-# write to sql server
-dbWriteTable(
-  conn = decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain"'
-  )),
-  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain,
-  overwrite = TRUE
-)
 
 # ---- HISTORICAL TTRAIN tables ----
 
@@ -1116,12 +1111,12 @@ near_completes_total_by_cip4_ttrain_history <- t_dacso_data_part_1 |>
   filter(
     cosc_grad_status_lgds_cd_group == "3"
   ) |>
-select(-age_group) |>
+  select(-age_group) |>
   # age group already introduced from lookup table
-   inner_join(
-     age_group_lookup,
-     by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-   ) |>
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "psi_credential_category")
@@ -1172,6 +1167,7 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_tot
   ) |>
   left_join(
     near_completes_total_with_stp_credential_bycip4_ttrain_history |>
+      mutate(age_group = as.character(age_group)) |>
       select(
         ttrain,
         coci_subm_cd,
@@ -1212,38 +1208,37 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_tot
     )
   )
 
-
-# write to sql server
-dbWriteTable(
-  conn = decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."t_dacso_near_completers_ratiosageatgradcip4_ttrain_history"'
-  )),
-  value = t_dacso_near_completers_ratiosageatgradcip4_ttrain_history,
-  overwrite = TRUE
-)
-
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 
 # ---- Clean Up ----
 # TODO: clean up this section
 tables_to_keep <- c(
-  "stp_enrolment",
-  "stp_credential",
-  "stp_enrolment_record_type",
-  "stp_credential_record_type",
-  "stp_enrolment_valid",
-  "age_group_lookup",
-  "credential_rank",
-  "credential",
   "credential_non_dup",
-  "credential_sup_vars",
-  "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect",
-  "outcome_credential",
-  "min_enrolment",
   "t_dacso_near_completers_ratio_by_gender_year",
   "t_dacso_near_completers_ratio_by_gender",
-  "t_dacso_nearcompleters_ratioageatgradcip4"
+  "t_dacso_nearcompleters_ratioageatgradcip4",
+  "t_dacso_near_completers_ratiosageatgradcip4_ttrain_history",
+  "t_dacso_near_completers_ratiosageatgradcip4_ttrain"
 )
-rm(list = setdiff(ls(), tables_to_keep))
-dbDisconnect(decimal_con)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
+
+dbDisconnect(con)
+
+rm(list = ls())
