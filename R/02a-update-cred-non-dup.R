@@ -99,7 +99,7 @@ dbExistsTable(
 # reference tables
 dbExistsTable(
   con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016_r"'))
+  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"'))
 )
 
 ## ---------------------Add CIP columns to Credential_Non_Dup--------------------------------------
@@ -139,7 +139,8 @@ cred_non_dup <- cred_non_dup |> rename_with(toupper)
 cred_non_dup <- cred_non_dup |>
   collect()
 
-dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs_r")
+
+dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs")
 dacso_cips <- dacso_cips |> rename_with(toupper)
 
 # Drop the empty CIP columns (just added by ALTER TABLE) before joining so the
@@ -190,7 +191,7 @@ cred_non_dup <- cred_non_dup %>%
 # These are matched by a simple ID lookup from the BGS program matching script
 # (02a-bgs-program-matching). rows_update only overwrites NA values where IDs match.
 ## ------------------------------------------------------------------------------------------------
-bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs") %>%
+bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs_r") %>%
   select(
     ID,
     FINAL_CIP_CODE_4,
@@ -339,18 +340,10 @@ cred_non_dup <- cred_non_dup %>%
   ) %>%
   select(-LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME)
 
-# Write updated Credential_Non_Dup back to database
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"')),
-  cred_non_dup,
-  overwrite = TRUE
-)
-
 # ---- check for any leftover NULLs in the final cip 4 column
 # These NULLs will be filled by the STP fallback below.
 {
-  tbl(con, "Credential_Non_Dup_r") %>%
+  cred_non_dup %>%
     filter(is.na(FINAL_CIP_CODE_4)) %>%
     count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
 }
@@ -382,7 +375,7 @@ dbWriteTable(
 # add extra cols
 dbExecute(
   con,
-  "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning
+  "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning_r
 ADD STP_CIP_CODE_4 varchar (255),
 STP_CIP_CODE_4_NAME varchar (255),
 STP_CIP_CODE_2 varchar (255),
@@ -627,17 +620,9 @@ null_updates <- null_ids %>%
 cred_non_dup <- cred_non_dup %>%
   rows_update(null_updates, by = "ID", unmatched = "ignore")
 
-# Write final updated table
-dbWriteTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"')),
-  cred_non_dup,
-  overwrite = TRUE
-)
-
 ## checks
 {
-  tbl(con, "Credential_Non_Dup_r") %>%
+  cred_non_dup %>%
     filter(is.na(FINAL_CIP_CODE_4)) %>%
     count(OUTCOMES_CRED, FINAL_CIP_CODE_4)
 }
