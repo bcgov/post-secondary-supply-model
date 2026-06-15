@@ -15,6 +15,10 @@ library(RODBC)
 library(config)
 library(DBI)
 
+regular_run = T
+ptib_run = T
+qi_run = F
+
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
@@ -103,17 +107,27 @@ if (regular_run == T | ptib_run == T) {
   # ---- Build tbl_Program_Projection_Input ----
   tbl_credential_highest_rank <- dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"'))
+    SQL(glue::glue('"{my_schema}"."tbl_credential_highest_rank_r"'))
   )
 
   credential_non_dup <- dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+    SQL(glue::glue('"{my_schema}"."credential_non_dup_r"'))
   )
+
+  # bring research university and outcomes credential into tbl_credential_highest_rank
+  # this should have been done at end of 01c-credential-analysis.R
+  tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+    left_join(
+      credential_non_dup |>
+        select(id, research_university, outcomes_cred) |>
+        rename_with(toupper, everything()),
+      by = join_by(ID)
+    )
 
   tbl_program_projection_input <- tbl_credential_highest_rank |>
     select(
-      id,
+      ID,
       AGE_GROUP_AT_GRAD,
       PSI_CREDENTIAL_CATEGORY,
       PSI_AWARD_SCHOOL_YEAR_DELAYED,
@@ -127,8 +141,9 @@ if (regular_run == T | ptib_run == T) {
     ) |>
     inner_join(
       credential_non_dup |>
-        select(id, FINAL_CIP_CODE_4, FINAL_CIP_CLUSTER_CODE),
-      by = "id"
+        select(id, final_cip_code_4, final_cip_cluster_code) |>
+        rename_with(toupper, everything()),
+      by = "ID"
     ) |>
     filter(
       FINAL_CIP_CLUSTER_CODE != "09",
@@ -169,7 +184,7 @@ if (regular_run == T | ptib_run == T) {
     dbReadTable(
       decimal_con,
       SQL(glue::glue(
-        '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"'
+        '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist_r"'
       ))
     )
 
@@ -179,7 +194,7 @@ if (regular_run == T | ptib_run == T) {
     dbReadTable(
       decimal_con,
       SQL(glue::glue(
-        '"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN"'
+        '"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_r"'
       ))
     ) |>
     janitor::clean_names(case = "all_caps")
@@ -187,7 +202,7 @@ if (regular_run == T | ptib_run == T) {
   t_cohorts_recoded <- dbReadTable(
     decimal_con,
     SQL(glue::glue(
-      '"{my_schema}"."T_Cohorts_Recoded"'
+      '"{my_schema}"."T_Cohorts_Recoded_r"'
     ))
   )
 
@@ -232,7 +247,7 @@ if (regular_run == T | ptib_run == T) {
 
   # check that only required survey years are in T_Cohorts_Recoded
   stopifnot(exprs = {
-    t_cohorts_recoded |> distinct(SURVEY_YEAR) |> pull() == c(2019:2023)
+    t_cohorts_recoded |> distinct(SURVEY_YEAR) |> pull() %in% c(2019:2023)
   })
 }
 
