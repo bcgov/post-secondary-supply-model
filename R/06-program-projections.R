@@ -10,268 +10,509 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script creates static and projected distributions from several sources.
-#  - Apprenticeship and TTRAIN distributions are derived from program cohort summaries
-#    built in workflow 2b (T_Cohorts_Recoded)
-#  - Near Completers distributions by age and CIP were summarized in workflow 3, the
-#    source data is those students in the DACSO program survey cohort, who (did or did not?)
-#    receive an earlier or later credential.
-#  - the remainder are derived from Credential Non Dup table and tblCredential_HighestRank
-#
-# At a high level, the script:
-#   Adds near completers to projected and static distribution data sets (Y1)
-#   Adds program cohorts to static distribution data sets (Y1)
-#   Adds masters and doctorates to static distribution data sets (Y1)
-#   Adds apprenticeships to static and projected data sets (Y1)
-#   Creates static distributions for apprenticeships and near-completers (Y2-12)
-#   Creates projected distributions for apprenticeships and near-completers (Y2-12), holding Y2-12 constant.
-#   Creates projected distributions all other credentials (Y2-Y12)
-#     - uses R program written by Werner and adapted by Ian
-#
-# Includes: generally age groups are 17-19, 20-24, 25-30, 30-34, 35-44, 45-54, 55-64
-# Year 1: 2019/2020
-# Year 2+: 2020/2021 - 2030/2031
-# Notes: Years need to be updated each model run.  Check we are projecting 12 years.  Also which age groupings
-# will we be using?
-# FIXME: lookups T_APPR_Y2_to_Y10 and T_Cohort_Program_Distributions_Y2_to_Y12 ID fields aren't sequential
-#        keep eyes open for impacts of this.
-#        04-graduate-projections: remove space in final table name, add survey column and populate
-
-library(tidyverse)
-library(RODBC)
-library(config)
-library(DBI)
-
-# ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-
-source("./sql/06-program-projections/06-program-projections.R")
-
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
-decimal_con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
-# ---- Check for required data tables ----
-# Load necessary libraries
-library(DBI)
-library(glue)
-library(assertthat)
-
-# List of required tables for Derived Tables, Rollovers, and Lookups
 required_tables <- c(
-  # Derived tables
-  "T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN",
-  "tbl_Program_Projection_Input",
-  "T_Cohorts_Recoded",
+  # actually used in load script
+  "tbl_credential_highest_rank",
+  "credential_non_dup",
 
   # Rollovers from last run
-  "Cohort_Program_Distributions_Projected",
-  "Cohort_Program_Distributions_Static",
+  "cohort_program_distributions_projected",
+  "cohort_program_distributions_static",
 
   # Lookups
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "T_PSSM_Projection_Cred_Grp",
-  "T_Weights_STP",
-  "tbl_Age_Groups_Near_Completers",
+  "agegrouplookup",
+  "infoware_l_cip_4digits_cip2016",
+  "infoware_l_cip_6digits_cip2016",
+  "t_appr_y2_to_y10",
+  "t_cohort_program_distributions_y2_to_y12",
+  "t_pssm_projection_cred_grp",
+  "t_weights_stp",
+  "tbl_age_groups",
+  "tbl_age_groups_near_completers",
 
-  # Note table
-  "T_Cohort_Program_Distributions_Y2_to_Y12"
+  # Derived tables
+  "tbl_program_projection_input",
+  "qry_private_credentials_06d1_cohort_dist",
+  "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
+  "t_cohorts_recoded"
 )
 
-# Check for required data tables in the database
-for (table_name in required_tables) {
-  # Build SQL statement
-  full_table_name <- SQL(glue::glue('"{my_schema}"."{table_name}"'))
+missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
-  # Assert that the table exists in the database
-  assert_that(
-    dbExistsTable(decimal_con, full_table_name),
-    msg = paste("Error:", table_name, "does not exist in schema", my_schema)
-  )
+if (length(missing) > 0) {
+  stop(paste(
+    "The following required tables are missing from the environment:",
+    paste(missing, collapse = ", ")
+  ))
 }
 
+na_vals = c("", " ", "(Unspecified)", NA)
 
 # ---- survey == "PTIB" (Static and Projected) ----
 if (ptib_run == TRUE) {
-  dbExecute(
-    decimal_con,
-    "INSERT INTO Cohort_Program_Distributions_Projected
-            (Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
+  cohort_program_distributions_projected <- rbind(
+    cohort_program_distributions_projected,
+    qry_private_credentials_06d1_cohort_dist
   )
-  dbExecute(
-    decimal_con,
-    "INSERT INTO Cohort_Program_Distributions_Static
-            ( Survey, PSSM_Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent] )
-            SELECT Survey, Credential, PSSM_CRED, LCP4_CD, LCIP4_CRED, LCIP2_CRED, Age_Group, [Year], [Count], Total, [Percent]
-            FROM qry_Private_Credentials_06d1_Cohort_Dist;"
+  cohort_program_distributions_static <- rbind(
+    cohort_program_distributions_static,
+    qry_private_credentials_06d1_cohort_dist
   )
-  dbExecute(decimal_con, "DROP TABLE qry_Private_Credentials_06d1_Cohort_Dist")
 }
 
 # ---- survey == 'Program_Projections_2023-2024_qry_13d' (Static and Projected) ----
-# Add near completers to projected and static distribution datasets
-dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Projected)
-dbExecute(decimal_con, qry_13a0_Delete_Near_Completers_Static)
-dbExecute(decimal_con, qry_13a_Near_completers)
-dbExecute(decimal_con, qry_13b_Near_Completers_Total)
-dbExecute(decimal_con, qry_13c_Near_Completers_Program_Dist)
-dbExecute(
-  decimal_con,
-  qry_13d_Append_Near_Completers_Program_Dist_Projected_TTRAIN
-)
-dbExecute(
-  decimal_con,
-  qry_13d_Append_Near_Completers_Program_Dist_Static_TTRAIN
-)
-dbExecute(decimal_con, "drop table qry_13a_Near_completers")
-dbExecute(decimal_con, "drop table qry_13b_Near_Completers_Total")
-dbExecute(decimal_con, "drop table qry_13c_Near_Completers_Program_Dist")
+
+# aggregate counts of near completers by age, cip, grad status, ttrain, credential
+# row-level counts are in variable 'NEAR_COMPLETERS_STP_CREDENTIALS'
+
+# some remapping needed when using dbo version
+#dacso_near_completers_ratios_age_at_grad_cip4_ttrain<-
+#dacso_near_completers_ratios_age_at_grad_cip4_ttrain |> mutate(across(
+#    c(PSSM_CREDENTIAL,  PSSM_CRED, LCIP4_CRED),
+#    ~ gsub(" OR "," or ",.x)
+#  ))
+
+near_completers_totals <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |>
+  summarise(
+    COUNT = sum(NEAR_COMPLETERS_STP_CREDENTIALS, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED,
+      LCP4_CD,
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      TTRAIN,
+      LCIP4_CRED,
+      AGE_GROUP
+    )
+  ) |>
+  mutate(
+    TOTAL = sum(COUNT, na.rm = TRUE),
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
+    .by = c(PSSM_CRED, AGE_GROUP)
+  )
+
+
+# mapping age groups for near completers to match those used in (?)
+near_completers_totals <- near_completers_totals |>
+  inner_join(
+    tbl_age_groups_near_completers,
+    by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION),
+    relationship = "many-to-many"
+  )
+
+# refactor dataset for insertion into static and projected distributions
+near_completers_totals <- near_completers_totals |>
+  mutate(
+    SURVEY = "Program_Projections_2023-2024_qry_13d",
+    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD_GROUP),
+    TTRAIN = as.character(TTRAIN),
+    LCIP2_CRED = paste(
+      COSC_GRAD_STATUS_LGDS_CD_GROUP,
+      str_sub(LCP4_CD, 1, 2),
+      TTRAIN,
+      PSSM_CREDENTIAL,
+      sep = " - "
+    ),
+    AGE_GROUP = AGE_GROUP_LABEL_GRADUATE_PROJECTION,
+    YEAR = "2023/2024"
+  )
+
+# add to projected and static distributions
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(PSSM_CRED, "^3 - ")) |>
+  bind_rows(near_completers_totals)
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(PSSM_CRED, "^3 - ")) |>
+  bind_rows(near_completers_totals)
+
 
 # survey == 'Program_Projections_2023-2024_Q012e' (Static) ----
-# Add program cohorts to static distribution datasets
-# Note: many lcip2 creds are NULL for BACH
-dbGetQuery(decimal_con, Q012a_Check_Total_for_Invalid_CIPs)
-dbExecute(decimal_con, Q012b_Weight_Cohort_Dist)
-dbExecute(decimal_con, Q012c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q012c1_Weighted_Cohort_Dist_TTRAIN)
-dbExecute(decimal_con, Q012c2_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q012c3_Weighted_Cohort_Dist_Total)
-dbExecute(decimal_con, Q012c4_Weighted_Cohort_Distribution_Projected) # why create this?
-dbExecute(decimal_con, Q012c5_Weighted_Cohort_Dist_TTRAIN)
-dbExecute(decimal_con, Q012d_Weighted_Cohort_Dist_Total)
-dbExecute(decimal_con, Q012e_Delete_Weighted_Cohort_Distribution)
-dbExecute(decimal_con, Q012e_Weighted_Cohort_Distribution)
-dbExecute(decimal_con, "drop table Q012b_Weight_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c1_Weighted_Cohort_Dist_TTRAIN")
-dbExecute(decimal_con, "drop table Q012c2_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q012c3_Weighted_Cohort_Dist_Total")
-dbExecute(
-  decimal_con,
-  "drop table Q012c4_Weighted_Cohort_Distribution_Projected"
-)
-dbExecute(decimal_con, "drop table Q012c5_Weighted_Cohort_Dist_TTRAIN")
-dbExecute(decimal_con, "drop table Q012d_Weighted_Cohort_Dist_Total")
+
+# check for missing or extra lcip2 codes
+tbl_program_projection_input |>
+  anti_join(
+    infoware_l_cip_4digits_cip2016,
+    by = join_by(FINAL_CIP_CODE_4 == LCP4_CD)
+  ) |>
+  distinct(FINAL_CIP_CODE_4, Count)
+
+# create distribution ratios from program cohorts
+cohort_ratios <- t_cohorts_recoded |>
+  filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
+  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
+  summarise(
+    TotalWeight = sum(WEIGHT, na.rm = TRUE) /
+      sum(t_cohorts_recoded$WEIGHT[t_cohorts_recoded$WEIGHT > 0], na.rm = TRUE),
+    .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL, TTRAIN)
+  ) |>
+  mutate(
+    RATIO = TotalWeight / sum(TotalWeight, na.rm = TRUE),
+    .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL)
+  ) |>
+  select(-TotalWeight)
+
+# craete main dataset for weighting
+credential_cohorts <- t_pssm_projection_cred_grp |>
+  filter(
+    !PSSM_CREDENTIAL %in%
+      c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
+  ) |>
+  inner_join(
+    tbl_program_projection_input,
+    by = join_by(PSSM_PROJECTION_CREDENTIAL == PSI_CREDENTIAL_CATEGORY)
+  ) |>
+  inner_join(
+    t_weights_stp |> filter(MODEL == "2023-2024", WEIGHT > 0),
+    by = join_by(PSI_AWARD_SCHOOL_YEAR_DELAYED == YEAR_CODE)
+  )
+
+# calculate base weights
+credential_cohorts_weighted <- credential_cohorts |>
+  summarise(
+    WEIGHTED_BASE_COUNT = sum(Count * WEIGHT, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      COSC_GRAD_STATUS_LGDS_CD,
+      FINAL_CIP_CODE_4,
+      AgeGroup
+    )
+  )
+
+# apply adjustment ratio
+credential_cohorts_weighted_adjusted <- credential_cohorts_weighted |>
+  mutate(COSC_GRAD_STATUS_LGDS_CD = as.character(COSC_GRAD_STATUS_LGDS_CD)) |>
+  left_join(
+    cohort_ratios,
+    by = join_by(
+      PSSM_CREDENTIAL,
+      FINAL_CIP_CODE_4 == LCP4_CD,
+      COSC_GRAD_STATUS_LGDS_CD == GRAD_STATUS,
+      AgeGroup == AGE_GROUP_LABEL
+    )
+  ) |>
+  mutate(
+    COUNT = if_else(
+      is.na(RATIO),
+      WEIGHTED_BASE_COUNT,
+      WEIGHTED_BASE_COUNT * RATIO
+    )
+  ) |>
+  rename(AGE_GROUP = "AgeGroup") |>
+  select(-RATIO, -WEIGHTED_BASE_COUNT)
+
+# standarize weights by age and credential
+credential_cohorts_weighted_adjusted <- credential_cohorts_weighted_adjusted |>
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+  ) |>
+  mutate(
+    TOTAL = sum(COUNT, na.rm = TRUE),
+    .by = c(PSSM_CRED, AGE_GROUP)
+  ) |>
+  mutate(
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
+  )
+
+# apply standard formatting to align with other survey datasets
+final_credential_cohorts <- credential_cohorts_weighted_adjusted |>
+  mutate(
+    SURVEY = "Program_Projections_2023-2024_Q012e",
+    LCP4_CD = FINAL_CIP_CODE_4,
+    GRAD_STATUS = as.character(COSC_GRAD_STATUS_LGDS_CD),
+    TTRAIN = as.character(TTRAIN),
+    LCIP4_CRED = paste0(
+      STATUS_PREFIX,
+      FINAL_CIP_CODE_4,
+      " - ",
+      if_else(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
+      PSSM_CREDENTIAL
+    ),
+    LCIP2_CRED = paste0(
+      STATUS_PREFIX,
+      str_sub(FINAL_CIP_CODE_4, 1, 2),
+      " - ",
+      if_else(is.na(TTRAIN), "", paste0(TTRAIN, " - ")),
+      PSSM_CREDENTIAL
+    ),
+    YEAR = "2023/2024"
+  ) |>
+  select(
+    -c(
+      COSC_GRAD_STATUS_LGDS_CD,
+      FINAL_CIP_CODE_4,
+      STATUS_PREFIX
+    )
+  )
+
+#update static distibution with 2023 counts
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q012e$")) |>
+  bind_rows(final_credential_cohorts)
+
 
 # survey == 'Program_Projections_2023-2024_Q013e' (Static) ----
 # Add masters and doctorates to static distribution datasets
 # Note: lcip4_cd showing as 2D for masters and doct - cluster.
 # (same in prior model runs)
-dbExecute(decimal_con, qry_12_LCP4_LCIPPC_Recode_9999)
-dbGetQuery(decimal_con, Q013a_Check_PDEG_CLP_07_Only_CIP_22)
-dbExecute(decimal_con, Q013b_Weight_Cohort_Dist_MAST_DOCT_Others)
-dbExecute(decimal_con, Q013c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q013d_Weighted_Cohort_Dist_Total)
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q013e'"
-) # Added
-dbExecute(decimal_con, Q013e_Weighted_Cohort_Distribution)
-dbExecute(decimal_con, "drop table Q013b_Weight_Cohort_Dist_MAST_DOCT_Others")
-dbExecute(decimal_con, "drop table Q013c_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q013d_Weighted_Cohort_Dist_Total")
+
+qry_12_lcp4_lcippc_recode_9999 <- infoware_l_cip_6digits_cip2016 |>
+  mutate(
+    LCIP_LCIPPC_CD = if_else(LCIP_LCP4_CD == "9999", "99", LCIP_LCIPPC_CD)
+  ) |>
+  distinct(LCIP_LCP4_CD, LCIP_LCIPPC_CD)
+
+
+# craete main dataset for weighting
+graduate_credential_cohorts <-
+  tbl_program_projection_input |>
+  inner_join(
+    t_pssm_projection_cred_grp |>
+      filter(PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')),
+    by = join_by(PSI_CREDENTIAL_CATEGORY == PSSM_PROJECTION_CREDENTIAL)
+  ) |>
+  inner_join(
+    t_weights_stp |> filter(MODEL == '2023-2024', WEIGHT > 0),
+    by = join_by(PSI_AWARD_SCHOOL_YEAR_DELAYED == YEAR_CODE)
+  ) |>
+  inner_join(
+    qry_12_lcp4_lcippc_recode_9999,
+    by = join_by(FINAL_CIP_CODE_4 == LCIP_LCP4_CD)
+  ) |>
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIP_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      LCIP_LCIPPC_CD,
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  )
+
+# calculate weights
+graduate_credential_cohorts <- graduate_credential_cohorts |>
+  summarise(
+    COUNT = sum(Count * WEIGHT, na.rm = TRUE), # Aggregated weighted volume
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      LCIP_LCIPPC_CD,
+      LCIP_CRED_TMP,
+      AgeGroup
+    )
+  ) |>
+  mutate(
+    TOTAL = sum(COUNT, na.rm = TRUE), # Hierarchical total via window function
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
+    .by = c(PSSM_CRED_TMP, AgeGroup)
+  )
+
+# create final dataset for insertion, mapping to cohort program distribution
+final_graduate_credential_cohorts <- graduate_credential_cohorts |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q013e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = LCIP_LCIPPC_CD,
+    LCIP4_CRED = LCIP_CRED_TMP,
+    AGE_GROUP = AgeGroup,
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q013e$")) |>
+  bind_rows(final_graduate_credential_cohorts)
 
 # survey == 'Program_Projections_2023-2024_Q014e' (Static and Projected) ----
-# adds apprenticeships to static and projected datasets
-dbExecute(decimal_con, Q014b_Weighted_Cohort_Dist_APPR)
-dbExecute(decimal_con, Q014c_Weighted_Cohort_Dist)
-dbExecute(decimal_con, Q014d_Weighted_Cohort_Dist_Total)
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'"
-) # Added
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q014e'"
-) # Added
-dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Projected)
-dbExecute(decimal_con, Q014e_Weighted_Cohort_Distribution_Static)
-dbExecute(decimal_con, "drop table Q014b_Weighted_Cohort_Dist_APPR")
-dbExecute(decimal_con, "drop table Q014c_Weighted_Cohort_Dist")
-dbExecute(decimal_con, "drop table Q014d_Weighted_Cohort_Dist_Total")
 
+# create main apprenticeship dataset for re-weighting
+apprenticeship_credential <- t_cohorts_recoded |>
+  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
+  filter(PSSM_CREDENTIAL %in% c('APPRAPPR', 'APPRCERT'), WEIGHT > 0)
+
+# reweight and normalize by age and credental
+apprenticeship_credential <- apprenticeship_credential |>
+  summarise(
+    COUNT = sum(WEIGHT, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      LCP4_CD,
+      TTRAIN,
+      LCIP4_CRED,
+      LCIP2_CRED,
+      AGE_GROUP_LABEL
+    )
+  ) |>
+  mutate(
+    TOTAL = sum(COUNT, na.rm = TRUE),
+    PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
+    .by = c(PSSM_CREDENTIAL, AGE_GROUP_LABEL)
+  )
+
+# create final dataset for insertion, mapping to cohort program distribution
+final_apprenticeship_credential <- apprenticeship_credential |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q014e",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CREDENTIAL,
+    LCP4_CD,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP = AGE_GROUP_LABEL,
+    YEAR = "2023/2024",
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "Q014e$")) |>
+  bind_rows(final_apprenticeship_credential)
+
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q014e$")) |>
+  bind_rows(final_apprenticeship_credential)
+
+# --- move this to graduate_projections.R, I think ---
 # expands static appr in graduate projections - holding counts constant
-dbExecute(decimal_con, Q014f_APPSO_Grads_Y2_to_Y10)
+graduate_projections <- dbReadTable(decimal_con, "Graduate_Projections_r")
+
+new_projections <- graduate_projections |>
+  filter(SURVEY == "APPSO") |>
+  inner_join(
+    t_appr_y2_to_y10,
+    by = join_by(YEAR == Y1),
+    relationship = "many-to-many"
+  ) |>
+  transmute(
+    SURVEY,
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10,
+    GRADUATES
+  )
+
+graduate_projections <- graduate_projections |>
+  bind_rows(new_projections)
 
 # survey == 'Program_Projections_2023-2024_Q015e21' (Static and Projected) ----
 # expands apprenticeships and near-completers to include 2020+12YR where
 #  survey == Program_Projections_2023-2024_qry_13d
 #  survey == Program_Projections_2023-2024_Q014e
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Projected 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e21'"
-) # Run if you've been messing with iterations
-dbExecute(
-  decimal_con,
-  "DELETE FROM Cohort_Program_Distributions_Static 
-          WHERE Survey LIKE 'Program_Projections_2023-2024_Q015e22'"
-) # Run if you've been messing with iterations
-dbExecute(
-  decimal_con,
-  Q015e21_Append_Selected_Static_Distribution_Y2_to_Y12_Projected
-)
-dbExecute(decimal_con, Q015e22_Append_Distribution_Y2_to_Y12_Static)
+
+# expand static distributions
+static_projected <- cohort_program_distributions_static |>
+  inner_join(
+    t_cohort_program_distributions_y2_to_y12 |> select(-ID),
+    by = join_by(YEAR == Y1),
+    relationship = "many-to-many"
+  )
+
+# only near completers and Apprenticeships
+static_projected_app_nc <- static_projected |>
+  filter(
+    PSSM_CRED %in% c('APPRAPPR', 'APPRCERT') | str_starts(PSSM_CRED, "3 - ")
+  ) |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q015e21",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10,
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+static_projected_no_app_nc <- static_projected |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_Q015e22",
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    GRAD_STATUS,
+    TTRAIN,
+    LCIP4_CRED,
+    LCIP2_CRED,
+    AGE_GROUP,
+    YEAR = Y2_TO_Y10,
+    COUNT,
+    TOTAL,
+    PERCENT
+  )
+
+# move static nc and app to the projected distributions
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "Q015e21$")) |>
+  bind_rows(static_projected_app_nc)
+
+# move static nc and app to the projected distributions
+cohort_program_distributions_static <- cohort_program_distributions_static |>
+  filter(!str_detect(SURVEY, "Q015e22$")) |>
+  bind_rows(static_projected_no_app_nc)
 
 # Werner program ----
-# Program takes input_data and returns output_data (write to/read from LAN below)
-input_data <- dbGetQuery(
-  decimal_con,
-  "SELECT * FROM tbl_Program_Projection_Input"
-) %>%
-  select(-Expr1) %>%
+input_data <- tbl_program_projection_input |>
+  select(-Expr1) |>
   complete(
     AgeGroup,
     PSI_CREDENTIAL_CATEGORY,
     FINAL_CIP_CODE_4,
     PSI_AWARD_SCHOOL_YEAR_DELAYED,
     fill = list(Count = 0)
-  ) %>%
+  ) |>
   pivot_wider(
     names_from = "PSI_AWARD_SCHOOL_YEAR_DELAYED",
     values_from = "Count"
-  ) %>%
+  ) |>
   rename(
     "CIP" = "FINAL_CIP_CODE_4",
     "AGE" = "AgeGroup",
     "CRED" = "PSI_CREDENTIAL_CATEGORY"
-  ) %>%
-  select(CIP, CRED, AGE, 4:ncol(.)) %>%
+  ) |>
+  select(everything()) %>%
   arrange(CIP, CRED, AGE)
+
+dir.create("./tmp", showWarnings = FALSE)
 
 write_csv(
   input_data,
-  glue::glue("{lan}/development/csv/gh-source/tmp/06/input-data.csv")
+  "./tmp/input-data.csv"
 )
 
 ## run Werner program ----
-source(glue::glue("{lan}/development/R/program projections.R"))
+source(glue::glue("./R/program projections.R"))
 
 output_data <- read_delim(
-  glue::glue("{lan}/development/csv/gh-source/tmp/06/output.csv"),
+  glue::glue("./tmp/output.csv"),
   delim = "\t",
   col_names = TRUE
 )
+
 names(output_data) <- paste0(2023:(2023 + 11), "/", 2024:(2024 + 11))
 
-T_Predict_CIP_CRED_AGE <- cbind(input_data, output_data)
+t_predict_cip_cred_age <- cbind(input_data, output_data)
 
-# pivot T_Predict_CIP_CRED_AGE from wide to long
-T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>%
+t_predict_cip_cred_age_flipped <- t_predict_cip_cred_age %>%
   pivot_longer(-c(CIP, CRED, AGE), names_to = "Year", values_to = "Count") %>%
   filter(
     Year %in%
@@ -291,50 +532,218 @@ T_Predict_CIP_CRED_AGE_Flipped <- T_Predict_CIP_CRED_AGE %>%
       )
   )
 
-dbWriteTable(
-  decimal_con,
-  "T_Predict_CIP_CRED_AGE_Flipped",
-  T_Predict_CIP_CRED_AGE_Flipped
-)
-dbGetQuery(decimal_con, qry_05_Flip_T_Predict_CIP_CRED_AGE_2_Check)
+t_predict_cip_cred_age_flipped |>
+  summarise(
+    SUMOFCOUNT = sum(Count, na.rm = TRUE),
+    .by = Year
+  )
 
-dbExecute(decimal_con, qry_09_Delete_Selected_Static_Cohort_Dist_from_Projected)
 
 # survey == 'Program_Projections_2023-2024_qry10c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential NOT IN ('GRCT or GRDP','PDEG','MAST','DOCT')
 # (ALSO NOT IN ('APPRAPPR','APPRCERT') as these were done earlier)
-dbExecute(decimal_con, qry_10a_Program_Dist_Count)
-dbExecute(decimal_con, qry_10b_Program_Dist_Total)
-dbExecute(decimal_con, qry_10c_Program_Dist_Distribution)
-dbExecute(decimal_con, "DROP TABLE qry_10a_Program_Dist_Count")
-dbExecute(decimal_con, "DROP TABLE qry_10b_Program_Dist_Total")
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(
+    PSSM_CRED %in%
+      c('APPRAPPR', 'APPRCERT') |
+      str_starts(PSSM_CRED, "3 -") |
+      str_starts(PSSM_CRED, "P -")
+  )
+
+# create main dataset for re-weighting
+credential_age_projections <- t_predict_cip_cred_age_flipped |>
+  inner_join(
+    t_pssm_projection_cred_grp,
+    by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
+  ) |>
+  filter(
+    !PSSM_CREDENTIAL %in%
+      c('APPRAPPR', 'APPRCERT', 'GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
+  ) |>
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIP4_CRED_TMP = paste0(STATUS_PREFIX, CIP, " - ", PSSM_CREDENTIAL),
+    LCIP2_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      str_sub(CIP, 1, 2),
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  )
+
+# calculated weighted sums and proportions
+credential_age_projections <- credential_age_projections |>
+  summarise(
+    COUNT_VAL = sum(Count, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      CIP,
+      LCIP4_CRED_TMP,
+      LCIP2_CRED_TMP,
+      AGE,
+      Year
+    )
+  ) |>
+  mutate(
+    TOTAL_VAL = sum(COUNT_VAL, na.rm = TRUE),
+    PERCENT_VAL = if_else(
+      TOTAL_VAL == 0,
+      0,
+      as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
+    ),
+    .by = c(PSSM_CRED_TMP, AGE, Year)
+  )
+
+#
+credential_age_projections <- credential_age_projections |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_qry10c",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = CIP,
+    LCIP4_CRED = LCIP4_CRED_TMP,
+    LCIP2_CRED = LCIP2_CRED_TMP,
+    AGE_GROUP = AGE,
+    YEAR = Year,
+    COUNT = COUNT_VAL,
+    TOTAL = TOTAL_VAL,
+    PERCENT = PERCENT_VAL
+  )
+
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "qry10c$")) |>
+  bind_rows(credential_age_projections)
+
 
 # survey == 'Program_Projections_2023-2024_qry12c' (Projected) ----
 # adds projected counts to Cohort_Program_Distributions_Projected where PSSM_Credential IN ('GRCT or GRDP','PDEG','MAST','DOCT')
-dbExecute(decimal_con, qry_12a_Program_Dist_Count)
-dbExecute(decimal_con, qry_12b_Program_Dist_Total)
-dbExecute(decimal_con, qry_12c_Program_Dist_Distribution)
-dbExecute(decimal_con, "DROP TABLE qry_12a_Program_Dist_Count")
-dbExecute(decimal_con, "DROP TABLE qry_12b_Program_Dist_Total")
-dbExecute(decimal_con, "drop table qry_12_LCP4_LCIPPC_Recode_9999")
-dbExecute(decimal_con, "drop table T_Predict_CIP_CRED_AGE_Flipped")
+# create main grads dataset for weighting
+credential_age_projections_grads <- t_predict_cip_cred_age_flipped |>
+  inner_join(
+    t_pssm_projection_cred_grp,
+    by = join_by(CRED == PSSM_PROJECTION_CREDENTIAL)
+  ) |>
+  inner_join(
+    qry_12_lcp4_lcippc_recode_9999,
+    by = join_by(CIP == LCIP_LCP4_CD)
+  ) |>
+  filter(
+    PSSM_CREDENTIAL %in% c('GRCT or GRDP', 'PDEG', 'MAST', 'DOCT')
+  ) |>
+  mutate(
+    STATUS_PREFIX = if_else(
+      is.na(COSC_GRAD_STATUS_LGDS_CD),
+      "",
+      paste0(COSC_GRAD_STATUS_LGDS_CD, " - ")
+    ),
+    PSSM_CRED_TMP = paste0(STATUS_PREFIX, PSSM_CREDENTIAL),
+    LCIPPC_CD_TMP = LCIP_LCIPPC_CD,
+    LCIPPC_CRED_TMP = paste0(
+      STATUS_PREFIX,
+      LCIP_LCIPPC_CD,
+      " - ",
+      PSSM_CREDENTIAL
+    )
+  )
+
+# calculated weighted sums and proportions
+credential_age_projections_grads <- credential_age_projections_grads |>
+  summarise(
+    COUNT_VAL = sum(Count, na.rm = TRUE),
+    .by = c(
+      PSSM_CREDENTIAL,
+      PSSM_CRED_TMP,
+      LCIPPC_CD_TMP,
+      LCIPPC_CRED_TMP,
+      AGE,
+      Year
+    )
+  ) |>
+  mutate(
+    TOTAL_VAL = sum(COUNT_VAL, na.rm = TRUE),
+    PERCENT_VAL = if_else(
+      TOTAL_VAL == 0,
+      0,
+      as.numeric(COUNT_VAL) / as.numeric(TOTAL_VAL)
+    ),
+    .by = c(PSSM_CRED_TMP, AGE, Year)
+  )
+
+credential_age_projections_grads <- credential_age_projections_grads |>
+  transmute(
+    SURVEY = "Program_Projections_2023-2024_qry12c",
+    PSSM_CREDENTIAL,
+    PSSM_CRED = PSSM_CRED_TMP,
+    LCP4_CD = LCIPPC_CD_TMP,
+    LCIP4_CRED = LCIPPC_CRED_TMP,
+    AGE_GROUP = AGE,
+    YEAR = Year,
+    COUNT = COUNT_VAL,
+    TOTAL = TOTAL_VAL,
+    PERCENT = PERCENT_VAL
+  )
+
+cohort_program_distributions_projected <- cohort_program_distributions_projected |>
+  filter(!str_detect(SURVEY, "qry12c$")) |>
+  bind_rows(credential_age_projections_grads)
 
 # check for combinations produced in static that were missed in the projected
-dbGetQuery(decimal_con, qry_12d_Check_Missing)
+cohort_program_distributions_static |>
+  filter(!AGE_GROUP %in% c('15 to 16', '65 to 89')) |>
+  anti_join(
+    cohort_program_distributions_projected,
+    by = join_by(
+      YEAR,
+      AGE_GROUP,
+      LCP4_CD,
+      PSSM_CRED,
+      PSSM_CREDENTIAL
+    )
+  ) |>
+  select(
+    PSSM_CREDENTIAL,
+    PSSM_CRED,
+    LCP4_CD,
+    LCIP4_CRED,
+    AGE_GROUP,
+    YEAR,
+    COUNT
+  )
 
-# ---- Clean Up ----
-# Lookups
-dbExecute(decimal_con, "drop table AgeGroupLookup")
-dbExecute(decimal_con, "drop table tbl_Age_Groups_Near_Completers")
-dbExecute(decimal_con, "drop table tbl_Age_Groups")
-dbExecute(decimal_con, "drop table T_Cohort_Program_Distributions_Y2_to_Y12")
-dbExecute(decimal_con, "drop table T_APPR_Y2_to_Y10")
-dbExecute(decimal_con, "drop table T_PSSM_Projection_Cred_Grp")
-dbExecute(decimal_con, "drop table T_Weights_STP")
 
-# Keep for next workflow
-dbExistsTable(decimal_con, "Cohort_Program_Distributions_Projected")
-dbExistsTable(decimal_con, "Cohort_Program_Distributions_Static")
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 
-# Keep in DB
-dbExistsTable(decimal_con, "tbl_Program_Projection_Input")
+tables_to_keep <- c(
+  "cohort_program_distributions_projected",
+  "cohort_program_distributions_static",
+  "graduate_projections",
+  "tbl_program_projection_input"
+)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
+
+dbDisconnect(decimal_con)
+
+rm(list = setdiff(ls(), tables_to_keep))
