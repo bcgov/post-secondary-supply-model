@@ -729,7 +729,12 @@ tables_to_keep <- c(
   "cohort_program_distributions_projected",
   "cohort_program_distributions_static",
   "graduate_projections",
-  "tbl_program_projection_input"
+  "tbl_program_projection_input",
+  "t_weights_stp",
+  "t_pssm_projection_cred_grp",
+  "t_appr_y2_to_y10",
+  "t_cohort_program_distributions_y2_to_y12",
+  "tbl_age_groups_near_completers"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
