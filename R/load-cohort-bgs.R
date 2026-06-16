@@ -153,8 +153,8 @@ tables_to_keep <- c(
   "t_bgs_data_final",
   "t_bgs_data_final_for_outcomesmatching",
   "t_weights",
-  "t_bgs_inst_recode",
-  "tmp_bgs_inst_cds"
+  "t_bgs_inst_recode" #,
+  #"tmp_bgs_inst_cds"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
