@@ -252,7 +252,7 @@ t_bgs_data_final <- t_bgs_data_final |>
 
 # update cips after program matching
 t_bgs_data_final <- t_bgs_data_final |>
-  inner_join(
+  left_join(
     t_bgs_data_final_for_outcomesmatching |>
       select(
         STQU_ID,
@@ -263,9 +263,12 @@ t_bgs_data_final <- t_bgs_data_final |>
     by = "STQU_ID"
   ) |>
   mutate(
-    CIP_CODE_4 = FINAL_CIP_CODE_4,
-    CIP_CODE_2 = FINAL_CIP_CODE_2,
-    LCIP_LCIPPC_CD = FINAL_CIP_CLUSTER_CODE
+    CIP_CODE_4 = coalesce(FINAL_CIP_CODE_4, CIP_CODE_4),
+    CIP_CODE_2 = coalesce(FINAL_CIP_CODE_2, CIP_CODE_2),
+    LCIP_LCIPPC_CD = coalesce(
+      FINAL_CIP_CLUSTER_CODE,
+      as.character(LCIP_LCIPPC_CD)
+    )
   ) |>
   select(-FINAL_CIP_CODE_4, -FINAL_CIP_CODE_2, -FINAL_CIP_CLUSTER_CODE)
 
