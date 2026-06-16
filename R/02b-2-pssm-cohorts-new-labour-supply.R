@@ -1080,6 +1080,63 @@ labour_supply_distribution <- labour_supply_distribution %>%
   )
 
 
+# ------  create distribution for pdeg/law distribution ------
+# These queries calculate New Labour Supply Distribution for Law/PDEG
+labour_supply_distribution <- labour_supply_distribution |>
+  filter(
+    !(str_starts(Survey, '2021 Census') & # upper case SURVEY
+      PSSM_CREDENTIAL == "PDEG" &
+      str_starts(LCP4_CD, "07"))
+  ) #6459 records kept
+
+labour_supply_distribution_pdeg <- labour_supply_distribution |>
+  filter(
+    PSSM_CREDENTIAL == "BACH",
+    str_starts(LCP4_CD, "22"),
+    str_starts(Survey, "Student Outcomes")
+  )
+
+group_vars <- c(
+  "Survey",
+  "TTRAIN",
+  "AGE_GROUP_ROLLUP"
+)
+
+# ---- dacso_q010d2_nls_pdeg_07_count ----
+dacso_q010d5 <- labour_supply_distribution_pdeg |>
+  group_by(across(all_of(c(group_vars, "CURRENT_REGION_PSSM_CODE_ROLLUP")))) |>
+  summarize(
+    COUNT = sum(COUNT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(
+    labour_supply_distribution_pdeg |>
+      distinct(across(all_of(c(group_vars, "TOTAL")))) |>
+      group_by(across(all_of(group_vars))) |>
+      summarize(
+        TOTAL = sum(TOTAL, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = group_vars
+  ) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_CREDENTIAL = "PDEG",
+    PSSM_CRED = "PDEG",
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD = "07",
+    TTRAIN,
+    LCIP4_CRED = "07 - PDEG",
+    LCIP2_CRED = NA_character_,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply = if_else(is.na(COUNT), 0, COUNT / TOTAL)
+  )
+
+labour_supply_distribution <- labour_supply_distribution |>
+  rbind(dacso_q010d5)
+
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
