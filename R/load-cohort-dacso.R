@@ -198,15 +198,6 @@ if (regular_run == T | ptib_run == T) {
   #)
 }
 
-t_noc_broad_categories <- t_noc_broad_categories |>
-  mutate(
-    BROAD_CATEGORY_CODE = NA_character_,
-    MAJOR_GROUP_CODE = NA_character_,
-    SUB_MAJOR_GROUP_CODE = NA_character_,
-    MINOR_GROUP_CODE = NA_character_,
-    UNIT_GROUP_CODE = NA_character_
-  )
-
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
