@@ -105,6 +105,7 @@ t_dacso_data_part_1_tempselection <- t_dacso_data_part_1 |>
     pssm_credential_name
   )
 
+# just a check of students by year and grad status
 t_dacso_data_part_1_tempselection |>
   filter(
     !is.na(cosc_grad_status_lgds_cd_group),
@@ -137,7 +138,7 @@ if ("psi_pen" %in% names(credential_non_dup)) {
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
-      select(id = ID, psi_pen = PSI_PEN),
+      select(id = ID, psi_pen = PSI_PEN), #ID is unique, s.b. distinct
     by = "id"
   )
 
