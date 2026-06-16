@@ -1030,7 +1030,7 @@ occupation_distributions <- occupation_distributions |>
     occupation_distributions_stat_can |>
       transmute(
         SURVEY = "2021 Census PSSM 2023-2024",
-        PSSM_CREDENTIAL = "PSSM_CREDENTIAL",
+        PSSM_CREDENTIAL = PSSM_CREDENTIAL,
         PSSM_CRED,
         LCP4_CD,
         TTRAIN,
