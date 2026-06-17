@@ -23,11 +23,10 @@ raw_data_file <- glue::glue(
   "{lan}/data/ptib/PTIB 2021 and 2022 Enrolment Data for BC Stats 2024.05.31.xlsx"
 )
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -68,7 +67,7 @@ cleaned_data <- raw_data %>%
   )
 
 # ---- Aggregate data ----
-ptib_data <- cleaned_data %>%
+t_private_institutions_credentials <- cleaned_data %>%
   group_by(year, credential, cip3, age_group, immigration_status) %>%
   summarize(
     sum_of_graduates = sum(graduates, na.rm = TRUE),
@@ -79,7 +78,7 @@ ptib_data <- cleaned_data %>%
   rename(cip = cip3)
 
 # ---- Read Outcomes Data ----
-INFOWARE_L_CIP_6DIGITS_CIP2016 <- read_csv(
+infoware_l_cip_6digits_cip2016 <- read_csv(
   (glue::glue(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
   ))
@@ -87,65 +86,42 @@ INFOWARE_L_CIP_6DIGITS_CIP2016 <- read_csv(
 
 # ---- Read LAN data ----
 ## Lookups
-pssm_cred_grps <- read_csv(
+t_pssm_credential_grouping <- read_csv(
   (glue::glue(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PSSM_Credential_Grouping.csv"
   ))
 ) %>%
   janitor::clean_names(case = "all_caps")
 
-T_PTIB_Y1_to_Y10 <- read_csv(
+t_ptib_y1_to_y10 <- read_csv(
   (glue::glue(
     "{lan}\\development\\csv\\gh-source\\lookups\\05\\T_PTIB_Y1_to_Y10.csv"
   ))
 ) |>
   janitor::clean_names(case = "all_caps")
 
-# other tables should be in the R environment from earlier analysis
-# grad_proj <- dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."Graduate_Projections"'))
-# )
-#
-# cpd_proj <- dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"'))
-# )
-#
-# cpd_static <- dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"'))
-# )
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 
-# ---- Write to decimal ----
-# Lookups
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_PSSM_Credential_Grouping_r"')),
-  pssm_cred_grps,
-  overwrite = TRUE
-)
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_PTIB_Y1_to_Y10_r"')),
-  T_PTIB_Y1_to_Y10,
+tables_to_keep <- c(
+  "t_ptib_y1_to_y10",
+  "t_pssm_credential_grouping",
+  "t_private_institutions_credentials"
 )
 
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')),
-  INFOWARE_L_CIP_6DIGITS_CIP2016
-)
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
 
-# Main dataset
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."T_Private_Institutions_Credentials_Raw"')),
-  ptib_data,
-  overwrite = TRUE
-)
-
-# ---- Disconnect ----
-dbDisconnect(decimal_con)
-# rm(list = ls())
-gc()
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
