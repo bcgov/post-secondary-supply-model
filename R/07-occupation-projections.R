@@ -211,7 +211,7 @@ if (ptib_run == TRUE) {
 # dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
 # run distinct here to remove duplicates in case you 
 # grabbed the dbo version of graduate_projections (development only).
-q_1_grad_projections_by_age_by_program2 <- graduate_projections |>
+q_1_grad_projections_by_age_by_program <- graduate_projections |>
   distinct(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
   inner_join(
     cohort_program_distributions,
