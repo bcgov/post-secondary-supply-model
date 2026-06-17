@@ -388,7 +388,7 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
 
 # --- move this to graduate_projections.R, I think ---
 # expands static appr in graduate projections - holding counts constant
-graduate_projections <- dbReadTable(decimal_con, "Graduate_Projections_r")
+graduate_projections <- dbReadTable(con, "Graduate_Projections_r")
 
 new_projections <- graduate_projections |>
   filter(SURVEY == "APPSO") |>
@@ -729,12 +729,7 @@ tables_to_keep <- c(
   "cohort_program_distributions_projected",
   "cohort_program_distributions_static",
   "graduate_projections",
-  "tbl_program_projection_input",
-  "t_weights_stp",
-  "t_pssm_projection_cred_grp",
-  "t_appr_y2_to_y10",
-  "t_cohort_program_distributions_y2_to_y12",
-  "tbl_age_groups_near_completers"
+  "tbl_program_projection_input"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
@@ -747,8 +742,4 @@ write_table_to_db <- function(table_name, schema, con) {
   )
 }
 
-walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
-
-dbDisconnect(decimal_con)
-
-rm(list = setdiff(ls(), tables_to_keep))
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
