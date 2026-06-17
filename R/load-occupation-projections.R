@@ -43,7 +43,7 @@ decimal_con <- dbConnect(
 labour_supply_distribution <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution"'))
+    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -56,7 +56,7 @@ labour_supply_distribution <-
 labour_supply_distribution_lcp2 <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2"'))
+    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -69,7 +69,7 @@ labour_supply_distribution_lcp2 <-
 labour_supply_distribution_no_tt <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT"'))
+    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_No_TT_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -82,7 +82,7 @@ labour_supply_distribution_no_tt <-
 labour_supply_distribution_lcp2_no_tt <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT"'))
+    SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_LCP2_No_TT_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -95,7 +95,7 @@ labour_supply_distribution_lcp2_no_tt <-
 occupation_distributions <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions"'))
+    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -109,7 +109,7 @@ occupation_distributions <-
 occupation_distributions_no_tt <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT"'))
+    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_No_TT_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -122,7 +122,7 @@ occupation_distributions_no_tt <-
 occupation_distributions_lcp2 <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2"'))
+    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -136,7 +136,7 @@ occupation_distributions_lcp2 <-
 occupation_distributions_lcp2_no_tt <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT"'))
+    SQL(glue::glue('"{my_schema}"."Occupation_Distributions_LCP2_No_TT_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -149,7 +149,7 @@ occupation_distributions_lcp2_no_tt <-
 cohort_program_distributions_projected <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected"'))
+    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Projected_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -161,7 +161,7 @@ cohort_program_distributions_projected <-
 cohort_program_distributions_static <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static"'))
+    SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_Static_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(
@@ -173,7 +173,7 @@ cohort_program_distributions_static <-
 graduate_projections <-
   dbReadTable(
     decimal_con,
-    SQL(glue::glue('"{my_schema}"."Graduate_Projections"'))
+    SQL(glue::glue('"{my_schema}"."Graduate_Projections_r"'))
   ) %>%
   janitor::clean_names(case = "all_caps") |>
   mutate(across(

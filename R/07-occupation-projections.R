@@ -609,7 +609,7 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x,
+    TTRAIN = TTRAIN.x, # just TTRAIN?
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
@@ -933,7 +933,7 @@ q_3d3_occupations_unknown_lcp2_private_cred_proxy <- q_3d24_occupations_unknown 
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x,
+    TTRAIN = TTRAIN.x, # just TTRAIN?
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
