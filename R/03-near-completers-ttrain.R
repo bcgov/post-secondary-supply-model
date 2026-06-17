@@ -1139,10 +1139,12 @@ near_completes_total_with_stp_credential_bycip4_ttrain_history <- t_dacso_data_p
   filter(
     has_stp_credential == "Yes"
   ) |>
-  # inner_join(
-  #   age_group_lookup,
-  #   by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
-  # ) |>
+  select(-age_group) |>
+  # age group already introduced from lookup table
+  inner_join(
+    age_group_lookup,
+    by = join_by(age_at_grad >= lower_bound, age_at_grad <= upper_bound)
+  ) |>
   left_join(
     credential_rank,
     by = c("prgm_credential_awarded_name" = "psi_credential_category")
@@ -1162,8 +1164,12 @@ near_completes_total_with_stp_credential_bycip4_ttrain_history <- t_dacso_data_p
 
 # Mirrors: T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history
 t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_total_by_cip4_ttrain_history |>
+  mutate(
+    prgm_credential_awarded_name = tolower(prgm_credential_awarded_name)
+  ) |>
   inner_join(
-    t_pssm_projection_cred_grp |> rename_with(tolower),
+    t_pssm_projection_cred_grp |>
+      rename_with(tolower),
     by = c("prgm_credential_awarded_name" = "pssm_projection_credential")
   ) |>
   left_join(
