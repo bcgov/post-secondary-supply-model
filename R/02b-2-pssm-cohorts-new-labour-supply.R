@@ -63,7 +63,15 @@ con <- dbConnect(
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"'))
-))
+)) |>
+  # not sure which one this should be but this matches what is in the SQL table
+  mutate(
+    SURVEY = if_else(
+      SURVEY == "2021 Census PSSM 2022-2023",
+      "2021 Census PSSM 2023-2024",
+      SURVEY
+    )
+  )
 
 # -------------------------- Required Tables -----------------------------------------
 
@@ -1156,7 +1164,6 @@ tables_to_keep <- c(
   "tmp_tbl_weights_nls",
   "t_noc_broad_categories",
   "appso_graduates",
-  "t_cohorts_recoded",
   "t_dacso_data_part_1",
   "trd_graduates"
 )

@@ -57,7 +57,15 @@ con <- dbConnect(
 occupation_distributions_stat_can <- dbReadTable(
   con,
   SQL(glue::glue('"Occupation_Distributions_Stat_Can_r"'))
-)
+) |>
+  # not sure which one this should be but this matches what is in the SQL table
+  mutate(
+    SURVEY = if_else(
+      SURVEY == "2021 Census PSSM 2022-2023",
+      "2021 Census PSSM 2023-2024",
+      SURVEY
+    )
+  )
 
 # List of required tables
 required_tables <- c(

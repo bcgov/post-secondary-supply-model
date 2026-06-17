@@ -1163,9 +1163,14 @@ near_completes_total_with_stp_credential_bycip4_ttrain_history <- t_dacso_data_p
   )
 
 # Mirrors: T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history
+# this needs to be fixed
 t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_total_by_cip4_ttrain_history |>
   mutate(
-    prgm_credential_awarded_name = tolower(prgm_credential_awarded_name)
+    prgm_credential_awarded_name = gsub(
+      "Post-degree",
+      "Post-Degree",
+      prgm_credential_awarded_name
+    )
   ) |>
   inner_join(
     t_pssm_projection_cred_grp |>
@@ -1226,7 +1231,6 @@ t_dacso_near_completers_ratiosageatgradcip4_ttrain_history <- near_completes_tot
 # ---- Clean Up ----
 # TODO: clean up this section
 tables_to_keep <- c(
-  "credential_non_dup",
   "t_dacso_near_completers_ratio_by_gender_year",
   "t_dacso_near_completers_ratio_by_gender",
   "t_dacso_nearcompleters_ratioageatgradcip4",
@@ -1244,7 +1248,7 @@ write_table_to_db <- function(table_name, schema, con) {
   )
 }
 
-walk(tables_to_keep, write_table_to_db, schema = my_schema, con = decimal_con)
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
 
