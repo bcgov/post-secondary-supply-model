@@ -12,3 +12,5 @@ R/test-sql-r-comparison.r
 sql/pssm-refactor01-code-review.txt
 sql/test_refactor.sql
 .github/copilot-instructions.md
+tmp/input-data.csv
+tmp/output.csv
