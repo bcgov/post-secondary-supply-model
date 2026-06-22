@@ -10,6 +10,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
+library(tidyverse)
+library(RODBC)
+library(config)
+library(DBI)
+library(assertthat)
+
+
+# ---- Configure LAN and file paths ----
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
+db_schema <- config::get("dbschema")
+
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 # these should now be in the R environment
 required_tables <- c(
   "population_projections",
@@ -174,7 +196,7 @@ f_graduates <- f_graduates_t %>%
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
 T_DACSO_Near_Completers_RatioByGender <- dbReadTable(
-  decimal_con,
+  con,
   "T_DACSO_Near_Completers_RatioByGender"
 ) %>%
   janitor::clean_names("all_caps") %>%
@@ -269,7 +291,7 @@ f_graduates_agg <- f_graduates %>%
 
 
 # ---- Graduate Projections for Apprenticeship ----
-APPSO_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM APPSO_Graduates")
+APPSO_Graduates <- dbGetQuery(con, "SELECT * FROM APPSO_Graduates")
 
 appso_2_yr_avg <- APPSO_Graduates %>%
   mutate(YEAR = str_replace(SUBM_CD, "C_Outc", "20")) %>%
@@ -300,18 +322,9 @@ f_graduates_agg <- f_graduates_agg %>%
 #   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
 #   fill(GRADUATES)
 
-# SAVE TO SQL DATABASE ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."Graduate_Projections"')),
-  f_graduates_agg,
-  overwrite = TRUE
-)
-
-
 # ---- Graduate Projections for Trades ----
 # TODO: add in trades to Graduate Projections (above) and project same as APPSO.
-TRD_Graduates <- dbGetQuery(decimal_con, "SELECT * FROM TRD_Graduates")
+TRD_Graduates <- dbGetQuery(con, "SELECT * FROM TRD_Graduates")
 
 # ----------  Historical Outputs ----------
 # This is new work introduced last year.  It was not part of the original model; I don't know if we need to keep it.
@@ -362,7 +375,7 @@ historical_forecasted_grad_creds <-
 # could in theory go farther, just easier right now to stay at 2019
 # preprocess nc data before joining with graduates
 T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(
-  decimal_con,
+  con,
   "T_DACSO_Near_Completers_RatioByGender_year"
 ) %>%
   janitor::clean_names("all_caps") %>%
@@ -521,12 +534,34 @@ hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>%
 #   group_by(PSSM_CREDENTIAL, AGE_GROUP) %>%
 #   fill(GRADUATES)
 
-# SAVE Historical ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue(
-    '"{my_schema}"."Graduate_Projections_Include_Historical"'
-  )),
-  hf_grad_nc_appso_agg,
-  overwrite = TRUE
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+# ---- Clean Up ----
+
+Graduate_Projections <- f_graduates_agg
+Graduate_Projections_Include_Historical <- hf_grad_nc_appso_agg
+
+tables_to_keep <- c(
+  "Graduate_Projections_Include_Historical",
+  "Graduate_Projections"
 )
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)

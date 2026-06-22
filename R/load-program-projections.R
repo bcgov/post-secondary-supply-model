@@ -25,7 +25,7 @@ my_schema <- config::get("myschema")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -106,12 +106,12 @@ if (regular_run == T | ptib_run == T) {
 
   # ---- Build tbl_Program_Projection_Input ----
   tbl_credential_highest_rank <- dbReadTable(
-    decimal_con,
+    con,
     SQL(glue::glue('"{my_schema}"."tbl_credential_highest_rank_r"'))
   )
 
   credential_non_dup <- dbReadTable(
-    decimal_con,
+    con,
     SQL(glue::glue('"{my_schema}"."credential_non_dup_r"'))
   )
 
@@ -182,7 +182,7 @@ if (regular_run == T | ptib_run == T) {
 
   qry_private_credentials_06d1_cohort_dist <-
     dbReadTable(
-      decimal_con,
+      con,
       SQL(glue::glue(
         '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist_r"'
       ))
@@ -192,7 +192,7 @@ if (regular_run == T | ptib_run == T) {
 
   dacso_near_completers_ratios_age_at_grad_cip4_ttrain <-
     dbReadTable(
-      decimal_con,
+      con,
       SQL(glue::glue(
         '"{my_schema}"."T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_r"'
       ))
@@ -200,7 +200,7 @@ if (regular_run == T | ptib_run == T) {
     janitor::clean_names(case = "all_caps")
 
   t_cohorts_recoded <- dbReadTable(
-    decimal_con,
+    con,
     SQL(glue::glue(
       '"{my_schema}"."T_Cohorts_Recoded_r"'
     ))
@@ -275,6 +275,37 @@ infoware_l_cip_6digits_cip2016 <- readr::read_csv(
   )
 )
 
-# ---- Disconnect and Clean Up ----
-dbDisconnect(decimal_con)
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+tables_to_keep <- c(
+  # keep all tables that were read into this script via read_csv
+  "t_cohort_program_distributions_y2_to_y12",
+  "t_appr_y2_to_y10",
+  "tbl_age_groups_near_completers",
+  "tbl_age_groups",
+  "t_pssm_projection_cred_grp",
+  "t_weights_stp",
+  "agegrouplookup",
+  "tbl_program_projection_input",
+  "cohort_program_distributions_projected",
+  "cohort_program_distributions_static"
+)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 gc()

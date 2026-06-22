@@ -51,7 +51,7 @@ library(DBI)
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -59,43 +59,20 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# t_cohorts_recoded <- tibble(dbReadTable(
-#   decimal_con,
-#   SQL(glue::glue('"{my_schema}"."T_Cohorts_Recoded"'))
-# ))
-#
+
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-))
-#
-# t_current_region_pssm_codes <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
-# t_current_region_pssm_rollup_codes <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
-# t_noc_broad_categories <-
-#   readr::read_csv(
-#     glue::glue(
-#       "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
-#     ),
-#     col_types = cols(.default = col_guess())
-#   ) %>%
-#   janitor::clean_names(case = "all_caps")
-#
+  con,
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"'))
+)) |>
+  # not sure which one this should be but this matches what is in the SQL table
+  mutate(
+    SURVEY = if_else(
+      SURVEY == "2021 Census PSSM 2022-2023",
+      "2021 Census PSSM 2023-2024",
+      SURVEY
+    )
+  )
+
 # -------------------------- Required Tables -----------------------------------------
 
 required_tables <- c(
@@ -1110,9 +1087,72 @@ labour_supply_distribution <- labour_supply_distribution %>%
       )
   )
 
-# ---- Clean Up ----
 
-# ---- Keep ----
+# ------  create distribution for pdeg/law distribution ------
+# These queries calculate New Labour Supply Distribution for Law/PDEG
+labour_supply_distribution <- labour_supply_distribution |>
+  filter(
+    !(str_starts(Survey, '2021 Census') & # upper case SURVEY
+      PSSM_CREDENTIAL == "PDEG" &
+      str_starts(LCP4_CD, "07"))
+  ) #6459 records kept
+
+labour_supply_distribution_pdeg <- labour_supply_distribution |>
+  filter(
+    PSSM_CREDENTIAL == "BACH",
+    str_starts(LCP4_CD, "22"),
+    str_starts(Survey, "Student Outcomes")
+  )
+
+group_vars <- c(
+  "Survey",
+  "TTRAIN",
+  "AGE_GROUP_ROLLUP"
+)
+
+# ---- dacso_q010d2_nls_pdeg_07_count ----
+dacso_q010d5 <- labour_supply_distribution_pdeg |>
+  group_by(across(all_of(c(group_vars, "CURRENT_REGION_PSSM_CODE_ROLLUP")))) |>
+  summarize(
+    COUNT = sum(COUNT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(
+    labour_supply_distribution_pdeg |>
+      distinct(across(all_of(c(group_vars, "TOTAL")))) |>
+      group_by(across(all_of(group_vars))) |>
+      summarize(
+        TOTAL = sum(TOTAL, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = group_vars
+  ) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_CREDENTIAL = "PDEG",
+    PSSM_CRED = "PDEG",
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD = "07",
+    TTRAIN,
+    LCIP4_CRED = "07 - PDEG",
+    LCIP2_CRED = NA_character_,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply = if_else(is.na(COUNT), 0, COUNT / TOTAL)
+  )
+
+labour_supply_distribution <- labour_supply_distribution |>
+  rbind(dacso_q010d5)
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 tables_to_keep <- c(
   "labour_supply_distribution",
   "labour_supply_distribution_no_tt",
@@ -1124,10 +1164,18 @@ tables_to_keep <- c(
   "tmp_tbl_weights_nls",
   "t_noc_broad_categories",
   "appso_graduates",
-  "t_cohorts_recoded",
   "t_dacso_data_part_1",
   "trd_graduates"
 )
 
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
 
-rm(list = setdiff(ls(), tables_to_keep))
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)

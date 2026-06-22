@@ -31,11 +31,17 @@ library(config)
 library(DBI)
 library(odbc)
 
-# ---- Configure SQL Server Connection ----
+regular_run <- T
+qi_run <- F
+ptib_run <- T
+
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
+
 my_schema <- config::get("myschema")
 
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -43,16 +49,16 @@ decimal_con <- dbConnect(
   Trusted_Connection = "True"
 )
 
+lan <- config::get("lan")
+
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
+
 # ---- Read T_BGS_Data_Final from SQL Server ----
 t_bgs_data_final_for_outcomesmatching <- dbReadTable(
-  decimal_con,
-  Id(schema = my_schema, table = "t_bgs_data_final_for_outcomesmatching")
+  con,
+  Id(schema = my_schema, table = "t_bgs_data_final_for_outcomesmatching_r")
 )
-
-dbDisconnect(decimal_con)
-
-# ---- Configure LAN and file paths ----
-lan <- config::get("lan")
 
 # ---- Read LAN Data ----
 # Lookups
@@ -135,5 +141,32 @@ if (regular_run == T | ptib_run == T) {
     select(-c(CUR_RES, REGION_CD, CURRENT_REGION))
 }
 
-# ---- Clean Up ----
-rm(bgs_data_update, tmp_bgs_inst_cds)
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+tables_to_keep <- c(
+  "t_bgs_data_final",
+  "t_bgs_data_final_for_outcomesmatching",
+  "t_weights",
+  "t_bgs_inst_recode" #,
+  #"tmp_bgs_inst_cds"
+)
+
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)

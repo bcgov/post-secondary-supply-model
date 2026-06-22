@@ -10,15 +10,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
+# ---- Connection to decimal ----
+library(tidyverse)
+library(config)
+library(DBI)
+library(odbc)
+
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
+
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 # ---- Check Required Tables etc. ----
 required_tables <- c(
-  'T_PTIB_Y1_to_Y10',
-  'cpd_proj',
-  'cpd_static',
-  'INFOWARE_L_CIP_6DIGITS_CIP2016',
-  'grad_proj',
-  'ptib_data',
-  'pssm_cred_grps'
+  't_ptib_y1_to_y10',
+  'infoware_l_cip_6digits_cip2016',
+  't_private_institutions_credentials',
+  't_pssm_credential_grouping'
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -35,10 +49,10 @@ na_vals <- c("", " ", "(Unspecified)", NA) #this should be updated?
 # Part 1 ----
 
 ## ---- Add PSSM_Credential to PTIB data ----
-t_private_institutions_credentials <- ptib_data |>
+t_private_institutions_credentials <- t_private_institutions_credentials |>
   filter(credential != "None") |>
   inner_join(
-    pssm_cred_grps |>
+    t_pssm_credential_grouping |>
       select("PRGM_CREDENTIAL_AWARDED_NAME", "PSSM_CREDENTIAL") |>
       filter(!is.na(PSSM_CREDENTIAL)),
     by = c("credential" = "PRGM_CREDENTIAL_AWARDED_NAME")
@@ -84,7 +98,7 @@ t_private_institutions_credentials |>
 t_private_institutions_credentials |>
   select(LCIP_CD) |>
   left_join(
-    INFOWARE_L_CIP_6DIGITS_CIP2016 |>
+    infoware_l_cip_6digits_cip2016 |>
       mutate(exists = "yes") |>
       select(LCIP_CD, exists),
     by = c("LCIP_CD" = "LCIP_CD")
@@ -95,7 +109,7 @@ t_private_institutions_credentials |>
 # Exclude not for credit and ESL programs and unclassified 99.9999 manually with “Exclude=1”
 t_private_institutions_credentials <- t_private_institutions_credentials |>
   left_join(
-    INFOWARE_L_CIP_6DIGITS_CIP2016 |> distinct(LCIP_CD, LCIP_NAME),
+    infoware_l_cip_6digits_cip2016 |> distinct(LCIP_CD, LCIP_NAME),
     by = "LCIP_CD"
   ) |>
   mutate(
@@ -184,7 +198,7 @@ qry_Private_Credentials_05i_Grads <- private_credentials_summary |>
 
 qry_Private_Credentials_05i1_Grads_by_Year <- qry_Private_Credentials_05i_Grads |>
   inner_join(
-    T_PTIB_Y1_to_Y10,
+    t_ptib_y1_to_y10,
     by = c("Year" = "Y1"),
     relationship = "many-to-many"
   ) |>
@@ -256,18 +270,29 @@ qry_Private_Credentials_06d1_Cohort_Dist <- qry_Private_Credentials_06d1_Cohort_
 #   filter(Survey!="PTIB") |>
 #   rbind(qry_Private_Credentials_06d1_Cohort_Dist)
 
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 # Clean up ----
 tables_to_keep <- c(
-  "cpd_static",
-  "cpd_proj",
   "qry_Private_Credentials_06d1_Cohort_Dist",
   "qry_Private_Credentials_05i1_Grads_by_Year",
-  "Graduate_Projections_PTIB"
+  "qry_Private_Credentials_05i_Grads"
 )
 
-dbWriteTable(
-  decimal_con,
-  SQL(glue::glue('"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist"')),
-  qry_Private_Credentials_06d1_Cohort_Dist,
-  overwrite = TRUE
-)
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)

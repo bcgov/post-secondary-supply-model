@@ -24,7 +24,7 @@ db_schema <- config::get("dbschema")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -44,45 +44,42 @@ population_projections <- readr::read_csv(
 ) %>%
   janitor::clean_names(case = "all_caps")
 
-# ---- Read data from decimal  ----
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
-  ),
-  msg = "Import qry09c_MinEnrolment; from dbschema or run 01e-stp-distributions.R before continuing."
-)
-
-# this fails but I can still draw from dbo
-assert_that(
-  dbExistsTable(
-    decimal_con,
-    SQL(glue::glue(
-      '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
-    ))
-  ),
-  msg = "Import table 'Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs' from dbschema or run 01e-stp-distributions.R before continuing."
-)
-
-population_projections <- dbReadTable(decimal_con, "population_projections")
-
 min_enrolments <- dbReadTable(
-  decimal_con,
+  con,
   SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
 )
+
 credentials <- dbReadTable(
-  decimal_con,
+  con,
   SQL(glue::glue(
     '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
   ))
 )
 
-# ---- Write to decimal ----
-dbWriteTable(
-  decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."population_projections"')),
-  population_projections
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
+tables_to_keep <- c(
+  "population_projections"
 )
 
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+
 # ---- Disconnect ----
-dbDisconnect(decimal_con)
+dbDisconnect(con)

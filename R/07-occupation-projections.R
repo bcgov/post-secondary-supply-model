@@ -31,7 +31,6 @@
 #	  - T_Exclude_from_Projections_LCP4_CD
 #	  - T_Exclude_from_Projections_PSSM_Credential
 #
-
 # Fixes To do: some of the CIP2 variable names are missing an "I" in the Labour_Supply_Distribution datasets.
 
 # ------------------------  libraries and global variables ------------------------
@@ -43,6 +42,9 @@ library(glue)
 library(assertthat)
 
 model <- "static" # toogle between static and projected models
+ptib_run <- T
+regular_run <- T
+qi_run <- F
 
 # toggle static or projected.
 if (model == "static") {
@@ -102,14 +104,6 @@ for (table_name in required_tables) {
     )
   )
 }
-
-# # compare all required tables to SQL versions
-# for (table_name in required_tables) {
-#   print(glue("Comparing {table_name} to SQL version..."))
-#   res <- compare(table_name, base::get(table_name))
-#   cat("\n\n\n")
-# }
-
 
 
 # --------------------   implement checks --------------------------
@@ -212,7 +206,7 @@ if (ptib_run == TRUE) {
 # dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
 # run distinct here to remove duplicates in case you 
 # grabbed the dbo version of graduate_projections (development only).
-q_1_grad_projections_by_age_by_program2 <- graduate_projections |>
+q_1_grad_projections_by_age_by_program <- graduate_projections |>
   distinct(PSSM_CRED, AGE_GROUP, YEAR, GRADUATES) |>
   inner_join(
     cohort_program_distributions,
@@ -610,7 +604,7 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x,
+    TTRAIN = TTRAIN, # just TTRAIN?
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
@@ -934,7 +928,7 @@ q_3d3_occupations_unknown_lcp2_private_cred_proxy <- q_3d24_occupations_unknown 
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x,
+    TTRAIN = TTRAIN.x, # just TTRAIN?
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,

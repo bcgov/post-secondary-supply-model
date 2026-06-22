@@ -44,7 +44,7 @@ my_schema <- config::get("myschema")
 
 # ----Connection to database ----
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -55,9 +55,17 @@ decimal_con <- dbConnect(
 # -------------------------- Required Tables -----------------------------------------
 # move this into load scripts?
 occupation_distributions_stat_can <- dbReadTable(
-  decimal_con,
-  SQL(glue::glue('"Occupation_Distributions_Stat_Can"'))
-)
+  con,
+  SQL(glue::glue('"Occupation_Distributions_Stat_Can_r"'))
+) |>
+  # not sure which one this should be but this matches what is in the SQL table
+  mutate(
+    SURVEY = if_else(
+      SURVEY == "2021 Census PSSM 2022-2023",
+      "2021 Census PSSM 2023-2024",
+      SURVEY
+    )
+  )
 
 # List of required tables
 required_tables <- c(
@@ -873,12 +881,61 @@ occupation_distributions_no_tt <- dacso_q009_weight_occs |>
 
 # ------  create distribution for pdeg/law distribution ------
 # These queries calculate New Labour Supply Distribution for Law/PDEG
-# TODO: Move to 02b-2 and rewrite in tidyverse.
-dbExecute(decimal_con, DACSO_Q010d2_NLS_PDEG_07_Count)
-dbExecute(decimal_con, DACSO_Q010d3_NLS_PDEG_07_Subtotal)
-dbExecute(decimal_con, DACSO_Q010d4_NLS_PDEG_07_Total)
-dbExecute(decimal_con, DACSO_Q010d5_NLS_PDEG_07_Weighted_New_Labour_Supply)
-dbExecute(decimal_con, DACSO_Q010d6_Append_NLS_PDEG_07_New_Labour_Supply)
+# TODO: Move to 02b-2
+labour_supply_distribution <- labour_supply_distribution |>
+  filter(
+    !(str_starts(Survey, '2021 Census') & # upper case SURVEY
+      PSSM_CREDENTIAL == "PDEG" &
+      str_starts(LCP4_CD, "07"))
+  ) #6459 records kept
+
+labour_supply_distribution_pdeg <- labour_supply_distribution |>
+  filter(
+    PSSM_CREDENTIAL == "BACH",
+    str_starts(LCP4_CD, "22"),
+    str_starts(Survey, "Student Outcomes")
+  )
+
+group_vars <- c(
+  "Survey",
+  "TTRAIN",
+  "AGE_GROUP_ROLLUP"
+)
+
+# ---- dacso_q010d2_nls_pdeg_07_count ----
+dacso_q010d5 <- labour_supply_distribution_pdeg |>
+  group_by(across(all_of(c(group_vars, "CURRENT_REGION_PSSM_CODE_ROLLUP")))) |>
+  summarize(
+    COUNT = sum(COUNT, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(
+    labour_supply_distribution_pdeg |>
+      distinct(across(all_of(c(group_vars, "TOTAL")))) |>
+      group_by(across(all_of(group_vars))) |>
+      summarize(
+        TOTAL = sum(TOTAL, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = group_vars
+  ) |>
+  transmute(
+    Survey = "Student Outcomes",
+    PSSM_CREDENTIAL = "PDEG",
+    PSSM_CRED = "PDEG",
+    CURRENT_REGION_PSSM_CODE_ROLLUP,
+    AGE_GROUP_ROLLUP,
+    LCP4_CD = "07",
+    TTRAIN,
+    LCIP4_CRED = "07 - PDEG",
+    LCIP2_CRED = NA_character_,
+    COUNT,
+    TOTAL,
+    New_Labour_Supply = if_else(is.na(COUNT), 0, COUNT / TOTAL)
+  )
+
+labour_supply_distribution <- labour_supply_distribution |>
+  rbind(dacso_q010d5)
 
 # ---- Calculate Occupational Distribution for Law/PDEG
 # Collapse the following 4 queries into one for readability.
@@ -920,7 +977,7 @@ dacso_q010e4_weighted_occs_dist_pdeg_07 <- occupation_distributions_pdeg |>
     by = group_vars
   ) |>
   transmute(
-    Survey,
+    Survey = "Student Outcomes",
     PSSM_Credential = "PDEG",
     PSSM_CRED = "PDEG",
     LCP4_CD = "07",
@@ -974,29 +1031,38 @@ if (regular_run == TRUE) {
 # in the Public Release above?
 # Definitely a TODO to check that it makes sense to include here
 occupation_distributions <- occupation_distributions |>
+  rename_with(toupper) # make upper case to match the stats can data
+
+occupation_distributions <- occupation_distributions |>
   rbind(
     occupation_distributions_stat_can |>
       transmute(
-        Survey = "2021 Census PSSM 2023-2024",
-        PSSM_Credential,
+        SURVEY = "2021 Census PSSM 2023-2024",
+        PSSM_CREDENTIAL = PSSM_CREDENTIAL,
         PSSM_CRED,
         LCP4_CD,
         TTRAIN,
         LCIP4_CRED,
         LCIP2_CRED,
         NOC,
-        Current_Region_PSSM_Code_Rollup,
-        Age_Group_Rollup,
-        Count,
-        Total,
-        Percent
+        CURRENT_REGION_PSSM_CODE_ROLLUP,
+        AGE_GROUP_ROLLUP,
+        COUNT,
+        TOTAL,
+        PERCENT
       )
   )
 
-# ---- Clean Up ----
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all other objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 
-# ---- Keep ----
 tables_to_keep <- c(
+  "labour_supply_distribution",
   "occupation_distributions",
   "occupation_distributions_no_tt",
   "occupation_distributions_lcp2",
@@ -1004,6 +1070,15 @@ tables_to_keep <- c(
   "occupation_distributions_lcp2_bc",
   "occupation_distributions_lcp2_bc_no_tt"
 )
-rm(list = setdiff(ls(), tables_to_keep))
 
-dbDisconnect(decimal_con)
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    base::get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
