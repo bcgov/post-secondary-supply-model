@@ -40,7 +40,7 @@ my_schema <- config::get("myschema")
 db_schema <- config::get("dbschema")
 
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(
+con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
@@ -239,38 +239,38 @@ names(tmp_tbl_age_append_new_years) <- tolower(names(
 # ---- Read Required Data from decimal ----
 # running 03 script adds extra columns so I need to drop them each time I test.
 # dbExecute(
-#   decimal_con,
+#   con,
 #   SQL(glue::glue(
 #     'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
 #   ))
 # )
 # dbExecute(
-#   decimal_con,
+#   con,
 #   SQL(glue::glue(
 #     'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
 #   ))
 # )
 
 t_dacso_data_part_1 <- dbReadTable(
-  decimal_con,
+  con,
   SQL(glue::glue('"{my_schema}"."t_dacso_data_part_1_r"'))
 ) |>
   rename_with(tolower) |>
   mutate(coci_pen = as.character(coci_pen))
 
 credential_non_dup <- dbReadTable(
-  decimal_con,
+  con,
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"'))
 ) |>
   rename_with(tolower)
 
 stp_credential <- dbReadTable(
-  decimal_con,
+  con,
   SQL(glue::glue('"{my_schema}"."STP_Credential"'))
 )
 
 # ---- Clean up and disconnect ----
-dbDisconnect(decimal_con)
+dbDisconnect(con)
 gc()
 
 # Notes:
