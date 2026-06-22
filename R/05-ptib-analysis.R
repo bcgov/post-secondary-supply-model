@@ -11,8 +11,16 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # ---- Connection to decimal ----
+library(tidyverse)
+library(config)
+library(DBI)
+library(odbc)
+
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
+
 con <- dbConnect(
-  odbc(),
+  odbc::odbc(),
   Driver = db_config$driver,
   Server = db_config$server,
   Database = db_config$database,

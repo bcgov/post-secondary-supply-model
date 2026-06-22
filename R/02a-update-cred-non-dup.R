@@ -140,7 +140,7 @@ cred_non_dup <- cred_non_dup |>
   collect()
 
 
-dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs")
+dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs_r")
 dacso_cips <- dacso_cips |> rename_with(toupper)
 
 # Drop the empty CIP columns (just added by ALTER TABLE) before joining so the

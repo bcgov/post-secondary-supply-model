@@ -329,5 +329,6 @@ Cohort_Program_Distributions_history <-
 dbWriteTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_history"')),
-  Cohort_Program_Distributions_history
+  Cohort_Program_Distributions_history,
+  overwrite = TRUE
 )
