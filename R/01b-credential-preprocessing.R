@@ -15,8 +15,8 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-
-# ---- Configure LAN Paths and DB Connection -----
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 
@@ -28,24 +28,56 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
+## --------------------------------------Required Tables------------------------------------------
+# currently repurposing data from 2023 run.  When running next update, change this code to pull
+# from the original raw credential dataset and then untoggle the commented sections below to reformat dates,
+# and add an ID field.
+## -----------------------------------------------------------------------------------------------
 
-# ---- Check Required Tables etc. ----
-stp_credential <- dbReadTable(
+stp_credential <- dbGetQuery(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+  glue::glue(
+    'SELECT
+    CREDENTIAL_AWARD_DATE,
+    ENCRYPTED_TRUE_PEN,
+    ID,
+    PSI_CODE,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_CIP,
+    PSI_CREDENTIAL_LEVEL,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_FULL_NAME,
+    PSI_PEN,
+    PSI_PROGRAM_CODE,
+    PSI_PROGRAM_EFFECTIVE_DATE,
+    PSI_SCHOOL_YEAR,
+    PSI_STUDENT_NUMBER
+  FROM "{my_schema}"."STP_Credential"'
+  )
 )
 
+stp_enrolment_record_type <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
+)
 
-# These should be in the R environment already.  If not, toggle.
-#stp_enrolment_record_type <- dbReadTable(
-#  con,
-#  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
-#)
+stp_enrolment <- dbGetQuery(
+  con,
+  glue::glue(
+    'SELECT
+    ID,
+    PSI_CIP_CODE,
+    PSI_CODE,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_STUDY_LEVEL
+  FROM "{my_schema}"."stp_enrolment_r"'
+  )
+)
 
-#stp_enrolment <- dbReadTable(
-#  con,
-#  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
-#)
+## --------------------------------------Initial Data Checks--------------------------------------
+## reference: source("./sql/01-credential-preprocessing/01-credential-preprocessing-sql.R")
+## -----------------------------------------------------------------------------------------------
 
 stp_credential |>
   filter(
@@ -57,12 +89,10 @@ stp_credential |>
 
 stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
-
-# Add primary key: this may not be necessary but leaving for now
-stp_credential <- stp_credential |>
-  mutate(ID = row_number()) |>
-  relocate(ID, .before = CREDENTIAL_AWARD_DATE)
-
+# Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
+# stp_credential <- stp_credential |>
+#   mutate(ID = row_number()) |>
+#   relocate(ID, .before = CREDENTIAL_AWARD_DATE)
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 date_cols <- c(
@@ -96,7 +126,10 @@ stp_credential |> select(all_of(date_cols)) |> glimpse()
 #   )
 #   )
 
-# ---- Process by Record Type ----
+## --------------------------------------- Create Record Type Table -------------------------------
+# reference: source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")
+#
+# Create lookup table for ID/Record Status and populate with ID column and EPEN
 # Record Status codes:
 # 0 = Good
 # 1 = Missing Student Number
@@ -107,11 +140,19 @@ stp_credential |> select(all_of(date_cols)) |> glimpse()
 # 6 = Skills Based
 # 7 = Developmental CIP
 # 8 = Recommendation for Certification
+#
+# Notes:
+#   1. Cips list may be the same list as defined in enrolement processing
+# this could be defined in global file.
+#   2. Comment on record-type 7 - SQL version skipped qry03g2 which filters on specific
+# PSI_CODE and PSI_CREDENTIAL_PROGRAM_DESCRIPTION combinations. I Commented the code out (below)
+# to maintain alignment but also becuase we need more clarification on the rationale for these specific
+# filters. There may also be more exceptions to add (in previous years some manual checks were done, too).
+## ------------------------------------------------------------------------------------------------
 
-# ---- Create lookup table for ID/Record Status and populate with ID column and EPEN ----
-# Cips list may be the same list as defined in enrolement processing - we should move to a global file
 invalid_vals <- c("", " ", "(Unspecified)")
 dev_cips <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
+
 
 enrol_skills_lookup <- stp_enrolment |>
   # Join with enrolment record type to find the Status 6 records
@@ -146,14 +187,9 @@ stp_credential_record_type <- stp_credential |>
         (PSI_STUDENT_NUMBER %in% invalid_vals | PSI_CODE %in% invalid_vals) ~ 1,
       # --- Record Type 2 ---
       PSI_CREDENTIAL_LEVEL == "Developmental" ~ 2,
-
       # --- Record Type 6 ---
       is_skills_match == TRUE ~ 6,
-
       # --- Record Type 7 ---
-      # SQL version skipped qry03g2 which filters specific PSI_CODE and PSI_CREDENTIAL_PROGRAM_DESCRIPTION combinations.
-      # Commenting the code out here to maintain alignment but also becuase we need more clarification.
-      # There may also be more exceptions to add - in previous years some manual checks were done, too.
       (CIP2 %in% dev_cips) ~ 7, # &
       #!((PSI_CODE == "UVIC" &
       #  PSI_CREDENTIAL_PROGRAM_DESCRIPTION ==
@@ -167,7 +203,6 @@ stp_credential_record_type <- stp_credential |>
       #      "Underground Mining Essentials")) ~ 7,
       # --- Record Type 8 ---
       PSI_CREDENTIAL_CATEGORY == "Recommendation For Certification" ~ 8,
-
       # Default: leave other records as NA (or 0) for now
       TRUE ~ 0
     )
@@ -187,13 +222,22 @@ dbWriteTable(
 
 
 tables_to_keep <- c(
-  "stp_enrolment",
   "stp_credential",
-  "stp_enrolment_record_type",
-  "stp_credential_record_type",
-  "stp_enrolment_valid"
+  "stp_credential_record_type"
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+
+rm(list = ls())

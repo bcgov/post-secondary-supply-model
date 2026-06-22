@@ -15,10 +15,10 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-# ---- Configure LAN Paths and DB Connection -----
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-db_schema <- config::get("dbschema")
 
 con <- dbConnect(
   odbc(),
@@ -28,27 +28,23 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-## These should be in the R environment already.  If not, toggle.
+## --------------------------------------Required Tables------------------------------------------
+## -----------------------------------------------------------------------------------------------
 stp_enrolment <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment"'))
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
 )
 stp_credential <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
-)
-
-stp_enrolment_record_type <- dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Record_Type"'))
+  SQL(glue::glue('"{my_schema}"."stp_credential_r"'))
 )
 stp_credential_record_type <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_Record_Type"'))
+  SQL(glue::glue('"{my_schema}"."stp_credential_record_type_r"'))
 )
 stp_enrolment_valid <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Enrolment_Valid"'))
+  SQL(glue::glue('"{my_schema}"."stp_enrolment_valid_r"'))
 )
 
 # Define lookup tables
@@ -125,8 +121,11 @@ age_group_lookup <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# ---- Create a view with STP_Credential data with record_type == 0 and a non-blank award date ----
+## ---------------------------------------Credential View-----------------------------------------
+# Create a view with STP_Credential data with record_type == 0 and a non-blank award date
+# reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
 # qry00
+## -----------------------------------------------------------------------------------------------
 credential <- stp_credential |>
   inner_join(
     stp_credential_record_type |> select(ID, RecordStatus),
@@ -152,10 +151,11 @@ credential <- stp_credential |>
     RecordStatus
   )
 
-# -------------------------------------------------------------------------------------------------
-# ----------------------------- Make Credential Sup Vars Enrolment Table --------------------------------
-## reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
-# qry01 to qry05
+
+# ----------------------------- Make Credential Sup Vars Enrolment Table -------------------------
+# reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
+# qry01 to qry12
+## -----------------------------------------------------------------------------------------------
 latest_enrolment_epen <- stp_enrolment_valid |>
   filter(
     !is.na(ENCRYPTED_TRUE_PEN),
@@ -197,7 +197,6 @@ cred_supvars_enrol_epen <- latest_enrolment_epen |>
 
 # Match via PSI_CODE/Student Number to recover records missed by PEN join.
 # Misses may also occur due to temporal mismatches or students lacking "Valid" enrolment status.
-#qry06 to qry12
 latest_enrolment_no_epen <- stp_enrolment_valid |>
   filter(
     is.na(ENCRYPTED_TRUE_PEN) |
@@ -242,11 +241,10 @@ credential_supvars_enrolment <- rbind(
 ) |>
   distinct()
 
-# -------------------------------------------------------------------------------------------------
-
-# -------------------------------------------------------------------------------------------------
-# ---- Make Credential Sup Vars Table ----
-# this gets added to later
+# ----------------------------- Make Credential Sup Vars Table -----------------------------------
+# reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
+# qry0?
+## -----------------------------------------------------------------------------------------------
 credential_supvars <- credential |>
   select(
     ID,
@@ -299,8 +297,9 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
   )
 
 
-# ---- 02 Developmental Records ----
-# add a drop credential flag, presumably for later use
+## ----------------------------02 Developmental Records-------------------------------------------
+# add a drop credential flag
+## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
@@ -320,7 +319,8 @@ stp_credential_record_type <-
   )
 
 
-# ---- 03 Miscellaneous ----
+## ---------------------------------------- 03 Miscellaneous -------------------------------------
+## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   credential_supvars |>
   filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
@@ -336,153 +336,18 @@ rm(
 )
 gc()
 
-# ---- 03 Gender Cleaning ----
-# !! Commenting out this entire section, instead run the gender_cleaning.r script
-# !! That gender_cleaning.r script reproduces the SQL counts, with the exception of a very few Unknowns.
-# let's not push the script to gh yet, clean it up first.
+## ---------------------------------------- 03 Gender Cleaning -----------------------------------
+# !! Entire section is replaced with the gender_cleaning.r script
+## -----------------------------------------------------------------------------------------------
 
-na_vals <- c("U", "Unknown", "(Unspecified)", "", " ", NA_character_)
+source("R/01c-gender-cleaning.r")
 
-source("R/gender_cleaning.r")
-
-# Performs a targeted data recovery for missing gender information.
-# Essentially, identify students with missing gender values and
-# attempt to "backfill" them using their most recent valid record from a lookup table.
-# There are two passes:
-#     1. looks for most recent gender record from credential_supvars_enrolment
-#     2. looks for most recent gender record from stp_enrolment
-# within each pass, the data is placed into buckets based on whether ENCRYPTED_TRUE_PEN is available or not
-# note: the "not" bucket hasn"t been implemented yet for pass 1, in order to keep in alignment with the SQL environment
-# also, this strategy assumes that the most recent record is the most accurate, which may not always be the case.
-# we could use a more sophisticated approach if needed, such as considering multiple records or averaging values.
-
-# First pass: find genders from credential_supvars_enrolment
-#missing_gender <- credential_supvars |>
-#  distinct(
-#    ENCRYPTED_TRUE_PEN,
-#    PSI_STUDENT_NUMBER,
-#    PSI_CODE
-#  )
-#
-#src_gender_lookup <- credential_supvars_enrolment |>
-#  filter(!PSI_GENDER %in% na_vals) |>
-#  distinct(
-#    ENCRYPTED_TRUE_PEN,
-#    PSI_STUDENT_NUMBER,
-#    PSI_CODE,
-#    PSI_GENDER,
-#    PSI_ENROLMENT_SEQUENCE,
-#    PSI_SCHOOL_YEAR
-#  )
-#
-## implementing only the EPEN bucket for now
-#epen_missing_gender <- missing_gender |>
-#  filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
-#  inner_join(
-#    src_gender_lookup |>
-#      filter(!ENCRYPTED_TRUE_PEN %in% na_vals),
-#    by = c("ENCRYPTED_TRUE_PEN")
-#  ) |>
-#  group_by(ENCRYPTED_TRUE_PEN) |>
-#  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
-#  slice(1) |>
-#  ungroup() |>
-#  select(ENCRYPTED_TRUE_PEN, psi_gender_cleaned = PSI_GENDER) |>
-#  distinct()
-#
-## add recovered genders to credential_supvars
-#credential_supvars <- credential_supvars |>
-#  left_join(
-#    epen_missing_gender |>
-#      select(
-#        ENCRYPTED_TRUE_PEN,
-#        psi_gender_cleaned
-#      ),
-#    suffix = c("", "_y"),
-#    # Safety distinct to ensure no row duplication (similar to group_by..slice(1))
-#    distinct(ENCRYPTED_TRUE_PEN, .keep_all = TRUE),
-#    by = "ENCRYPTED_TRUE_PEN"
-#  )
-#
-## Second pass: find genders from stp_enrolment for those still missing
-#still_missing_gender <- credential_supvars |>
-#  filter(psi_gender_cleaned %in% na_vals) |> # Select initial subset of columns
-#  distinct(
-#    ENCRYPTED_TRUE_PEN,
-#    PSI_STUDENT_NUMBER,
-#    PSI_CODE
-#  )
-#
-#src_gender_lookup <- stp_enrolment |>
-#  filter(!PSI_GENDER %in% na_vals) |>
-#  distinct(
-#    ENCRYPTED_TRUE_PEN,
-#    PSI_STUDENT_NUMBER,
-#    PSI_CODE,
-#    PSI_GENDER,
-#    PSI_ENROLMENT_SEQUENCE,
-#    PSI_SCHOOL_YEAR
-#  )
-#
-## implementing both buckets this time
-## 1. EPEN bucket
-#epen_still_missing_gender <- still_missing_gender |>
-#  filter(!ENCRYPTED_TRUE_PEN %in% na_vals) |>
-#  inner_join(
-#    src_gender_lookup |>
-#      filter(!ENCRYPTED_TRUE_PEN %in% na_vals),
-#    by = c("ENCRYPTED_TRUE_PEN")
-#  ) |>
-#  group_by(ENCRYPTED_TRUE_PEN) |>
-#  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
-#  slice(1) |>
-#  ungroup() |>
-#  select(ENCRYPTED_TRUE_PEN, GENDER_FROM_STP_ENROLMENT = PSI_GENDER) |>
-#  distinct()
-#
-## 2. No EPEN bucket
-#no_epen_still_missing_gender <- still_missing_gender |>
-#  filter(ENCRYPTED_TRUE_PEN %in% na_vals) |>
-#  inner_join(
-#    src_gender_lookup |>
-#      filter(ENCRYPTED_TRUE_PEN %in% na_vals),
-#    by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
-#  ) |>
-#  group_by(PSI_STUDENT_NUMBER, PSI_CODE) |>
-#  arrange(desc(PSI_SCHOOL_YEAR), desc(PSI_ENROLMENT_SEQUENCE)) |>
-#  slice(1) |>
-#  ungroup() |>
-#  select(
-#    PSI_STUDENT_NUMBER,
-#    PSI_CODE,
-#    GENDER_FROM_STP_ENROLMENT = PSI_GENDER
-#  ) |>
-#  distinct()
-#
-## add recovered genders back to credential_supvars
-#credential_supvars <- credential_supvars |>
-#  left_join(
-#    epen_still_missing_gender,
-#    by = "ENCRYPTED_TRUE_PEN"
-#  ) |>
-#  left_join(
-#    no_epen_still_missing_gender,
-#    by = c("PSI_STUDENT_NUMBER", "PSI_CODE")
-#  ) |>
-#  mutate(
-#    psi_gender_cleaned = coalesce(
-#      # use lower case to align with SQL versions
-#      psi_gender_cleaned,
-#      GENDER_FROM_STP_ENROLMENT.x,
-#      GENDER_FROM_STP_ENROLMENT.y
-#    )
-#  ) |>
-#  select(-GENDER_FROM_STP_ENROLMENT.x, -GENDER_FROM_STP_ENROLMENT.y)
-
-# ---- 04 Birthdate cleaning (last seen birthdate) ----
+## --------------------------------04 Birthdate cleaning (last seen birthdate)--------------------
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
 # note: a handful out but I think the R version is handling the coalesce correctly.
 # we're only adding LAST_SEEN_BIRTHDATE for valid epens. Can we add for invalid EPENS?
+## -----------------------------------------------------------------------------------------------
+
 na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 
 credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
@@ -594,7 +459,9 @@ credential <- stp_credential |>
     is.na(DropPartialYear)
   )
 
-# ---- 05 Age and Credential  ----
+
+## -----------------------------------05 Age and Credential---------------------------------------
+## -----------------------------------------------------------------------------------------------
 credential <- credential |>
   mutate(
     AGE_AT_GRAD = as.integer(floor(
@@ -649,7 +516,9 @@ credential <- credential |>
   select(-PSI_GENDER_FROM_ENROLMENT)
 
 
-# --- make non dup table ----
+## ------------------------------------- make non dup table --------------------------------------
+## -----------------------------------------------------------------------------------------------
+
 credential_non_dup <- credential |>
   group_by(
     ENCRYPTED_TRUE_PEN,
@@ -672,11 +541,12 @@ credential_non_dup <- credential_non_dup |>
   ungroup()
 
 
-# ---- Impute Missing Gender ----
+## ----------------------------------Impute Missing Gender----------------------------------------
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
 # It calculates the existing gender distribution for each credential category and then
 # uses those ratios as weights to "flip a coin" for every empty record
 # ensuring the final dataset maintains the same statistical balance as the known population.
+## -----------------------------------------------------------------------------------------------
 
 # 1. Create the probability weights per category
 gender_weights <- credential_non_dup |>
@@ -707,26 +577,16 @@ credential_non_dup <- credential_non_dup |>
   select(-genders, -weights)
 
 rm(
-  cred_supvars_enrol_epen,
-  cred_supvars_enrol_no_pen,
   credential_supvars_birthdate_clean,
-  epen_missing_gender,
-  epen_still_missing_gender,
-  gender_weights,
-  latest_enrolment_epen,
-  latest_enrolment_no_epen,
-  missing_gender,
-  no_epen_still_missing_gender,
-  src_gender_lookup,
-  still_missing_gender
+  gender_weights
 )
 
-
-# ---- 08 Credential Ranking ----
+## ---------------------------------08 Credential Ranking-----------------------------------------
 # The R version produces similar results to SQL.  Some differences noted
 # in how SQL and R handle tie-breaking leads to different row flags (HIGHEST_CRED_BY_DATE/RANK)
 # for a handful of records, in almost all cases this is because two credentials of same rank are assigned on the same date
 # This will hopefully have minimal impact on overall results.
+## -----------------------------------------------------------------------------------------------
 
 base_data <- credential_non_dup |>
   left_join(credential_rank, by = c("PSI_CREDENTIAL_CATEGORY"))
@@ -788,7 +648,8 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-RANK)
 
-# ---- 09 Age Gender Distributions ---
+## ------------------------09 Age Gender Distributions--------------------------------------------
+## -----------------------------------------------------------------------------------------------
 age_weights <- credential_non_dup |>
   filter(
     !is.na(AGE_GROUP_AT_GRAD),
@@ -880,8 +741,8 @@ credential_non_dup <- credential_non_dup |>
   mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-
-# ---- VISA Status ----
+## ----------------------------------VISA Status--------------------------------------------------
+## -----------------------------------------------------------------------------------------------
 cols_specific <- c(
   "ENCRYPTED_TRUE_PEN",
   "PSI_CODE",
@@ -955,6 +816,8 @@ credential_non_dup <- credential_non_dup |>
   )
 
 # ---- 13 Delay Date and Highest rank----
+## -----------------------13 Delay Date and Highest rank------------------------------------------
+## -----------------------------------------------------------------------------------------------
 credential_non_dup <- credential_non_dup |>
   mutate(
     CONCATENATED_ID = if_else(
@@ -1110,32 +973,55 @@ tryCatch(
     stop("Error writing tables to database: ", e$message)
   }
 )
+## --------------------14-15 research University + Outcomes Credential----------------------------
+# Notes: this currently updates credential_non_dup but I think we need these variables added to
+# tbl_credential_highest_rank, as well.
+## -----------------------------------------------------------------------------------------------
+research_universities <- c("SFU", "UBC", "UBCV", "UBCO", "UNBC", "UVIC", "RRU")
+credential_non_dup <- credential_non_dup |>
+  mutate(
+    RESEARCH_UNIVERSITY = if_else(
+      PSI_CODE %in% research_universities,
+      1L,
+      NA_integer_
+    )
+  )
 
+
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
 
 # refine as needed
 tables_to_keep <- c(
-  "stp_enrolment",
-  "stp_credential",
-  "stp_enrolment_record_type",
   "stp_credential_record_type",
-  "stp_enrolment_valid",
   "age_group_lookup",
-  "credential_rank",
   "credential",
   "credential_non_dup",
-  "credential_sup_vars",
+  "credential_supvars",
+  "credential_supvars_enrolment",
   "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect",
-  "outcome_credential",
-  "con",
-  "db_config",
-  "my_schema",
-  "db_schema"
+  "tbl_credential_delay_effect"
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+
+dbDisconnect(con)
+
+rm(list = ls())
 
 # ---- Break and do Program Matching ----
-
-# ---- Clean Up ----
-dbDisconnect(con)

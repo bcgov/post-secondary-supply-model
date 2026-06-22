@@ -10,66 +10,295 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# Create APPSO CIP records 
-# Description: 
-# Relies on:
-#   - credential_non_dup, 
-#   - infoware CIP tables 
-# Creates updated list of IDS with appropriate extra CIP columns for APPSO records
-# Uses the same queries as the BGS/GRAD CIP matching 
+# Notes
+# -----
+# - This script assumes the source tables already exist in the database.
+# - The objects below are lazy dbplyr tables unless collect() or compute() is used.
+# - Where SQL used UPDATE statements, this translation uses sequential mutate() /
+#   join() steps to create the same result set.
+# - Some remote databases need compute() between steps for performance or to avoid
+#   repeating large subqueries. Those calls are left commented for now.
+#
 
-library(arrow)
-library(tidyverse)
-library(odbc)
+library(dplyr)
+library(dbplyr)
 library(DBI)
+library(odbc)
+library(config)
 
-# ---- Configure LAN Paths and DB Connection -----
-lan <- config::get("lan")
-source("./sql/02a-program-matching/02a-appso-programs.R")
-
+# ---- Configure database connection -------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
-# ---- Check Required Tables ----
-# main table
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
+# ---- Reference source tables -------------------------------------------------
+# Adjust schema/table resolution if your environment stores these elsewhere.
 
-# reference tables
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"')))
-dbExistsTable(con, SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"')))
+credential_non_dup <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_r")) %>%
+  rename_with(toupper)
+infoware_l_cip_2digits_cip2016 <- tbl(
+  con,
+  in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016")
+)
+infoware_l_cip_4digits_cip2016 <- tbl(
+  con,
+  in_schema(my_schema, "INFOWARE_L_CIP_4DIGITS_CIP2016")
+)
+infoware_l_cip_6digits_cip2016 <- tbl(
+  con,
+  in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016")
+)
 
-# START QUERIES ----
-# ---- create APPSO CIP table ----
+# ---- 1) SQL: create Credential_Non_Dup_STP_APPSO_Cleaning -------------------
+credential_non_dup_stp_appso_cleaning <- credential_non_dup %>%
+  filter(OUTCOMES_CRED == "APPSO") %>%
+  count(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, name = "Expr1")
 
-# create cleaning table 
-dbExecute(con, qry_APPSO_STP_CIP_Cleaning)
+# ---- 2) SQL: alter table + update original CIP -------------------------------
+# Placeholder for records finalized through manual review in Part 3C
+# The reason: dbplyr translates NA_character_ → SQL NULL (no type). SQL Server then defaults untyped NULL to int. Using sql("CAST(NULL AS VARCHAR(255))") forces the database to treat it as a character column.
 
-# add extra cols 
-dbExecute(con, qry_APPSO_STP_CIP_add_columns)
-dbExecute(con, qry_APPSO_STP_CIP_update_original)
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  mutate(
+    STP_CIP_CODE_4 = sql("CAST(NULL AS VARCHAR(255))"),
+    STP_CIP_CODE_4_NAME = sql("CAST(NULL AS VARCHAR(255))"),
+    STP_CIP_CODE_2 = sql("CAST(NULL AS VARCHAR(255))"),
+    STP_CIP_CODE_2_NAME = sql("CAST(NULL AS VARCHAR(255))"),
+    PSI_CREDENTIAL_CIP_orig = PSI_CREDENTIAL_CIP
+  )
 
-# clean CIPs to be correct format 
-dbExecute(con, qry_APPSO_STP_CIP_clean_cip_1)
-dbExecute(con, qry_APPSO_STP_CIP_clean_cip_2)
+# ---- 3) SQL: clean malformed CIP values --------------------------------------
+# Step 3a equivalent: append trailing zero for 6-character values whose first
+# two characters do not contain a period.
 
-## Update CIP 4 and 2D codes from INFOWARE, matching PSI_CREDENTIAL_CIP to LCIP_CD_WITH_PERIOD
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step1_a) # all 6 digits
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step1_b) # first 4 digits
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step1_c) # recode general program CIPs from 00 ending to 01 ending
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step1_d) # match first 2 digits
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step2) # add CIP 4D names
-dbExecute(con, qry_Clean_APPSO_STP_CIP_Step3) # add CIP 2D names
-dbExecute(con, qry_Clean_APPSO_STP_CIP_step4) # mark “Invalid 4-digit CIP” for remaining blank 4D names
-dbExecute(con, qry_Update_Credential_with_STP_CIP_APPSO) # create ID list
-dbExecute(con, qry_Update_Credential_with_STP_CIP_APPSO_nulls) # in 2023 only PSI_PROGRAM_CODE had (Unspecified) - replace with NULLs
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  mutate(
+    PSI_CREDENTIAL_CIP = case_when(
+      nchar(PSI_CREDENTIAL_CIP) == 6 &
+        substr(PSI_CREDENTIAL_CIP, 2, 2) != "\\." ~
+        paste0(PSI_CREDENTIAL_CIP, "0"),
+      TRUE ~ PSI_CREDENTIAL_CIP
+    )
+  )
 
-# ---- Clean up ----
-dbExecute(con, "DROP TABLE Credential_Non_Dup_STP_APPSO_Cleaning")
+# Step 3b equivalent: prepend leading zero for any value still length 6.
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  mutate(
+    PSI_CREDENTIAL_CIP = case_when(
+      nchar(PSI_CREDENTIAL_CIP) == 6 ~ paste0("0", PSI_CREDENTIAL_CIP),
+      TRUE ~ PSI_CREDENTIAL_CIP
+    )
+  )
+
+# ---- 4) SQL Step1_a: exact match to INFOWARE 6-digit CIP table --------------
+exact_match_6 <- infoware_l_cip_6digits_cip2016 %>%
+  select(
+    LCIP_CD_WITH_PERIOD,
+    exact_STP_CIP_CODE_4 = LCIP_LCP4_CD,
+    exact_STP_CIP_CODE_2 = LCIP_LCP2_CD
+  )
+
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  left_join(
+    exact_match_6,
+    by = c("PSI_CREDENTIAL_CIP" = "LCIP_CD_WITH_PERIOD")
+  ) %>%
+  mutate(
+    STP_CIP_CODE_4 = coalesce(exact_STP_CIP_CODE_4, STP_CIP_CODE_4),
+    STP_CIP_CODE_2 = coalesce(exact_STP_CIP_CODE_2, STP_CIP_CODE_2)
+  ) %>%
+  select(-exact_STP_CIP_CODE_4, -exact_STP_CIP_CODE_2)
+
+# ---- 5) SQL Step1_b: fallback match on first 5 characters --------------------
+
+fallback_match_5 <- credential_non_dup_stp_appso_cleaning %>%
+  filter(is.na(STP_CIP_CODE_4)) %>%
+  mutate(join_key_5 = substr(PSI_CREDENTIAL_CIP, 1, 5)) %>%
+  select(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, join_key_5)
+
+infoware_join_5 <- infoware_l_cip_6digits_cip2016 %>%
+  mutate(join_key_5 = substr(LCIP_CD_WITH_PERIOD, 1, 5)) %>%
+  select(
+    join_key_5,
+    fallback_STP_CIP_CODE_4 = LCIP_LCP4_CD,
+    fallback_STP_CIP_CODE_2 = LCIP_LCP2_CD
+  )
+
+fallback_updates_5 <- fallback_match_5 %>%
+  inner_join(infoware_join_5, by = "join_key_5") %>%
+  select(
+    PSI_CREDENTIAL_CIP,
+    OUTCOMES_CRED,
+    fallback_STP_CIP_CODE_4,
+    fallback_STP_CIP_CODE_2
+  )
+
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  left_join(
+    fallback_updates_5,
+    by = c("PSI_CREDENTIAL_CIP", "OUTCOMES_CRED")
+  ) %>%
+  mutate(
+    STP_CIP_CODE_4 = coalesce(STP_CIP_CODE_4, fallback_STP_CIP_CODE_4),
+    STP_CIP_CODE_2 = coalesce(STP_CIP_CODE_2, fallback_STP_CIP_CODE_2)
+  ) %>%
+  select(-fallback_STP_CIP_CODE_4, -fallback_STP_CIP_CODE_2)
+
+# ---- 6) SQL Step1_c: general program rule (.00 -> 01) ------------------------
+
+general_program_prefixes <- c(
+  "11.00",
+  "13.00",
+  "14.00",
+  "19.00",
+  "23.00",
+  "24.00",
+  "26.00",
+  "40.00",
+  "42.00",
+  "45.00",
+  "50.00",
+  "52.00",
+  "55.00"
+)
+
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  mutate(
+    STP_CIP_CODE_4 = case_when(
+      is.na(STP_CIP_CODE_4) &
+        substr(PSI_CREDENTIAL_CIP, 1, 5) %in% general_program_prefixes ~
+        paste0(substr(PSI_CREDENTIAL_CIP, 1, 2), "01"),
+      TRUE ~ STP_CIP_CODE_4
+    )
+  )
+
+# ---- 7) SQL Step1_d: fallback 2-digit match on first 2 characters ------------
+fallback_match_2 <- credential_non_dup_stp_appso_cleaning %>%
+  filter(is.na(STP_CIP_CODE_2)) %>%
+  mutate(join_key_2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) %>%
+  select(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, join_key_2)
+
+infoware_join_2 <- infoware_l_cip_6digits_cip2016 %>%
+  mutate(join_key_2 = substr(LCIP_CD_WITH_PERIOD, 1, 2)) %>%
+  select(join_key_2, fallback_STP_CIP_CODE_2 = LCIP_LCP2_CD)
+
+fallback_updates_2 <- fallback_match_2 %>%
+  inner_join(infoware_join_2, by = "join_key_2") %>%
+  select(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, fallback_STP_CIP_CODE_2)
+
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  left_join(
+    fallback_updates_2,
+    by = c("PSI_CREDENTIAL_CIP", "OUTCOMES_CRED")
+  ) %>%
+  mutate(
+    STP_CIP_CODE_2 = coalesce(STP_CIP_CODE_2, fallback_STP_CIP_CODE_2)
+  ) %>%
+  select(-fallback_STP_CIP_CODE_2)
+
+# ---- 8) SQL Step2: add 4-digit CIP names -------------------------------------
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  left_join(
+    infoware_l_cip_4digits_cip2016 %>%
+      select(
+        STP_CIP_CODE_4 = LCP4_CD,
+        STP_CIP_CODE_4_NAME_lookup = LCP4_CIP_4DIGITS_NAME
+      ),
+    by = "STP_CIP_CODE_4"
+  ) %>%
+  mutate(
+    STP_CIP_CODE_4_NAME = coalesce(
+      STP_CIP_CODE_4_NAME_lookup,
+      STP_CIP_CODE_4_NAME
+    )
+  ) %>%
+  select(-STP_CIP_CODE_4_NAME_lookup)
+
+# ---- 9) SQL Step3: add 2-digit CIP names -------------------------------------
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  left_join(
+    infoware_l_cip_2digits_cip2016 %>%
+      select(
+        STP_CIP_CODE_2 = LCP2_CD,
+        STP_CIP_CODE_2_NAME_lookup = LCP2_DIGITS_NAME
+      ),
+    by = "STP_CIP_CODE_2"
+  ) %>%
+  mutate(
+    STP_CIP_CODE_2_NAME = coalesce(
+      STP_CIP_CODE_2_NAME_lookup,
+      STP_CIP_CODE_2_NAME
+    )
+  ) %>%
+  select(-STP_CIP_CODE_2_NAME_lookup)
+
+# ---- 10) SQL Step4: mark missing 4-digit names as invalid --------------------
+credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
+  mutate(
+    STP_CIP_CODE_4_NAME = coalesce(STP_CIP_CODE_4_NAME, "Invalid 4-digit CIP")
+  )
+
+# ---- 11) SQL: create Credential_Non_Dup_APPSO_IDs ----------------------------
+
+credential_non_dup_appso_ids <- credential_non_dup %>%
+  select(
+    ID,
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_AWARD_SCHOOL_YEAR,
+    OUTCOMES_CRED,
+  ) |>
+  filter(OUTCOMES_CRED == "APPSO") %>%
+  inner_join(
+    credential_non_dup_stp_appso_cleaning,
+    by = c(
+      "PSI_CREDENTIAL_CIP" = "PSI_CREDENTIAL_CIP_orig",
+      "OUTCOMES_CRED" = "OUTCOMES_CRED"
+    )
+  ) %>%
+  transmute(
+    ID,
+    PSI_CODE,
+    PSI_PROGRAM_CODE,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_CREDENTIAL_CIP,
+    PSI_AWARD_SCHOOL_YEAR,
+    OUTCOMES_CRED,
+    FINAL_CIP_CODE_4 = STP_CIP_CODE_4,
+    FINAL_CIP_CODE_4_NAME = STP_CIP_CODE_4_NAME,
+    FINAL_CIP_CODE_2 = STP_CIP_CODE_2,
+    FINAL_CIP_CODE_2_NAME = STP_CIP_CODE_2_NAME
+  )
+
+# ---- 12) SQL: replace '(Unspecified)' with NULL ------------------------------
+credential_non_dup_appso_ids <- credential_non_dup_appso_ids %>%
+  mutate(
+    PSI_PROGRAM_CODE = na_if(PSI_PROGRAM_CODE, "(Unspecified)")
+  )
+
+# write the table back to the database using computing function
+
+# ---- Optional materialization -------------------------------------------------
+credential_non_dup_appso_ids %>%
+  compute(
+    name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs_r"),
+    temporary = FALSE
+  )
+
+credential_non_dup_stp_appso_cleaning %>%
+  compute(
+    name = in_schema(my_schema, "Credential_Non_Dup_STP_APPSO_Cleaning_r"),
+    temporary = FALSE
+  )
+
+# ---- Disconnect ---------------------------------------------------------------
 dbDisconnect(con)

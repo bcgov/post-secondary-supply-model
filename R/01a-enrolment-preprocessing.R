@@ -15,8 +15,8 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 
-# ---- Configure LAN Paths and DB Connection -----
-
+## -------------------------- Configure LAN Paths and DB Connection ------------------------------
+## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
 
@@ -27,19 +27,47 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-# ---- Check Required Tables etc. ----
+
+## --------------------------------------Required Tables------------------------------------------
+# currently repurposing data from 2023 run.  When running next update change this code to pull
+# from the original raw dataset and then untoggle the commented sections below to reformat dates,
+# and add an ID field.
+## -----------------------------------------------------------------------------------------------
 
 stp_enrolment <- dbGetQuery(
   con,
-  glue::glue("SELECT * FROM [{my_schema}].[STP_Enrolment];")
+  glue::glue(
+    "SELECT
+    ID,
+    ENCRYPTED_TRUE_PEN,
+    ATTENDING_PSI_OUTSIDE_BC,
+    PSI_CIP_CODE,
+    PSI_CODE,
+    PSI_CONTINUING_EDUCATION_COURSE_ONLY,
+    PSI_CREDENTIAL_CATEGORY,
+    PSI_CREDENTIAL_PROGRAM_DESCRIPTION,
+    PSI_ENROLMENT_SEQUENCE,
+    PSI_ENTRY_STATUS,
+    PSI_GENDER,
+    PSI_MIN_START_DATE,
+    PSI_PROGRAM_CODE,
+    PSI_PROGRAM_EFFECTIVE_DATE,
+    PSI_SCHOOL_YEAR,
+    PSI_STUDENT_NUMBER,
+    PSI_STUDENT_POSTAL_CODE_CURRENT,
+    PSI_STUDY_LEVEL,
+    PSI_VISA_STATUS,
+    PSI_BIRTHDATE,
+    LAST_SEEN_BIRTHDATE
+  FROM [{my_schema}].[STP_Enrolment];"
+  )
 )
-#|> select(-psi_birthdate_cleaned)
 
-## -----------------------------------------------------------------------------------------------
 
 ## --------------------------------------Initial Data Checks--------------------------------------
-## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
+## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing-sql.R")
 ##   qry00a to qry00d
+## -----------------------------------------------------------------------------------------------
 
 stp_enrolment |>
   filter(
@@ -51,10 +79,8 @@ stp_enrolment |>
 
 stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 
-
-# stp_enrolment <- stp_enrolment |> mutate(ID = row_number()) # may not be required in R but keeping for consistency
-
-# -------------------------------------------------------------------------------------------------
+# Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
+# stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
@@ -100,6 +126,7 @@ stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
 ## --------------------------------------- Create Record Type Table -------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
 ##   qry01 to qry07 series
+## ------------------------------------------------------------------------------------------------
 
 # Record Status codes:
 # 0 = Good
@@ -254,10 +281,10 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   select(ID, RecordStatus)
 
-## ------------------------------------------------------------------------------------------------
 
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
-## ---- Create table of Record Status = 0 only (Valid Enrolment) ----
+## Creates a table of Record Status = 0 only (Valid Enrolment)
+## ------------------------------------------------------------------------------------------------
 
 stp_enrolment_valid <- stp_enrolment |>
   select(
@@ -292,6 +319,7 @@ dbWriteTable(
 ## qry09 to qry14
 # Notes: n a handful of cases, the SQL version improperly orders records with PSI_ENROLMENT_SEQUENCE == 10 and 11.
 # R's arrange() handles them properly,
+## ------------------------------------------------------------------------------------------------
 
 # Logic for valid PEN's
 valid_pen_data <- stp_enrolment_valid |>
@@ -336,13 +364,13 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
 
 stp_enrolment_record_type |> count(RecordStatus, IS_MIN_ENROL, IS_FIRST_ENROL)
 
-## ------------------------------------------------------------------------------------------------
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/pssm-birthdate-cleaning.R")
 ## qry01 to qry11
 ## Notes: Look out for different NA or non-valid types as this can alter the behaviour of
 ## min, max, first.
+## ------------------------------------------------------------------------------------------------
 
 # qry01 to qry08
 birthdate_cleaning_summary <- stp_enrolment |>
@@ -404,6 +432,14 @@ birthdate_update <- birthdate_cleaning_summary |>
 
 # Keeping as lower case to match the SQL versions, jfn.
 
+## ------------------------------------ Clean Up --------------------------------------------------
+# Current workflow:
+#  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
+# that might be needed for later reference outside of this analysis.
+#  - Close DB connections
+#  - Remove all objects at the end of each script.
+## ------------------------------------------------------------------------------------------------
+
 # write to SQL server
 # The following dbWriteTable call for 'STP_Enrolment' is intentionally commented out.
 # This is because the table already has the updated 'psi_birthdate_cleaned' column.
@@ -428,12 +464,22 @@ dbWriteTable(
 
 tables_to_keep <- c(
   "stp_enrolment",
-  "stp_credential",
   "stp_enrolment_record_type",
-  "stp_credential_record_type",
   "stp_enrolment_valid"
 )
 
-rm(list = setdiff(ls(), tables_to_keep))
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    get(table_name, envir = .GlobalEnv),
+    overwrite = TRUE
+  )
+}
+
+walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+
+rm(list = ls())
