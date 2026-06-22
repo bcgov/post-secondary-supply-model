@@ -42,6 +42,9 @@ library(glue)
 library(assertthat)
 
 model <- "static" # toogle between static and projected models
+ptib_run <- T
+regular_run <- T
+qi_run <- F
 
 # toggle static or projected.
 if (model == "static") {
@@ -101,14 +104,6 @@ for (table_name in required_tables) {
     )
   )
 }
-
-# # compare all required tables to SQL versions
-# for (table_name in required_tables) {
-#   print(glue("Comparing {table_name} to SQL version..."))
-#   res <- compare(table_name, base::get(table_name))
-#   cat("\n\n\n")
-# }
-
 
 
 # --------------------   implement checks --------------------------
@@ -609,7 +604,7 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x, # just TTRAIN?
+    TTRAIN = TTRAIN, # just TTRAIN?
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
