@@ -37,8 +37,8 @@ df
 ```
 ### Running the model
 
-Scripts are labeled sequentially and run in that order with a few exceptions (WIP).  Each analysis script has a corresponding script that 
-handles loading of the data required for analysis.  Currently the model has only been tested data load scripts run prior to analysis, although future work may change this.  The run order is:
+Scripts are labeled sequentially and generally run in that order with the exception of 01e-stp-distributions.R.  Most analysis scripts have a corresponding script that 
+handles loading of the data required for analysis. The run order is:
 
 Initial data pre-processing and post-secondary analysis:
 
@@ -54,29 +54,48 @@ Program matching scripts to aid in the cleanup of CIP codes:
 - 02a-dacso-program-matching.R 
 - 02a-update-cred-non-dup.R 
 
-Model updating:
+Aggregate STP data for enrolment forecasting:
 
-- run_all_three_model_runs.R
+- 01e-stp-distributions.R
 
-Note that run_all_three_model_runs.R calls:
+Because the model is run 3 times with varying configurations of inputs, the following scripts (and their associated data loading scripts) have all been automated with flags to allow for this process.  Make sure the following flags are set in your R session before running the scripts.  You will likely have to set the flags at the beginning of each script (WIP).
 
-- prep-for-fresh-run.R
-- prep-for-qi-run.R
-- prep-for-ptib-run.R
-- 08-create-final-reports.R
+Create occupation and new labour supply weighted distributions:
 
-Because the model is run 3 times with varying configurations of inputs, the following scripts (and their associated data loading scripts) have all been automated with flags to allow for this process.
-
+- load-cohort-appso.R                         
+- load-cohort-trd.R
+- load-cohort-bgs.R 
+- load-cohort-dacso.R  
 - 02b-1-pssm-cohorts.R 
 - 02b-2-pssm-cohorts-new-labour-supply.R 
 - 02b-3-pssm-cohorts-occupation-distributions.R 
+
+Calculate near completers ratio:
+
+- load-near-completers-ttrain.R
 - 03-near-completers-ttrain.R 
+
+Run enrolment and graduate forecasting:
+
+- load-graduate-projections.R
 - 04-graduate-projections.R 
+
+Load, clean and aggregate PTIB data;
+- load-ptib.R
 - 05-ptib-analysis.R 
+
+Run program projections:
+
+- load-program-projections.R
 - 06-program-projections.R 
+
+Run the final occupational model:
+
+- load-occupation-projections.R
 - 07-occupation-projections.R 
 
-Note that these scripts (02b-08) do NOT need to be run independently, and they are solely sourced elsewhere. 
+Create formatted Excel outputs:
+- 08-create-final-reports.R
 
 
 ### Getting Help or Reporting an Issue

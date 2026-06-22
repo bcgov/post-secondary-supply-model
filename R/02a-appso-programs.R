@@ -1,11 +1,15 @@
 # Copyright 2024 Province of British Columbia
-# Licensed under the Apache License, Version 2.0
 #
-# Purpose
-# -------
-# Direct dplyr/dbplyr translation of the SQL logic from 02a-appso-programs.
-# This is intentionally a close translation of the SQL steps, not a refactor.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
 # Notes
 # -----
 # - This script assumes the source tables already exist in the database.
@@ -37,9 +41,8 @@ con <- dbConnect(
 # ---- Reference source tables -------------------------------------------------
 # Adjust schema/table resolution if your environment stores these elsewhere.
 
-credential_non_dup <- tbl(con, in_schema(my_schema, "Credential_Non_Dup")) %>%
+credential_non_dup <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_r")) %>%
   rename_with(toupper)
-colnames(credential_non_dup)
 infoware_l_cip_2digits_cip2016 <- tbl(
   con,
   in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016")
@@ -285,17 +288,15 @@ credential_non_dup_appso_ids <- credential_non_dup_appso_ids %>%
 # write the table back to the database using computing function
 
 # ---- Optional materialization -------------------------------------------------
-
-#
 credential_non_dup_appso_ids %>%
   compute(
-    name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs"),
+    name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs_r"),
     temporary = FALSE
   )
 
 credential_non_dup_stp_appso_cleaning %>%
   compute(
-    name = in_schema(my_schema, "Credential_Non_Dup_STP_APPSO_Cleaning"),
+    name = in_schema(my_schema, "Credential_Non_Dup_STP_APPSO_Cleaning_r"),
     temporary = FALSE
   )
 
