@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 ##########################################################################################################################################
-# This script loads student outcomes data for students who students who
+# This script loads student outcomes data for students who
 # TRD: were formerly enrolled in a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
 # APP: have completed the final year of their apprenticeship technical training within the first year of graduation.
 # BGS: recently graduated with a Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
