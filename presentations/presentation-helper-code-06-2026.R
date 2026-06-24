@@ -36,18 +36,6 @@ GRAD_KEYS <- c(
 )
 
 # ---------------- helpers ----------------
-
-# Description:Read one SQL Server table into R without transforming values.
-# Inputs:
-#   - con (DBI connection): active SQL Server connection.
-#   - schema (character): source schema name.
-#   - table (character): source table name.
-# Output:
-#   - data.frame/tibble: full table contents.
-read_table <- function(con, schema, table) {
-  dbReadTable(con, SQL(glue::glue('"{schema}"."{table}"')))
-}
-
 # Description:Standardize projection-table column names for comparison.
 # Inputs:
 #   - df (table): projection table in wide format.
@@ -63,32 +51,6 @@ clean_projection_names <- function(df) {
   df
 }
 
-# Description:Keep only shared columns across two tables.
-# Inputs:
-#   - df1 (table): first table.
-#   - df2 (table): second table.
-# Output:
-#   - list(df1, df2): both tables restricted to their common columns.
-select_common <- function(df1, df2) {
-  common <- intersect(names(df1), names(df2))
-  list(df1 = select(df1, any_of(common)), df2 = select(df2, any_of(common)))
-}
-
-# Description:Pivot year columns from wide to long format.
-# Inputs:
-#   - df (table): table containing year columns starting with "20".
-#   - value_name (character): output value column name.
-# Output:
-#   - tibble: long table with YEAR + value_name columns.
-pivot_years_long <- function(df, value_name = "VAL") {
-  df |>
-    pivot_longer(
-      cols = starts_with("20"),
-      names_to = "YEAR",
-      values_to = value_name
-    )
-}
-
 # Description:Calculate symmetric percent difference safely.
 # Inputs:
 #   - a (numeric vector): first series.
@@ -99,7 +61,6 @@ safe_percent_diff <- function(a, b) {
   denom <- (a + b) / 2
   if_else(denom == 0 | is.na(denom), NA_real_, abs(a - b) / denom * 100)
 }
-
 
 # ---------------- connection ----------------
 db_config <- config::get("decimal")
@@ -160,7 +121,11 @@ diff_r_sql <- sql_long |>
     VAL.sql = coalesce(round(VAL.sql, 0), 0),
     VAL.r = coalesce(round(VAL.r, 0), 0),
     diff = abs(VAL.sql - VAL.r),
-    p_diff = if_else(VAL.sql == 0 & VAL.r == 0, 0, safe_percent_diff(VAL.sql, VAL.r))
+    p_diff = if_else(
+      VAL.sql == 0 & VAL.r == 0,
+      0,
+      safe_percent_diff(VAL.sql, VAL.r)
+    )
   )
 
 diff_r_dbo <- dbo_long |>
@@ -169,7 +134,11 @@ diff_r_dbo <- dbo_long |>
     VAL.dbo = coalesce(round(VAL.dbo, 0), 0),
     VAL.r = coalesce(round(VAL.r, 0), 0),
     diff = abs(VAL.dbo - VAL.r),
-    p_diff = if_else(VAL.dbo == 0 & VAL.r == 0, 0, safe_percent_diff(VAL.dbo, VAL.r))
+    p_diff = if_else(
+      VAL.dbo == 0 & VAL.r == 0,
+      0,
+      safe_percent_diff(VAL.dbo, VAL.r)
+    )
   )
 
 # ---------------- graduate projections ----------------
@@ -195,7 +164,11 @@ grad_proj_sql_r <- grad_proj_sql |>
     GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
     GRADUATES.r = coalesce(round(GRADUATES.r, 0), 0),
     diff = abs(GRADUATES.sql - GRADUATES.r),
-    p_diff = if_else(GRADUATES.sql == 0 & GRADUATES.r == 0, 0, safe_percent_diff(GRADUATES.sql, GRADUATES.r))
+    p_diff = if_else(
+      GRADUATES.sql == 0 & GRADUATES.r == 0,
+      0,
+      safe_percent_diff(GRADUATES.sql, GRADUATES.r)
+    )
   )
 
 grad_proj_dbo_sql <- grad_proj_dbo |>
@@ -204,7 +177,11 @@ grad_proj_dbo_sql <- grad_proj_dbo |>
     GRADUATES.dbo = coalesce(round(GRADUATES.dbo, 0), 0),
     GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
     diff = abs(GRADUATES.dbo - GRADUATES.sql),
-    p_diff = if_else(GRADUATES.dbo == 0 & GRADUATES.sql == 0, 0, safe_percent_diff(GRADUATES.dbo, GRADUATES.sql))
+    p_diff = if_else(
+      GRADUATES.dbo == 0 & GRADUATES.sql == 0,
+      0,
+      safe_percent_diff(GRADUATES.dbo, GRADUATES.sql)
+    )
   )
 
-#dbDisconnect(con)
+dbDisconnect(con)
