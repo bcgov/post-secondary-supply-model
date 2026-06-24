@@ -1,12 +1,7 @@
-library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
 library(janitor)
-
-# ---- Configure LAN Paths ----
-lan <- config::get("lan")
-raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 
 # ----- Connection to decimal ----
 db_config <- config::get("decimal")
@@ -85,7 +80,6 @@ tmp_tbl_model_dbo_long <- tmp_tbl_model_dbo |>
   )
 
 # ---- myschema vs R
-# examine the differences between the two model versions
 diff_r_sql <- tmp_tbl_model_sql_long |>
   full_join(
     tmp_tbl_model_r_long,
@@ -105,69 +99,7 @@ diff_r_sql <- tmp_tbl_model_sql_long |>
     p_diff = abs(VAL.sql - VAL.r) / ((VAL.sql + VAL.r) / 2) * 100
   )
 
-# plot the r and sql versions against each other, using ggplot2 scatter plot
-# add a descriptive title and axis labels, and a red line representing the 1:1 relationship
-# ggplot(diff_r_sql, aes(x = VAL.sql, y = VAL.r)) +
-#   geom_point(alpha = 0.5) +
-#   geom_abline(slope = 1, intercept = 0, color = "red") +
-#   labs(
-#     title = "Comparison of Model Versions",
-#     subtitle = "Each point = one age-group × NOC × region × year",
-#     x = "SQL Model Version",
-#     y = "R Model Version"
-#   ) +
-#   theme_minimal()
-
-# Load the required libraries
-
-#p <- ggplot(
-#  diff_r_sql,
-#  aes(
-#    x = VAL.sql,
-#    y = VAL.r,
-#    text = glue(
-#      "NOC: {ENGLISH_NAME}({NOC})
-#      Age Grp.: {AGE_GROUP_ROLLUP_LABEL}
-#      Region: {CURRENT_REGION_PSSM_NAME_ROLLUP}
-#      Proj. Year: {YEAR}
-#      Labour Supply (SQL): {VAL.sql}
-#      Labour Supply (R): {VAL.r}"
-#    )
-#  )
-#) +
-#  geom_point(alpha = 0.5) +
-#  geom_abline(slope = 1, intercept = 0, color = "red") +
-#  labs(
-#    title = "Projected Labour Supply: SQL vs. R Model Implementations",
-#    subtitle = "Each point represents a unique age group, NOC, region, and year combination",
-#    x = "Projected Supply (SQL Model)",
-#    y = "Projected Supply (R Model)"
-#  ) +
-#  theme_minimal()
-#ggplotly(p, tooltip = "text")
-
-# generate a list of NOC aggregations where the difference between the two model
-# versions is greater than 1% and the absolute difference is greater than 1
-# we only want to look at the NOC level 5 aggregations, which are the most detailed
-# diff_r_sql |>
-#   filter(p_diff > 1, diff > 0.5) |>
-#   filter(NOC_LEVEL == 5, CURRENT_REGION_PSSM_CODE_ROLLUP > 5900) |>
-#   group_by(
-#     AGE_GROUP_ROLLUP_LABEL,
-#     NOC,
-#     CURRENT_REGION_PSSM_CODE_ROLLUP,
-#     ENGLISH_NAME
-#   ) |>
-#   summarise(n_years = n(), max_diff = max(diff), .groups = "drop") |>
-#   arrange(desc(NOC)) |>
-#   distinct(
-#     NOC,
-#     ENGLISH_NAME,
-#     `Difference (N)` = max_diff
-#   )
-
-# ---- cbo vs R
-# examine the differences between the dbo and R model versions
+# ---- dbo vs R
 diff_r_dbo <- tmp_tbl_model_dbo_long |>
   full_join(
     tmp_tbl_model_r_long,
@@ -187,25 +119,6 @@ diff_r_dbo <- tmp_tbl_model_dbo_long |>
     p_diff = abs(VAL.dbo - VAL.r) / ((VAL.dbo + VAL.r) / 2) * 100
   )
 
-# plot the r and dbo versions against each other, using ggplot2 scatter plot
-# add a descriptive title and axis labels, and a red line representing the 1:1 relationship
-
-#p <- ggplot(
-#  diff_r_dbo,
-#  aes(
-#    x = VAL.dbo,
-#    y = VAL.r
-#  )
-#) +
-#  geom_point(alpha = 0.5) +
-#  geom_abline(slope = 1, intercept = 0, color = "red") +
-#  labs(
-#    title = "Projected Labour Supply: 2024 SQL vs. R Model Implementations",
-#    subtitle = "Each point represents a unique age group, NOC, region, and year combination",
-#    x = "Projected Supply (SQL Model, 2024)",
-#    y = "Projected Supply (R Model)"
-#  ) +
-#  theme_minimal()
 
 # ---------------- Graduate Projections ----------------
 
@@ -257,52 +170,7 @@ grad_proj_sql_r <- grad_proj_sql |>
       100
   )
 
-# plot the r and sql versions against each other, using ggplot2 scatter plot
-# add a descriptive title and axis labels, and a red line representing the 1:1 relationship
-# p <- ggplot(
-#   grad_proj_sql_r,
-#   aes(
-#     x = log(GRADUATES.sql),
-#     y = log(GRADUATES.r),
-#     text = glue(
-#       "Credential: {PSSM_CREDENTIAL}
-#       Age Grp.: {AGE_GROUP}
-#       Proj. Year: {YEAR}
-#       Grads (SQL): {GRADUATES.sql}
-#       Grads (R): {GRADUATES.r}"
-#     )
-#   )
-# ) +
-#   geom_point(alpha = 0.5) +
-#   geom_abline(slope = 1, intercept = 0, color = "red") +
-#   labs(
-#     title = "Comparison of Graduate Projections",
-#     subtitle = "Each point = one credential × year × age group × survey",
-#     x = "SQL Graduate Projections",
-#     y = "R Graduate Projections"
-#   ) +
-#   theme_minimal()
-#
-# ggplotly(p, tooltip = "text")
-# generate a list of aggregations where the difference between the two model
-# versions is greater than 1% and the absolute difference is greater than 1
-# grad_proj_sql_r |>
-#   filter(p_diff > 1, diff > 0.5) |>
-#   group_by(
-#     PSSM_CREDENTIAL,
-#     AGE_GROUP
-#   ) |>
-#   slice_min(n = 1, order_by = YEAR) |>
-#   select(
-#     PSSM_CREDENTIAL,
-#     AGE_GROUP,
-#     `Difference (N)` = diff,
-#     `Percent Difference (%)` = p_diff
-#   )
 
-# ---- dbo vs R
-# join the r and dbo versions of the graduate projections, and
-# calculate the difference and percent difference
 grad_proj_dbo_sql <- grad_proj_dbo |>
   full_join(
     grad_proj_sql,
@@ -322,13 +190,3 @@ grad_proj_dbo_sql <- grad_proj_dbo |>
     diff = abs(GRADUATES.dbo - GRADUATES.r),
     p_diff = diff / round(GRADUATES.r, 0) * 100
   )
-
-# filter the dbo vs R graduate projections to find the differences greater than 1% and absolute difference greater than 1
-# grad_proj_dbo_sql |>
-#   filter(p_diff > 2 & diff > 1) |>
-#   group_by(
-#     PSSM_CREDENTIAL,
-#     AGE_GROUP
-#   ) |>
-#   slice_min(n = 1, order_by = YEAR) |>
-#   select(-PSI_CREDENTIAL_CATEGORY)
