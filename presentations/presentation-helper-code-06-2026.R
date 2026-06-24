@@ -100,30 +100,6 @@ safe_percent_diff <- function(a, b) {
   if_else(denom == 0 | is.na(denom), NA_real_, abs(a - b) / denom * 100)
 }
 
-# Description:Join two tables and compute absolute/percent differences.
-# Inputs:
-#   - left, right (tables): tables to compare.
-#   - keys (character vector): join keys.
-#   - left_value, right_value (character): numeric comparison columns after join.
-#   - left_suffix, right_suffix (character): suffixes for overlapping names.
-# Output:
-#   - tibble: joined table plus diff and p_diff columns.
-compare_tables <- function(
-  left,
-  right,
-  keys,
-  left_value,
-  right_value,
-  left_suffix,
-  right_suffix
-) {
-  left |>
-    full_join(right, by = keys, suffix = c(left_suffix, right_suffix)) |>
-    mutate(
-      diff = abs(.data[[left_value]] - .data[[right_value]]),
-      p_diff = safe_percent_diff(.data[[left_value]], .data[[right_value]])
-    )
-}
 
 # ---------------- connection ----------------
 db_config <- config::get("decimal")
@@ -137,62 +113,90 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-on.exit(dbDisconnect(con), add = TRUE)
+
 
 # ---------------- load model tables ----------------
-model_tables <- list(
-  sql = read_table(con, my_schema, "tmp_tbl_model"),
-  r = read_table(con, my_schema, "tmp_tbl_model_r"),
-  dbo = read_table(con, db_schema, "tmp_tbl_model")
-) |>
-  purrr::map(clean_projection_names)
+sql = dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model"'))) |>
+  clean_projection_names()
 
-# align columns to R version once
-sql_r_common <- select_common(model_tables$sql, model_tables$r)
-dbo_r_common <- select_common(model_tables$dbo, model_tables$r)
+r = dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model_r"'))) |>
+  clean_projection_names()
 
-tmp_tbl_model_sql_long <- pivot_years_long(sql_r_common$df1)
-tmp_tbl_model_r_long <- pivot_years_long(sql_r_common$df2)
-tmp_tbl_model_dbo_long <- pivot_years_long(dbo_r_common$df1)
-tmp_tbl_model_r_long2 <- pivot_years_long(dbo_r_common$df2)
+dbo = dbReadTable(con, SQL(glue::glue('"{db_schema}"."tmp_tbl_model"'))) |>
+  clean_projection_names()
 
-diff_r_sql <- compare_tables(
-  left = tmp_tbl_model_sql_long,
-  right = tmp_tbl_model_r_long,
-  keys = MODEL_KEYS,
-  left_value = "VAL.sql",
-  right_value = "VAL.r",
-  left_suffix = ".sql",
-  right_suffix = ".r"
-)
+common <- intersect(names(sql), names(r))
+sql <- sql |> select(any_of(common))
+r <- r |> select(any_of(common))
 
-diff_r_dbo <- compare_tables(
-  left = tmp_tbl_model_dbo_long,
-  right = tmp_tbl_model_r_long2,
-  keys = MODEL_KEYS,
-  left_value = "VAL.dbo",
-  right_value = "VAL.r",
-  left_suffix = ".dbo",
-  right_suffix = ".r"
-)
+common <- intersect(names(sql), names(dbo))
+dbo <- dbo |> select(any_of(common))
+
+
+sql_long <- sql |>
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "YEAR",
+    values_to = "VAL"
+  )
+
+r_long <- r |>
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "YEAR",
+    values_to = "VAL"
+  )
+
+dbo_long <- dbo |>
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "YEAR",
+    values_to = "VAL"
+  )
+
+diff_r_sql <- sql_long |>
+  full_join(r_long, by = MODEL_KEYS, suffix = c(".sql", ".r")) |>
+  mutate(
+    VAL.sql = coalesce(round(VAL.sql, 0), 0),
+    VAL.r = coalesce(round(VAL.r, 0), 0),
+    diff = abs(VAL.sql - VAL.r),
+    p_diff = if_else(VAL.r == 0, NA_real_, diff / VAL.r * 100)
+  )
+
+diff_r_dbo <- dbo_long |>
+  full_join(r_long, by = MODEL_KEYS, suffix = c(".dbo", ".r")) |>
+  mutate(
+    VAL.dbo = coalesce(round(VAL.dbo, 0), 0),
+    VAL.r = coalesce(round(VAL.r, 0), 0),
+    diff = abs(VAL.dbo - VAL.r),
+    p_diff = if_else(VAL.r == 0, NA_real_, diff / VAL.r * 100)
+  )
 
 # ---------------- graduate projections ----------------
-grad_proj_sql <- read_table(con, my_schema, "graduate_projections") |>
+grad_proj_sql <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."graduate_projections"'))
+) |>
   rename_with(toupper)
-grad_proj_r <- read_table(con, my_schema, "graduate_projections_r") |>
+grad_proj_r <- dbReadTable(
+  con,
+  SQL(glue::glue('"{my_schema}"."graduate_projections_r"'))
+) |>
   rename_with(toupper)
-grad_proj_dbo <- read_table(con, db_schema, "graduate_projections") |>
+grad_proj_dbo <- dbReadTable(
+  con,
+  SQL(glue::glue('"{db_schema}"."graduate_projections"'))
+) |>
   rename_with(toupper)
 
-grad_proj_sql_r <- compare_tables(
-  left = grad_proj_sql,
-  right = grad_proj_r,
-  keys = GRAD_KEYS,
-  left_value = "GRADUATES.sql",
-  right_value = "GRADUATES.r",
-  left_suffix = ".sql",
-  right_suffix = ".r"
-)
+grad_proj_sql_r <- grad_proj_sql |>
+  full_join(grad_proj_r, by = GRAD_KEYS, suffix = c(".sql", ".r")) |>
+  mutate(
+    GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
+    GRADUATES.r = coalesce(round(GRADUATES.r, 0), 0),
+    diff = abs(GRADUATES.sql - GRADUATES.r),
+    p_diff = if_else(GRADUATES.r == 0, NA_real_, diff / GRADUATES.r * 100)
+  )
 
 grad_proj_dbo_sql <- grad_proj_dbo |>
   full_join(grad_proj_sql, by = GRAD_KEYS, suffix = c(".dbo", ".sql")) |>
@@ -202,3 +206,5 @@ grad_proj_dbo_sql <- grad_proj_dbo |>
     diff = abs(GRADUATES.dbo - GRADUATES.sql),
     p_diff = if_else(GRADUATES.sql == 0, NA_real_, diff / GRADUATES.sql * 100)
   )
+
+#dbDisconnect(con)
