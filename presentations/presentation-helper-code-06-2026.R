@@ -169,7 +169,7 @@ diff_r_dbo <- dbo_long |>
     VAL.dbo = coalesce(round(VAL.dbo, 0), 0),
     VAL.r = coalesce(round(VAL.r, 0), 0),
     diff = abs(VAL.dbo - VAL.r),
-    p_diff = if_else(VAL.r == 0, NA_real_, diff / VAL.r * 100)
+    p_diff = if_else(VAL.dbo == 0 & VAL.r == 0, 0, safe_percent_diff(VAL.dbo, VAL.r))
   )
 
 # ---------------- graduate projections ----------------
