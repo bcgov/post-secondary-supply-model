@@ -160,7 +160,7 @@ diff_r_sql <- sql_long |>
     VAL.sql = coalesce(round(VAL.sql, 0), 0),
     VAL.r = coalesce(round(VAL.r, 0), 0),
     diff = abs(VAL.sql - VAL.r),
-    p_diff = if_else(VAL.r == 0, NA_real_, diff / VAL.r * 100)
+    p_diff = if_else(VAL.sql == 0 & VAL.r == 0, 0, safe_percent_diff(VAL.sql, VAL.r))
   )
 
 diff_r_dbo <- dbo_long |>
