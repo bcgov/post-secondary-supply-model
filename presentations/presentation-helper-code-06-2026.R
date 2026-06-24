@@ -116,13 +116,13 @@ con <- dbConnect(
 
 
 # ---------------- load model tables ----------------
-sql = dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model"'))) |>
+sql <- dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model"'))) |>
   clean_projection_names()
 
-r = dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model_r"'))) |>
+r <- dbReadTable(con, SQL(glue::glue('"{my_schema}"."tmp_tbl_model_r"'))) |>
   clean_projection_names()
 
-dbo = dbReadTable(con, SQL(glue::glue('"{db_schema}"."tmp_tbl_model"'))) |>
+dbo <- dbReadTable(con, SQL(glue::glue('"{db_schema}"."tmp_tbl_model"'))) |>
   clean_projection_names()
 
 common <- intersect(names(sql), names(r))
