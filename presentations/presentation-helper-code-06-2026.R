@@ -195,7 +195,7 @@ grad_proj_sql_r <- grad_proj_sql |>
     GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
     GRADUATES.r = coalesce(round(GRADUATES.r, 0), 0),
     diff = abs(GRADUATES.sql - GRADUATES.r),
-    p_diff = if_else(GRADUATES.r == 0, NA_real_, diff / GRADUATES.r * 100)
+    p_diff = if_else(GRADUATES.sql == 0 & GRADUATES.r == 0, 0, safe_percent_diff(GRADUATES.sql, GRADUATES.r))
   )
 
 grad_proj_dbo_sql <- grad_proj_dbo |>
@@ -204,7 +204,7 @@ grad_proj_dbo_sql <- grad_proj_dbo |>
     GRADUATES.dbo = coalesce(round(GRADUATES.dbo, 0), 0),
     GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
     diff = abs(GRADUATES.dbo - GRADUATES.sql),
-    p_diff = if_else(GRADUATES.sql == 0, NA_real_, diff / GRADUATES.sql * 100)
+    p_diff = if_else(GRADUATES.dbo == 0 & GRADUATES.sql == 0, 0, safe_percent_diff(GRADUATES.dbo, GRADUATES.sql))
   )
 
 #dbDisconnect(con)
