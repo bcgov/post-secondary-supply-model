@@ -137,6 +137,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+on.exit(dbDisconnect(con), add = TRUE)
 
 # ---------------- load model tables ----------------
 model_tables <- list(
@@ -194,10 +195,10 @@ grad_proj_sql_r <- compare_tables(
 )
 
 grad_proj_dbo_sql <- grad_proj_dbo |>
-  full_join(grad_proj_sql, by = GRAD_KEYS, suffix = c(".dbo", ".r")) |>
+  full_join(grad_proj_sql, by = GRAD_KEYS, suffix = c(".dbo", ".sql")) |>
   mutate(
     GRADUATES.dbo = coalesce(round(GRADUATES.dbo, 0), 0),
-    GRADUATES.r = coalesce(round(GRADUATES.r, 0), 0),
-    diff = abs(GRADUATES.dbo - GRADUATES.r),
-    p_diff = if_else(GRADUATES.r == 0, NA_real_, diff / GRADUATES.r * 100)
+    GRADUATES.sql = coalesce(round(GRADUATES.sql, 0), 0),
+    diff = abs(GRADUATES.dbo - GRADUATES.sql),
+    p_diff = if_else(GRADUATES.sql == 0, NA_real_, diff / GRADUATES.sql * 100)
   )

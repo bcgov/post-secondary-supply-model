@@ -2,7 +2,7 @@
 title: "Post-Secondary Supply Model"
 subtitle: "Debrief June 24, 2026"
 title-slide-attributes: 
-  data-notes: We have a few slides to help generate discussion for todays debrif. The deck is short and will take about 10 minutes to go through.  The focus is on what we completed this spring, especially the SQL-to-R migration, what we validated, and what remains in progress. I’ll start with a quick project snapshot and workflow, then show how we tested alignment between legacy SQL version of our pipeline and the refactored R pipeline using core projection tables. I’ll close with key challenges and decisions needed for next steps into future cycles.
+  data-notes: We have a few slides to help generate discussion for today's debrief. The deck is short and will take about 10 minutes to go through. The focus is on what we completed this spring, especially the SQL-to-R migration, what we validated, and what remains in progress. I’ll start with a quick project snapshot and workflow, then show how we tested alignment between the legacy SQL version of our pipeline and the refactored R pipeline using core projection tables. I’ll close with key challenges and decisions needed for next steps into future cycles.
 format:
   revealjs:
     theme: default
@@ -28,8 +28,8 @@ In total, we now have 46 R scripts in one git repository in bcgov GitHub which a
 ## End-to-end workflow {style="font-size: 75%;"}
 
 1. Preprocess raw enrolment/credential data (01a–01d)
-3. Program matching (02a series)
-2. Build enrollment and grad forecasting inputs (01e)
+2. Program matching (02a series)
+3. Build enrollment and grad forecasting inputs (01e)
 4. Cohort construction (02b series)
 5. Near-completer ratios + graduate projections (03, 04)
 6. Census distribution scripts
@@ -148,7 +148,7 @@ print(p)
 ```
 
 ::: notes
-This scatter plot validates our migration efforts by comparing occupation projection outputs from the new R pipeline against the a fresh run of the legacy SQL pipeline (neither include manual program matching). Each point represents projected new skilled labour for a specific age group, NOC, region, and year combination; the final release reports a subset of these records.
+This scatter plot validates our migration efforts by comparing occupation projection outputs from the new R pipeline against a fresh run of the legacy SQL pipeline (neither run includes manual program matching). Each point represents projected new skilled labour for a specific age group, NOC, region, and year combination; the final release reports a subset of these records.
 
 The red diagonal is the 1-to-1 reference line. Because points cluster tightly along that line, we can see that SQL versions and our full R version are producing near identical core projection tables. The close alignment of tmp_tbl_model across both versions is strong evidence that the refactor preserved prior production results.
 
@@ -197,8 +197,8 @@ Similarly, looking at the graduate projections, we have the SQL version graduate
 p <- ggplot(
   grad_proj_sql_r,
   aes(
-    x = log(GRADUATES.sql),
-    y = log(GRADUATES.r)
+    x = log1p(GRADUATES.sql),
+    y = log1p(GRADUATES.r)
   )
 ) +
   geom_point(alpha = 0.5) +
@@ -273,7 +273,7 @@ Here, we’ve filtered the results to highlight credential and age-group combina
 - Missing demographic imputed multiple times and methods
 
 ::: {.notes}
-While the migration was successful, we did hit some bumps. Program matching is still time consuming and complex and some decisions need to be made around manual work.  We chose not to do any manual work to identify skills-based courses.  There were decisions to be made around how to imputed values. Additionally, tracking demographics is tough because there is no single source of truth for gender, which can change over time, requiring us to stitch demographic data together from several different tables.
+While the migration was successful, we did hit some bumps. Program matching is still time-consuming and complex, and some decisions need to be made around manual work. We chose not to do any manual work to identify skills-based courses. There were decisions to be made around how to impute values. Additionally, tracking demographics is tough because there is no single source of truth for gender, which can change over time, requiring us to stitch demographic data together from several different tables.
 :::
 
 
