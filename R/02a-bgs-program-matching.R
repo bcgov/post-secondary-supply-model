@@ -1467,7 +1467,7 @@ matched_2d_cips <- matched_2d_cips %>% # this one is from t2 which is a subset o
         INSTITUTION_CODE,
         STP_PROGRAM_CODE,
         STP_PROGRAM_DESC,
-        CIP = BGS_FINAL_CIP_CODE_4,
+        CIP = BGS_FINAL_CIP_CODE_4, # CIP from 4-digit BGS survey records.
         STP_FINAL_CIP_CODE_4
       ) |>
       collect(),
@@ -1767,6 +1767,7 @@ bgs_matching_tbl %>%
 #
 # "D:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
 # "D:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
+# "p:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
 
 # Important:
 # This section requires a manual step outside R. The script expects the reviewed
@@ -3381,11 +3382,11 @@ t_bgs_updated <- t_bgs_updated %>%
   # Left join on STQU_ID to bring in matched CIP codes and flags
   # Rename source columns with "src_" prefix to avoid naming conflicts during updates
   left_join(
-   bgs_matching_final %>%  
-     filter(!is.na(FINAL_CONSIDER_A_MATCH) & FINAL_CONSIDER_A_MATCH != "") %>%
-       group_by(STQU_ID) %>%
-       slice_min(order_by = YEAR, n=1, with_ties =FALSE) %>%
     bgs_matching_final %>%
+      filter(!is.na(FINAL_CONSIDER_A_MATCH) & FINAL_CONSIDER_A_MATCH != "") %>%
+      group_by(STQU_ID) %>%
+      slice_min(order_by = YEAR, n = 1, with_ties = FALSE) %>%
+      bgs_matching_final %>%
       select(
         STQU_ID,
         FINAL_CIP_CODE_4,
@@ -3470,10 +3471,10 @@ t_bgs_updated <- t_bgs_updated %>%
       src_STP_CIP_CODE_4_NAME,
       STP_CIP_CODE_4_NAME
     ),
-     FINAL_CONSIDER_A_MATCH = if_else(
-       step1_update == TRUE,
-       src_FINAL_CONSIDER_A_MATCH,
-       FINAL_CONSIDER_A_MATCH
+    FINAL_CONSIDER_A_MATCH = if_else(
+      step1_update == TRUE,
+      src_FINAL_CONSIDER_A_MATCH,
+      FINAL_CONSIDER_A_MATCH
     ),
     FINAL_PROBABLE_MATCH = if_else(
       step1_update == TRUE,

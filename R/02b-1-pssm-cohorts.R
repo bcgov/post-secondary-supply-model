@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # This script prepares student outcomes data for the following student surveys: TRD, APP, DACSO, BGS
+# need tables: load-cohort-tablename.r
 #
 # APP:
 #     Assumes geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use and
@@ -119,6 +120,8 @@ if (length(missing) > 0) {
 
 # Set weight for model year
 target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
+
+tbl_age <- tbl_age |> janitor::clean_names("all_caps") |> select(AGE, AGE_GROUP)
 
 # ---- TRD Queries ----
 # Applies weight for model year and derives New Labour Supply
