@@ -1,0 +1,193 @@
+---
+title: "Module 07 Occupation Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid:
+      body-width: 1800px
+      sidebar-width: 100px
+      margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+This module converts program-level graduate projections into occupation-level NLS (New Labour Supply) and occupation counts using labour-supply and occupation-distribution inputs. It produces final NLS distributions by age group, credential, region, and year for downstream labour-market modelling and quality-indicator reruns.
+
+## Key Inputs
+
+- graduate_projections: projected graduates by PSSM_CRED, AGE_GROUP, YEAR
+- cohort_program_distributions: program-to-cohort allocation (PERCENT)
+- labour_supply_distribution, labour_supply_distribution_no_tt, labour_supply_distribution_lcp2*, *_no_tt: labour-supply shares by LCIP4/LCIP2, age, region
+- occupation_distributions, occupation_distributions_lcp2*: occupation probabilities (PERCENT) by program and age
+- Lookup tables: infoware_l_cip_6digits_cip2016, infoware_l_cip_4digits_cip2016, tbl_age_groups, t_lcp2_lcp4, t_* exclude tables
+
+## Data Dictionary — Key Inputs
+
+### graduate_projections
+<ul class="list-variable-names">
+  <li>PSSM_CREDENTIAL (String): High-level credential label (e.g., "CERT", "DIPL", "BACH").</li>
+  <li>PSSM_CRED (String): Detailed credential code used for joins (e.g., "1 - CERT", "P - DIPL").</li>
+  <li>AGE_GROUP (String): Fine-grained age group label (e.g., "20-24").</li>
+  <li>AGE_GROUP_ROLLUP (String): Aggregated age-group label used for joins (e.g., "20-24;25-29").</li>
+  <li>YEAR (Integer): Projection year (YYYY).</li>
+  <li>GRADUATES (Numeric): Projected graduates count for the cell.</li>
+  <li>GRAD_STATUS (String, optional): Graduation status or cohort qualifier.</li>
+</ul>
+
+### cohort_program_distributions
+<ul class="list-variable-names">
+  <li>PSSM_CREDENTIAL / PSSM_CRED (String): Keys matching graduate_projections.</li>
+  <li>AGE_GROUP / AGE_GROUP_ROLLUP (String): Age grouping keys for allocation.</li>
+  <li>YEAR (Integer): Year that the distribution applies to.</li>
+  <li>LCP4_CD (String): 4-digit LCP program code used for mapping to LCIP/occupation tables.</li>
+  <li>LCIP4_CRED (String): Join key encoding (e.g., "1 - 1234 - CERT").</li>
+  <li>PERCENT (Numeric): Fraction of the credential cohort allocated to this program cell (0-1).</li>
+  <li>Other metadata (e.g., GRAD_STATUS, TTRAIN) used by downstream filters.</li>
+</ul>
+
+### labour_supply_distribution (and _no_tt variants)
+<ul class="list-variable-names">
+  <li>LCIP4_CRED (String): Program-level key matching cohort_program_distributions (includes trades flag when present).</li>
+  <li>AGE_GROUP_ROLLUP (String): Age rollup used for joining.</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup code for geographic allocation.</li>
+  <li>NEW_LABOUR_SUPPLY (Numeric): Labour-supply share for the cell (0-1) used to compute NLS.</li>
+  <li>PSSM_CRED (String, optional): Credential label in some distribution tables (e.g., "P - CERT").</li>
+</ul>
+
+### labour_supply_distribution_lcp2* (LCIP2 proxies)
+<ul class="list-variable-names">
+  <li>LCIP2_CRED or LCP2_CD (String): 2-digit CIP code or encoded join key.</li>
+  <li>AGE_GROUP_ROLLUP (String): Age rollup key.</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup.</li>
+  <li>NEW_LABOUR_SUPPLY (Numeric): Labour-supply share at the 2-digit proxy level.</li>
+</ul>
+
+### occupation_distributions (and lcp2 variants)
+<ul class="list-variable-names">
+  <li>LCIP4_CRED or LCIP2_CRED (String): Program-level join key (4- or 2-digit proxy).</li>
+  <li>AGE_GROUP_ROLLUP (String): Age rollup for occupation probabilities.</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup.</li>
+  <li>OCC_CODE / NOC (String): Occupation code (NOC or agency-specific code).</li>
+  <li>PERCENT (Numeric): Probability/share of programme NLS entering this occupation (0-1).</li>
+  <li>SURVEY (String, optional): Source tag (e.g., "PTIB" for synthetic private-institution rows).</li>
+</ul>
+
+### infoware_l_cip_6digits_cip2016
+<ul class="list-variable-names">
+  <li>LCIP_LCP4_CD (String): 4-digit CIP code (may include formatting characters).</li>
+  <li>LCIP_LCP2_CD (String): 2-digit CIP family code.</li>
+  <li>OTHER fields: CIP6_CODE, CIP6_NAME (Strings): 6-digit CIP identifier and human-readable name.</li>
+</ul>
+
+### infoware_l_cip_4digits_cip2016
+<ul class="list-variable-names">
+  <li>LCP4_CD / LCIP_LCP4_CD (String): 4-digit CIP code.</li>
+  <li>LCP4_NAME (String): Human-readable program name for the 4-digit code.</li>
+</ul>
+
+### t_lcp2_lcp4
+<ul class="list-variable-names">
+  <li>LCIP_LCP2_CD (String): 2-digit CIP family code.</li>
+  <li>LCIP_LCP4_CD (String): 4-digit CIP code.</li>
+  <li>Purpose: Mapping table used to proxy missing 4-digit distributions from 2-digit aggregates.</li>
+</ul>
+
+### tbl_age_groups
+<ul class="list-variable-names">
+  <li>AGE_GROUP_LABEL (String): Fine-grained age group label used across scripts (e.g., "20-24").</li>
+  <li>AGE_GROUP_ROLLUP (String): Aggregated age-group key used for joins (e.g., "20-24").</li>
+  <li>AGE_GROUP_ROLLUP_LABEL (String): Human-readable rollup label.</li>
+  <li>MIN_AGE, MAX_AGE (Integer, optional): Numeric age bounds for group definitions.</li>
+</ul>
+
+### Exclusion and helper lookup tables (t_exclude_*)
+<ul class="list-variable-names">
+  <li>t_exclude_from_projections_lcp4_cd: LCIP_LCP4_CD (String) — 4-digit program codes to exclude from projections.</li>
+  <li>t_exclude_from_projections_lcip4_cred: LCIP4_CRED (String) — coded program+credential entries to exclude.</li>
+  <li>t_exclude_from_projections_pssm_credential: PSSM_CREDENTIAL (String) — credential types to exclude.</li>
+  <li>t_exclude_from_labour_supply_unknown_lcp2_proxy: LCP2_CD / LCIP_LCP2_CD (String) — 2-digit codes excluded from 2-digit proxying.</li>
+</ul>
+
+(If additional lookup tables are used in your environment, add matching lists using the same HTML list pattern.)
+
+## Technical Requirements
+
+R packages used (as required by the script):
+- tidyverse, DBI, RODBC, glue, assertthat
+
+System: DB access to INFOWARE/STP schemas where listed tables live (or cached tibbles in the environment).
+
+## Methodology Overview
+
+The workflow follows the Q_1 / Q_2 / Q_3 sequence implemented in R/07-occupation-projections.R. The summary below mirrors code blocks and business rules.
+
+### Q_1 — Program-level graduate projections
+- Combine graduate_projections with cohort_program_distributions.
+- Exclude programs listed in exclusion lookups.
+- Compute GRADS = GRADUATES * PERCENT to allocate projected graduates to program-level cohorts.
+- Produce both LCIP4 and LCP2 rollups (LCP2 = first 2 digits of LCP4) and age-group rollups.
+
+### Q_2 — Apply labour-supply distributions to compute NLS
+- Join program-level GRADS to labour_supply_distribution at LCIP4+AGE_GROUP_ROLLUP to compute NLS:
+
+  NLS = GRADS * NEW_LABOUR_SUPPLY
+
+- For program/age combinations missing LCIP4 labour-supply rows, apply fallbacks in order:
+  1. labour_supply_distribution_no_tt (No trades/TTRAIN variable)
+  2. Private-training (PTIB) proxy rows (CERT <-> DIPL substitutions where needed)
+  3. LCP2 (2-digit CIP) proxy via t_lcp2_lcp4 mapping
+- Each fallback computes NLS similarly; intermediate unions aggregate all NLS rows.
+- Region and age group rollups preserved via join keys (CURRENT_REGION_PSSM_CODE_ROLLUP, AGE_GROUP_ROLLUP).
+
+### Q_3 — Map program NLS into occupations
+- Join NLS rows to occupation_distributions (LCIP4 or LCIP2 level as appropriate).
+- Compute occupational counts per cell:
+
+  OCCSN = NLS * PERCENT
+
+- Aggregate occupation counts by NOC/NOC grouping, age rollup, region, credential, and year.
+
+### PTIB & Private Institution Handling
+- Create synthetic PTIB labour-supply and occupation distributions by filtering public-survey tables and tagging SURVEY = "PTIB" with adjusted PSSM_CRED values; append to distribution tables so private institutions receive plausible shares.
+
+### Quality indicators and reruns
+- The script is designed to rerun the full pipeline to produce a QI measure of predictability for each NOC projection (repeating the Q_1..Q_3 sequence and comparing outcomes across runs).
+
+## Key Outputs (data dictionary)
+
+- NLS_Distributions (program-level): NLS by PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP_ROLLUP, YEAR, LCP4_CD/LCP2_CD, CURRENT_REGION_PSSM_CODE_ROLLUP
+  - NLS (numeric): New Labour Supply estimate = GRADS * NEW_LABOUR_SUPPLY
+
+- Occupation_Level_Counts: occupation-level counts (OCCSN) by the same dimensions + occupation code
+  - OCCSN (numeric): expected number in occupation = NLS * PERCENT (occupation probability)
+
+## Business Rules / Notes
+
+- Exclusion lists (t_exclude_*) remove programs where Student Outcomes results are inappropriate for projections.
+- Private training institutions are proxied into distributions because survey coverage differs; CERT/DIPL substitutions intentionally broaden matches and may inflate totals (documented in code).
+- LCP2 proxies are used cautiously: certain medical programs are excluded from 2-digit proxying due to tight program-occupation links.
+- All joins use exact keys; missing labour-supply rows drive the fallback logic to ensure complete coverage.
+
+## Validation and Checks
+
+- Totals are aggregated and compared by credential/age/year to the original graduate projections to ensure mass balance.
+- Manual review lists are produced where automated proxying or substitutions are applied (e.g., PTIB, CERT/DIPL swaps).
+
+## Implementation Caveats
+
+- The script assumes required tables exist in the global environment or are accessible via DB queries.
+- Some variable naming inconsistencies (noted in-code) may require upstream fixes (e.g., missing "I" in CIP2 names in certain tables).
+
+
+---
+
+References: see R/07-occupation-projections.R and supporting lookup tables in the INFOWARE schema.
