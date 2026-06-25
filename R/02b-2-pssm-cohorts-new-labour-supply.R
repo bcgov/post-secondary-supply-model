@@ -1080,7 +1080,7 @@ labour_supply_distribution <- labour_supply_distribution %>%
         AGE_GROUP_ROLLUP,
         LCP4_CD,
         LCIP4_CRED,
-        LCIP2_CRED,
+        # LCIP2_CRED,
         COUNT,
         TOTAL,
         New_Labour_Supply = NEW_LABOUR_SUPPLY
