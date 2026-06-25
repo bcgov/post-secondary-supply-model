@@ -23,3 +23,4 @@ sql/test_refactor.r
 sql/test_refactor.sql
 tmp/input-data.csv
 tmp/output.csv
+R/app.R
