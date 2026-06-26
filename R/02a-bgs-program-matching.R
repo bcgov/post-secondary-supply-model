@@ -1765,9 +1765,9 @@ bgs_matching_tbl %>%
 # Output:
 # - BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly (review input/output table)
 #
-# "D:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
-# "D:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
-# "p:\PSSM\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
+# "lan\25-1319 Post-Secondary Supply Model 2022-2023\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
+# "lan\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
+# "lan\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
 
 # Important:
 # This section requires a manual step outside R. The script expects the reviewed
