@@ -55,6 +55,72 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 - If exact schema is not accessible, infer columns from code (R scripts or queries) and mark them with `(INFERRED)` so reviewers can verify.
 - Use `UPPER_SNAKE_CASE` for constants and `lower_snake_case` for table names in descriptions. Never include secrets or full internal paths in descriptions.
 
+## File naming & frontmatter
+
+- Save generated docs to: docs/technical-documentation-<NN>-<short-name>.qmd (NN is two-digit module id, zero-padded).
+- Title and short-name are derived from the R script filename. Use frontmatter example:
+
+  ---
+  title: "Module <NN> <Short Title> - Technical Documentation"
+  format:
+    html:
+      toc: true
+      number-sections: true
+  ---
+
+## Canonical headings (exact strings & order)
+
+- ## Overview
+- ## Data Sources and Storage
+- ### External Data Sources
+- ### Internal/Processed Data Sources
+- ## Technical Specifications
+- ### Dependencies and Environment Requirements
+- ## Methodology Overview
+- ## Key Output Tables
+- ## Suggested Improvements
+- ## Additional Details
+
+## Discovery rules for Key Inputs / Key Outputs (strict)
+
+- Do NOT infer Key Inputs/Outputs. Include a table only when one of:
+  - script contains an explicit read (e.g., DBI::dbGetQuery, dbReadTable, readr::read_csv, arrow::read_parquet) referencing the object, or
+  - script contains an explicit write/create (e.g., DBI::dbWriteTable, dbExecute CREATE, write_csv, writeRDS, data.table::fwrite), or
+  - script contains an inline marker comment: `# INPUT: <table_name> — short description` or `# OUTPUT: <table_name> — short description`.
+- If none detected, add a note in the doc: "No explicit reads/writes detected. Add # INPUT:/# OUTPUT: markers or include a SELECT/glimpse snippet to document schema."
+
+## Recognized read/write signals (tokens to search for)
+
+- Read tokens: DBI::dbGetQuery, DBI::dbReadTable, dbReadTable, readr::read_csv, readr::read_csv2, readxl::read_excel, arrow::read_parquet, vroom::vroom
+- Write tokens: DBI::dbWriteTable, dbWriteTable, DBI::dbExecute (CREATE), write_csv, readr::write_csv2, write.table, data.table::fwrite, saveRDS, save, arrow::write_parquet, qs::qsave, fst::write_fst, openxlsx::write.xlsx, copy_to(..., overwrite=TRUE)
+
+## Data dictionary generation rules
+
+- For each explicit Key Input/Output include an HTML-styled list: `<ul class="list-variable-names">` with `<li>COL_NAME (Type): Description</li>` entries.
+- If schema cannot be determined, include: "Schema unknown — please add SELECT/glimpse snippet or inline marker in script."
+- Mark any inferred columns with "(INFERRED)" so reviewers can verify.
+
+## Methodology extraction rules
+
+- Detect named blocks or comments (e.g., Q_1, Q_2, Q_3) and summarise steps in order.
+- Capture simple formulas and fallback order as short code-like lines (e.g., `NLS = GRADS * NEW_LABOUR_SUPPLY`).
+- Document special handling (PTIB proxies, LCP2 fallbacks, QI reruns) when present.
+
+## Runtime aliases & recommendations
+
+- If runtime aliases point to a published table (e.g., `tmp_tbl_model <- q_5_*`), document alias → target and recommend adding `# OUTPUT: <published_name>` in the script.
+- Prefer explicit write markers over name heuristics for robust detection.
+
+## Ambiguity policy
+
+- If detection of inputs/outputs is ambiguous, ask one focused question (e.g., "Which table should be treated as Key Output?") rather than guessing.
+
+## Commit & save policy
+
+- Save generated QMD to docs/ (do not push remote).
+- Commit message template: `Generate technical doc: R/<script> — adds canonical headings and data dictionaries`.
+- Include Co-authored-by trailer when committing programmatically: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+
 ---
 
 ## Minimal Examples
