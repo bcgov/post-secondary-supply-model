@@ -231,6 +231,12 @@ Classification of Instructional Program (CIP) codes for each STP program record 
 
 ## Suggested Improvements
 
+- The 2021, 2022, and 2023 update blocks repeat the same crosswalk logic with year-specific objects. Refactoring those sections into parameterized helpers would substantially reduce maintenance effort.
+- Institution-specific overrides for BCIT, CAPU, and VIU are embedded directly in the script. Moving those rules into an auditable reference table would make custom matching decisions easier to govern.
+- Several comments mark manual review steps for historical linkages and CIP-note inspection. Those decision points should produce explicit audit tables or approval files rather than relying on code comments alone.
+- The script writes both `STP_Credential_Non_Dup_Programs_DACSO_r` and `Credential_Non_Dup_Programs_DACSO_FinalCIPS_r` from the same final object. If both names must remain, the documentation should state why both persist and which one is authoritative downstream.
+- The comments already note that a CIP 2021 lookup exists in INFOWARE. The annual refresh process should define when the crosswalk is expected to migrate from the 2016 taxonomy.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This script is the DACSO-specific program-matching branch within Module 02a. It explicitly works from the previous DACSO/STP crosswalk, `INFOWARE_PROGRAMS`, `INFOWARE_PROGRAMS_HIST_PRGMID_XREF`, the INFOWARE CIP lookup tables, and `Credential_Non_Dup`. The first half of the script refreshes `DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r`; the second half derives DACSO-linked credential records and writes `STP_Credential_Non_Dup_Programs_DACSO_r` and `Credential_Non_Dup_Programs_DACSO_FinalCIPS_r`. Those outputs feed directly into `02a-update-cred-non-dup.R`, which uses them as the highest-priority source for final CIP assignments on DACSO records. Operationally, the script also depends on annual manual review of unresolved or historically linked programs before the refreshed crosswalk is finalized.

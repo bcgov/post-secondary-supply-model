@@ -403,6 +403,12 @@ The resulting matrices provide granular frequency counts stratified by residency
 
 ## Suggested Improvements
 
+- The rerun steps for date conversion and surrogate ID creation are still controlled by commented code in `01a` and `01b`. Converting these into explicit run parameters would make refreshes less error-prone.
+- Record-status logic, developmental CIP filters, and continuing-education pattern checks are duplicated across the enrolment and credential preprocessing scripts. A shared helper or lookup table would reduce drift between the two branches.
+- `01c` performs stochastic imputation for gender and age but does not set a local seed in the script. Adding deterministic seeding around those sampling steps would make reruns easier to audit.
+- Several sections retain manual-investigation scaffolding, especially for skills-based exclusions and residual age fixes. Those exceptions should be moved into documented lookup tables so they can be reviewed outside the code.
+- `01c` depends on `R/01c-gender-cleaning.r`, but that dependency is not surfaced in the module narrative or output metadata. The sourced helper should be documented as part of the formal runtime requirements.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This documentation covers the opening STP processing block of the pipeline. `01a-enrolment-preprocessing.R` reads `STP_Enrolment` and writes `stp_enrolment_r`, `stp_enrolment_record_type_r`, and `stp_enrolment_valid_r`. `01b-credential-preprocessing.R` reads `STP_Credential` together with the enrolment outputs and writes `stp_credential_r` and `stp_credential_record_type_r`. `01c-credential-analysis.R` reads those staging tables and produces `credential_non_dup_r`, `tbl_credential_highest_rank_r`, `tbl_credential_delay_effect_r`, `credential_r`, `credential_supvars_r`, and `credential_supvars_enrolment_r`. `01d-enrolment-analysis.R` then produces `min_enrolment_r`, and `01e-stp-distributions.R` aggregates the credential and enrolment distributions consumed by later forecasting modules, especially Modules 04 and 06. All five scripts depend on the `decimal` and `myschema` configuration entries and an active SQL Server ODBC connection.

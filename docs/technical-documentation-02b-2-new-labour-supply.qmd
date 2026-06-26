@@ -21,6 +21,8 @@ format:
 
 ## Overview
 
+This script transforms the unified cohort table into weighted new-labour-supply (NLS) distributions used by the occupation model. It standardizes cohort names, repairs selected invalid NOC codes, recodes certain NLS-2 records to NLS-3 when no NLS-1 peer exists, applies respondent and model-year weighting, and then appends Statistics Canada proxy distributions for groups that remain unobserved in the survey data. The result is a set of labour-supply distributions at both LCIP4 and LCP2 levels, with parallel variants that exclude trades training where required downstream.
+
 ## Data Sources and Storage
 
 ### External Data Sources
@@ -277,6 +279,12 @@ $p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
 
 ## Suggested Improvements
 
+- The model years are hard-coded as `2019:2023`. Converting the active year window into a single configuration value would reduce the number of edits required for annual refreshes.
+- The script contains an unresolved naming issue (`LCP2_CRED` versus `LCIP2_CRED`) called out in comments. Standardizing that field name before the write step would reduce downstream join ambiguity.
+- Only a narrow set of invalid NOC recodes is implemented in code, while other recoding steps remain documented as missing tables. The incomplete recoding path should be formalized so that all NOC repairs are reproducible.
+- The Statistics Canada proxy logic is spread across several long blocks for LCIP4, LCP2, and no-trades variants. Extracting reusable helper functions would make it easier to verify that each branch applies the same weighting rules.
+- The script writes supporting tables such as `tmp_tbl_weights_nls` alongside the final distributions, but does not distinguish between audit outputs and contractual downstream inputs. That distinction should be documented explicitly in code comments.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This script runs immediately after `02b-1-pssm-cohorts.R` and before `02b-3-pssm-cohorts-occupation-distributions.R`. It explicitly reads `t_cohorts_recoded`, `t_current_region_pssm_codes`, `t_current_region_pssm_rollup_codes`, `t_noc_broad_categories`, and `Labour_Supply_Distribution_Stat_Can_r`. It writes `labour_supply_distribution_r`, `labour_supply_distribution_no_tt_r`, `labour_supply_distribution_lcp2_r`, `labour_supply_distribution_lcp2_no_tt_r`, and the support table `tmp_tbl_weights_nls_r`, while also re-persisting several lookup tables already in use. Those labour-supply outputs are consumed directly by Module 07 and are paired with the occupation distributions produced in `02b-3`. The script has no runtime toggle object of its own, but its logic assumes that the cohort table already reflects the chosen model year and weighting scheme.

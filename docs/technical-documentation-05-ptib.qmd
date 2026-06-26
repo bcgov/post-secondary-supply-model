@@ -186,6 +186,12 @@ The final outputs of this module are persisted to the SQL environment as standar
 
 ## Suggested Improvements
 
+- `load-ptib.R` already flags that CIP rounding needs review. That transformation should be validated against the six-digit lookup before each annual refresh, because downstream filtering depends on it.
+- Exclusion logic for ESL, not-for-credit, and `99999` programs is embedded directly in `05-ptib-analysis.R`. Moving those exclusions into a maintained reference file would make the private-institution methodology easier to govern.
+- Immigration-status handling leaves `(blank)` and `Unknown` values to be redistributed proportionally, but the script also notes unresolved recoding decisions. Those categories should be standardized explicitly upstream.
+- Comments in Parts 2 and 3 ask whether PTIB rows should instead be appended in later modules. The pipeline should define one authoritative insertion point for PTIB outputs.
+- The analysis averages 2021 and 2022 values by dividing summed counts by two. That assumption should be validated if additional PTIB source years are introduced.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This module is the PTIB side branch that prepares private-institution graduate counts for later forecasting. `load-ptib.R` reads the PTIB workbook plus the explicit lookup files `INFOWARE_L_CIP_6DIGITS_CIP2016`, `T_PSSM_Credential_Grouping`, and `T_PTIB_Y1_to_Y10`, and writes `t_private_institutions_credentials_r`, `t_pssm_credential_grouping_r`, and `t_ptib_y1_to_y10_r`. `05-ptib-analysis.R` then consumes those tables and writes `qry_Private_Credentials_05i_Grads_r`, `qry_Private_Credentials_05i1_Grads_by_Year_r`, and `qry_Private_Credentials_06d1_Cohort_Dist_r`. The cohort-distribution output feeds `02b-1-pssm-cohorts.R`, and the graduate-by-year output supports later projection modules where PTIB counts are appended to the main model. Both scripts depend on the configured SQL Server connection plus externally maintained PTIB source files.

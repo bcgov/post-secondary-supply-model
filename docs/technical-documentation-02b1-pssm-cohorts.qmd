@@ -222,6 +222,12 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
 
 ## Suggested Improvements
 
+- The script resets `t_cohorts_recoded` by filtering it to zero rows before rebuilding it. Initializing a new object explicitly would make the refresh behaviour clearer and less dependent on pre-existing state.
+- Model-year strings such as `2022-2023` and `2023/2024` are embedded in several joins and survey labels. Moving those values into a shared configuration object would simplify annual rollover.
+- PTIB inclusion is controlled by `ptib_run`, but the same PTIB responsibility is referenced again in later modules. A single documented handoff point would make the private-institution path easier to maintain.
+- The script contains survey-specific transformation blocks with similar age, weight, and credential recoding steps. Extracting survey adapters would reduce the size of the main build routine.
+- Required input names are aliased at the top (`appso_data_final`, `bgs_data_final`, `bgs_inst_recode`) because the loader outputs do not match the processing names. Harmonizing those names upstream would reduce confusion.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This script is the integration point between the cohort loaders and the labour-supply calculations. It explicitly consumes `trd_data`, `trd_graduates`, `t_appso_data_final`, `appso_graduates`, `t_bgs_data_final`, `t_bgs_inst_recode`, `t_bgs_data_final_for_outcomesmatching`, `t_weights`, `t_dacso_data_part_1_stepa`, age and region lookup tables, `t_year_survey_year`, `qry_private_credentials_06d1_cohort_dist`, and `T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_r`. It writes the unified cohort table `t_cohorts_recoded_r` and an updated `t_dacso_data_part_1_r`. Those outputs feed directly into the labour-supply and occupation-distribution scripts in Module 02b and are also expected by Module 07 through `load-program-projections.R`. The script uses `regular_run`, `qi_run`, and `ptib_run` flags to control weighting and PTIB inclusion.

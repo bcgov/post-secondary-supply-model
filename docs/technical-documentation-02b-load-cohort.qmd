@@ -241,8 +241,12 @@ The primary standardized survey dataset containing reconciled regional codes and
 
 ## Suggested Improvements
 
-<mark> TO DO OR REMOVE </mark>
+- All four loader scripts hard-code `qi_run <- F`. Replacing those inline toggles with a shared run parameter would prevent the QI pathway from diverging across loaders.
+- The database write helper is repeated verbatim in every loader. Centralizing that persistence pattern would reduce copy-and-paste maintenance.
+- The loaders rely on many external CSV files with implied schemas and year-specific names. Adding explicit column checks would make upstream file changes easier to detect before downstream joins fail.
+- `load-cohort-bgs.R` includes an optional `bgs_data_update` overlay, while `load-cohort-dacso.R` imports many separate lookup files. Those exceptional branches should be documented in code with clear rerun instructions.
+- Output naming is inconsistent across loaders (`t_` prefixes, mixed case, and source-specific conventions). A single naming standard would make downstream discovery and documentation easier.
 
 ## Additional Details
 
-<mark> TO DO OR REMOVE </mark>
+These four scripts form the ingestion layer for the student-outcomes cohort pipeline. `load-cohort-appso.R` reads the APPSO survey and graduate CSV extracts and writes `t_appso_data_final_r` and `appso_graduates_r`. `load-cohort-bgs.R` reads `t_bgs_data_final_for_outcomesmatching_r` together with BGS weight and institution-recode files and writes `t_bgs_data_final_r`, `t_bgs_data_final_for_outcomesmatching_r`, `t_weights_r`, and `t_bgs_inst_recode_r`. `load-cohort-dacso.R` loads DACSO source extracts plus age, region, credential, and NOC lookup files and writes `t_dacso_data_part_1_stepa_r` alongside the supporting lookup tables later reused by Modules 02b and 07. `load-cohort-trd.R` reads the trades cohort and graduate extracts and writes `trd_data_r` and `trd_graduates_r`. All four loaders feed directly into `02b-1-pssm-cohorts.R`, and all depend on the configured SQL Server connection plus externally maintained survey/lookup files.

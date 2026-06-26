@@ -152,6 +152,12 @@ The finalized dataset containing student IDs linked to their standardized CIP co
 
 ## Suggested Improvements
 
+- The malformed-CIP check in Step 3 compares the second character to `"\."` using `substr()`. That literal comparison should be verified, because `substr()` returns a single character rather than a regular-expression token.
+- The exact-match, 5-character fallback, general-program, and 2-digit fallback logic is effectively repeated later in `02a-update-cred-non-dup.R`. Extracting the shared CIP standardization logic would reduce maintenance risk.
+- The 5-character and 2-character fallback joins can return multiple matches when the INFOWARE lookup is not unique at that prefix. Adding an explicit deduplication rule or assertion would make the final CIP assignment easier to audit.
+- `general_program_prefixes` is hard-coded in the script. Moving that list to a maintained lookup would simplify annual review when taxonomy rules change.
+- The module writes its outputs via `compute()` but does not include inline `# OUTPUT:` markers. Adding explicit markers would make downstream table discovery more robust.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This script sits inside the Module 02a CIP-standardization branch and handles apprenticeship records only. It explicitly reads `Credential_Non_Dup_r` together with `INFOWARE_L_CIP_6DIGITS_CIP2016`, `INFOWARE_L_CIP_4DIGITS_CIP2016`, and `INFOWARE_L_CIP_2DIGITS_CIP2016`. It materializes two database tables: `Credential_Non_Dup_STP_APPSO_Cleaning_r`, which preserves the cleaned apprenticeship CIP mapping audit trail, and `Credential_Non_Dup_APPSO_IDs_r`, which stores record-level final 4-digit and 2-digit CIP assignments for APPSO rows. Those outputs are consumed by `02a-update-cred-non-dup.R`, where they are merged back into the master credential table before cohort construction begins. Operationally, the script depends only on the configured SQL Server connection and the dbplyr `compute()` materialization step; no external flags are defined in the file.

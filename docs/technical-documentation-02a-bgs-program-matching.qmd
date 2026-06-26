@@ -20,6 +20,8 @@ format:
 
 ## Overview
 
+This script aligns BGS and graduate-outcomes program records with STP credential records so that final CIP assignments can be propagated back into the master credential table. It builds the BGS outcomes file used for matching, standardizes STP CIP codes through a staged lookup process, links records primarily by PEN, applies automatic decision rules for exact and near-exact matches, and then routes unresolved institution/year conflicts through a manual review workflow. The script writes updated BGS- and GRAD-linked CIP tables for downstream consolidation in `02a-update-cred-non-dup.R`.
+
 ## Data Sources and Storage
 
 ### External Data Sources
@@ -309,6 +311,12 @@ This table contains credential records for graduates who were not surveyed in th
 
 ## Suggested Improvements
 
+- Part 3C depends on exporting and re-importing a manually edited CSV. That review artifact should be versioned and validated explicitly so reruns cannot proceed with missing or stale analyst decisions.
+- Institution aliases and source-preference rules are embedded directly in the code. Moving those overrides into maintained lookup tables would make annual updates safer and easier to review.
+- The source-year window is hard-coded to the current BGS tables (`19_23` plus 2018 from `18_22`). Parameterizing the intake years would reduce the amount of code that must change each cycle.
+- The script materializes several large intermediate tables through repeated `compute()` and `dbWriteTable()` calls. Adding row-count checks after each persistence step would make silent truncation or duplicate expansion easier to detect.
+- Oracle bootstrap code for one-time source loading remains in the runnable script. Isolating those setup instructions from the operational path would make the production workflow clearer.
+
 ## Additional Details
 
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._
+This module runs after the BGS outcomes source tables and the STP credential master table are available, and before `02a-update-cred-non-dup.R` updates the final credential table. It explicitly uses `INFOWARE_BGS_DIST_19_23`, `INFOWARE_BGS_DIST_18_22`, `INFOWARE_BGS_COHORT_INFO`, `Credential_Non_Dup_r`, and the three INFOWARE CIP lookup tables. The script materializes `T_BGS_Data_Final_for_OutcomesMatching`, `Credential_Non_Dup_STP_CIP4_Cleaning`, `Credential_Non_Dup_BGS_IDs`, `Credential_Non_Dup_GRAD_IDs`, and `BGS_Matching_STP_Credential_PEN`, along with manual-review staging outputs used to resolve disputed program/CIP pairs. The record-level BGS and GRAD tables feed the final CIP merge in Module 02a and then support downstream BGS cohort loading and graduate forecasting. A manual analyst review step is an explicit operational dependency of this script.

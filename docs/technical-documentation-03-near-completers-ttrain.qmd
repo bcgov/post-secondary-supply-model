@@ -318,4 +318,12 @@ A longitudinal frequency distribution of success ratios, disaggregated by indivi
 
 ## Suggested Improvements
 
+- The matching workflow is implemented as one long, flag-heavy script. Splitting the major stages into helpers for initial matching, earlier/later credential checks, and multiple-credential resolution would make the logic easier to audit.
+- Several decision columns are stored as string flags such as `yes`, `Multiple`, and `UseThisRecord`. Converting those to a more constrained representation would reduce the risk of downstream join or filter mistakes.
+- A comment near the end of the script notes that the TTRAIN flag is available but unresolved for inclusion. That unresolved business rule should be closed before the next annual refresh.
+- The script writes multiple ratio tables derived from similar grouped summaries. Adding reconciliation checks between the annual, pooled, and TTRAIN-specific outputs would make it easier to detect accidental divergence.
+- The loader and analysis scripts depend on numerous year-specific CSV inputs. Formal schema validation for those source extracts would make the near-completer pipeline more resilient to upstream file changes.
+
 ## Additional Details
+
+This module sits between the cohort-preparation work and the graduate/program projection stages. `load-near-completers-ttrain.R` loads annual DACSO near-completer source files, age-group lookups, and supporting STP tables such as `t_dacso_data_part_1`, `credential_non_dup`, and `stp_credential`. `03-near-completers-ttrain.R` then produces `t_dacso_near_completers_ratio_by_gender_year_r`, `t_dacso_near_completers_ratio_by_gender_r`, `t_dacso_nearcompleters_ratioageatgradcip4_r`, `t_dacso_near_completers_ratiosageatgradcip4_ttrain_history_r`, and `t_dacso_near_completers_ratiosageatgradcip4_ttrain_r`. The gender-based ratio tables are read later by `04-graduate-projections.R`, while the CIP4/TTRAIN ratio table is consumed by `06-program-projections.R`. Operationally, this module depends on longitudinal linkage between survey records and STP credentials rather than on any standalone run flag.

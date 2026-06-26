@@ -166,4 +166,12 @@ References: see R/07-occupation-projections.R and supporting lookup tables in th
 
 ## Suggested Improvements
 
+- The final handoff objects (`tmp_tbl_model`, `tmp_tbl_qi`, and related variants) are left in memory rather than persisted. The script should either write them explicitly or document the required handoff to Module 08 in code.
+- Proxy handling for no-trades, private-institution, and LCP2 fallbacks is implemented through long parallel query blocks. Refactoring those branches into reusable helpers would make the fallback order easier to verify.
+- The core run controls (`model`, `ptib_run`, `regular_run`, `qi_run`) are hard-coded at the top of the file. Promoting them to a shared runtime configuration would reduce the risk of inconsistent reruns.
+- Validation queries for cohort counts, labour supply, and occupation totals are present only as comments. Promoting the most important checks into executable assertions would improve operational safety.
+- Large blocks of commented export code remain in the script even though Module 08 now handles reporting. Removing or isolating those retired pathways would make the active workflow clearer.
+
 ## Additional Details
+
+This script is the final transformation step before reporting outputs are assembled. It expects the labour-supply tables from `02b-2`, the occupation-distribution tables from `02b-3`, the cohort-program distributions from `06-program-projections.R`, `graduate_projections`, and a suite of exclusion and lookup tables to already exist in the R environment. Depending on the run flags, it copies the final `q_5_noc_totals_by_year_and_bc_and_total` result into `tmp_tbl_model`, `tmp_tbl_qi`, `tmp_tbl_model_inc_private_inst`, or `tmp_tbl_model_program_projection`, and then clears selected intermediate SQL tables. Those in-memory outputs are the immediate upstream inputs to `08-create-final-reports.R` and to the public/internal release queries referenced in the script comments. Operationally, the `model`, `ptib_run`, `regular_run`, and `qi_run` toggles determine whether the static or projected cohort tables are used and whether PTIB or quality-indicator outputs are generated.

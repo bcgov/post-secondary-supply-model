@@ -207,4 +207,12 @@ The following data objects represent the terminal outputs of the program project
 
 ## Suggested Improvements
 
+- The script depends on `source("./R/program projections.R")` and file-based exchange through `./tmp/input-data.csv` and `./tmp/output.csv`. That external dependency and temporary I/O contract should be documented and validated explicitly.
+- Survey labels and model-year strings such as `Program_Projections_2023-2024_Q012e` and `2023/2024` are hard-coded throughout the script. Centralizing them would make annual rollover less brittle.
+- The comments already note that some logic may belong in `graduate_projections.R`. Responsibilities for APPSO extension and static-to-projected carry-forward should be clarified across Modules 04 and 06.
+- `load-program-projections.R` retains rollover tables during QI runs but reloads them during regular/PTIB runs. That stateful behaviour should be made more explicit so analysts know when stale tables may persist.
+- The script writes four contractual outputs but also depends on many side inputs created elsewhere in memory. Adding explicit input/output markers would make the module easier to automate.
+
 ## Additional Details
+
+This module bridges graduate forecasting and occupation forecasting. `load-program-projections.R` explicitly loads the lookups `t_cohort_program_distributions_y2_to_y12`, `t_appr_y2_to_y10`, `tbl_age_groups_near_completers`, `tbl_age_groups`, `t_pssm_projection_cred_grp`, `t_weights_stp`, `agegrouplookup`, the rollover distribution CSVs, and database tables including `tbl_credential_highest_rank_r`, `credential_non_dup_r`, `qry_Private_Credentials_06d1_Cohort_Dist_r`, `T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_r`, and `T_Cohorts_Recoded_r`. `06-program-projections.R` consumes those objects, updates the static and projected cohort-program distributions for near-completers, graduate credentials, apprenticeships, PTIB, and Werner-model projections, and writes `cohort_program_distributions_projected_r`, `cohort_program_distributions_static_r`, `graduate_projections_r`, and `tbl_program_projection_input_r`. These outputs are the direct upstream inputs to `07-occupation-projections.R`. The loader uses `regular_run`, `ptib_run`, and `qi_run` flags to determine how rollover data are refreshed.
