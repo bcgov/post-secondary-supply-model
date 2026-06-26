@@ -119,14 +119,6 @@ The workflow follows the Q_1 / Q_2 / Q_3 sequence implemented in R/07-occupation
 
 ## Key Outputs (data dictionary)
 
-- NLS_Distributions (program-level): NLS by PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP_ROLLUP, YEAR, LCP4_CD/LCP2_CD, CURRENT_REGION_PSSM_CODE_ROLLUP
-  - NLS (numeric): New Labour Supply estimate = GRADS * NEW_LABOUR_SUPPLY
-
-- Occupation_Level_Counts: occupation-level counts (OCCSN) by the same dimensions + occupation code
-  - OCCSN (numeric): expected number in occupation = NLS * PERCENT (occupation probability)
-
-### Runtime Key Output Aliases (temporary)
-
 These aliases are set at runtime and referenced by downstream processes and exports. They point to the principal final table q_5_noc_totals_by_year_and_bc_and_total when the corresponding run flags are enabled.
 
 #### tmp_tbl_model
