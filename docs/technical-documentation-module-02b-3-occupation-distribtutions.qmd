@@ -21,7 +21,7 @@ format:
 
 ## Overview
 
-## Data Sources and Storage (Not completed)
+## Data Sources and Storage
 
 ### External Data Sources
 
@@ -37,7 +37,7 @@ Description:
 
 #### 
 
-### Internal/Processed Data Sources (Not completed)
+### Internal/Processed Data Sources
 
 #### T_Cohorts_Recoded
 

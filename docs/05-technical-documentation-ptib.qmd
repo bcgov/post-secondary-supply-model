@@ -46,6 +46,8 @@ Description:
   <li>total_enrolments (Double): The aggregate count of all students registered in the program stratum.</li>
 </ul>
 
+### Internal/Processed Data Sources
+
 ### Data Storage Structure (Incomplete)
 
 This section needs work - some decisions on design are needed before finalziing.

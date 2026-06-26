@@ -33,7 +33,7 @@ Script 01e aggregates the validated credential baseline into several high-resolu
 
 Standardized frequency distributions are generated from the `min_enrolment` baseline, quantifying student entry points across stratified academic and socio-demographic cohorts. The data is partitioned by residency, credential category, and disciplinary cluster to isolate specific cohorts for longitudinal provincial modeling.
 
-## Data Sources and Storage (Not completed)
+## Data Sources and Storage
 
 ### External Data Sources
 
@@ -57,7 +57,7 @@ Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` pa
 
 Description: The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
 
-### Internal/Processed Data Sources (Not completed)
+### Internal/Processed Data Sources
 
 #### STP_Enrolment_Valid (Processed Baseline)
 Source: Generated within the pipeline scripts.  
