@@ -11,75 +11,83 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 
 ## Core Conventions
 
-- **Match the template’s style.** If the methodology shows a preference in syntax, grammar or voice (i.e. dispassionate, formal, casual), follow it.
-- **Prefer clear sections aligned with individual methodologies.** Keep methodology sub-sections specific to a one idea or transformation method.
-- **Naming:** When referring to code, use `UPPER_SNAKE_CASE` for constants and `lower_snake_case` for table names; avoid dots in names.
-- **Safety:** Never release personal information or information that could identify individuals.  Never include secrets.
+- Match the template’s style: If the methodology shows a preference in syntax, grammar or voice (i.e. dispassionate, formal, casual), follow it.
+- Prefer clear sections aligned with individual methodologies: Keep methodology sub-sections specific to a one idea or transformation method.
+- Naming: When referring to code, use `UPPER_SNAKE_CASE` for constants and `lower_snake_case` for table names. Avoid dots in names.
+- Safety: Never release personal information or information that could identify individuals.
 
-## Mathmematical Conventions
+## Mathematical Conventions
 
-- **Random Variables:** Use upper case letters (e.g., `N`, `X`) for random variables.  Use lower case letters (e.g., `i`, `j`) for subscripts.
-- **Equations:** Use multi-line equations when the expression is too large to fit in the standard inter-line spacing of the paragraph.  Use the `align*` environment when writing multi-line equations.
+- Random Variables: Use upper case letters (e.g., `N`, `X`) for random variables.  Use lower case letters (e.g., `i`, `j`) for subscripts.
+- Equations: Use multi-line equations when the expression is too large to fit in the standard inter-line spacing of the paragraph.  Use the `align*` environment when writing multi-line equations.
 
 ## Security Best Practices
 
-- **File paths:** Never display the full path name.  Hide internal directory structures by ommitting LAN drive letters (e.g. `P:\\`) and project numbers (e.g. `25-2465`)
-- **Credentials:** Never hardcode secrets.  Refer to a config file, if one exists.
-
-## R Markdown / Quarto
-
-- Keep chunks focused; prefer explicit chunk options (`echo`, `message`, `warning`).
-- Avoid global state; prefer local helpers. Use `withr::with_seed()` for deterministic chunks.
-
-## Data Dictionary
-
-- **Create a data dictionary:** Create a data dictionary for each key output and input table.  
-- **Required Information:** Define the columns, data types, and descriptions for each table.
-- **Structure:** Use a html list to style elements (e.g. <ul class="list-variable-names"><li>Column Name (Datatype): Description</li></ul>) 
+- File paths: Never display the full path name.  Hide internal directory structures by ommitting LAN drive letters (e.g. `P:\\`) and project numbers (e.g. `25-2465`)
+- Credentials: Never hardcode secrets.  Refer to a config file, if one exists.
 
 ## Copilot-Specific Guidance
 
-- If R code chunks in the current file use tidyverse, **suggest tidyverse-first patterns** (e.g., `dplyr::across()` instead of superseded verbs). If base-R style is present, **use base idioms**.
+> These rules apply when editing R code chunks embedded in QMD files, not when reading R scripts to generate documentation.
+
+- Keep chunks focused: prefer explicit chunk options (`echo`, `message`, `warning`).
+- Avoid global state: prefer local helpers. Use `withr::with_seed()` for deterministic chunks.
+- If R code chunks in the current file use tidyverse, suggest tidyverse-first patterns (e.g., `dplyr::across()` instead of superseded verbs). If base-R style is present, use base idioms.
 - Suggest vectorized or tidy solutions over loops when idiomatic.
 - Prefer small helper functions over long pipelines.
 - When multiple approaches are equivalent, prefer readability and type stability and explain the trade-offs.
 
-### Auto-generated Data Dictionary (recommended)
+## Data Dictionary
 
-- Discovery rule: Do not infer Key Inputs or Key Outputs. Treat a table as Key only when the script explicitly reads/references it or explicitly creates/writes it (or has an `# OUTPUT:` comment).
-- Include a "Data Dictionary" section for the Key Inputs listed in the document.
-- Include a "Data Dictionary" section for the Key Outputs listed in the document.
-- For each Key Input table, produce an HTML-styled list named `Data Dictionary — Key Inputs` with entries in the format: `<li>COLUMN_NAME (Datatype): Short description</li>`.
-- For each Key Output table, produce an HTML-styled list named `Data Dictionary — Key Outputs` with entries in the format: `<li>COLUMN_NAME (Datatype): Short description</li>`.
-- Required details per column: name, datatype (String/Integer/Numeric/Date/Boolean), primary key/foreign key indicator (if applicable), and a one-line description of purpose.
-- If exact schema is not accessible, infer columns from code (R scripts or queries) and mark them with `(INFERRED)` so reviewers can verify.
-- Use `UPPER_SNAKE_CASE` for constants and `lower_snake_case` for table names in descriptions. Never include secrets or full internal paths in descriptions.
+- Create a data dictionary for each confirmed Key Input and Key Output table. See _Discovery rules_ for what qualifies as a Key Input/Output.
+- Required information: Column name, datatype (String/Integer/Numeric/Date/Boolean), primary key/foreign key indicator (if applicable), and a one-line description of purpose.
+- Structure: Use an HTML list: `<ul class="list-variable-names"><li>COLUMN_NAME (Datatype): Description</li></ul>`. Name the subsection `Data Dictionary — Key Inputs` or `Data Dictionary — Key Outputs` as appropriate.
+- Do not infer *which tables* are Key Inputs/Outputs (see _Discovery rules_). Column schemas for confirmed tables may be inferred from code and marked `(INFERRED)` so reviewers can verify.
+- If schema cannot be determined, include: "Schema unknown — please add SELECT/glimpse snippet or inline marker in script."
 
 ## File naming & frontmatter
 
 - Save generated docs to: docs/technical-documentation-<NN>-<short-name>.qmd (NN is two-digit module id, zero-padded).
-- Title and short-name are derived from the R script filename. Use frontmatter example:
+- Title and short-name are derived from the R script filename. Use this frontmatter template:
 
-  ---
-  title: "Module <NN> <Short Title> - Technical Documentation"
-  format:
-    html:
-      toc: true
-      number-sections: true
-  ---
+```yaml
+title: "Module <NN> <Short Title> - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid:
+      body-width: 1800px
+      sidebar-width: 100px
+      margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+```
 
 ## Canonical headings (exact strings & order)
 
-- ## Overview
-- ## Data Sources and Storage
-- ### External Data Sources
-- ### Internal/Processed Data Sources
-- ## Technical Specifications
-- ### Dependencies and Environment Requirements
-- ## Methodology Overview
-- ## Key Output Tables
-- ## Suggested Improvements
-- ## Additional Details
+Every generated QMD must include the following headings in this exact order:
+
+```
+1.  Overview
+2.  Data Sources and Storage
+    2.1  External Data Sources
+    2.2  Internal/Processed Data Sources
+3.  Technical Specifications
+    3.1  Dependencies and Environment Requirements
+4.  Methodology Overview
+5.  Key Output Tables
+6.  Suggested Improvements
+7.  Additional Details
+```
+
+Use `##` for top-level sections and `###` for subsections.
 
 ## Discovery rules for Key Inputs / Key Outputs (strict)
 
@@ -93,12 +101,6 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 
 - Read tokens: DBI::dbGetQuery, DBI::dbReadTable, dbReadTable, readr::read_csv, readr::read_csv2, readxl::read_excel, arrow::read_parquet, vroom::vroom
 - Write tokens: DBI::dbWriteTable, dbWriteTable, DBI::dbExecute (CREATE), write_csv, readr::write_csv2, write.table, data.table::fwrite, saveRDS, save, arrow::write_parquet, qs::qsave, fst::write_fst, openxlsx::write.xlsx, copy_to(..., overwrite=TRUE)
-
-## Data dictionary generation rules
-
-- For each explicit Key Input/Output include an HTML-styled list: `<ul class="list-variable-names">` with `<li>COL_NAME (Type): Description</li>` entries.
-- If schema cannot be determined, include: "Schema unknown — please add SELECT/glimpse snippet or inline marker in script."
-- Mark any inferred columns with "(INFERRED)" so reviewers can verify.
 
 ## Methodology extraction rules
 
@@ -117,30 +119,37 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 
 ## Commit & save policy
 
+> This policy applies only when generating a new technical documentation file from scratch, not when editing an existing doc.
+
 - Save generated QMD to docs/ (do not push remote).
 - Commit message template: `Generate technical doc: R/<script> — adds canonical headings and data dictionaries`.
 - Include Co-authored-by trailer when committing programmatically: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
 
 ---
 
-## Minimal Examples
+# Minimal Examples
+
+The following examples illustrate expected writing style (Methodology Overview), data dictionary structure, and R code chunk conventions.
 
 The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable. The cohort is restricted to binary gender categories.
 
-##### Graduate Forecasting
+**Graduate Forecasting**
+
 A 2-year annual stratified graduation rate, $R_G$, is calculated from graduate and enrollment counts for 2021 and 2022 acedemic years.  $R_G = \frac{N_G}{N_E}$  This rate is subsequently applied back to the forecasted enrollment counts generate anticipated graduates $N_G = R_G \times N_F$.
 
-##### Inclusion of Near-Completers
-The "Near-Completer" population is estimated by applying credential-specific ratios, $R_{C_{NC}}$ calculated in a previous analysis (see `03-near-completers-ttrain.R`).  Near completer ratios ire applied to the forecasted grad count to derive an estimate of near completer graduates, $N_G_{NC}$ = $N_G \times R_{C_{NC}}$, who have completed significant program requirements without formal credential attainment. 
+**Inclusion of Near-Completers**
 
-##### Preprocessing
+The "Near-Completer" population is estimated by applying credential-specific ratios, $R_{C_{NC}}$ calculated in a previous analysis (see `03-near-completers-ttrain.R`).  Near completer ratios ire applied to the forecasted grad count to derive an estimate of near completer graduates, $N_G_{NC}$ = $N_G \times R_{C_{NC}}$, who have completed significant program requirements without formal credential attainment.
+
+**Preprocessing**
+
 APPSO records from the STP credential (credential_non_dup) table are isolated for processing.  Light pre-processing was done on the STP Credential CIP column, PSI_CREDENTIAL_CIP.  Before matching, the PSI_CREDENTIAL_CIP strings are cleaned to correct common formatting inconsistencies:
 
 - Length-6 Padding: If a CIP is 6 characters and the second character is not a period (e.g., 123456), a trailing 0 is appended.
 - Leading Zeros: If a CIP is still only 6 characters, a leading 0 is prepended to ensure a standardized length.
 
 
-##### Credential_Non_Dup_STP_APPSO_Cleaning
+**Credential_Non_Dup_STP_APPSO_Cleaning**
 
 A summary table containing unique CIP codes and their standardized mappings.
 
