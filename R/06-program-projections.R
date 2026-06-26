@@ -9,6 +9,10 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
+# OCCSN(NOC) = GRADUATES(cred, age)
+#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
+#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
+#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
 
 required_tables <- c(
   # actually used in load script
@@ -46,7 +50,7 @@ if (length(missing) > 0) {
   ))
 }
 
-na_vals = c("", " ", "(Unspecified)", NA)
+na_vals <- c("", " ", "(Unspecified)", NA)
 
 # ---- survey == "PTIB" (Static and Projected) ----
 if (ptib_run == TRUE) {
@@ -90,7 +94,7 @@ near_completers_totals <- dacso_near_completers_ratios_age_at_grad_cip4_ttrain |
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
     .by = c(PSSM_CRED, AGE_GROUP)
   )
-
+#          PERCENT = COUNT(CIP, cred, age) / TOTAL(cred, age) = P(CIP | cred, age)
 
 # mapping age groups for near completers to match those used in (?)
 near_completers_totals <- near_completers_totals |>
@@ -218,6 +222,7 @@ credential_cohorts_weighted_adjusted <- credential_cohorts_weighted_adjusted |>
   mutate(
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL))
   )
+#          PERCENT = COUNT(CIP, cred, age) / TOTAL(cred, age) = P(CIP | cred, age)
 
 # apply standard formatting to align with other survey datasets
 final_credential_cohorts <- credential_cohorts_weighted_adjusted |>
@@ -316,6 +321,7 @@ graduate_credential_cohorts <- graduate_credential_cohorts |>
     PERCENT = if_else(TOTAL == 0, 0, as.numeric(COUNT) / as.numeric(TOTAL)),
     .by = c(PSSM_CRED_TMP, AgeGroup)
   )
+#          PERCENT = COUNT(CIP, cred, age) / TOTAL(cred, age) = P(CIP | cred, age)
 
 # create final dataset for insertion, mapping to cohort program distribution
 final_graduate_credential_cohorts <- graduate_credential_cohorts |>

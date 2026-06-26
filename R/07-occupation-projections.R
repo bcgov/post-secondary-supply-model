@@ -30,6 +30,11 @@
 #   - T_Exclude_from_Projections_LCIP4_CRED
 #	  - T_Exclude_from_Projections_LCP4_CD
 #	  - T_Exclude_from_Projections_PSSM_Credential
+
+# OCCSN(NOC) = GRADUATES(cred, age)
+#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
+#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
+#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
 #
 # Fixes To do: some of the CIP2 variable names are missing an "I" in the Labour_Supply_Distribution datasets.
 
