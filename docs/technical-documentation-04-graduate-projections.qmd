@@ -81,49 +81,6 @@ Final outputs and historical reconciliations are committed to the SQL SERVER dat
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
-
 ## Methodology Overview
 
 ##### Data Normalization and Preprocessing
@@ -194,12 +151,6 @@ The following variables comprise the schema for the consolidated projection tabl
 </ul>
 
 ## Suggested Improvements
-
-- The forecast horizon is hard-coded as a five-year linear projection followed by a seven-year hold (`2023:2027` then repeated 2027). That assumption should be parameterized and documented as part of the model configuration.
-- Gender-diverse records drop out of the main forecast joins because population projections are limited to `F` and `M`. The exclusion should either be handled explicitly or called out more prominently in the script outputs.
-- The two-year baseline windows for graduation rates and credential distributions are fixed at 2021-2022. If those anchor years are intentional, they should be exposed as model parameters.
-- `PSSM_CRED` is mapped through repeated `case_when()` blocks for graduates, near-completers, APPSO, and historical outputs. A shared credential crosswalk would reduce the risk of inconsistent recoding.
-- The script still carries a TODO for trades projections and reads APPSO/TRD tables directly from the database. Those source dependencies should be aligned with the documented loader sequence.
 
 ## Additional Details
 

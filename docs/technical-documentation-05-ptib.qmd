@@ -65,53 +65,6 @@ Final outputs and historical reconciliations are committed to the SQL SERVER dat
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: Secure LAN
-- External Data: PTIB 2021 and 2022 Enrolment Data
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-- `readxl` (to read excel files)
-- `janitor` (to help with data cleaning)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
-
 ## Methodology Overview
 
 ##### Data Integration and Standardization
@@ -185,12 +138,6 @@ The final outputs of this module are persisted to the SQL environment as standar
 </ul>
 
 ## Suggested Improvements
-
-- `load-ptib.R` already flags that CIP rounding needs review. That transformation should be validated against the six-digit lookup before each annual refresh, because downstream filtering depends on it.
-- Exclusion logic for ESL, not-for-credit, and `99999` programs is embedded directly in `05-ptib-analysis.R`. Moving those exclusions into a maintained reference file would make the private-institution methodology easier to govern.
-- Immigration-status handling leaves `(blank)` and `Unknown` values to be redistributed proportionally, but the script also notes unresolved recoding decisions. Those categories should be standardized explicitly upstream.
-- Comments in Parts 2 and 3 ask whether PTIB rows should instead be appended in later modules. The pipeline should define one authoritative insertion point for PTIB outputs.
-- The analysis averages 2021 and 2022 values by dividing summed counts by two. That assumption should be validated if additional PTIB source years are introduced.
 
 ## Additional Details
 

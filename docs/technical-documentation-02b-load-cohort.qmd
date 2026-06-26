@@ -113,45 +113,6 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-<mark> TO DO OR REMOVE </mark>
-
-- Network Access: [List required network resources]
-- Storage: [Note storage requirements]
-- Memory: [Note memory requirements]
-- External Data: [List any required external data]
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse`
-- `config`
-- `glue`
-
-#### Authentication Setup
-
-<mark> TO DO OR REMOVE </mark>
-
-### Global Constants and Configuration
-
-All four `load-cohort-xxx.R` scripts requires specific logical flags (`regular_run`, `ptib_run`, or `qi_run`) to run. These flags help determine which weighting methodology to apply to the records <mark> anything else? </mark>
-
-#### Data Processing and Filtering
-
-  - `regular_run`: [Logical] - TRUE/FALSE flag indicating this is the main model run.
-  - `ptib_run`: [Logical] -TRUE/FALSE flag indicating if ptib data is used in this analysis.
-  - `qi_run`: [Logical] - TRUE/FALSE flag indicating if this model run is being used as a quality indicator.
-
-#### File Path Configuration
-
-<mark> TO DO OR REMOVE </mark>
-
 ## Methodology Overview
 
 These following scripts execute technical transformations to ensure the data aligns with the broader Provincial Student Survey Model (PSSM) standards.
@@ -240,12 +201,6 @@ A cleaned lookup table for institutional identity management.
 The primary standardized survey dataset containing reconciled regional codes and labor market markers.
 
 ## Suggested Improvements
-
-- All four loader scripts hard-code `qi_run <- F`. Replacing those inline toggles with a shared run parameter would prevent the QI pathway from diverging across loaders.
-- The database write helper is repeated verbatim in every loader. Centralizing that persistence pattern would reduce copy-and-paste maintenance.
-- The loaders rely on many external CSV files with implied schemas and year-specific names. Adding explicit column checks would make upstream file changes easier to detect before downstream joins fail.
-- `load-cohort-bgs.R` includes an optional `bgs_data_update` overlay, while `load-cohort-dacso.R` imports many separate lookup files. Those exceptional branches should be documented in code with clear rerun instructions.
-- Output naming is inconsistent across loaders (`t_` prefixes, mixed case, and source-specific conventions). A single naming standard would make downstream discovery and documentation easier.
 
 ## Additional Details
 

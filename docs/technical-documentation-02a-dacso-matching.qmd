@@ -62,36 +62,6 @@ Description:
 
 <mark> FILL IN LATER </mark>
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-<mark> FILL IN LATER </mark>
-
-#### R Package Dependencies
-
-<mark> FILL IN LATER </mark>
-
-#### Authentication Setup
-
-<mark> FILL IN LATER </mark>
-
-### Global Constants and Configuration
-
-<mark> FILL IN LATER </mark>
-
-#### Data Processing and Filtering
-
-<mark> FILL IN LATER </mark>
-
-
-#### File Path Configuration
-
-<mark> FILL IN LATER </mark>
-
-
 ## Methodology Overview
 
 ### DACSO Program Matching
@@ -230,12 +200,6 @@ Classification of Instructional Program (CIP) codes for each STP program record 
 </ul>
 
 ## Suggested Improvements
-
-- The 2021, 2022, and 2023 update blocks repeat the same crosswalk logic with year-specific objects. Refactoring those sections into parameterized helpers would substantially reduce maintenance effort.
-- Institution-specific overrides for BCIT, CAPU, and VIU are embedded directly in the script. Moving those rules into an auditable reference table would make custom matching decisions easier to govern.
-- Several comments mark manual review steps for historical linkages and CIP-note inspection. Those decision points should produce explicit audit tables or approval files rather than relying on code comments alone.
-- The script writes both `STP_Credential_Non_Dup_Programs_DACSO_r` and `Credential_Non_Dup_Programs_DACSO_FinalCIPS_r` from the same final object. If both names must remain, the documentation should state why both persist and which one is authoritative downstream.
-- The comments already note that a CIP 2021 lookup exists in INFOWARE. The annual refresh process should define when the crosswalk is expected to migrate from the 2016 taxonomy.
 
 ## Additional Details
 

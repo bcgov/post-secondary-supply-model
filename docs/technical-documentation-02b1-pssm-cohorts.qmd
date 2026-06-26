@@ -57,38 +57,6 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-#### R Package Dependencies
-
-</mark> COMPLETE LATER </mark>
-
-The following R packages are required for this module:
-
-`tidyverse`
-`config`
-`glue`
-`assertthat`
-
-#### Authentication Setup
-
-NA
-
-### Global Constants and Configuration
-
-Operational Flags: Uses the qi_run flag to dynamically toggle between standard analytical weights and Quality Indicator (QI) weights.
-
-#### Data Processing and Filtering
-
-`qi_run`: flag to dynamically toggle between standard analytical weights and Quality Indicator (QI) weights.
-
-#### File Path Configuration
-
-
 ## Methodology Overview
 
 ### Cross-Survey Compatibility
@@ -221,12 +189,6 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
 ## Key Output Tables
 
 ## Suggested Improvements
-
-- The script resets `t_cohorts_recoded` by filtering it to zero rows before rebuilding it. Initializing a new object explicitly would make the refresh behaviour clearer and less dependent on pre-existing state.
-- Model-year strings such as `2022-2023` and `2023/2024` are embedded in several joins and survey labels. Moving those values into a shared configuration object would simplify annual rollover.
-- PTIB inclusion is controlled by `ptib_run`, but the same PTIB responsibility is referenced again in later modules. A single documented handoff point would make the private-institution path easier to maintain.
-- The script contains survey-specific transformation blocks with similar age, weight, and credential recoding steps. Extracting survey adapters would reduce the size of the main build routine.
-- Required input names are aliased at the top (`appso_data_final`, `bgs_data_final`, `bgs_inst_recode`) because the loader outputs do not match the processing names. Harmonizing those names upstream would reduce confusion.
 
 ## Additional Details
 

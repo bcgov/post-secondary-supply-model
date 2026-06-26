@@ -110,51 +110,6 @@ Variables recalculated in this analysis:
 </ul>
 
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
-- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
-
 ## Methodology Overview
 
 ### Pre-processing
@@ -302,12 +257,6 @@ Finally, externally sourced occupation distributions from Statistics Canada (Cen
 </ul>
 
 ## Suggested Improvements
-
-- The script duplicates the same weighting and append pattern across multiple output variants (`no_tt`, `lcp2`, and BC-only tables). Pulling those branches into shared helpers would reduce the chance of variant-specific drift.
-- Handling of `NOC_CD == "99999"` is central to the methodology, but the logic is spread across several intermediate tables. A dedicated helper or audit table for unknown-NOC treatment would make this easier to review.
-- Comments indicate uncertainty about whether QI and regular runs should share identical weighting logic. That assumption should be validated explicitly and documented in code rather than left as a TODO.
-- The survey relabeling for the Statistics Canada input is hard-coded to one model year string. That mapping should be parameterized with the other annual rollover settings.
-- The script rewrites `labour_supply_distribution_r` together with the occupation outputs. If that is intentional, the dual ownership of the labour-supply table should be clarified to avoid accidental overwrites.
 
 ## Additional Details
 

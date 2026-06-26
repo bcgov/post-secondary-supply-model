@@ -79,13 +79,6 @@ This module converts program-level graduate projections into occupation-level NL
 </ul>
 
 
-## Technical Specifications
-
-R packages used (as required by the script):
-- `tidyverse`, `DBI`, `RODBC`, `glue`, `assertthat`
-
-### Dependencies and Environment Requirements
-
 ## Methodology Overview
 
 The workflow follows the Q_1 / Q_2 / Q_3 sequence implemented in R/07-occupation-projections.R. The summary below mirrors code blocks and business rules.
@@ -165,12 +158,6 @@ These aliases are set at runtime and referenced by downstream processes and expo
 References: see R/07-occupation-projections.R and supporting lookup tables in the INFOWARE schema.
 
 ## Suggested Improvements
-
-- The final handoff objects (`tmp_tbl_model`, `tmp_tbl_qi`, and related variants) are left in memory rather than persisted. The script should either write them explicitly or document the required handoff to Module 08 in code.
-- Proxy handling for no-trades, private-institution, and LCP2 fallbacks is implemented through long parallel query blocks. Refactoring those branches into reusable helpers would make the fallback order easier to verify.
-- The core run controls (`model`, `ptib_run`, `regular_run`, `qi_run`) are hard-coded at the top of the file. Promoting them to a shared runtime configuration would reduce the risk of inconsistent reruns.
-- Validation queries for cohort counts, labour supply, and occupation totals are present only as comments. Promoting the most important checks into executable assertions would improve operational safety.
-- Large blocks of commented export code remain in the script even though Module 08 now handles reporting. Removing or isolating those retired pathways would make the active workflow clearer.
 
 ## Additional Details
 

@@ -70,24 +70,6 @@ All data is stored in a hierarchical folder structure, accessible via [describe 
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-<mark> FILL IN LATER </mark>
-
-#### Authentication Setup
-
-<mark> FILL IN LATER </mark>
-
-### Global Constants and Configuration
-
-NA
-
 ## Methodology Overview
 
 ### APPSO Program Matching
@@ -151,12 +133,6 @@ The finalized dataset containing student IDs linked to their standardized CIP co
 </ul>
 
 ## Suggested Improvements
-
-- The malformed-CIP check in Step 3 compares the second character to `"\."` using `substr()`. That literal comparison should be verified, because `substr()` returns a single character rather than a regular-expression token.
-- The exact-match, 5-character fallback, general-program, and 2-digit fallback logic is effectively repeated later in `02a-update-cred-non-dup.R`. Extracting the shared CIP standardization logic would reduce maintenance risk.
-- The 5-character and 2-character fallback joins can return multiple matches when the INFOWARE lookup is not unique at that prefix. Adding an explicit deduplication rule or assertion would make the final CIP assignment easier to audit.
-- `general_program_prefixes` is hard-coded in the script. Moving that list to a maintained lookup would simplify annual review when taxonomy rules change.
-- The module writes its outputs via `compute()` but does not include inline `# OUTPUT:` markers. Adding explicit markers would make downstream table discovery more robust.
 
 ## Additional Details
 

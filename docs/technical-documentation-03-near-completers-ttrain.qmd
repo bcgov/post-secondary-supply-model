@@ -76,51 +76,6 @@ Where data is housed in internal storage locations, it is stored in a hierarchic
     └── visuals/         # Maps and visualizations
 ```
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
-
 ## Methodology Overview
 
 #### Demographic Attribute Normalization and Age Derivation
@@ -317,12 +272,6 @@ A longitudinal frequency distribution of success ratios, disaggregated by indivi
 </ul>
 
 ## Suggested Improvements
-
-- The matching workflow is implemented as one long, flag-heavy script. Splitting the major stages into helpers for initial matching, earlier/later credential checks, and multiple-credential resolution would make the logic easier to audit.
-- Several decision columns are stored as string flags such as `yes`, `Multiple`, and `UseThisRecord`. Converting those to a more constrained representation would reduce the risk of downstream join or filter mistakes.
-- A comment near the end of the script notes that the TTRAIN flag is available but unresolved for inclusion. That unresolved business rule should be closed before the next annual refresh.
-- The script writes multiple ratio tables derived from similar grouped summaries. Adding reconciliation checks between the annual, pooled, and TTRAIN-specific outputs would make it easier to detect accidental divergence.
-- The loader and analysis scripts depend on numerous year-specific CSV inputs. Formal schema validation for those source extracts would make the near-completer pipeline more resilient to upstream file changes.
 
 ## Additional Details
 

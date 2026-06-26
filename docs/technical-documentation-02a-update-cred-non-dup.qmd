@@ -84,34 +84,6 @@ Access Method: ODBC connection using Windows Authentication
 
 Provincial CIP taxonomy tables used to validate and enrich institution-reported CIP codes. These provide official code-to-name mappings at the 6-, 4-, and 2-digit levels, as well as CIP cluster groupings (broad career families used in occupation matching).
 
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Database connection: SQL Server (project schema), accessed via ODBC with Windows Authentication.
-- Configuration: `config.yml` must define `lan`, `decimal` (database connection), and `myschema` (target schema).
-
-#### R Package Dependencies
-
-- `tidyverse` — data manipulation throughout
-- `DBI` — database connection and DDL execution
-- `odbc` — ODBC driver interface
-- `arrow` — loaded but not used for reads/writes in this script
-- `glue` — dynamic SQL string construction
-- `config` — reads connection configuration from `config.yml`
-
-#### Authentication Setup
-
-Database connections use Windows Trusted Authentication. No credentials are hardcoded. Connection parameters are read from `config.yml`:
-
-```r
-db_config <- config::get("decimal")
-con <- dbConnect(odbc(), Driver = db_config$driver, Server = db_config$server,
-                 Database = db_config$database, Trusted_Connection = "True")
-```
-
 ## Methodology Overview
 
 This script implements a **priority-ordered, source-of-truth merge** for CIP codes. Five sources are applied in sequence, from most to least reliable. Each source only fills records not yet resolved by a higher-priority source; no previously assigned code is overwritten.
@@ -236,10 +208,6 @@ An intermediate audit table persisted to the database, containing the distinct u
 </ul>
 
 ## Suggested Improvements
-
-- The STP CIP standardisation logic (Steps 8–9) is duplicated from `02a-appso-programs.R`. Extracting this into a shared helper function would reduce maintenance risk and ensure consistent behaviour across both scripts.
-- The `# OUTPUT:` marker convention is not yet used in this script. Adding `# OUTPUT: credential_non_dup — final CIP-enriched credential table` near the `dbWriteTable` call at the end would make the output unambiguously discoverable by tooling.
-- The temporary staging table (`Credential_Non_Dup_STP_NULL_Cleaning`) is dropped at the end via `DROP TABLE Credential_Non_Dup_STP_NULL_Cleaning` (note: the table name in the DROP statement omits the `_r` suffix present on the creation call — this should be verified to ensure the correct table is being dropped).
 
 ## Additional Details
 
