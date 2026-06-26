@@ -46,8 +46,11 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 
 ### Auto-generated Data Dictionary (recommended)
 
-- When generating or updating technical documentation files that match the `applyTo` patterns, automatically include a "Data Dictionary" section for the Key Inputs listed in the document.
+- Discovery rule: Do not infer Key Inputs or Key Outputs. Treat a table as Key only when the script explicitly reads/references it or explicitly creates/writes it (or has an `# OUTPUT:` comment).
+- Include a "Data Dictionary" section for the Key Inputs listed in the document.
+- Include a "Data Dictionary" section for the Key Outputs listed in the document.
 - For each Key Input table, produce an HTML-styled list named `Data Dictionary — Key Inputs` with entries in the format: `<li>COLUMN_NAME (Datatype): Short description</li>`.
+- For each Key Output table, produce an HTML-styled list named `Data Dictionary — Key Outputs` with entries in the format: `<li>COLUMN_NAME (Datatype): Short description</li>`.
 - Required details per column: name, datatype (String/Integer/Numeric/Date/Boolean), primary key/foreign key indicator (if applicable), and a one-line description of purpose.
 - If exact schema is not accessible, infer columns from code (R scripts or queries) and mark them with `(INFERRED)` so reviewers can verify.
 - Use `UPPER_SNAKE_CASE` for constants and `lower_snake_case` for table names in descriptions. Never include secrets or full internal paths in descriptions.
