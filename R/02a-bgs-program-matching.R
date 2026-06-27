@@ -3386,7 +3386,6 @@ t_bgs_updated <- t_bgs_updated %>%
       filter(!is.na(FINAL_CONSIDER_A_MATCH) & FINAL_CONSIDER_A_MATCH != "") %>%
       group_by(STQU_ID) %>%
       slice_min(order_by = YEAR, n = 1, with_ties = FALSE) %>%
-      bgs_matching_final %>%
       select(
         STQU_ID,
         FINAL_CIP_CODE_4,

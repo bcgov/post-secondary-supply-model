@@ -10,6 +10,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
+# WHAT THIS SCRIPT PRODUCES
+#   Two tables written to the analyst's IDIR schema:
+#     Graduate_Projections                     - forecast grads + near-completers + APPSO
+#     Graduate_Projections_Include_Historical  - same, with the historical series appended
+#   These feed the program (06) and occupation (07) projection scripts.
+#
+# THE METHOD (a population -> enrolment -> graduation cascade, by age x gender)
+#   1. ENROLMENT RATE   P     = 100 * enrolments / population        (historical)
+#   2. FORECAST RATE          = lm(P ~ YEAR) per age x gender; predict 2023-2027,
+#                               then HOLD the 2027 rate flat through 2034
+#   3. FORECAST ENROL   N     = RATE * POP * 0.01
+#   4. GRAD RATE              = 2-yr-avg (2021/22) grads / enrolments
+#   5. FORECAST GRADS   N     = N_ENROL * GRAD_RATE
+#   6. SPLIT BY CRED          = apply the 2-yr-avg credential distribution
+#   then layer on near-completers (ratios from 03) and APPSO apprenticeship grads.
+
 library(tidyverse)
 library(RODBC)
 library(config)
@@ -32,11 +48,12 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 
-# these should now be in the R environment
+# ---- Required Tables ----
+# Loaded into the environment by load-graduate-projections.R before this runs.
 required_tables <- c(
-  "population_projections",
-  "min_enrolments",
-  "credentials"
+  "population_projections", # BC Stats population projections (wide: one col per age band)
+  "min_enrolments", # historical enrolment counts by age x gender x year
+  "credentials" # historical graduate counts by credential x age x gender x year
 )
 
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -51,6 +68,10 @@ if (length(missing) > 0) {
 na_vals <- c("", " ", "(Unspecified)", NA)
 
 # ---- Tidy data for calculations  ----
+# population_projections arrives WIDE: one column per age band, named like
+# "X20_TO_24". Reshape to long, keep only F/M (drops "Gender Diverse"), relabel
+# gender to words, and strip the "X" / "_TO_" so AGE_GROUP matches the other
+# tables (e.g. "20 to 24").
 population_projections <- population_projections %>%
   select(-c(REGION, LOCAL_HEALTH_AREA, TOTAL)) %>%
   pivot_longer(
@@ -70,6 +91,8 @@ population_projections <- population_projections %>%
   mutate(AGE_GROUP = gsub("_TO_", " to ", AGE_GROUP)) %>%
   select(-TYPE)
 
+# min_enrolments: standardise column names and strip gender words out of the
+# age-group label; take the first 4 chars of the school year ("2018/19" -> 2018).
 min_enrolments <- min_enrolments %>%
   rename(
     "AGE_GROUP" = "Groups",
@@ -83,6 +106,8 @@ min_enrolments <- min_enrolments %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4))) %>%
   arrange(GENDER, AGE_GROUP, YEAR)
 
+# credentials: standardise names, parse YEAR, restrict to the historical window
+# used to estimate rates/distributions (2006-2022).
 credentials <- credentials %>%
   rename(
     "AGE_GROUP" = "AgeGroup",
@@ -96,12 +121,17 @@ credentials <- credentials %>%
 
 # ---- Forecasted Enrolments ----
 ## Enrolment Rate ----
+# P = enrolments per 100 population. inner_join drops "Gender Diverse" (absent
+# from population_projections, which only has F/M).
 p_enrolments <- min_enrolments %>%
   inner_join(population_projections, by = join_by(GENDER, AGE_GROUP, YEAR)) %>% # removes Gender Diverse
   mutate(P = 100 * N / POP)
 
 ## Forecasted Enrolment Rate ----
 # workbook forecasting done for 12 years
+# Fit a separate linear trend P ~ YEAR for EACH age x gender group, then predict
+# 12 years: genuinely forecast 2023-2027 from the trend, then HOLD the 2027 value
+# flat for 2028-2034 (rep(2027, 7)). Row names 2023-2034 label the forecast years.
 f_enrolments <- p_enrolments |>
   split(
     list(p_enrolments$AGE_GROUP, p_enrolments$GENDER),
@@ -119,6 +149,9 @@ f_enrolments <- p_enrolments |>
 
 
 ## Forecasted Enrolments ----
+# data.frame(f_enrolments) has one column per group, rows named by year; pull the
+# years out (rn), pivot back to long, and recover AGE_GROUP / GENDER from the
+# "AgeGroup_Gender" column name that split() created.
 rn <- as.numeric(rownames(data.frame(f_enrolments)))
 f_enrolments_t <- data.frame(f_enrolments) %>%
   mutate(YEAR = rn) %>%
@@ -131,12 +164,15 @@ f_enrolments_t <- data.frame(f_enrolments) %>%
   mutate(AGE_GROUP = gsub("\\.", " ", AGE_GROUP)) %>%
   mutate(AGE_GROUP = gsub("X", "", AGE_GROUP))
 
+# Forecast enrolment counts = forecast rate * projected population / 100.
 f_enrolments_t <- f_enrolments_t %>%
   inner_join(population_projections, by = join_by(YEAR, AGE_GROUP, GENDER)) %>%
   mutate(N_ENROL_FORECASTED = RATE * POP * .01)
 
 # ---- Forecasted Graduates ----
 ## Graduation Rates (annual, as a percentage of enrolment) ----
+# Total grads and total enrolments per age x gender x year (inner_join again
+# drops Gender Diverse). P_GRADS_ENROL line left commented in the original.
 annual_grad_count <- credentials %>%
   summarize(
     N_GRADS = sum(N, na.rm = TRUE),
@@ -154,10 +190,12 @@ annual_grad_count <- credentials %>%
 # mutate(P_GRADS_ENROL = 100 * N_GRADS / N_ENROL)
 
 ## Graduation Rate (2-yr average, as percentage of enrolment) ----
+# Pool 2021+2022 grads and enrolments to get one stable rate per age x gender.
 avg_2_yr_grad_rate <- annual_grad_count %>%
   filter(YEAR %in% 2021:2022) %>%
   summarise(GRAD_RATE = sum(N_GRADS) / sum(N_ENROL), .by = c(GENDER, AGE_GROUP))
 
+# Forecast grads = forecast enrolments * 2-yr-avg grad rate.
 f_graduates_t <- f_enrolments_t %>%
   inner_join(avg_2_yr_grad_rate, by = join_by(AGE_GROUP, GENDER)) %>%
   mutate(N_GRAD_FORECASTED = N_ENROL_FORECASTED * GRAD_RATE)
@@ -167,6 +205,9 @@ f_graduates_t <- f_graduates_t %>%
   select(YEAR, AGE_GROUP, GENDER, N_GRAD_FORECASTED)
 
 ## 2-yr average distribution of graduates by credential ----
+# Share of each age x gender's grads falling into each credential category
+# (2021/22 pooled). complete() fills 0 for credential categories not observed in
+# a given age x gender, so every combination has a proportion P.
 avg_2_yr_credentials <- credentials %>%
   filter(YEAR %in% 2021:2022, GENDER != 'Gender Diverse') %>%
   summarise(
@@ -184,6 +225,7 @@ avg_2_yr_credentials <- credentials %>%
   ) %>%
   select(AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, P)
 
+# Spread each forecast grad count across credential categories by their share P.
 f_graduates <- f_graduates_t %>%
   full_join(avg_2_yr_credentials, relationship = "many-to-many") %>%
   mutate(N_GRAD_FORECASTED = N_GRAD_FORECASTED * P) %>%
@@ -195,9 +237,11 @@ f_graduates <- f_graduates_t %>%
 
 # ---- Projected Near Completers (NC) ----
 # preprocess nc data before joining with graduates
+# Read the NC ratio table from 03. RATIO = near-completers per completer, by
+# credential x age x gender. GENDER is stored coded (1 = Male) -> relabel.
 T_DACSO_Near_Completers_RatioByGender <- dbReadTable(
   con,
-  "T_DACSO_Near_Completers_RatioByGender"
+  "T_DACSO_Near_Completers_RatioByGender" # the new table name created in 03  is 't_dacso_near_completers_ratio_by_gender'? The value is the same, but name is different.
 ) %>%
   janitor::clean_names("all_caps") %>%
   mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
@@ -205,6 +249,9 @@ T_DACSO_Near_Completers_RatioByGender <- dbReadTable(
   mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
 
 # recode age groups 35-44, 45-54, 55-64  => 35 to 64
+# NC ratios only exist for a broad "35 to 64" band. Expand them to the model's
+# finer bands by mapping each of 35-44 / 45-54 / 55-64 to "35 to 64", joining the
+# ratio, then keeping the fine band as AGE_GROUP.
 T_DACSO_Near_Completers_RatioByGender <- f_graduates %>%
   distinct(AGE_GROUP) %>%
   rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
@@ -223,6 +270,13 @@ T_DACSO_Near_Completers_RatioByGender <- f_graduates %>%
   rename("AGE_GROUP" = "AGE_GROUP_RECODE")
 
 # join nc to graduates
+# Projected near-completers = forecast grads * NC ratio. NOTE: this uses
+# f_graduates BEFORE its PSSM_CRED label is added below; order matters.
+# Map the wordy credential category to the model's PSSM_CRED code. Completers get
+# a "1 - " prefix (degree-level creds BACH/DOCT/MAST/PDEG/GRCT have none).
+# NOTE: this exact case_when is duplicated in the historical section (hf_grad_creds);
+# a future cleanup could factor it into a helper, but it is left inline here so
+# the refactor stays a faithful annotation pass.
 f_graduates_nc <- f_graduates %>%
   inner_join(T_DACSO_Near_Completers_RatioByGender) %>%
   mutate(N = N * RATIO) %>%
@@ -262,6 +316,9 @@ f_graduates <- f_graduates %>%
 
 
 # update pssm cred label for nc
+# Same idea for near-completers, but with a "3 - " prefix (status 3). Only the
+# credentials that can have near-completers are mapped; the rest -> "NA".
+# NOTE: duplicated below as hf_nc (see comment above).
 f_graduates_nc <- f_graduates_nc %>%
   filter(!AGE_GROUP %in% c("15 to 16")) %>%
   mutate(
@@ -281,6 +338,8 @@ f_graduates_nc <- f_graduates_nc %>%
     )
   )
 
+# Stack completers + near-completers, total by PSSM_CRED x year x age, tag the
+# survey, and format YEAR as a school year ("2023" -> "2023/2024").
 f_graduates_agg <- f_graduates %>%
   rbind(f_graduates_nc) %>%
   group_by(PSSM_CRED, YEAR, AGE_GROUP) %>%
@@ -291,6 +350,7 @@ f_graduates_agg <- f_graduates %>%
 
 
 # ---- Graduate Projections for Apprenticeship ----
+# 2-yr average (2022/23) of apprenticeship grads, tagged SURVEY = 'APPSO'.
 APPSO_Graduates <- dbGetQuery(con, "SELECT * FROM APPSO_Graduates")
 
 appso_2_yr_avg <- APPSO_Graduates %>%
@@ -309,6 +369,7 @@ appso_2_yr_avg <- APPSO_Graduates %>%
   filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
 
 # All grad data, forecast
+# All forecast grad data: append APPSO and derive the un-prefixed PSSM_CREDENTIAL.
 f_graduates_agg <- f_graduates_agg %>%
   rbind(appso_2_yr_avg) %>%
   mutate(PSSM_CREDENTIAL = gsub("(1 - )|(3 - )", "", PSSM_CRED))
@@ -324,41 +385,52 @@ f_graduates_agg <- f_graduates_agg %>%
 
 # ---- Graduate Projections for Trades ----
 # TODO: add in trades to Graduate Projections (above) and project same as APPSO.
-TRD_Graduates <- dbGetQuery(con, "SELECT * FROM TRD_Graduates")
+# TRD_Graduates is read but never used yet -> commented out to avoid an unused
+# DB query. Uncomment once trades are integrated.
+# TRD_Graduates <- dbGetQuery(con, "SELECT * FROM TRD_Graduates")
 
 # ----------  Historical Outputs ----------
 # This is new work introduced last year.  It was not part of the original model; I don't know if we need to keep it.
 
-# HISTORICAL - Pop/Enrolments ----
-# grab historical data and append
-historical_forecasted_enrolments <- tibble(
-  p_enrolments %>%
-    select(YEAR, AGE_GROUP, GENDER, N = N) %>%
-    mutate(TYPE = 'H. ENROLMENT') %>%
-    bind_rows(
-      f_enrolments_t %>%
-        select(YEAR, AGE_GROUP, GENDER, N = N_ENROL_FORECASTED) %>%
-        mutate(TYPE = 'F. ENROLMENT')
-    )
-)
+# "New work introduced last year" (author's note); used to back-test forecasts by
+# rebuilding the same series for historical years and appending it.
 
-pop_projections_for_compare <- population_projections %>%
-  mutate(N = POP) %>%
-  select(YEAR, AGE_GROUP, GENDER, N) %>%
-  mutate(TYPE = 'POPULATION') %>%
-  filter(YEAR < 2035)
+# DEAD DIAGNOSTICS: the three objects below are computed but never used again and
+# never written to the DB. Commented out to simplify. Uncomment if you need the
+# population/enrolment/grad back-test comparisons interactively.
+#
 
-# HISTORICAL - grads ----
-historical_forecasted_grads <- annual_grad_count %>%
-  select(YEAR, AGE_GROUP, GENDER, N = N_GRADS) %>%
-  mutate(TYPE = 'H. GRADS') %>%
-  bind_rows(
-    f_graduates_t %>%
-      select(YEAR, AGE_GROUP, GENDER, N = N_GRAD_FORECASTED) %>%
-      mutate(TYPE = 'F. GRADS')
-  )
+# # HISTORICAL - Pop/Enrolments ----
+# # grab historical data and append
+# historical_forecasted_enrolments <- tibble(
+#   p_enrolments %>%
+#     select(YEAR, AGE_GROUP, GENDER, N = N) %>%
+#     mutate(TYPE = 'H. ENROLMENT') %>%
+#     bind_rows(
+#       f_enrolments_t %>%
+#         select(YEAR, AGE_GROUP, GENDER, N = N_ENROL_FORECASTED) %>%
+#         mutate(TYPE = 'F. ENROLMENT')
+#     )
+# )
+
+# pop_projections_for_compare <- population_projections %>%
+#   mutate(N = POP) %>%
+#   select(YEAR, AGE_GROUP, GENDER, N) %>%
+#   mutate(TYPE = 'POPULATION') %>%
+#   filter(YEAR < 2035)
+
+# # HISTORICAL - grads ----
+# historical_forecasted_grads <- annual_grad_count %>%
+#   select(YEAR, AGE_GROUP, GENDER, N = N_GRADS) %>%
+#   mutate(TYPE = 'H. GRADS') %>%
+#   bind_rows(
+#     f_graduates_t %>%
+#       select(YEAR, AGE_GROUP, GENDER, N = N_GRAD_FORECASTED) %>%
+#       mutate(TYPE = 'F. GRADS')
+#   )
 
 ## HISTORICAL - combined GRAD CRED ----
+# Historical grads-by-credential + forecast grads-by-credential. USED downstream.
 historical_forecasted_grad_creds <-
   credentials %>%
   select(YEAR, AGE_GROUP, GENDER, PSI_CREDENTIAL_CATEGORY, N) %>%
@@ -374,9 +446,13 @@ historical_forecasted_grad_creds <-
 # will want to make sure that comparisons only go that far back
 # could in theory go farther, just easier right now to stay at 2019
 # preprocess nc data before joining with graduates
+
+# NC ratios with a per-year count (N_NC_STP). NC data only goes back to 2019, so
+# historical comparisons should not extend earlier. GENDER coded (1 = Male).
+
 T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(
   con,
-  "T_DACSO_Near_Completers_RatioByGender_year"
+  "T_DACSO_Near_Completers_RatioByGender_year" # the new name is "t_dacso_near_completers_ratio_by_gender_year" in 03.r
 ) %>%
   janitor::clean_names("all_caps") %>%
   mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
@@ -384,6 +460,7 @@ T_DACSO_Near_Completers_RatioByGender_year <- dbReadTable(
   mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
 
 # recode age groups 35-44, 45-54, 55-64  => 35 to 64
+# Expand broad "35 to 64" NC band to fine bands (same recode as the forecast one).
 T_DACSO_Near_Completers_RatioByGender_year <- f_graduates %>%
   distinct(AGE_GROUP) %>%
   rename("AGE_GROUP_RECODE" = "AGE_GROUP") %>%
@@ -416,6 +493,12 @@ historical_forecasted_grad_ncs <-
   )
 
 # HISTORICAL - Update PSSM CRED LABEL for GRADS/NCs ----
+# Apply the SAME "1 - " completer mapping used for the forecast (f_graduates).
+# historical_forecasted_grad_creds already holds BOTH historical and forecast
+# grads-by-credential, so labelling + aggregating here yields the completer half
+# of the include-historical output in one pass.
+# NOTE: case_when duplicated from f_graduates above (faithful annotation pass).
+
 hf_grad_creds <- historical_forecasted_grad_creds %>%
   filter(!AGE_GROUP %in% c("15 to 16")) %>%
   mutate(
@@ -447,6 +530,12 @@ hf_grad_creds <- historical_forecasted_grad_creds %>%
     )
   )
 
+
+## HISTORICAL - near-completers by credential, labelled ----
+# Historical NC counts come straight from N_NC_STP (per-year actuals, back to
+# 2019 only); forecast NC come from f_graduates_nc. Stack them, then apply the
+# SAME "3 - " near-completer mapping used above.
+# NOTE: case_when duplicated from f_graduates_nc above.
 hf_nc <- historical_forecasted_grad_ncs %>%
   filter(!AGE_GROUP %in% c("15 to 16")) %>%
   mutate(
@@ -466,6 +555,10 @@ hf_nc <- historical_forecasted_grad_ncs %>%
     )
   )
 
+## HISTORICAL - combined series, aggregated to the output grain ----
+# Stack completers + near-completers, total to PSSM_CRED x YEAR x AGE_GROUP, and
+# format YEAR as a school year to match the forecast aggregate (f_graduates_agg).
+
 hf_grad_nc_creds_agg <- hf_grad_creds %>%
   rbind(hf_nc) %>%
   group_by(PSSM_CRED, YEAR, AGE_GROUP) %>%
@@ -480,6 +573,7 @@ hf_grad_nc_creds_agg <- hf_grad_creds %>%
   mutate(SURVEY = 'Credential_Projections_Transp') %>%
   mutate(YEAR = paste0(as.character(YEAR), "/", as.character(YEAR + 1))) %>%
   filter(!AGE_GROUP %in% c('65 to 89', '15 to 16'))
+
 
 # HISTORICAL - APPSO ----
 appso_historical <- APPSO_Graduates %>%
@@ -542,6 +636,10 @@ hf_grad_nc_appso_agg <- hf_grad_nc_creds_agg %>%
 #  - Remove all objects at the end of each script.
 ## ------------------------------------------------------------------------------------------------
 
+# ---- Final output tables ----
+# Graduate_Projections: the forward-looking forecast (grads + NCs + APPSO) built
+# above in f_graduates_agg. This is the table 06/07 consume.
+
 # ---- Clean Up ----
 
 Graduate_Projections <- f_graduates_agg
@@ -557,7 +655,7 @@ write_table_to_db <- function(table_name, schema, con) {
   dbWriteTable(
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
-    base::get(table_name, envir = .GlobalEnv),
+    .GlobalEnv[[table_name]],
     overwrite = TRUE
   )
 }
