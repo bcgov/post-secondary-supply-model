@@ -216,10 +216,10 @@ HAVING (((T_Weights_STP.Weight)>0))"
 main_cohorts_TTRAIN <- dbGetQuery(
   decimal_con,
   "SELECT SURVEY_YEAR AS YEAR,
-        T_Cohorts_Recoded.PSSM_CREDENTIAL, 
-        T_Cohorts_Recoded.PSSM_CREDENTIAL AS PSSM_CRED, 
-        T_Cohorts_Recoded.LCP4_CD, 
-        T_Cohorts_Recoded.GRAD_STATUS, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL AS PSSM_CRED, 
+        T_Cohorts_Recoded_r.LCP4_CD, 
+        T_Cohorts_Recoded_r.GRAD_STATUS, 
         TTRAIN,
          CONCAT(
           (CASE WHEN [GRAD_STATUS] IS NULL THEN Null ELSE CAST([GRAD_STATUS] AS NVARCHAR(50)) + ' - ' END),
@@ -233,22 +233,22 @@ main_cohorts_TTRAIN <- dbGetQuery(
 			    (CASE WHEN [TTRAIN] IS NULL THEN Null ELSE CAST([TTRAIN] AS NVARCHAR(50)) + ' - ' END), 
 			    [PSSM_CREDENTIAL]
 			  ) AS LCIP2_CRED, 
-        tbl_Age_Groups.Age_Group_Label AS AGE_GROUP, 
+        tbl_Age_Groups_r.Age_Group_Label AS AGE_GROUP, 
         Count(*) AS Counts, 
-        T_Cohorts_Recoded.Weight, 
+        T_Cohorts_Recoded_r.Weight, 
         Count(*)*([Weight]) AS Weighted
-FROM T_Cohorts_Recoded 
-INNER JOIN tbl_Age_Groups 
-  ON T_Cohorts_Recoded.Age_Group = tbl_Age_Groups.Age_Group
-WHERE (((T_Cohorts_Recoded.GRAD_STATUS)<>'3'))
-GROUP BY T_Cohorts_Recoded.PSSM_CREDENTIAL, T_Cohorts_Recoded.LCP4_CD, 
-        T_Cohorts_Recoded.GRAD_STATUS, T_Cohorts_Recoded.TTRAIN, 
-        T_Cohorts_Recoded.LCIP4_CRED, T_Cohorts_Recoded.LCIP2_CRED, 
-        tbl_Age_Groups.Age_Group_Label, T_Cohorts_Recoded.Weight, 
-        T_Cohorts_Recoded.PSSM_CREDENTIAL,
+FROM T_Cohorts_Recoded_r 
+INNER JOIN tbl_Age_Groups_r 
+  ON T_Cohorts_Recoded_r.Age_Group = tbl_Age_Groups_r.Age_Group
+WHERE (((T_Cohorts_Recoded_r.GRAD_STATUS)<>'3'))
+GROUP BY T_Cohorts_Recoded_r.PSSM_CREDENTIAL, T_Cohorts_Recoded_r.LCP4_CD, 
+        T_Cohorts_Recoded_r.GRAD_STATUS, T_Cohorts_Recoded_r.TTRAIN, 
+        T_Cohorts_Recoded_r.LCIP4_CRED, T_Cohorts_Recoded_r.LCIP2_CRED, 
+        tbl_Age_Groups_r.Age_Group_Label, T_Cohorts_Recoded_r.Weight, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL,
         SURVEY_YEAR
-HAVING (((T_Cohorts_Recoded.TTRAIN) Is Not Null) 
-AND ((T_Cohorts_Recoded.Weight)>0));"
+HAVING (((T_Cohorts_Recoded_r.TTRAIN) Is Not Null) 
+AND ((T_Cohorts_Recoded_r.Weight)>0));"
 ) %>%
   group_by(
     YEAR,
@@ -274,6 +274,7 @@ AND ((T_Cohorts_Recoded.Weight)>0));"
 # trades PERCENT; otherwise keep the STP weight as-is.
 ## combine
 main_cohorts <- main_cohorts_stp %>%
+  mutate(GRAD_STATUS = as.character(GRAD_STATUS)) |>
   left_join(
     main_cohorts_TTRAIN %>% select(-PSSM_CRED),
     by = c("YEAR", "PSSM_CREDENTIAL", "LCP4_CD", "GRAD_STATUS", "AGE_GROUP"),
@@ -320,7 +321,7 @@ main_cohorts <- main_cohorts_stp %>%
 # Credentials: GRCT or GRDP, PDEG, MAST, DOCT
 # ============================================================================
 # Same weighting recipe as Stream 3 Part 1, but CIP4 is recoded to LCIPPC via
-# qry_12_LCP4_LCIPPC_Recode_9999 (grad-level programs use the PPC roll-up).
+# qry_12_LCP4_LCIPPC_Recode_9999_r (grad-level programs use the PPC roll-up).
 # survey = 'Program_Projections_2023-2024_Q013e' ----
 # pdeg: mast, doc
 pdeg <- dbGetQuery(
@@ -328,7 +329,7 @@ pdeg <- dbGetQuery(
   "SELECT PSI_AWARD_SCHOOL_YEAR_DELAYED AS YEAR,
         T_PSSM_Projection_Cred_Grp_r.PSSM_CREDENTIAL, 
 		    CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_CREDENTIAL]) AS PSSM_CRED, 
-        qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD AS LCIPPC_CD, 
+        qry_12_LCP4_LCIPPC_Recode_9999_r.LCIP_LCIPPC_CD AS LCIPPC_CD, 
         CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [LCIP_LCIPPC_CD], ' - ',
              [T_PSSM_Projection_Cred_Grp_r].[PSSM_CREDENTIAL]) AS LCIPPC_CRED, 
         tbl_Program_Projection_Input_r.AgeGroup as AGE_GROUP, 
@@ -340,13 +341,13 @@ INNER JOIN (tbl_Program_Projection_Input_r
     INNER JOIN T_Weights_STP 
       ON tbl_Program_Projection_Input_r.PSI_AWARD_SCHOOL_YEAR_DELAYED = T_Weights_STP.Year_Code) 
   ON T_PSSM_Projection_Cred_Grp_r.PSSM_Projection_Credential = tbl_Program_Projection_Input_r.PSI_CREDENTIAL_CATEGORY) 
-INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999 
-  ON tbl_Program_Projection_Input_r.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCP4_CD
+INNER JOIN qry_12_LCP4_LCIPPC_Recode_9999_r 
+  ON tbl_Program_Projection_Input_r.FINAL_CIP_CODE_4 = qry_12_LCP4_LCIPPC_Recode_9999_r.LCIP_LCP4_CD
 WHERE (((T_Weights_STP.Model)='2023-2024') 
 AND   ((T_PSSM_Projection_Cred_Grp_r.PSSM_CREDENTIAL) In ('GRCT or GRDP','PDEG','MAST','DOCT')))
 GROUP BY T_PSSM_Projection_Cred_Grp_r.PSSM_CREDENTIAL, 
 	    CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [PSSM_CREDENTIAL]), 
-      qry_12_LCP4_LCIPPC_Recode_9999.LCIP_LCIPPC_CD, 
+      qry_12_LCP4_LCIPPC_Recode_9999_r.LCIP_LCIPPC_CD, 
       CONCAT(CASE WHEN [COSC_GRAD_STATUS_LGDS_CD] IS NULL THEN Null ELSE CAST([COSC_GRAD_STATUS_LGDS_CD] AS NVARCHAR(50)) + ' - ' END, [LCIP_LCIPPC_CD], ' - ',
       [T_PSSM_Projection_Cred_Grp_r].[PSSM_CREDENTIAL]), 
       tbl_Program_Projection_Input_r.AgeGroup, 
@@ -380,35 +381,35 @@ HAVING (((T_Weights_STP.Weight)>0))"
 # STREAM 5 - Apprenticeships   SURVEY = 'Program_Projections_2023-2024_Q014e'
 # Credentials: APPRAPPR, APPRCERT
 # ============================================================================
-# Straight weighted counts from T_Cohorts_Recoded for the two apprenticeship
+# Straight weighted counts from T_Cohorts_Recoded_r for the two apprenticeship
 # credentials; same TOTAL / PERCENT recipe.
 # survey = 'Program_Projections_2023-2024_Q014e' ----
 # apprenticeships
 appso <- dbGetQuery(
   decimal_con,
   "SELECT SURVEY_YEAR AS YEAR,
-        T_Cohorts_Recoded.PSSM_CREDENTIAL, 
-        T_Cohorts_Recoded.PSSM_CREDENTIAL AS PSSM_CRED, 
-        T_Cohorts_Recoded.LCP4_CD, 
-        T_Cohorts_Recoded.TTRAIN, 
-        T_Cohorts_Recoded.LCIP4_CRED, 
-        T_Cohorts_Recoded.LCIP2_CRED, 
-        tbl_Age_Groups.Age_Group_Label AS AGE_GROUP, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL AS PSSM_CRED, 
+        T_Cohorts_Recoded_r.LCP4_CD, 
+        T_Cohorts_Recoded_r.TTRAIN, 
+        T_Cohorts_Recoded_r.LCIP4_CRED, 
+        T_Cohorts_Recoded_r.LCIP2_CRED, 
+        tbl_Age_Groups_r.Age_Group_Label AS AGE_GROUP, 
         Count(*) AS COUNT, 
-        T_Cohorts_Recoded.Weight, 
+        T_Cohorts_Recoded_r.Weight, 
         Count(*)*([Weight]) AS Weighted
-FROM    T_Cohorts_Recoded INNER JOIN tbl_Age_Groups 
-ON      T_Cohorts_Recoded.Age_Group = tbl_Age_Groups.Age_Group
-WHERE   (((T_Cohorts_Recoded.PSSM_CREDENTIAL) In ('APPRAPPR','APPRCERT')))
-GROUP BY T_Cohorts_Recoded.PSSM_CREDENTIAL, 
-        T_Cohorts_Recoded.LCP4_CD, 
-        T_Cohorts_Recoded.TTRAIN, 
-        T_Cohorts_Recoded.LCIP4_CRED, 
-        T_Cohorts_Recoded.LCIP2_CRED, tbl_Age_Groups.Age_Group_Label, 
-        T_Cohorts_Recoded.Weight, 
-        T_Cohorts_Recoded.PSSM_CREDENTIAL,
+FROM    T_Cohorts_Recoded_r INNER JOIN tbl_Age_Groups_r 
+ON      T_Cohorts_Recoded_r.Age_Group = tbl_Age_Groups_r.Age_Group
+WHERE   (((T_Cohorts_Recoded_r.PSSM_CREDENTIAL) In ('APPRAPPR','APPRCERT')))
+GROUP BY T_Cohorts_Recoded_r.PSSM_CREDENTIAL, 
+        T_Cohorts_Recoded_r.LCP4_CD, 
+        T_Cohorts_Recoded_r.TTRAIN, 
+        T_Cohorts_Recoded_r.LCIP4_CRED, 
+        T_Cohorts_Recoded_r.LCIP2_CRED, tbl_Age_Groups_r.Age_Group_Label, 
+        T_Cohorts_Recoded_r.Weight, 
+        T_Cohorts_Recoded_r.PSSM_CREDENTIAL,
         SURVEY_YEAR
-HAVING (((T_Cohorts_Recoded.Weight)>0))"
+HAVING (((T_Cohorts_Recoded_r.Weight)>0))"
 ) %>%
   group_by(YEAR, PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP) %>%
   mutate(TOTAL = sum(Weighted)) %>%
@@ -435,7 +436,14 @@ HAVING (((T_Cohorts_Recoded.Weight)>0))"
 # ============================================================================
 ## combine ----
 Cohort_Program_Distributions_history <-
-  bind_rows(ptib, near_completers, main_cohorts, pdeg, appso)
+  bind_rows(
+    ptib,
+    near_completers |> mutate(YEAR = as.character(YEAR)),
+    main_cohorts |>
+      mutate(YEAR = as.character(YEAR), TTRAIN = as.character(TTRAIN)),
+    pdeg |> mutate(YEAR = as.character(YEAR)),
+    appso |> mutate(YEAR = as.character(YEAR))
+  )
 # Write to the analyst's IDIR schema. NOTE: written WITHOUT an "_r" suffix to
 # match the existing downstream consumers - do not rename without checking 07.
 dbWriteTable(
