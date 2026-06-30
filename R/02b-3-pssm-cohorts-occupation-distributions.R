@@ -1079,7 +1079,8 @@ tables_to_keep <- c(
   "occupation_distributions_lcp2",
   "occupation_distributions_lcp2_no_tt",
   "occupation_distributions_lcp2_bc",
-  "occupation_distributions_lcp2_bc_no_tt"
+  "occupation_distributions_lcp2_bc_no_tt",
+  "t_suppression_public_release_noc"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
