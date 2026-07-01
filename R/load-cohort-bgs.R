@@ -57,7 +57,7 @@ lan <- config::get("lan")
 # ---- Read T_BGS_Data_Final from SQL Server ----
 t_bgs_data_final_for_outcomesmatching <- dbReadTable(
   con,
-  Id(schema = my_schema, table = "t_bgs_data_final_for_outcomesmatching_r")
+  Id(schema = my_schema, table = "t_bgs_data_final_for_outcomesmatching")
 )
 
 # ---- Read LAN Data ----

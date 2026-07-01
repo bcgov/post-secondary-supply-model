@@ -25,3 +25,5 @@ tmp/input-data.csv
 tmp/output.csv
 R/app.R
 R/app.R
+R/Compare the current in-memory tmp_tb_model.R
+docs/PSSM Analyst Manual — Running the Mode.md

@@ -57,7 +57,7 @@ library(assertthat)
 
 regular_run <- T
 qi_run <- F
-ptib_run <- T
+ptib_run <- F
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------

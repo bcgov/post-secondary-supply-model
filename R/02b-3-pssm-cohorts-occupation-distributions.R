@@ -60,7 +60,7 @@ con <- dbConnect(
 # move this into load scripts?
 occupation_distributions_stat_can <- dbReadTable(
   con,
-  SQL(glue::glue('"Occupation_Distributions_Stat_Can_r"'))
+  SQL(glue::glue('"Occupation_Distributions_Stat_Can"'))
 ) |>
   # not sure which one this should be but this matches what is in the SQL table
   mutate(

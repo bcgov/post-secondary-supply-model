@@ -70,7 +70,7 @@ con <- dbConnect(
 
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"'))
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
 )) |>
   # not sure which one this should be but this matches what is in the SQL table
   mutate(
