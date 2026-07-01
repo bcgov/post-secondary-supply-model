@@ -41,7 +41,7 @@ if (length(missing) > 0) {
 walk(missing, read_table_from_db, schema = my_schema, con = con)
 
 # optional: standardise a table's column names to lower case
-walk(required_tables, lower_col_names_global)
+walk(missing, lower_col_names_global)
 
 na_vals <- c("", " ", "(Unspecified)", NA)
 
@@ -94,7 +94,7 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   inner_join(
     tmp_tbl_age |>
       select(cosc_stqu_id, age_at_grad),
-    by = c("cosc_stqu_id" = "cosc_stqu_id")
+    by = c("coci_stqu_id" = "cosc_stqu_id")
   ) |>
   distinct() # just in case
 
@@ -145,6 +145,7 @@ if ("psi_pen" %in% names(credential_non_dup)) {
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
+      rename_with(str_to_lower) |>
       select(id = id, psi_pen = psi_pen), #ID is unique, s.b. distinct
     by = "id"
   )
@@ -1259,5 +1260,3 @@ write_table_to_db <- function(table_name, schema, con) {
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
-
-rm(list = ls())

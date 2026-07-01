@@ -86,10 +86,17 @@ required_tables <- c(
 
   # Derived tables
   "tbl_program_projection_input",
-  "qry_private_credentials_06d1_cohort_dist",
+
   "dacso_near_completers_ratios_age_at_grad_cip4_ttrain",
   "t_cohorts_recoded"
 )
+
+if (ptib_run == TRUE) {
+  required_tables <- c(
+    "qry_private_credentials_06d1_cohort_dist",
+    required_tables
+  )
+}
 
 # Fail fast if the paired load script did not put everything in the environment.
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]

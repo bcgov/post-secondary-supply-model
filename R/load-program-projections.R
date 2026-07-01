@@ -40,7 +40,7 @@ library(DBI)
 # assignments are effectively overrides - keep that in mind if results look like
 # the wrong run was loaded. (TRUE/FALSE per project convention, not T/F.)
 regular_run <- TRUE
-ptib_run <- TRUE
+ptib_run <- FALSE
 qi_run <- FALSE
 
 # ---- Configure LAN and file paths ----
@@ -154,27 +154,34 @@ if (regular_run == TRUE | ptib_run == TRUE) {
   # Highest-ranked credential per graduate (built in an earlier step).
   tbl_credential_highest_rank <- dbReadTable(
     con,
-    SQL(glue::glue('"{my_schema}"."tbl_credential_highest_rank_r"'))
+    SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"'))
   )
 
   # De-duplicated credential records (carry CIP and source flags per graduate).
   credential_non_dup <- dbReadTable(
     con,
-    SQL(glue::glue('"{my_schema}"."credential_non_dup_r"'))
+    SQL(glue::glue('"{my_schema}"."credential_non_dup"'))
   )
 
   # Bring RESEARCH_UNIVERSITY and OUTCOMES_CRED onto the highest-rank table.
   # (Author note: ideally done at the end of 01c-credential-analysis.R; done here
   # because it was missed upstream.)
-  tbl_credential_highest_rank <- tbl_credential_highest_rank |>
-    left_join(
-      credential_non_dup |>
-        rename_with(toupper, everything()) |>
-        select(ID, RESEARCH_UNIVERSITY, OUTCOMES_CRED),
-      by = join_by(ID)
-    )
+  # tbl_credential_highest_rank <- tbl_credential_highest_rank |>
+  #   rename_with(toupper, everything()) |>
+  #   left_join(
+  #     credential_non_dup |>
+  #       rename_with(toupper, everything()) |>
+  #       select(
+  #         ID,
+  #         # RESEARCH_UNIVERSITY,
+  #         OUTCOMES_CRED
+  #       ),
+  #     by = join_by(ID)
+  #   )
+  # comment out since those two columns are already there.
 
   tbl_program_projection_input <- tbl_credential_highest_rank |>
+    rename_with(toupper, everything()) |>
     select(
       ID,
       AGE_GROUP_AT_GRAD,
@@ -243,15 +250,18 @@ if (regular_run == TRUE | ptib_run == TRUE) {
   # Private-college cohort distribution (from step 05). Column 2 holds the
   # credential; rename it to PSSM_CREDENTIAL so 06 can align it with the other
   # streams.
-  qry_private_credentials_06d1_cohort_dist <-
-    dbReadTable(
-      con,
-      SQL(glue::glue(
-        '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist_r"'
-      ))
-    )
 
-  names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_CREDENTIAL"
+  if (ptib_run == TRUE) {
+    qry_private_credentials_06d1_cohort_dist <-
+      dbReadTable(
+        con,
+        SQL(glue::glue(
+          '"{my_schema}"."qry_Private_Credentials_06d1_Cohort_Dist_r"'
+        ))
+      )
+
+    names(qry_private_credentials_06d1_cohort_dist)[2] <- "PSSM_CREDENTIAL"
+  }
 
   # Near-completer ratios by age x CIP4 x trades-training (from step 03).
   dacso_near_completers_ratios_age_at_grad_cip4_ttrain <-

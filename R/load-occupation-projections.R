@@ -244,19 +244,47 @@ graduate_projections <-
 # 4-digit and 6-digit CIP tables. 07 derives its LCP2<->LCP4 map from the 6-digit
 # version for the 2-digit proxy steps. No " OR "->" or " needed (no credential
 # columns here).
-infoware_l_cip_4digits_cip2016 <-
-  dbReadTable(
-    con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
-  ) %>%
+# ---- Student Outcomes Lookups (loaded for ALL runs, incl. QI) ----
+# Statistics Canada CIP 2016 code lookups (4- and 6-digit). latin1 encoding is
+# required because the source files contain accented characters. These are kept
+# in memory for downstream steps (not written to the DB below).
+infoware_l_cip_4digits_cip2016 <- readr::read_csv(
+  glue::glue(
+    "{lan}/development/csv/infoware/INFOWARE_L_CIP_4DIGITS_CIP2016.csv"
+  ),
+  col_types = cols(
+    .default = col_guess()
+  ),
+  locale = locale(
+    encoding = "latin1"
+  )
+) %>%
   janitor::clean_names(case = "all_caps")
 
-infoware_l_cip_6digits_cip2016 <-
-  dbReadTable(
-    con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"'))
-  ) %>%
+infoware_l_cip_6digits_cip2016 <- readr::read_csv(
+  glue::glue(
+    "{lan}/development/csv/infoware/INFOWARE_L_CIP_6DIGITS_CIP2016.csv"
+  ),
+  col_types = cols(.default = col_guess()),
+  locale = locale(
+    encoding = "latin1"
+  )
+) %>%
   janitor::clean_names(case = "all_caps")
+
+# infoware_l_cip_4digits_cip2016 <-
+#   dbReadTable(
+#     con,
+#     SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_4DIGITS_CIP2016"'))
+#   ) %>%
+#   janitor::clean_names(case = "all_caps")
+
+# infoware_l_cip_6digits_cip2016 <-
+#   dbReadTable(
+#     con,
+#     SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_6DIGITS_CIP2016"'))
+#   ) %>%
+#   janitor::clean_names(case = "all_caps")
 
 # -------------------- LOAD LOOKUPS ------------------------
 # Small reference CSVs from the LAN. These are the tables PERSISTED back to the DB
