@@ -39,9 +39,9 @@ library(DBI)
 # local = globalenv()), the run flags are inherited from the caller, so these
 # assignments are effectively overrides - keep that in mind if results look like
 # the wrong run was loaded. (TRUE/FALSE per project convention, not T/F.)
-regular_run <- TRUE
-ptib_run <- FALSE
-qi_run <- FALSE
+# regular_run <- TRUE
+# ptib_run <- FALSE
+# qi_run <- FALSE
 
 # ---- Configure LAN and file paths ----
 # All environment-specific values come from config.yml (never hardcoded).

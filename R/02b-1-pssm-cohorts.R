@@ -55,9 +55,9 @@ library(odbc)
 library(glue)
 library(assertthat)
 
-regular_run <- T
-qi_run <- F
-ptib_run <- F
+# regular_run <- T
+# qi_run <- F
+# ptib_run <- F
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------

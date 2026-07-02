@@ -97,9 +97,9 @@ library(assertthat)
 # drift by year (see 06). This picks which 06 output feeds the chain below.
 model <- "static"
 # Dev defaults only - overridden by the prep script when run in the pipeline.
-ptib_run <- FALSE
-regular_run <- TRUE
-qi_run <- FALSE
+# ptib_run <- FALSE
+# regular_run <- TRUE
+# qi_run <- FALSE
 
 # Select the program-mix table that matches the toggle.
 if (model == "static") {
