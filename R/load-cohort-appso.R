@@ -15,9 +15,9 @@ library(config)
 library(DBI)
 library(odbc)
 
-qi_run <- F
-regular_run <- T
-ptib_run <- F
+# qi_run <- F
+# regular_run <- T
+# ptib_run <- F
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
