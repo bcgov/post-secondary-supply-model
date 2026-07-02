@@ -97,7 +97,7 @@ library(assertthat)
 # drift by year (see 06). This picks which 06 output feeds the chain below.
 model <- "static"
 # Dev defaults only - overridden by the prep script when run in the pipeline.
-ptib_run <- TRUE
+ptib_run <- FALSE
 regular_run <- TRUE
 qi_run <- FALSE
 
@@ -1343,25 +1343,29 @@ if (regular_run == TRUE) {
   # write tmp_tbl_model to decimal
 }
 
+
+tables_to_keep <- c(
+  "tmp_tbl_model"
+  # "tmp_tbl_qi",
+  # "tmp_tbl_model_inc_private_inst",
+  # "tmp_tbl_model_program_projection"
+)
+
 if (qi_run == TRUE) {
   tmp_tbl_qi <- q_5_noc_totals_by_year_and_bc_and_total
+  tables_to_keep <- c(tables_to_keep, "tmp_tbl_qi")
 }
 
 if (ptib_run == TRUE) {
   tmp_tbl_model_inc_private_inst <- q_5_noc_totals_by_year_and_bc_and_total
+  tables_to_keep <- c(tables_to_keep, "tmp_tbl_model_inc_private_inst")
 }
 
 if (model == "program_projection") {
   tmp_tbl_model_program_projection <- q_5_noc_totals_by_year_and_bc_and_total
+  tables_to_keep <- c(tables_to_keep, "tmp_tbl_model_program_projection")
 }
 
-
-tables_to_keep <- c(
-  "tmp_tbl_model",
-  "tmp_tbl_qi",
-  "tmp_tbl_model_inc_private_inst",
-  "tmp_tbl_model_program_projection"
-)
 
 write_table_to_db <- function(table_name, schema, con) {
   db_name <- paste0(table_name, "_r")
