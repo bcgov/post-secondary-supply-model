@@ -27,3 +27,11 @@ R/app.R
 R/app.R
 R/Compare the current in-memory tmp_tb_model.R
 docs/PSSM Analyst Manual — Running the Mode.md
+*.html
+*.js
+*.css
+*.ttf
+*.map
+*.png
+plugin.yml
+presentations/presentation-06-2026_files/
