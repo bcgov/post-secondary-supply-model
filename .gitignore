@@ -22,6 +22,7 @@ tmp/output.csv
 R/app.R
 R/Compare the current in-memory tmp_tb_model.R
 docs/PSSM Analyst Manual — Running the Mode.md
+*.html
 *.js
 *.css
 *.ttf
@@ -39,3 +40,4 @@ docs/02a-update-cred-non-dup-diagiam.md
 docs/agents/
 AGENTS.md
 split-pr-89.sh
+presentations/presentation-06-2026_files/
