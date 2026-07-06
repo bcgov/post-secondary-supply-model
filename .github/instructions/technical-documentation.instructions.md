@@ -83,8 +83,7 @@ Every generated QMD must include the following headings in this exact order:
     3.1  Dependencies and Environment Requirements
 4.  Methodology Overview
 5.  Key Output Tables
-6.  Suggested Improvements
-7.  Additional Details
+6.  Additional Details
 ```
 
 Use `##` for top-level sections and `###` for subsections.
