@@ -41,17 +41,17 @@ This dataset contains raw academic award records including student identifiers (
 
 <ul class="list-variable-names">
 <li>ID (Integer, PK): Unique credential record identifier.</li>
-<li>CREDENTIAL_AWARD_DATE (Date): Credential award date.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Credential award date.</li>
 <li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
 <li>PSI_CODE (String): Post-secondary institution code.</li>
 <li>PSI_CREDENTIAL_CATEGORY (String): Credential category label.</li>
-<li>PSI_CREDENTIAL_CIP (String): Credential CIP code.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
 <li>PSI_CREDENTIAL_LEVEL (String): Credential level descriptor.</li>
 <li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Credential program description.</li>
 <li>PSI_FULL_NAME (String): Student full name as supplied in source.</li>
 <li>PSI_PEN (String): Institution-reported PEN field.</li>
 <li>PSI_PROGRAM_CODE (String): Institution program code.</li>
-<li>PSI_PROGRAM_EFFECTIVE_DATE (Date): Program effective date.</li>
+<li>PSI_PROGRAM_EFFECTIVE_DATE (String): Program effective date.</li>
 <li>PSI_SCHOOL_YEAR (String): School year value.</li>
 <li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
 </ul>
@@ -60,11 +60,13 @@ This dataset contains raw academic award records including student identifiers (
 
 The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
 
+The following columns are the minimum requirements for the pipeline:
+
 <ul class="list-variable-names">
 <li>ID (Integer, PK): Unique record identifier for each enrolment row.</li>
 <li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
 <li>ATTENDING_PSI_OUTSIDE_BC (String): Indicator for attendance outside British Columbia.</li>
-<li>PSI_CIP_CODE (String): CIP code for the enrolment program.</li>
+<li>PSI_CIP_CODE (String): Classification of Instructional Programs (CIP) code for the enrolment program.</li>
 <li>PSI_CODE (String): Post-secondary institution code.</li>
 <li>PSI_CONTINUING_EDUCATION_COURSE_ONLY (String): Marker for continuing-education/skills-only activity.</li>
 <li>PSI_CREDENTIAL_CATEGORY (String): Credential category associated with enrolment.</li>
@@ -72,16 +74,16 @@ The primary repository of student registration activity. It contains raw demogra
 <li>PSI_ENROLMENT_SEQUENCE (String): Sequence indicator for enrolment records.</li>
 <li>PSI_ENTRY_STATUS (String): Entry transition status value.</li>
 <li>PSI_GENDER (String): Reported gender from source.</li>
-<li>PSI_MIN_START_DATE (Date): Earliest start date for the enrolment record.</li>
+<li>PSI_MIN_START_DATE (String): Earliest start date for the enrolment record.</li>
 <li>PSI_PROGRAM_CODE (String): Institution-specific program code.</li>
-<li>PSI_PROGRAM_EFFECTIVE_DATE (Date): Program effective date from source.</li>
+<li>PSI_PROGRAM_EFFECTIVE_DATE (String): Program effective date from source.</li>
 <li>PSI_SCHOOL_YEAR (String): School year in `YYYY/YYYY` style.</li>
 <li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
 <li>PSI_STUDENT_POSTAL_CODE_CURRENT (String): Current student postal code.</li>
 <li>PSI_STUDY_LEVEL (String): Study-level descriptor.</li>
 <li>PSI_VISA_STATUS (String): Reported visa/residency status.</li>
-<li>PSI_BIRTHDATE (Date): Raw birthdate value from source.</li>
-<li>LAST_SEEN_BIRTHDATE (Date): Administrative last-seen birthdate fallback.</li>
+<li>PSI_BIRTHDATE (String): Student's birthdate from source.</li>
+<li>LAST_SEEN_BIRTHDATE (String): Administrative last-seen birthdate fallback.</li>
 </ul>
 
 ## Methodology Overview
@@ -310,10 +312,9 @@ The resulting matrices provide granular frequency counts stratified by residency
 
 ## Key Output Tables
 
-The following tables are confirmed outputs from scripts `01a` through `01e`. Column-level schemas are based on script logic and are marked where inferred.
+The following tables are key outputs from scripts `01a` through `01e`. Column-level schemas are based on script logic and may be inferred.
 
 ### 01a-enrolment-preprocessing.R
-
 
 ##### Table: stp_enrolment_record_type
 
@@ -321,24 +322,9 @@ Record-status classification table with first-enrolment and minimum-annual-enrol
 
 <ul class="list-variable-names">
 <li>ID (Integer, PK, FK -> stp_enrolment_r.ID): Enrolment record identifier.</li>
-<li>RecordStatus (Integer): Classification code for validity/exclusion logic (0-8).</li>
-<li>is_min_enrol (Boolean): Indicator for first enrolment within a school year.</li>
-<li>is_first_enrol (Boolean): Indicator for first observed enrolment in history.</li>
-</ul>
-
-##### Table: stp_enrolment_valid
-
-Validated enrolment subset restricted to records with `RecordStatus = 0`.
-
-<ul class="list-variable-names">
-<li>ID (Integer, PK, FK -> stp_enrolment_r.ID): Enrolment record identifier.</li>
-<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
-<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
-<li>PSI_CODE (String): Post-secondary institution code.</li>
-<li>PSI_MIN_START_DATE (Date): Earliest start date for enrolment row.</li>
-<li>PSI_SCHOOL_YEAR (String): School year value.</li>
-<li>PSI_ENROLMENT_SEQUENCE (String): Enrolment sequence value.</li>
-<li>PSI_STUDENT_POSTAL_CODE_CURRENT (String): Current student postal code.</li>
+<li>RecordStatus (Numeric): Classification code for validity/exclusion logic (0-8).</li>
+<li>is_min_enrol (Numeric): Indicator for first enrolment within a school year (0/1).</li>
+<li>is_first_enrol (Numeric): Indicator for first observed enrolment in history (0/1).</li>
 </ul>
 
 ### 01b-credential-preprocessing.R
@@ -350,40 +336,12 @@ Credential record-status table used to retain valid rows and exclude non-target 
 <ul class="list-variable-names">
 <li>ID (Integer, PK, FK -> stp_credential_r.ID): Credential record identifier.</li>
 <li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
-<li>RecordStatus (Integer): Credential validity/exclusion code.</li>
-<li>DropCredCategory (String): Drop marker for excluded credential categories.</li>
-<li>DropPartialYear (String): Drop marker for incomplete reporting periods.</li>
+<li>RecordStatus (Numeric): Credential validity/exclusion code (0-8).</li>
+<li>DropCredCategory (String): Drop marker for excluded credential categories (Yes/No).</li>
+<li>DropPartialYear (String): Drop marker for incomplete reporting periods (Yes/No).</li>
 </ul>
 
 ### 01c-credential-analysis.R
-
-##### Table: credential
-
-Validated and enriched credential working table with cleaned demographics and timing fields.
-
-<ul class="list-variable-names">
-<li>ID (Integer, PK, FK -> stp_credential_r.ID): Credential record identifier.</li>
-<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
-<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
-<li>PSI_CODE (String): Institution code.</li>
-<li>PSI_SCHOOL_YEAR (String): Source school year.</li>
-<li>CREDENTIAL_AWARD_DATE (Date): Raw award date from source.</li>
-<li>CREDENTIAL_AWARD_DATE_D (Date): Standardized/cast award date.</li>
-<li>PSI_PROGRAM_CODE (String): Program code.</li>
-<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
-<li>PSI_CREDENTIAL_CIP (String): Credential CIP code.</li>
-<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
-<li>psi_birthdate_cleaned (Date): Resolved birthdate.</li>
-<li>psi_birthdate_cleaned_D (Date): Standardized resolved birthdate.</li>
-<li>psi_gender_cleaned (String): Cleaned/recovered gender value.</li>
-<li>RecordStatus (Integer): Record-status code.</li>
-<li>DropCredCategory (String): Credential category exclusion flag.</li>
-<li>DropPartialYear (String): Partial-year exclusion flag.</li>
-<li>AGE_AT_GRAD (Integer): Calculated age at graduation.</li>
-<li>AGE_GROUP_AT_GRAD (Integer): Age-group key at graduation.</li>
-<li>PSI_AWARD_SCHOOL_YEAR (String): Derived award school year.</li>
-</ul>
 
 ##### Table: credential_non_dup
 
@@ -394,11 +352,21 @@ Deduplicated credential output containing final demographic, ranking, and delaye
 <li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
 <li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
 <li>PSI_CODE (String): Institution code.</li>
+<li>PSI_SCHOOL_YEAR (String): Credential issued in this school year.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
 <li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
 <li>CREDENTIAL_AWARD_DATE_D (Date): Standardized award date.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Date credential was awarded.</li>
 <li>psi_gender_cleaned (String): Final cleaned or imputed gender.</li>
-<li>AGE_AT_GRAD (Integer): Age at graduation (observed/imputed).</li>
-<li>AGE_GROUP_AT_GRAD (Integer): Age-group index at graduation.</li>
+<li>PSI_BIRTHDATE_CLEANED (String): Final cleaned or imputed birthdate.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized final cleaned or imputed birthdate.</li>
+<li>RecordStatus (Numeric): Record-status code (0-8).</li>
+<li>AGE_AT_GRAD (Numeric): Age at graduation (observed/imputed).</li>
+<li>AGE_GROUP_AT_GRAD (Numeric): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Derived award school year.</li>
 <li>HIGHEST_CRED_BY_DATE (String): Marker for highest credential by date logic.</li>
 <li>HIGHEST_CRED_BY_RANK (String): Marker for highest credential by rank logic.</li>
 <li>PSI_VISA_STATUS (String): Recovered visa status.</li>
@@ -409,50 +377,6 @@ Deduplicated credential output containing final demographic, ranking, and delaye
 <li>OUTCOMES_CRED (String): Standardized outcomes credential grouping.</li>
 </ul>
 
-##### Table: credential_supvars
-
-Supplemental credential feature table used for intermediate enrichment and recovery steps.
-
-<ul class="list-variable-names">
-<li>ID (Integer, PK, FK -> credential_r.ID): Credential record identifier.</li>
-<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
-<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
-<li>PSI_CODE (String): Institution code.</li>
-<li>PSI_SCHOOL_YEAR (String): Source school year.</li>
-<li>CREDENTIAL_AWARD_DATE (Date): Raw award date.</li>
-<li>CREDENTIAL_AWARD_DATE_D (Date): Standardized award date.</li>
-<li>CredentialRecordStatus (Integer): Joined credential record-status value.</li>
-<li>PSI_PROGRAM_CODE (String): Program code.</li>
-<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
-<li>PSI_CREDENTIAL_CIP (String): Credential CIP code.</li>
-<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
-<li>psi_birthdate_cleaned (Date): Resolved birthdate.</li>
-<li>psi_birthdate_cleaned_D (Date): Standardized resolved birthdate.</li>
-<li>psi_gender_cleaned (String): Cleaned gender value.</li>
-<li>LAST_SEEN_BIRTHDATE (Date): Administrative fallback birthdate.</li>
-<li>PSI_VISA_STATUS (String): Visa status value.</li>
-</ul>
-
-##### Table: credential_supvars_enrolment
-
-Enrolment-linked supplemental table used to backfill credential demographic attributes.
-
-<ul class="list-variable-names">
-<li>EnrolmentID (Integer, FK -> stp_enrolment_r.ID): Linked enrolment record identifier.</li>
-<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
-<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
-<li>PSI_CODE (String): Institution code.</li>
-<li>PSI_SCHOOL_YEAR (String): Enrolment school year.</li>
-<li>PSI_ENROLMENT_SEQUENCE (String): Enrolment sequence value.</li>
-<li>PSI_MIN_START_DATE (Date): Enrolment start date.</li>
-<li>CredentialRecordStatus (Integer): Joined credential record-status value.</li>
-<li>PSI_STUDENT_POSTAL_CODE_CURRENT (String): Current student postal code.</li>
-<li>psi_birthdate_cleaned (Date): Cleaned enrolment birthdate.</li>
-<li>PSI_BIRTHDATE (Date): Raw enrolment birthdate.</li>
-<li>PSI_VISA_STATUS (String): Enrolment visa status.</li>
-<li>PSI_GENDER (String): Enrolment gender value.</li>
-</ul>
 
 ##### Table: tbl_credential_highest_rank
 
@@ -460,16 +384,30 @@ One-record-per-student highest-rank credential table with delayed-award reconcil
 
 <ul class="list-variable-names">
 <li>ID (Integer, PK, FK -> credential_non_dup_r.ID): Selected highest-rank credential identifier.</li>
-<li>CONCATENATED_ID (String): Unified student identifier.</li>
-<li>HIGHEST_CRED_BY_RANK (String): Highest-rank marker.</li>
-<li>CREDENTIAL_AWARD_DATE_D (Date): Original highest-rank award date.</li>
-<li>PSI_AWARD_SCHOOL_YEAR (String): Original award school year.</li>
-<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>AGE_GROUP_AT_GRAD (Integer): Age-group index at graduation.</li>
-<li>psi_gender_cleaned (String): Cleaned/imputed gender value.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Credential program description.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
 <li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential CIP code.</li>
+<li>CREDENTIAL_AWARD_DATE_D (Date): Original award date.</li>
+<li>CREDENTIAL_AWARD_DATE (Date): Original award date.</li>
+<li>PSI_BIRTHDATE_CLEANED (Date): Cleaned birthdate value.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized cleaned birthdate.</li>
+<li>psi_gender_cleaned (String): Cleaned/imputed gender value.</li>
+<li>RecordStatus (String): Record status value.</li>
+<li>AGE (Integer): Age at graduation.</li>
+<li>AGE_GROUP_AT_GRAD (Integer): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Original award school year.</li>
+<li>HIGHEST_CRED_BY_RANK (String): Highest-rank marker.</li>
+<li>HIGHEST_CRED_BY_DATE (String): Highest-rank by date marker.</li>
 <li>PSI_VISA_STATUS (String): Visa status marker.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
+<li>CONCATENATED_ID (String): Unified student identifier.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>CREDENTIAL_AWARD_DATE_DELAYED (Date): Delay-adjusted award date.</li>
 </ul>
 
 ##### Table: tbl_credential_delay_effect
@@ -488,8 +426,6 @@ Resolved delayed-award mapping from highest credential records to adjusted compl
 
 Entry-cohort enrolment baseline containing valid minimum-enrolment records with recovered demographics.
 
-
-
 <ul class="list-variable-names">
 <li>ID (Integer, PK, FK -> stp_enrolment.ID): Enrolment record identifier.</li>
 <li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
@@ -504,7 +440,7 @@ Entry-cohort enrolment baseline containing valid minimum-enrolment records with 
 <li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized cleaned birthdate.</li>
 <li>PSI_MIN_START_DATE (Date): Minimum enrolment start date.</li>
 <li>PSI_MIN_START_DATE_D (Date): Standardized enrolment start date.</li>
-<li>IS_FIRST_ENROLMENT (Boolean): Indicator for first observed enrolment.</li>
+<li>IS_FIRST_ENROLMENT (String): Indicator for first observed enrolment.</li>
 <li>CONCATENATED_ID (String): Unified student identifier.</li>
 <li>AGE_AT_ENROL_DATE (Integer): Age at enrolment date.</li>
 <li>AGE_GROUP_ENROL_DATE (Integer): Age-group key at enrolment.</li>
@@ -512,97 +448,6 @@ Entry-cohort enrolment baseline containing valid minimum-enrolment records with 
 
 ### 01e-stp-distributions.R
 
-##### Table: credential_by_year_age_group
-
-Frequency distribution of credentials by delayed school year, credential category, and age group.
-
-<ul class="list-variable-names">
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_age_group_domestic
-
-Domestic-only credential frequency distribution by delayed school year, category, and age group.
-
-<ul class="list-variable-names">
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_age_group_domestic_exclude_cips
-
-Domestic credential frequency distribution with excluded CIP clusters removed.
-
-<ul class="list-variable-names">
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_age_group_domestic_exclude_ru_dacso
-
-Domestic credential frequency distribution excluding designated research-university DACSO combinations.
-
-<ul class="list-variable-names">
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_age_group_exclude_cips
-
-Credential frequency distribution with designated CIP clusters removed.
-
-<ul class="list-variable-names">
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips
-
-Domestic credential frequencies by 4-digit CIP, age group, category, and delayed school year with exclusions applied.
-
-<ul class="list-variable-names">
-<li>FINAL_CIP_CODE_4 (String): Standardized 4-digit CIP code.</li>
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips
-
-Domestic credential frequencies by 4-digit CIP, gender, age group, category, and delayed school year with exclusions applied.
-
-<ul class="list-variable-names">
-<li>FINAL_CIP_CODE_4 (String): Standardized 4-digit CIP code.</li>
-<li>psi_gender_cleaned (String): Cleaned/imputed gender category.</li>
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: credential_by_year_gender_agegroup_domestic_exclude_cips
-
-Domestic credential frequencies by gender, age group, category, and delayed school year with CIP exclusions.
-
-<ul class="list-variable-names">
-<li>psi_gender_cleaned (String): Cleaned/imputed gender category.</li>
-<li>AgeGroup (String): Graduation age-group label.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
-<li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
 
 ##### Table: credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips
 
@@ -614,29 +459,6 @@ Domestic credential frequencies by gender, age group, category, and delayed scho
 <li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
 <li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
 <li>Count (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: qry09c_minenrolment_by_credential_and_cip_code
-
-Frequency matrix of minimum enrolment by school year, credential category, and CIP code.
-
-<ul class="list-variable-names">
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the minimum enrolment record.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
-<li>Expr1 (Integer): Frequency count for each stratum.</li>
-</ul>
-
-##### Table: qry09c_MinEnrolment_Domestic
-
-Frequency matrix of minimum enrolment by school year, gender, and combined demographic grouping. Filtered to include only those 
-students whose PSI_VISA_STATUS is 'Domestic'.
-
-<ul class="list-variable-names">
-<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the minimum enrolment record.</li>
-<li>AgeGroup (String): Age of student in the given school year, mapped to discrete a grouping (e.g. "20-24").</li>
-<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
 </ul>
 
 ##### Table: qry09c_minenrolment
