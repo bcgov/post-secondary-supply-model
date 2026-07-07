@@ -26,49 +26,50 @@ The script processes records from the Credential_Non_Dup table (derived in `01c-
 
 ### External Data Sources
 
-#### [External Data Source Name]
-
-Source: [Data provider or organization]  
-Access Method: [Describe how data is accessed, e.g., API, direct download, R package]
-
-  - [List any required credentials, API keys, or setup steps]
-  - Function calls: [Relevant function or method]
-
-Description: [Brief description of the data, coverage, and structure]
-
-<!-- Repeat the above callout for each external data source -->
-
 ### Internal/Processed Data Sources
 
-#### Credential_Non_Dup
+##### Table: credential_non_dup
 
-Source: PSSM2023 SQL Server Database
-Access Method: Trusted Connection (Windows Authentication).
-Description: The primary source containing student IDs, institutional program codes, and raw CIP values.
+Deduplicated credential output containing final demographic, ranking, and delayed-award variables.
 
-#### INFOWARE_L_CIP_XDIGITS_CIP2016
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> credential_r.ID): Credential record identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_SCHOOL_YEAR (String): Credential issued in this school year.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
+<li>CREDENTIAL_AWARD_DATE_D (Date): Standardized award date.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Date credential was awarded.</li>
+<li>psi_gender_cleaned (String): Final cleaned or imputed gender.</li>
+<li>PSI_BIRTHDATE_CLEANED (String): Final cleaned or imputed birthdate.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized final cleaned or imputed birthdate.</li>
+<li>RecordStatus (Numeric): Record-status code (0-8).</li>
+<li>AGE_AT_GRAD (Numeric): Age at graduation (observed/imputed).</li>
+<li>AGE_GROUP_AT_GRAD (Numeric): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Derived award school year.</li>
+<li>HIGHEST_CRED_BY_DATE (String): Marker for highest credential by date logic.</li>
+<li>HIGHEST_CRED_BY_RANK (String): Marker for highest credential by rank logic.</li>
+<li>PSI_VISA_STATUS (String): Recovered visa status.</li>
+<li>CONCATENATED_ID (String): Unified student identifier used for delay logic.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>RESEARCH_UNIVERSITY (Boolean): Indicator for research-university institution grouping.</li>
+<li>OUTCOMES_CRED (String): Standardized outcomes credential grouping.</li>
+</ul>
 
-Source: PSSM2023 SQL Server Database
-Access Method: Trusted Connection (Windows Authentication).
+##### Table: INFOWARE_L_CIP_XDIGITS_CIP2016
+
 Description: The master lookup for 2, 4, and 6-digit CIP codes, including their parent associations, if applicable.
 
-
-### Data Storage Structure
-
-<mark> FILL IN LATER </mark>
-
-All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+<ul class="list-variable-names">
+<li>
+<li>
+<ul>
 
 ## Methodology Overview
 
@@ -99,22 +100,8 @@ The script uses `sql("CAST(NULL AS VARCHAR(255))")` to initialize columns. This 
 
 The APPSO program matching process generates the following data tables.
 
-##### Credential_Non_Dup_STP_APPSO_Cleaning
 
-A summary table containing unique CIP codes and their standardized mappings.
-
-<ul class="list-variable-names">
-  <li>PSI_CREDENTIAL_CIP (String): The normalized and padded version of the CIP code used as the primary joining key for standardization.</li>
-  <li>OUTCOMES_CRED (String): Identifies the survey category (typically "APPSO" for the apprenticeship cohort).</li>
-  <li>Expr1 (Number): A calculated field representing the count of occurrences for each unique CIP string within the source data.</li>
-  <li>STP_CIP_CODE_4 (String): The standardized 4-digit CIP code successfully mapped from the provincial lookup tables.</li>
-  <li>STP_CIP_CODE_4_NAME (String): The official provincial title associated with the 4-digit CIP code (e.g., "Carpentry/Carpenter").</li>
-  <li>STP_CIP_CODE_2 (String): The standardized 2-digit CIP "family" code derived from the 4-digit match.</li>
-  <li>STP_CIP_CODE_2_NAME (String): The official provincial title for the 2-digit CIP category (e.g., "Construction Trades").</li>
-  <li>PSI_CREDENTIAL_CIP_orig (String): The original, raw CIP string as it appeared in the institutional submission before normalization.</li>
-</ul>
-
-##### Credential_Non_Dup_APPSO_IDs
+##### Table: Credential_Non_Dup_APPSO_IDs
 
 The finalized dataset containing student IDs linked to their standardized CIP codes and descriptive names.
 
@@ -132,8 +119,3 @@ The finalized dataset containing student IDs linked to their standardized CIP co
   <li>FINAL_CIP_CODE_2_NAME (String): The official descriptive name for the 2-digit CIP family (e.g., "Engineering").</li>
 </ul>
 
-## Suggested Improvements
-
-## Additional Details
-
-This script sits inside the Module 02a CIP-standardization branch and handles apprenticeship records only. It explicitly reads `Credential_Non_Dup_r` together with `INFOWARE_L_CIP_6DIGITS_CIP2016`, `INFOWARE_L_CIP_4DIGITS_CIP2016`, and `INFOWARE_L_CIP_2DIGITS_CIP2016`. It materializes two database tables: `Credential_Non_Dup_STP_APPSO_Cleaning_r`, which preserves the cleaned apprenticeship CIP mapping audit trail, and `Credential_Non_Dup_APPSO_IDs_r`, which stores record-level final 4-digit and 2-digit CIP assignments for APPSO rows. Those outputs are consumed by `02a-update-cred-non-dup.R`, where they are merged back into the master credential table before cohort construction begins. Operationally, the script depends only on the configured SQL Server connection and the dbplyr `compute()` materialization step; no external flags are defined in the file.

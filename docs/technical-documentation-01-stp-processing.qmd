@@ -472,18 +472,3 @@ Frequency matrix of minimum enrolment by school year, gender, and combined demog
 <li>Expr1 (Integer): Frequency count for each stratum.</li>
 </ul>
 
-
-## Suggested Improvements
-
-## Additional Details
-
-This documentation covers the opening STP processing block of the PSSM pipeline. 
-
-- `01a-enrolment-preprocessing.R` reads `STP_Enrolment` and writes `stp_enrolment`, `stp_enrolment_record_type`, and `stp_enrolment_valid`. 
-- `01b-credential-preprocessing.R` reads `STP_Credential` together with the enrolment outputs and writes `stp_credential` and `stp_credential_record_type`. 
-- `01c-credential-analysis.R` reads the previous interim staging tables and produces `credential_non_dup`, `tbl_credential_highest_rank`, `tbl_credential_delay_effect`, `credential`, `credential_supvars`, and `credential_supvars_enrolment`. 
-- `01d-enrolment-analysis.R` then produces `min_enrolment`
-- the pipeline breaks to handle program matching
-- `01e-stp-distributions.R` aggregates the credential and enrolment distributions consumed by later forecasting modules, especially Modules 04 and 06. 
-
-All five scripts depend on the `decimal` and `myschema` configuration entries and an active SQL Server ODBC connection.
