@@ -129,7 +129,7 @@ $p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
 
 ## Key Output Tables
 
-### Table: labour_supply_distribution
+### Table: labour_supply_distribution/labour_supply_distribution_no_tt
 
 <ul class="list-variable-names">
   <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
@@ -146,23 +146,7 @@ $p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
   <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
 </ul>
 
-### Table: labour_supply_distribution_no_tt
-
-<ul class="list-variable-names">
-  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
-  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
-  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
-  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
-  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
-  <li><b>LCP4_CD</b> (String): A 4-digit character code representing the associated CIP subseries.</li>
-  <li><b>LCIP4_CRED</b> (String): A concatenated label combining GRAD_STATUS, LCP4_CD, and PSSM_CREDENTIAL (e.g., "1 - 0100 - BACH").</li>
-  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
-  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
-  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
-  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
-</ul>
-
-### Table: labour_supply_distribution_lcp2
+### Table: labour_supply_distribution_lcp2/labour_supply_distribution_lcp2_no_tt
 
 <ul class="list-variable-names">
   <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
@@ -172,21 +156,6 @@ $p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
   <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
   <li><b>LCP2_CD</b> (String): A 2-digit character code representing the associated CIP subseries.</li>
   <li><b>TTRAIN</b> (Numeric): A numeric code representing the type of training.</li>
-  <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
-  <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
-  <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
-  <li><b>New_Labour_Supply</b> (Numeric): The calculated weighted proportion (percentage) of the cohort classified as new labour supply.</li>
-</ul>
-
-### Table: labour_supply_distribution_lcp2_no_tt
-
-<ul class="list-variable-names">
-  <li><b>Survey</b> (String): A character code or string representing the source survey (e.g., "Student Outcomes").</li>
-  <li><b>PSSM_CREDENTIAL</b> (String): Type of credential earned as reported by the institution (e.g., "DIPL").</li>
-  <li><b>PSSM_CRED</b> (String): A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g., "1 - DIPL").</li>
-  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
-  <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
-  <li><b>LCP2_CD</b> (String): A 2-digit character code representing the associated CIP subseries.</li>
   <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
   <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
   <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>
