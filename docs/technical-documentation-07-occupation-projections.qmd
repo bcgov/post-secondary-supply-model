@@ -22,7 +22,7 @@ format:
 
 This script `07-occupation-projections.R` converts program-level graduate projections into occupation-level NLS (New Labour Supply) and occupation counts using labour-supply and occupation-distribution inputs. It produces final NLS distributions by age group, credential, region, and year for downstream labour-market modelling and quality-indicator reruns.
 
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
