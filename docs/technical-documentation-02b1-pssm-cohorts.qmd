@@ -20,11 +20,9 @@ format:
 
 ## Overview
 
-This script consolidates processed data from four distinct survey streams: Apprenticeship (APPSO), Trades (TRD), Baccalaureate (BGS), and Diploma/Associate/Certificate (DACSO).  The datasets are merged into a single, unified "Master Cohort" table.
+In the script `02b-1-pssm-cohorts.R`, survey cohorts from TRD, APPSO, BGS, and DACSO are standardized and consolidated into a unified `t_cohorts_recoded` table for downstream modelling. Across cohorts, the script applies model-year weights, derives age and age-group fields, recodes institution and credential mappings where needed, and constructs harmonized labour-supply and cohort keys (including LCIP4/LCIP2 credential groupings). 
 
-It requires the successful completion of all prior ingestion scripts; the presence of Outcomes datasets and lookup tables are checked for existence before execution.
-
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
@@ -32,58 +30,29 @@ None
 
 ### Internal/Processed Data Sources
 
-#### T_BGS_Data_Final_for_OutcomesMatching
+##### T_BGS_Data_Final_for_OutcomesMatching
 
-Source: Decimal 
-Access Method:  Connect to decimal and copy from `dbo` schema (`db_schema`)
-
-Description: </mark> TO DO </mark>
-
-
-### Data Storage Structure
-
-</mark> FILL IN LATER </mark>
-
-All data is stored in a hierarchical folder structure, accessible via [describe access method/tool].
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+See technical-documentation-02a-bgs-program-matching.qmd for data dictionary.
 
 ## Methodology Overview
 
-### Cross-Survey Compatibility
+### Survey Compatibility
 
-The routine executes four major functions to ensure cross-survey compatibility:
+The routine executes four major functions to ensure survey compatibility between all four surveys.
 
-1. Model-Year Weighting:
-The script filters the central weight table for the 2022-2023 model year and joins it to each survey stream. This ensures that every respondent's contribution is scaled appropriately for provincial labor market representation.
+1. The script filters the central weight table for the 2022-2023 model year and joins it to each survey stream. This ensures that every respondent's contribution is scaled appropriately for provincial labor market representation.
 
-2. Labour Supply Derivation:
-While each survey asks about employment differently, this script translates those unique responses into a standardized NEW_LABOUR_SUPPLY variable.
+2. While each survey asks about employment differently, this script translates those unique responses into a standardized NEW_LABOUR_SUPPLY variable.
+- TRD/APPSO: Based on LABR_EMPLOYED and LABR_IN_LABOUR_MARKET status.
+- BGS/DACSO: Uses complex CASE logic involving CURRENT_ACTIVITY (e.g., working vs. seeking vs. further study).
 
-TRD/APPSO: Based on LABR_EMPLOYED and LABR_IN_LABOUR_MARKET status.
+3. The script generates composite keys LCIP4_CRED and LCIP2_CRED. These keys concatenate graduation status, CIP codes, training markers, and credential types into a single string to allow for precise matching against labor market demand.
 
-BGS/DACSO: Uses complex CASE logic involving CURRENT_ACTIVITY (e.g., working vs. seeking vs. further study).
+4. The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new records for TRD and APPSO while performing a "delete-and-replace" refresh for BGS and DACSO to ensure the longitudinal dataset remains current without duplication. 
 
-3. Composite Analytical Key Construction:
-The script generates composite keys LCIP4_CRED and LCIP2_CRED. These keys concatenate graduation status, CIP codes, training markers, and credential types into a single string to allow for precise matching against labor market demand.
+## Key Output Tables
 
-4. Cohort Aggregation and Refresh:
-The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new records for TRD and APPSO while performing a "delete-and-replace" refresh for BGS and DACSO to ensure the longitudinal dataset remains current without duplication. 
-
-#### Methods
-
-#### Data Dictionary
-
-##### t_cohorts_recoded
+### t_cohorts_recoded
 
 <ul class="list-variable-names">
   <li>PEN (Number): The Personal Education Number, a unique identifier for students in the BC education system.</li>
@@ -120,7 +89,7 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
   <li>ENDDT (Date): A placeholder for the record end date or survey completion date.</li>
 </ul>
 
-##### t_dacso_data_part_1
+### t_dacso_data_part_1
 
 <ul class="list-variable-names">
   <li>COCI_PEN (Number): The Personal Education Number (PEN) used to uniquely identify the student.</li>
@@ -132,6 +101,7 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
   <li>LCIP_LCIPPC_NAME (String): The name of the Classification of Instructional Programs (CIP) cluster.</li>
   <li>LCIP_CD (String): The 2-digit CIP code family identifier.</li>
   <li>LCP4_CD (String): The 4-digit CIP code identifier for the specific program.</li>
+  <li>CURRENT_REGION_PSSM_CODE (Number): The standardized PSSM regional code for the respondent's current residence.</li>
   <li>LCP4_CIP_4DIGITS_NAME (String): The descriptive name of the 4-digit CIP code program.</li>
   <li>TTRAIN (Number): A binary or numeric marker indicating if technical training was part of the program.</li>
   <li>TPID_LGND_CD (Number): A numeric gender identifier from administrative records.</li>
@@ -143,26 +113,28 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
   <li>LABR_JOB_TRAINING_RELATED (Number): A binary marker indicating if the current job is related to the student's training.</li>
   <li>LABR_OCCUPATION_LNOC_CD (String): The National Occupational Classification (NOC) code for the respondent's current job.</li>
   <li>COCI_AGE_AT_SURVEY (Number): The respondent's age at the time they completed the survey.</li>
+  <li>AGE_GROUP (Number): The numeric bin identifier for the student's age cohort.</li>
+  <li>AGE_GROUP_ROLLUP (Number): A higher-level numeric code used for aggregated age reporting.</li>
   <li>COSC_GRAD_STATUS_LGDS_CD_GROUP (Number): A numeric group code classifying the student's graduation or completion status.</li>
   <li>RESPONDENT (Number): A flag indicating if the student successfully responded to the survey.</li>
   <li>NEW_LABOUR_SUPPLY (Number): A derived indicator representing the student's status as a new entry into the labor force.</li>
   <li>OLD_LABOUR_SUPPLY (Number): A legacy indicator for labor force entry (used for longitudinal comparison).</li>
+  <li>WEIGHT (Number): The statistical weight assigned to the record for model-year analysis.</li>
   <li>HAD_PREVIOUS_CREDENTIAL (Number): A binary flag indicating if the student held a post-secondary credential prior to this program.</li>
   <li>PFST_IN_POST_SEC_BEFORE (Number): A binary flag indicating if the student had enrolled in post-secondary education previously.</li>
+  <li>PFST_HAD_PREVIOUS_CDTL (Number): A raw indicator from the outcomes file regarding previous credentials held.</li>
+  <li>PFST_FURSTDY_INCL_STILL_ATTD (Number): An indicator of whether the respondent is engaged in further study or still attending.</li>
   <li>PRGM_CREDENTIAL_AWARDED (String): The raw administrative code for the credential awarded to the student.</li>
-  <li>CURRENT_REGION_PSSM_CODE (Number): The standardized PSSM regional code for the respondent's current residence.</li>
   <li>PRGM_CREDENTIAL_AWARDED_NAME (String): The descriptive name of the specific credential awarded.</li>
   <li>PSSM_CREDENTIAL (String): The standardized credential code used for Provincial Student Survey Modeling.</li>
   <li>PSSM_CREDENTIAL_NAME (String): The full descriptive name of the PSSM-standardized credential.</li>
-  <li>AGE_GROUP (Number): The numeric bin identifier for the student's age cohort.</li>
-  <li>AGE_GROUP_ROLLUP (Number): A higher-level numeric code used for aggregated age reporting.</li>
   <li>LCIP4_CRED (String): A composite analytical key combining graduation status, CIP-4 code, training, and credential.</li>
-  <li>PFST_HAD_PREVIOUS_CDTL (Number): A raw indicator from the outcomes file regarding previous credentials held.</li>
-  <li>PFST_FURSTDY_INCL_STILL_ATTD (Number): An indicator of whether the respondent is engaged in further study or still attending.</li>
-  <li>WEIGHT (Number): The statistical weight assigned to the record for model-year analysis.</li>
+  <li>AGE_AT_GRAD (Number): The age of the student at the time of graduation.</li>
+  <li>HAS_STP_CREDENTIAL (String): A flag indicating if the student has a specific STP credential.</li>
+  <li>GRAD_STATUS_FACTORING_IN_STP (String): Derived variable representing the graduation status of the student, after accounting for the STP credential.</li>
 </ul>
 
-##### trd_graduates
+### trd_graduates
 
 <ul class="list-variable-names">
   <li>SURVEY (String): A character code representing the specific trades student outcomes survey (e.g., "TRD").</li>
@@ -174,7 +146,7 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
   <li>AGE_GROUP_LABEL (String): The standardized descriptive label for the age cohort (e.g., "20 to 24").</li>
 </ul>
 
-##### appso_graduates
+### appso_graduates
 
 <ul class="list-variable-names">
   <li>SURVEY (String): A character code representing the specific student outcomes survey (e.g., "APPSO").</li>
@@ -185,11 +157,3 @@ The script manages a "Master Cohort" table (t_cohorts_recoded). It appends new r
   <li>EXPR1 (Number): A numeric value representing the graduate count for the specific cohort.</li>
   <li>AGE_GROUP (String): The standardized label assigned to the age cohort (e.g. "15 to 16").</li>
 </ul>
-
-## Key Output Tables
-
-## Suggested Improvements
-
-## Additional Details
-
-This script is the integration point between the cohort loaders and the labour-supply calculations. It explicitly consumes `trd_data`, `trd_graduates`, `t_appso_data_final`, `appso_graduates`, `t_bgs_data_final`, `t_bgs_inst_recode`, `t_bgs_data_final_for_outcomesmatching`, `t_weights`, `t_dacso_data_part_1_stepa`, age and region lookup tables, `t_year_survey_year`, `qry_private_credentials_06d1_cohort_dist`, and `T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_r`. It writes the unified cohort table `t_cohorts_recoded_r` and an updated `t_dacso_data_part_1_r`. Those outputs feed directly into the labour-supply and occupation-distribution scripts in Module 02b and are also expected by Module 07 through `load-program-projections.R`. The script uses `regular_run`, `qi_run`, and `ptib_run` flags to control weighting and PTIB inclusion.

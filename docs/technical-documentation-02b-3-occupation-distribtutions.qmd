@@ -21,53 +21,19 @@ format:
 
 ## Overview
 
-This script converts the recoded student-outcomes cohort into occupation distributions that can be joined to program-level labour supply. It calculates weighted respondent bases, isolates groups where unknown NOC values must be retained, derives occupation shares for observed NOC outcomes, and then appends Statistics Canada occupation proxies where survey evidence is unavailable. Separate output tables are produced for LCIP4, LCP2, BC-only, and no-trades variants so that the occupation model can choose the appropriate fallback path at runtime.
+In the script 02b-3-occupation-distributions.R, the recoded student-outcomes cohort (`t_cohorts_recoded`) is transformed into weighted occupation distributions that can be joined to program-level labour supply. Respondent bases are calculated, and groups where unknown NOC values must be retained are isolated. Occupation shares are then derived for observed NOC outcomes, and Statistics Canada proxy distributions are appended for groups that remain unobserved in the survey data. The final outputs include distribution tables at both LCIP4 and LCP2 levels, along with BC-only and no-trades variants, so the occupation model can apply the appropriate fallback path at runtime.
 
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
-#### [External Data Source Name]
-
-#### 
-
-Source:
-
-Access Method:
-
-Description:
-
-#### 
+None
 
 ### Internal/Processed Data Sources
 
-#### T_Cohorts_Recoded
+##### T_Cohorts_Recoded
 
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-<li>LCIP_CD (String): A 6-digit numeric code representing the associated CIP instructional program class. </li>
-<li>LCP4_CD (String): A 4-digit numeric code representing the associated CIP subseries. </li>
-<li>NOC_CD (String): A 5-digit numeric code representing the associated NOC unit group. </li>
-<li>AGE_AT_SURVEY (Integer): Age of former student at the time of survey. </li>
-<li>AGE_GROUP_ROLLUP (Integer): Age group of former student at the time of survey. </li>
-<li>GRAD_STATUS (Integer): A status flag of 1, 2, or 3 represeting a students final graduation status. "1" means a student completed a credential, "2" indicates a sudent completed an entire set of activity at an institution, but the institution doesn't offer final credential. "3" indicates a student completed at least 24 credits at the institution, but receive no credential at that institution." </li>
-<li>RESPONDENT (Integer): A flag representing student response type.  Values take a 1 (student responded to survey) or a 0 (student didn't respond to survey). </li>
-<li>NEW_LABOUR_SUPPLY(Integer): A flag representing whether a student is considered new labour suppply.  Derived from flags in student outcomes data, specific to each survey. </li>
-<li>PSSM_CREDENTIAL: Type of credential earned as reported by the institution (e.g. "DIPL") </li>
-<li>PSSM_CRED: A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g. "1 - DIPL"). </li>
-<li>LCIP4_CRED: A concatenated label made from LCP4_CD and PSSM_CRED (e.g. "0100 - BACH").</li>
-<li>CURRENT_REGION_PSSM_CODE: Numeric code representing a student's residential economic development region at the time of <mark> (verify survey or graduation)</mark> (derived) </li>
-<li>Weight (Integer): A year-specific weighting factor, ranging from 1 to 5, applied during analysis.</li>
-</ul>
-
-Variables recalculated in this analysis:
-
-<ul class="list-variable-names">
-<li>Weight_NLS(Integer): A weighting factor used in downstream analysis.</li>
-</ul>
+For the full data dictionary refer to technical-documentation-02b-2-new-labour-supply.qmd, Internal Data Sources.
 
 #### occupation_distributions_stat_can
 
@@ -232,8 +198,6 @@ Additionally, a special `occupation_distributions_pdeg` table is created for Pro
 
 Finally, externally sourced occupation distributions from Statistics Canada (Census data) are appended to the primary `occupation_distributions` table to supplement survey-based distributions with census-based estimates for credential types not covered by the graduate surveys.
 
-#### Data Dictionary
-
 ## Key Output Tables
 
 <mark>TO COMPLETE </mark>
@@ -255,9 +219,3 @@ Finally, externally sourced occupation distributions from Statistics Canada (Cen
   <li><b>Total</b> (<i>double</i>): Total weighted count across all NOCs in the group</li>
   <li><b>Percent</b> (<i>double</i>): Proportion of the group in this NOC (Count / Total)</li>
 </ul>
-
-## Suggested Improvements
-
-## Additional Details
-
-This script follows `02b-2-pssm-cohorts-new-labour-supply.R` and produces the occupation-side distributions used in Module 07. It explicitly reads `t_cohorts_recoded`, `t_current_region_pssm_codes`, `t_current_region_pssm_rollup_codes`, `tmp_tbl_weights_nls`, `t_noc_broad_categories`, and `Occupation_Distributions_Stat_Can_r`. It writes `occupation_distributions_r`, `occupation_distributions_no_tt_r`, `occupation_distributions_lcp2_r`, `occupation_distributions_lcp2_no_tt_r`, `occupation_distributions_lcp2_bc_r`, and `occupation_distributions_lcp2_bc_no_tt_r`, while also re-persisting `labour_supply_distribution_r`. Those outputs supply the occupation-mapping and proxy logic in `07-occupation-projections.R`. Operationally, the script assumes that `t_cohorts_recoded` already contains final region codes, NLS values, weights, and recoded CIP fields from the earlier cohort modules.
