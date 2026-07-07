@@ -56,8 +56,7 @@ Projected graduates by PSSM_CRED, AGE_GROUP, YEAR
 
 #### labour_supply_distribution*
 
-Labour-supply shares by LCIP4/LCIP2, age, region.  For full data dictionary see `technical-documentation-02b-2-labour-supply-distribution.qmd`.
-
+Labour-supply shares by LCIP4/LCIP2, age, region. For full data dictionary see `technical-documentation-02b-2-new-labour-supply.qmd`.
 #### occupation_distributions*
 
 Occupation probabilities by program and age. For full data dictionary see `technical-documentation-02b-3-occupation-distributions.qmd`.
