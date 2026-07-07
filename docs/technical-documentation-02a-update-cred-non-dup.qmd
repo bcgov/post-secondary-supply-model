@@ -42,7 +42,7 @@ See technical-documentation-01-stp-processing.qmd for data dictionary.
 
 Contains final CIP assignments for records matched by the DACSO program-matching process. Matched on seven join columns (institution, program code, program description, CIP, credential level, credential category, and outcomes survey type), making it the most precise matching source.
 
-See technical-documentation-02a-dacso-matching.qmd for data dictionary.
+See technical-documentation-02a-dacso-program-matching.qmd for data dictionary.
 
 ##### Table: Credential_Non_Dup_BGS_IDs
 
