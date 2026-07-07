@@ -54,7 +54,7 @@ See technical-documentation-02a-bgs-program-matching.qmd for data dictionary.
 
 This table contains credential records for graduates who were not surveyed in the Baccalaureate Graduate Survey (BGS). It represents the population of graduates who are not BGS respondents but are included in the overall outcomes analysis. The program codes (CIP) in this table are taken directly from the administrative data without a matching process against survey data.
 
-See technical-documentation-02a-bgs-matching.qmd for data dictionary.
+See technical-documentation-02a-bgs-program-matching.qmd for data dictionary.
 
 ##### Table: Credential_Non_Dup_APPSO_IDs
 
