@@ -23,7 +23,7 @@ Help GitHub Copilot generate idiomatic, safe, and maintainable technical documen
 
 ## Security Best Practices
 
-- File paths: Never display the full path name.  Hide internal directory structures by ommitting LAN drive letters (e.g. `P:\\`) and project numbers (e.g. `25-2465`)
+- File paths: Never display the full path name.  Hide internal directory structures by omitting LAN drive letters (e.g. `P:\\`) and project numbers (e.g. `25-2465`)
 - Credentials: Never hardcode secrets.  Refer to a config file, if one exists.
 
 ## Copilot-Specific Guidance
