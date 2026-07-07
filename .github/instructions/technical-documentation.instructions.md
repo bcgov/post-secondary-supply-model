@@ -76,14 +76,11 @@ Every generated QMD must include the following headings in this exact order:
 
 ```
 1.  Overview
-2.  Data Sources and Storage
+2.  Data Sources
     2.1  External Data Sources
     2.2  Internal/Processed Data Sources
-3.  Technical Specifications
-    3.1  Dependencies and Environment Requirements
 4.  Methodology Overview
 5.  Key Output Tables
-6.  Additional Details
 ```
 
 Use `##` for top-level sections and `###` for subsections.
