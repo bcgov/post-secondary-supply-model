@@ -20,7 +20,7 @@ format:
 
 ## Overview
 
-This module converts program-level graduate projections into occupation-level NLS (New Labour Supply) and occupation counts using labour-supply and occupation-distribution inputs. It produces final NLS distributions by age group, credential, region, and year for downstream labour-market modelling and quality-indicator reruns.
+This script `07-occupation-projections.R` converts program-level graduate projections into occupation-level NLS (New Labour Supply) and occupation counts using labour-supply and occupation-distribution inputs. It produces final NLS distributions by age group, credential, region, and year for downstream labour-market modelling and quality-indicator reruns.
 
 ## Data Sources and Storage
 
@@ -28,7 +28,9 @@ This module converts program-level graduate projections into occupation-level NL
 
 ### Internal/Processed Data Sources
 
-#### graduate_projections: projected graduates by PSSM_CRED, AGE_GROUP, YEAR
+#### graduate_projections
+
+Projected graduates by PSSM_CRED, AGE_GROUP, YEAR
 
 <ul class="list-variable-names">
   <li>PSSM_CREDENTIAL (String): High-level credential label (e.g., "CERT", "DIPL", "BACH").</li>
@@ -40,7 +42,8 @@ This module converts program-level graduate projections into occupation-level NL
   <li>GRAD_STATUS (String, optional): Graduation status or cohort qualifier.</li>
 </ul>
 
-#### cohort_program_distributions: program-to-cohort allocation (PERCENT)
+#### cohort_program_distributions*
+
 <ul class="list-variable-names">
   <li>PSSM_CREDENTIAL / PSSM_CRED (String): Keys matching graduate_projections.</li>
   <li>AGE_GROUP / AGE_GROUP_ROLLUP (String): Age grouping keys for allocation.</li>
@@ -51,33 +54,13 @@ This module converts program-level graduate projections into occupation-level NL
   <li>Other metadata (e.g., GRAD_STATUS, TTRAIN) used by downstream filters.</li>
 </ul>
 
-#### labour_supply_distribution (and _no_tt variants): labour-supply shares by LCIP4/LCIP2, age, region
-<ul class="list-variable-names">
-  <li>LCIP4_CRED (String): Program-level key matching cohort_program_distributions (includes trades flag when present).</li>
-  <li>AGE_GROUP_ROLLUP (String): Age rollup used for joining.</li>
-  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup code for geographic allocation.</li>
-  <li>NEW_LABOUR_SUPPLY (Numeric): Labour-supply share for the cell (0-1) used to compute NLS.</li>
-  <li>PSSM_CRED (String, optional): Credential label in some distribution tables (e.g., "P - CERT").</li>
-</ul>
+#### labour_supply_distribution*
 
-#### labour_supply_distribution_lcp2* (LCIP2 proxies): labour-supply shares by LCIP4/LCIP2, age, region
-<ul class="list-variable-names">
-  <li>LCIP2_CRED or LCP2_CD (String): 2-digit CIP code or encoded join key.</li>
-  <li>AGE_GROUP_ROLLUP (String): Age rollup key.</li>
-  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup.</li>
-  <li>NEW_LABOUR_SUPPLY (Numeric): Labour-supply share at the 2-digit proxy level.</li>
-</ul>
+Labour-supply shares by LCIP4/LCIP2, age, region.  For full data dictionary see `technical-documentation-02b-2-labour-supply-distribution.qmd`.
 
-#### occupation_distributions (and lcp2 variants): occupation probabilities (PERCENT) by program and age
-<ul class="list-variable-names">
-  <li>LCIP4_CRED or LCIP2_CRED (String): Program-level join key (4- or 2-digit proxy).</li>
-  <li>AGE_GROUP_ROLLUP (String): Age rollup for occupation probabilities.</li>
-  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (String): Region rollup.</li>
-  <li>OCC_CODE / NOC (String): Occupation code (NOC or agency-specific code).</li>
-  <li>PERCENT (Numeric): Probability/share of programme NLS entering this occupation (0-1).</li>
-  <li>SURVEY (String, optional): Source tag (e.g., "PTIB" for synthetic private-institution rows).</li>
-</ul>
+#### occupation_distributions*
 
+Occupation probabilities by program and age. For full data dictionary see `technical-documentation-02b-3-occupation-distributions.qmd`.
 
 ## Methodology Overview
 
@@ -119,46 +102,20 @@ The workflow follows the Q_1 / Q_2 / Q_3 sequence implemented in R/07-occupation
 
 These aliases are set at runtime and referenced by downstream processes and exports. They point to the principal final table q_5_noc_totals_by_year_and_bc_and_total when the corresponding run flags are enabled.
 
-#### tmp_tbl_model
+##### tmp_tbl_model
+
+An alias for q_5_noc_totals_by_year_and_bc_and_total (when regular_run == TRUE).
+
 <ul class="list-variable-names">
-  <li>Alias for: q_5_noc_totals_by_year_and_bc_and_total (when regular_run == TRUE)</li>
   <li>AGE_GROUP_ROLLUP_LABEL (String): Aggregated age-group label used for reporting (e.g., "20-24").</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (Integer): Region rollup code (e.g., 5900 for BC).</li>
+  <li>CURRENT_REGION_PSSM_NAME_ROLLUP (String): Region rollup name (e.g., "British Columbia").</li>
   <li>NOC_LEVEL (Integer): Aggregation level (1..5) indicating NOC granularity.</li>
   <li>NOC (String): NOC code (5-digit, zero-padded where needed).</li>
   <li>ENGLISH_NAME (String): Human-readable occupation name for the NOC.</li>
-  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (Integer): Region rollup code (e.g., 5900 for BC).</li>
   <li>Year columns (Numeric): One column per projection YEAR containing OCCSN totals for that NOC/age/region.</li>
-  <li>Notes: Used for the standard model run outputs and further public/internal export workflows.</li>
 </ul>
 
-#### tmp_tbl_qi
-<ul class="list-variable-names">
-  <li>Alias for: q_5_noc_totals_by_year_and_bc_and_total (when qi_run == TRUE)</li>
-  <li>Same schema as tmp_tbl_model.</li>
-  <li>Notes: Used when quality-indicator calculations are enabled; downstream code expects this alias for QI-specific exports and diagnostics.</li>
-</ul>
+##### tmp_tbl_qi
 
-(Recommend adding explicit OUTPUT comments in the script near where these aliases are set to make them unambiguously discoverable by tooling.)
-
-## Addtional Details
-
-- Exclusion lists (t_exclude_*) remove programs where Student Outcomes results are inappropriate for projections.
-- Private training institutions are proxied into distributions because survey coverage differs; CERT/DIPL substitutions intentionally broaden matches and may inflate totals (documented in code).
-- LCP2 proxies are used cautiously: certain medical programs are excluded from 2-digit proxying due to tight program-occupation links.
-- All joins use exact keys; missing labour-supply rows drive the fallback logic to ensure complete coverage.
-- Totals are aggregated and compared by credential/age/year to the original graduate projections to ensure mass balance.
-- Manual review lists are produced where automated proxying or substitutions are applied (e.g., PTIB, CERT/DIPL swaps).
-- The script assumes required tables exist in the global environment or are accessible via DB queries.
-- Some variable naming inconsistencies (noted in-code) may require upstream fixes (e.g., missing "I" in CIP2 names in certain tables).
-
-
-
----
-
-References: see R/07-occupation-projections.R and supporting lookup tables in the INFOWARE schema.
-
-## Suggested Improvements
-
-## Additional Details
-
-This script is the final transformation step before reporting outputs are assembled. It expects the labour-supply tables from `02b-2`, the occupation-distribution tables from `02b-3`, the cohort-program distributions from `06-program-projections.R`, `graduate_projections`, and a suite of exclusion and lookup tables to already exist in the R environment. Depending on the run flags, it copies the final `q_5_noc_totals_by_year_and_bc_and_total` result into `tmp_tbl_model`, `tmp_tbl_qi`, `tmp_tbl_model_inc_private_inst`, or `tmp_tbl_model_program_projection`, and then clears selected intermediate SQL tables. Those in-memory outputs are the immediate upstream inputs to `08-create-final-reports.R` and to the public/internal release queries referenced in the script comments. Operationally, the `model`, `ptib_run`, `regular_run`, and `qi_run` toggles determine whether the static or projected cohort tables are used and whether PTIB or quality-indicator outputs are generated.
+An alias for q_5_noc_totals_by_year_and_bc_and_total when qi_run == TRUE. It has the same schema as tmp_tbl_model, but is used in quality-indicator (qi) runs.
