@@ -73,9 +73,7 @@ Description: The master lookup for 2, 4, and 6-digit CIP codes, including their 
 
 ## Methodology Overview
 
-### APPSO Program Matching
-
-#### Methods
+### Methods
 
 APPSO records from the STP credential (credential_non_dup) table are isolated for processing.  Light pre-processing was done on the STP Credential CIP column, PSI_CREDENTIAL_CIP.  Before matching, the PSI_CREDENTIAL_CIP strings are cleaned to correct common formatting inconsistencies:
 
@@ -91,17 +89,15 @@ The script attempts to populate STP_CIP_CODE_4 and STP_CIP_CODE_2 using the foll
 
 Once codes are assigned, the script joins descriptive names for both 4-digit and 2-digit codes.  Any record that fails all matching steps and lacks a 4-digit name is explicitly labeled as "Invalid 4-digit CIP".  Administrative placeholders are removed such as (Unspecified) from the PSI_PROGRAM_CODE column.
 
-__Technical Notes__
-The script uses `sql("CAST(NULL AS VARCHAR(255))")` to initialize columns. This is necessary because dbplyr may default a plain NA to an INT type in SQL Server, which causes type-mismatch errors during subsequent character joins or updates.
+### Technical Notes
 
-#### Data Dictionary
+The script uses `sql("CAST(NULL AS VARCHAR(255))")` to initialize columns. This is necessary because dbplyr may default a plain NA to an INT type in SQL Server, which causes type-mismatch errors during subsequent character joins or updates.
 
 ## Key Output Tables
 
 The APPSO program matching process generates the following data tables.
 
-
-##### Table: Credential_Non_Dup_APPSO_IDs
+### Table: Credential_Non_Dup_APPSO_IDs
 
 The finalized dataset containing student IDs linked to their standardized CIP codes and descriptive names.
 

@@ -22,7 +22,7 @@ format:
 
 This script is the merge point for all CIP (Classification of Instructional Programs) code matching in the pipeline. After four upstream program-matching scripts have each produced a table of matched CIP codes for their respective survey streams (DACSO, BGS, GRAD, and APPSO), this script consolidates those results into a single, authoritative record of final CIP codes within the main credential table (`credential_non_dup`). Any records not resolved by the four primary sources are resolved using a fallback based on institution-reported CIP codes, cleaned and validated against the INFOWARE taxonomy. The output feeds directly into cohort creation, near-completer analysis, PTIB analysis, and program projections.
 
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
@@ -30,57 +30,39 @@ None. All inputs are internal outputs of upstream pipeline scripts or reference 
 
 ### Internal/Processed Data Sources
 
-#### credential_non_dup
+##### Table: credential_non_dup
 
-Source: Project database (schema configured via `config.yml`)
-Access Method: ODBC connection using Windows Authentication
+A deduplicated table of student credentials, with additional variables for gender, age, and credential ranking. Used as the internal reference for program matching and further analysis.
 
-The master credential table produced in Module 01b. Contains one record per student credential award. At the start of this script it has no CIP code columns; these are added by a DDL step and progressively populated throughout the workflow.
+At the start of this script it has no CIP code columns; these are added by a DDL step and progressively populated throughout the workflow.
 
-<ul class="list-variable-names">
-  <li>ID (Integer): Surrogate primary key for each credential record.</li>
-  <li>PSI_CODE (String): Institution code identifying the post-secondary institution.</li>
-  <li>PSI_PROGRAM_CODE (String): Institution-assigned program code.</li>
-  <li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Human-readable program name as reported by the institution.</li>
-  <li>PSI_CREDENTIAL_CIP (String): Raw CIP code as submitted by the institution (pre-standardisation).</li>
-  <li>PSI_CREDENTIAL_LEVEL (String): Broad credential level (e.g., certificate, diploma, degree).</li>
-  <li>PSI_CREDENTIAL_CATEGORY (String): Finer credential category within the level.</li>
-  <li>PSI_AWARD_SCHOOL_YEAR (String): Academic year the credential was awarded.</li>
-  <li>OUTCOMES_CRED (String): Survey stream identifier (e.g., "DACSO", "BGS", "GRAD", "APPSO").</li>
-</ul>
+See technical-documentation-01-stp-processing.qmd for data dictionary.
 
-#### Credential_Non_Dup_Programs_DACSO_FinalCIPs
-
-Source: Project database — output of `02a-dacso-program-matching.R`
-Access Method: ODBC connection using Windows Authentication
+##### Table: Credential_Non_Dup_Programs_DACSO_FinalCIPs
 
 Contains final CIP assignments for records matched by the DACSO program-matching process. Matched on seven join columns (institution, program code, program description, CIP, credential level, credential category, and outcomes survey type), making it the most precise matching source.
 
-#### Credential_Non_Dup_BGS_IDs
+See technical-documentation-02a-dacso-matching.qmd for data dictionary.
 
-Source: Project database — output of `02a-bgs-program-matching.R`
-Access Method: ODBC connection using Windows Authentication
+##### Table: Credential_Non_Dup_BGS_IDs
 
-Contains final CIP codes for BGS-stream credential records, matched by unique record ID.
+This table contains credential records from the Student Transitions Project (STP) that have been successfully linked to Baccalaureate Graduate Survey (BGS) respondents. It includes detailed program and credential information from the administrative data, along with the final, authoritative program codes (CIP) determined through the matching process.
 
-#### Credential_Non_Dup_GRAD_IDs
+See technical-documentation-02a-bgs-matching.qmd for data dictionary.
 
-Source: Project database — output of the GRAD matching script
-Access Method: ODBC connection using Windows Authentication
+##### Table: Credential_Non_Dup_GRAD_IDs
 
-Contains final CIP codes for graduate-outcomes credential records, matched by unique record ID.
+This table contains credential records for graduates who were not surveyed in the Baccalaureate Graduate Survey (BGS). It represents the population of graduates who are not BGS respondents but are included in the overall outcomes analysis. The program codes (CIP) in this table are taken directly from the administrative data without a matching process against survey data.
 
-#### Credential_Non_Dup_APPSO_IDs
+See technical-documentation-02a-bgs-matching.qmd for data dictionary.
 
-Source: Project database — output of `02a-appso-programs.R`
-Access Method: ODBC connection using Windows Authentication
+##### Table: Credential_Non_Dup_APPSO_IDs
 
 Contains final CIP codes for apprenticeship-stream credential records, matched by unique record ID.
 
-#### INFOWARE_L_CIP_6DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_2DIGITS_CIP2016
+See technical-documentation-02a-appso-matching.qmd for data dictionary.
 
-Source: INFOWARE reference schema, project database
-Access Method: ODBC connection using Windows Authentication
+##### Table: INFOWARE_L_CIP_6DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_2DIGITS_CIP2016
 
 Provincial CIP taxonomy tables used to validate and enrich institution-reported CIP codes. These provide official code-to-name mappings at the 6-, 4-, and 2-digit levels, as well as CIP cluster groupings (broad career families used in occupation matching).
 
@@ -164,18 +146,11 @@ The completed credential table, now with a full set of CIP codes for every recor
 
 ### credential_non_dup (updated)
 
-The main output is the credential table itself, overwritten in place with all CIP columns populated. This is the authoritative source of final CIP codes for all downstream modules.
+The main output is the credential table itself, overwritten in place with all CIP columns populated. This table becomes the authoritative source of final CIP codes for all downstream modules.
+
+The following variables are derived and appended to the original credential_non_dup table.
 
 <ul class="list-variable-names">
-  <li>ID (Integer): Surrogate primary key.</li>
-  <li>PSI_CODE (String): Institution code.</li>
-  <li>PSI_PROGRAM_CODE (String): Institution program code; "(Unspecified)" values are replaced with NULL during STP fallback processing.</li>
-  <li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program name as reported by the institution.</li>
-  <li>PSI_CREDENTIAL_CIP (String): Raw institution CIP string (unchanged).</li>
-  <li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
-  <li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
-  <li>PSI_AWARD_SCHOOL_YEAR (String): Award year.</li>
-  <li>OUTCOMES_CRED (String): Survey stream.</li>
   <li>OUTCOMES_CIP_CODE_4 (String): The 4-digit CIP code as matched by the DACSO program-matching process.</li>
   <li>OUTCOMES_CIP_CODE_4_NAME (String): Name for the DACSO-matched 4-digit CIP code.</li>
   <li>FINAL_CIP_CODE_4 (String): Authoritative 4-digit CIP code assigned from the highest-priority matching source available for each record.</li>
@@ -190,32 +165,3 @@ The main output is the credential table itself, overwritten in place with all CI
   <li>STP_CIP_CODE_2_NAME (String): Name for the institution-reported 2-digit CIP family.</li>
 </ul>
 
-### Credential_Non_Dup_STP_NULL_Cleaning
-
-An intermediate audit table persisted to the database, containing the distinct unmatched institution CIP strings along with their cleaned and taxonomy-matched STP CIP codes. Retained for analyst review; not consumed by downstream modules.
-
-<ul class="list-variable-names">
-  <li>PSI_CREDENTIAL_CIP (String): Cleaned institution CIP string (post-standardisation).</li>
-  <li>PSI_CREDENTIAL_CIP_orig (String): Original raw CIP string, preserved as the join key for Step 11.</li>
-  <li>OUTCOMES_CRED (String): Survey stream of the unmatched records.</li>
-  <li>Expr1 (Integer): Count of credential records sharing this CIP/stream combination.</li>
-  <li>STP_CIP_CODE_4 (String): 4-digit CIP code resolved from the INFOWARE taxonomy.</li>
-  <li>STP_CIP_CODE_4_NAME (String): Name for the resolved 4-digit CIP; set to "Invalid 4-digit CIP" where no match was found.</li>
-  <li>STP_CIP_CODE_2 (String): 2-digit CIP family code resolved from taxonomy.</li>
-  <li>STP_CIP_CODE_2_NAME (String): Name for the resolved 2-digit CIP family.</li>
-  <li>STP_CIP_CLUSTER_CODE (String): Cluster code derived from the 2-digit CIP.</li>
-  <li>STP_CIP_CLUSTER_NAME (String): Human-readable cluster name.</li>
-</ul>
-
-## Suggested Improvements
-
-## Additional Details
-
-This script is the last step in the Module 02a pipeline before cohort construction begins. Its output (`credential_non_dup`) is consumed by:
-
-- `02b-1-pssm-cohorts.R` — cohort creation
-- `03-near-completers-ttrain.R` — near-completer analysis
-- `05-ptib-analysis.R` — PTIB analysis
-- `06-program-projections.R` — program projections
-
-The CIP source priority order (DACSO > BGS > GRAD > APPSO > STP fallback) reflects both data quality and matching precision: DACSO joins on the richest set of attributes and produces the most reliable matches, while the STP fallback relies solely on institution-reported codes that may not align with the outcomes taxonomy.

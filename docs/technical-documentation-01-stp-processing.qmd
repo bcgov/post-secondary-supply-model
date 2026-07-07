@@ -314,9 +314,7 @@ The resulting matrices provide granular frequency counts stratified by residency
 
 The following tables are key outputs from scripts `01a` through `01e`. Column-level schemas are based on script logic and may be inferred.
 
-### 01a-enrolment-preprocessing.R
-
-##### Table: stp_enrolment_record_type
+### Table: stp_enrolment_record_type
 
 Record-status classification table with first-enrolment and minimum-annual-enrolment flags.
 
@@ -327,9 +325,7 @@ Record-status classification table with first-enrolment and minimum-annual-enrol
 <li>is_first_enrol (Numeric): Indicator for first observed enrolment in history (0/1).</li>
 </ul>
 
-### 01b-credential-preprocessing.R
-
-##### Table: stp_credential_record_type
+### Table: stp_credential_record_type
 
 Credential record-status table used to retain valid rows and exclude non-target records.
 
@@ -341,9 +337,7 @@ Credential record-status table used to retain valid rows and exclude non-target 
 <li>DropPartialYear (String): Drop marker for incomplete reporting periods (Yes/No).</li>
 </ul>
 
-### 01c-credential-analysis.R
-
-##### Table: credential_non_dup
+### Table: credential_non_dup
 
 Deduplicated credential output containing final demographic, ranking, and delayed-award variables.
 
@@ -378,7 +372,7 @@ Deduplicated credential output containing final demographic, ranking, and delaye
 </ul>
 
 
-##### Table: tbl_credential_highest_rank
+### Table: tbl_credential_highest_rank
 
 One-record-per-student highest-rank credential table with delayed-award reconciliations.
 
@@ -410,7 +404,7 @@ One-record-per-student highest-rank credential table with delayed-award reconcil
 <li>CREDENTIAL_AWARD_DATE_DELAYED (Date): Delay-adjusted award date.</li>
 </ul>
 
-##### Table: tbl_credential_delay_effect
+### Table: tbl_credential_delay_effect
 
 Resolved delayed-award mapping from highest credential records to adjusted completion timing.
 
@@ -420,9 +414,7 @@ Resolved delayed-award mapping from highest credential records to adjusted compl
 <li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Final delayed award school year.</li>
 </ul>
 
-### 01d-enrolment-analysis.R
-
-##### Table: min_enrolment
+### Table: min_enrolment
 
 Entry-cohort enrolment baseline containing valid minimum-enrolment records with recovered demographics.
 
@@ -446,10 +438,7 @@ Entry-cohort enrolment baseline containing valid minimum-enrolment records with 
 <li>AGE_GROUP_ENROL_DATE (Integer): Age-group key at enrolment.</li>
 </ul>
 
-### 01e-stp-distributions.R
-
-
-##### Table: credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips
+### Table: credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips
 
 Domestic credential frequencies by gender, age group, category, and delayed school year with RU/DACSO and CIP exclusions.
 
@@ -461,7 +450,7 @@ Domestic credential frequencies by gender, age group, category, and delayed scho
 <li>Count (Integer): Frequency count for each stratum.</li>
 </ul>
 
-##### Table: qry09c_minenrolment
+### Table: qry09c_minenrolment
 
 Frequency matrix of minimum enrolment by school year, gender, and combined demographic grouping.
 

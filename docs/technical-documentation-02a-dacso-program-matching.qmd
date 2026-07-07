@@ -24,53 +24,31 @@ This script standardizes and aligns program records between two STP Credential a
 
 Programs are matched using a combination of exact, fuzzy, and institution-specific rules to maximize linkage accuracy. For unmatched records, custom logic is applied based on known institutional coding practices. The script assigns standardized classification codes to all programs using the INFOWARE_L_CIP reference tables, ensuring each record receives a complete set of attributes. Diagnostic checks are performed to identify and review discrepancies. Finalized tables are written out for downstream analysis and reporting. 
 
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
-<mark> TO COMPLETE </mark>
+##### Table: INFOWARE_PROGRAMS/INFOWARE_PROGRAMS_HIST_PRGMID_XREF
 
-#### INFOWARE_PROGRAMS/INFOWARE_PROGRAMS_HIST_PRGMID_XREF
+##### Table: INFOWARE_L_CIP_XDIGITS_CIP2016 (2,4,6 DIGITS)
 
-Source: Student Outcomes Survey Data
-Access Method: 
-Description: 
-
-#### INFOWARE_L_CIP_XDIGITS_CIP2016 (2,4,6 DIGITS)
-
-Source: Student Outcomes Survey Data
-Access Method: 
-Description: 
-
-#### DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX
-
-Source: LAN
-Access Method: secure connection
-Description: 
-
-<!-- Repeat the above callout for each external data source -->
+##### Table: DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX
 
 ### Internal/Processed Data Sources
 
-#### credential_non_dup
+##### Table: credential_non_dup
 
-Source: TBD
-Access Method: TBD
-Description: 
+A deduplicated table of student credentials, with additional variables for gender, age, and credential ranking. Used as the internal reference for program matching and further analysis.
 
-### Data Storage Structure
-
-<mark> FILL IN LATER </mark>
+See technical-documentation-01-stp-processing.qmd for data dictionary.
 
 ## Methodology Overview
 
-### DACSO Program Matching
-
-#### Join Key Normalization
+### Join Key Normalization
 
 R is case-sensitive, but SQL often isn't. Additionally, database fields sometimes have hidden spaces. Helper functions are used to create "Helper Columns" (ending in _KEY). These columns are trimmed of spaces and converted to UPPERCASE. This ensures that a program named "Carpentry" in one table will correctly match "CARPENTRY " in another.
 
-#### Part 1
+### Part 1
 
 The previous year's crosswalk (XWALK_2020) is recycled and the CIP codes are padded with zeros (e.g., turning 401 into 0401) to ensure they are exactly 4 digits long.
 
@@ -83,7 +61,7 @@ Programs in the current survey cycle with a recorded historical connection in th
 A validation check is performed to identify "orphan" programs that still do not match the master crosswalk. These remaining discrepancies are isolated for targeted review. For complex cases where automated logic is insufficient, such as recursive program links or significant administrative restructuring, the methodology employs a manual audit. 
 
 
-#### Part 2:
+### Part 2:
 A multi-step methodology is used to align and update program records between two datasets, using a combination of exact, fuzzy, and institution-specific matching rules. The process ensures that as many programs as possible are correctly linked, and that the crosswalk table is kept current for future analyses.
 
 1. STP credential programs are first matched to existing DACSO programs in the crosswalk on key fields (institution, program code, program description).  These programs tare flagged as "already matched".
@@ -93,7 +71,7 @@ A multi-step methodology is used to align and update program records between two
 
 The crosswalk is updated with new matches so that future runs will recognize these as matched.  The update is performed first by matching on one set of keys (e.g., PSI_CODE), then by matching on another (e.g., COCI_INST_CD), ensuring all possible matches are captured.
 
-#### Part 3:
+### Part 3:
 
 After standard and alternative matching, the process isolates STP programs that remain unmatched.  Custom, institution-aware matching strategies are applied to the records to ensure they receive a final standardized code.  The process is as follows:
 
@@ -109,7 +87,7 @@ For any remaining unmatched programs, broader matching is attempted using combin
 - If no match is found, the code is derived from the STP’s own CIP data using reference tables.
 - Additional attributes (e.g., 2-digit CIP, cluster codes) are filled in using hierarchical lookups.
 
-#### Part 4:
+### Part 4:
 
 Classification of Instructional Program (CIP) codes for each STP program record are finalized ensuring every record receives a complete and standardized set of CIP codes and related attributes.
 
@@ -119,11 +97,11 @@ Classification of Instructional Program (CIP) codes for each STP program record 
 4. The 2-digit CIP name is filled for all records by joining to the 2-digit reference table if still missing.
 5. Records where the final assigned CIP code differs from the original STP-derived code are identified and reviewed. This step is for quality control and to catch any unexpected or potentially incorrect matches.
 
-#### Data Dictionary
-
 ## Key Output Tables
 
-##### STP_Credential_Non_Dup_Programs_DACSO_r
+### Table: Credential_Non_Dup_Programs_DACSO_r
+
+Contains final CIP assignments for records matched by the DACSO program-matching process. Matched on seven join columns (institution, program code, program description, CIP, credential level, credential category, and outcomes survey type), making it the most precise matching source.
 
 <ul class="list-variable-names">
 <li>PSI_CODE (String): Institution code</li>
@@ -153,7 +131,7 @@ Classification of Instructional Program (CIP) codes for each STP program record 
 <li>VIU_TEST_PROGRAM_CODE (String): VIU test program code (custom matching)</li>
 </ul>
 
-##### DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r
+### DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r
 
 <ul class="list-variable-names">
 <li>PSI_CODE (String): Institution code</li>
@@ -199,8 +177,3 @@ Classification of Instructional Program (CIP) codes for each STP program record 
 <li>Updated_DACSO_CDTL2021_23 (String): Updated DACSO credential detail in 2021–2023</li>
 </ul>
 
-## Suggested Improvements
-
-## Additional Details
-
-This script is the DACSO-specific program-matching branch within Module 02a. It explicitly works from the previous DACSO/STP crosswalk, `INFOWARE_PROGRAMS`, `INFOWARE_PROGRAMS_HIST_PRGMID_XREF`, the INFOWARE CIP lookup tables, and `Credential_Non_Dup`. The first half of the script refreshes `DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r`; the second half derives DACSO-linked credential records and writes `STP_Credential_Non_Dup_Programs_DACSO_r` and `Credential_Non_Dup_Programs_DACSO_FinalCIPS_r`. Those outputs feed directly into `02a-update-cred-non-dup.R`, which uses them as the highest-priority source for final CIP assignments on DACSO records. Operationally, the script also depends on annual manual review of unresolved or historically linked programs before the refreshed crosswalk is finalized.
