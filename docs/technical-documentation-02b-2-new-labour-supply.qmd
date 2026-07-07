@@ -33,27 +33,7 @@ None
 
 ##### T_Cohorts_Recoded
 
-<ul class="list-variable-names">
-<li>STQU_ID (Integer): A unique identifier for each student.</li>
-<li>SURVEY_YEAR (Integer): The academic year in which the survey was administered.</li>
-<li>SURVEY (String): A character code representing the survey (e.g. "BGS"). </li>
-<li>INST_CD (String): A character code representing the institution in which a student was enrolled. </li>
-<li>LCIP_CD (String): A 6-digit numeric code representing the associated CIP instructional program class. </li>
-<li>LCP4_CD (String): A 4-digit numeric code representing the associated CIP subseries. </li>
-<li>NOC_CD (String): A 5-digit numeric code representing the associated NOC unit group. </li>
-<li>AGE_AT_SURVEY (Integer): Age of former student at the time of survey. </li>
-<li>AGE_GROUP_ROLLUP (Integer): Age group of former student at the time of survey. </li>
-<li>GRAD_STATUS (Integer): A status flag of 1, 2, or 3 represeting a students final graduation status. "1" means a student completed a credential, "2" indicates a sudent completed an entire set of activity at an institution, but the institution doesn't offer final credential. "3" indicates a student completed at least 24 credits at the institution, but receive no credential at that institution." </li>
-<li>RESPONDENT (Integer): A flag representing student response type.  Values take a 1 (student responded to survey) or a 0 (student didn't respond to survey). </li>
-<li>NEW_LABOUR_SUPPLY(Integer): A flag representing whether a student is considered new labour suppply.  Derived from flags in student outcomes data, specific to each survey. </li>
-<li>PSSM_CREDENTIAL: Type of credential earned as reported by the institution (e.g. "DIPL") </li>
-<li>PSSM_CRED: A concatenated label made from PSSM_CREDENTIAL and GRAD_STATUS (e.g. "1 - DIPL"). </li>
-<li>LCIP4_CRED: A concatenated label made from LCP4_CD and PSSM_CRED (e.g. "0100 - BACH").</li>
-<li>CURRENT_REGION_PSSM_CODE: Numeric code representing a student's residential economic development region at the time of <mark> (verify survey or graduation)</mark> (derived) </li>
-<li>Weight (Integer): A year-specific weighting factor, ranging from 1 to 5, applied during analysis.</li>
-<li>Weight_NLS(Integer): A weighting factor used in downstream analysis. (CALCULATED IN  THIS ANALYSIS) </li>
-</ul>
-
+For the full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables.
 
 ## Methodology Overview
 
@@ -207,7 +187,6 @@ $p_{il} = \sum_{k} \sum_{j} a_{ijkl}/ \sum_{k} \sum_{j} \sum_{l} a_{ijkl}$
   <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (Numeric): Numeric code representing a rolled-up geographic region.</li>
   <li><b>AGE_GROUP_ROLLUP</b> (Numeric): Code representing the rolled-up age group of the former student.</li>
   <li><b>LCP2_CD</b> (String): A 2-digit character code representing the associated CIP subseries.</li>
-  <li><b>TTRAIN</b> (Numeric): A numeric code representing the type of training.</li>
   <li><b>LCIP2_CRED</b> (String): A concatenated label combining GRAD_STATUS, the 2-digit CIP code, and PSSM_CREDENTIAL.</li>
   <li><b>COUNT</b> (Numeric): The weighted count of individuals in this specific subset/stratum.</li>
   <li><b>TOTAL</b> (Numeric): The total weighted count of the larger cohort.</li>

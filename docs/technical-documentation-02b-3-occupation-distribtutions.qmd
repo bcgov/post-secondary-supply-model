@@ -33,7 +33,7 @@ None
 
 ##### T_Cohorts_Recoded
 
-For the full data dictionary refer to technical-documentation-02b-2-new-labour-supply.qmd, Internal Data Sources.
+For the full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables.
 
 #### occupation_distributions_stat_can
 
