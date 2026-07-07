@@ -490,8 +490,10 @@ the end product is `labour_supply_distribution`, whose `New_Labour_Supply` colum
 
 **The participation rate (Term 3) itself:**
 
-$$P(\text{in labour supply}\mid\text{CIP, age, region})
-= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}$$
+$$
+P(\text{in labour supply}\mid\text{CIP, age, region})
+= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}
+$$
 
 > See §9 for how `WEIGHTED` (i.e. `WEIGHT_NLS`) is constructed and why the
 > two-stage weighting is **not** a double adjustment.
@@ -513,8 +515,10 @@ derivation in §9; the end product is `occupation_distributions`.
 
 **The occupation distribution (Term 4) itself:**
 
-$$P(\text{NOC}\mid\text{CIP, region})
-= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}$$
+$$
+P(\text{NOC}\mid\text{CIP, region})
+= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}
+$$
 
 Outputs include `occupation_distributions` plus `_lcp2`, `_bc`, `_no_tt`, and a
 `_pdeg` (Professional Degree / Law) variant. Statistics Canada Census
@@ -541,8 +545,10 @@ residual is the true near-completer population.
 
 $$NC_{Residual} = NC_{Survey} - NC_{Promoted}$$
 
-$$Ratio_{Baseline} = \frac{NC_{Residual}}{Completers_{Survey}}, \qquad
-Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}$$
+$$
+Ratio_{Baseline} = \frac{NC_{Residual}}{Completers_{Survey}}, \qquad
+Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}
+$$
 
 Produces ratios stratified by age, gender, 4-digit CIP, and credential; also by
 year. The 2018–2019 baseline cycle is used for the PSSM 2023 model.
@@ -576,8 +582,10 @@ $$R_G = \frac{N_G}{N_E}, \qquad N_G = R_G \times N_F$$
 **Near-completer** and **apprenticeship** supply are layered on top of $N_G$
 (via Module 03 ratios and APPSO data respectively):
 
-$$N_{G_{NC}} = N_G \times R_{C_{NC}}, \qquad
-N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})$$
+$$
+N_{G_{NC}} = N_G \times R_{C_{NC}}, \qquad
+N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})
+$$
 
 Output tables: `Graduate_Projections` and `Graduate_Projections_Include_Historical`.
 
