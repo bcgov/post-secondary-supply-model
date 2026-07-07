@@ -26,68 +26,46 @@ Estimates of population and population projections from the BC Stats Population 
 
 A 2-year average graduation rate is calculated as a percentage of enrollment by age group/gender; this is multiplied by forecasted enrollments to directly derive forecasted graduates. Finally, forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential.
 
-## Data Sources and Storage
+## Data Sources
 
 ### External Data Sources
 
-#### Population Projections (PEOPLE)
-
-Source: BC Stats / Province of British Columbia  
-Access Method: Direct SQL query via `dbReadTable` from the `decimal` database environment.
-
-- **Required Credentials:** Authenticated access to the `decimal` server via Windows Trusted Connection.
-- **Function calls:** `dbReadTable(decimal_con, "population_projections")`
+##### Population Projections (PEOPLE)
 
 Description: This dataset provides annual population estimates and projections. The module normalizes "X-prefixed" age-group columns and filters for binary gender categories (Male/Female) to maintain consistency with historical reporting standards and model constraints.
 
 ### Internal/Processed Data Sources
 
-#### Historical Enrollment (MinEnrolment)
+##### MinEnrolment (qry09c_minenrolment)
 
-**Table Name:** `qry09c_MinEnrolment`
-Source: Internal STOB/PSSM Data Warehouse (`decimal` database)  
-Access Method: SQL Query execution via `dbGetQuery`
+Longitudinal enrollment data providing the historical baseline for provincial post-secondary participation.  Generated in `01e-stp-distributions.R` and derived from the STP Enrolment data.
 
-Description: Longitudinal enrollment data providing the historical baseline for provincial post-secondary participation.  Generated in `01e-stp-distributions.R` and derived from the STP Enrolment data.
+See technical-documentation-01-stp-processing.qmd for data dictionary.
 
-#### Credential Distribution Matrix
+##### Credential Distributions (credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips)
 
-Source: Provincial Administrative Records  
-Access Method: SQL Query (`Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs`)
+A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.
 
-Description: A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.  Generated in 01e-stp-distributions.R from STP Credential data.
+See technical-documentation-01-stp-processing.qmd for data dictionary.
 
-#### DACSO Near-Completer Ratios
 
-Source: Diploma, Associate Degree, and Certificate Student Outcomes (DACSO) 
-Access Method: `dbReadTable(decimal_con, "T_DACSO_Near_Completers_RatioByGender")`
+##### DACSO Near-Completer Ratios (T_DACSO_Near_Completers_RatioByGender)
 
-Description: Contains pre-calculated ratios used to estimate the volume of "Near Completers" relative to traditional graduates. This accounts for students who complete a significant portion of their program without a formal award, representing an additional supply stream.
+Contains pre-calculated ratios used to estimate the volume of "Near Completers" relative to traditional graduates. This accounts for students who complete a significant portion of their program without a formal award, representing an additional supply stream.
 
-### Data Storage Structure (Inomplete)
-
-This section needs work - some decisions on design are needed before finalziing.
-
-Final outputs and historical reconciliations are committed to the SQL SERVER database.
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+See technical-documentation-03-near-completers-ttrain.qmd for data dictionary.
 
 ## Methodology Overview
+
+### Preprocessing
 
 ##### Data Normalization and Preprocessing
 
 The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable. The cohort is restricted to binary gender categories.
 
 The primary enrollment and graduate credential distributions used in this analysis were generated upstream in the `01` series.  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. 
+
+### Forecasting
 
 ##### Enrollment Forecasting
 
@@ -106,7 +84,7 @@ To prevent long-term divergence the projected rate for 2027 is held constant for
 ##### Graduate Forecasting
 A 2-year annual stratified graduation rate, $R_G$, is calculated from graduate and enrollment counts for 2021 and 2022 acedemic years.  $R_G = \frac{N_G}{N_E}$  This rate is subsequently applied back to the forecasted enrollment counts generate anticipated graduates $N_G = R_G \times N_F$.
 
-### 3.2 Credential Distribution Methodology
+### Credential Distribution Methodology
 Stratified graduation credential counts, $N_{G_C}$, are derived for the 2021–2022 observation period and are defined as a proportion relative to each gender-age: 
 
 $P_{G_C} = \frac{N_{G_C}}{N_C}$
@@ -124,19 +102,16 @@ The reclassified graduate and near-completer datasets are merged into a unified 
 ##### Inclusion of Apprenticeship Supply
 Data from the Apprenticeship Student Outcomes (APPSO) survey is used to integrate the apprenticeship supply stream into forecasted data.  To establish a stable forecast baseline, a two-year arithmetic mean graduate count, $N_{G_{AP}}$ is calculated from the 2022 and 2023 Apprenticeship grad counts.  
 
-
 ##### Longitudinal Historical Reconstruction
 To facilitate long-term trend analysis, an additional extended time series is generated by appending the 12-year forecast horizon to aggregated historical enrolment, graduation, and near-completer counts.  The new extension includes a window of $2006 \leq t \leq 2022$, or $2019 \leq t \leq 2022$ for near-completers.
 
 The methodology maintains structural parity with the projection model, applying identical PSSM credential mapping and demographic stratification to the historical time series. Near-completer counts for the 2019–2022 period are recovered using year-specific ratios ($N_{NC\_STP}$), while apprenticeship data from the APPSO survey is reconciled across previous submission cycles. The final output is the table `Graduate_Projections_Include_Historical` and contains a continuous longitudinal dataset suitable for back-testing.
 
-#### Data Dictionary (Incomplete)
-
 ## Key Output Tables
 
 The final outputs of this module are persisted to the SQL environment as standardized tables. The primary table, `Graduate_Projections`, serves as the supply-side foundation for the Post-Secondary Supply Model, containing integrated forecasts for graduates, near-completers, and apprenticeships.
 
-### Data Dictionary: Graduate_Projections
+### Table: Graduate_Projections/Graduate_Projections_Include_Historical
 
 The following variables comprise the schema for the consolidated projection table:
 
@@ -149,9 +124,3 @@ The following variables comprise the schema for the consolidated projection tabl
 <li>PSI_CREDENTIAL_CATEGORY (String): The original administrative award classification; primarily used for data lineage and validation.</li>
 <li>PSSM_CREDENTIAL (String): The cleaned credential category with prefixes removed - facilitates reporting.</li>
 </ul>
-
-## Suggested Improvements
-
-## Additional Details
-
-This script runs after the STP distribution module and the near-completer module have populated their forecast inputs. It expects `population_projections`, `min_enrolments`, and `credentials` in memory, then explicitly reads `T_DACSO_Near_Completers_RatioByGender`, `T_DACSO_Near_Completers_RatioByGender_year`, `APPSO_Graduates`, and `TRD_Graduates`. It writes `Graduate_Projections_r` and `Graduate_Projections_Include_Historical_r`. Those outputs are consumed by `06-program-projections.R` and `07-occupation-projections.R`, with the historical-inclusive table also serving reporting uses. Operationally, the model assumes the current forecast starts in 2023/2024 and that the near-completer ratios and apprenticeship/trades graduate tables have already been refreshed.

@@ -26,44 +26,26 @@ The analytical pipeline for generating graduate estimates for the Private Traini
 
 ### External Data Sources
 
-#### PTIB 2021 and 2022 Enrolment Data
-
-Source: Post-Secondary Training Institutions Branch
-Access Method: Secure LAN
+##### PTIB 2021 and 2022 Enrolment Data
 
 Description: 
 
 <ul class="list-variable-names">
-  <li>year (Double): Calendar year.</li>
-  <li>institution (String): The name of the private training institution.</li>
-  <li>program (String): The descriptive title of the specific program of study.</li>
-  <li>cip (String): The Classification of Instructional Programs (CIP) code for the program of study.</li>
-  <li>age_group (String): The standardized age range category for the student population.</li>
-  <li>credential (String): The type of qualification awarded (e.g., "Certification" or "Diploma").</li>
-  <li>immigration_status (String): The reported residency status of the student (e.g., "Domestic", "International").</li>
-  <li>graduates (Double): The count of students who successfully completed the program requirements.</li>
-  <li>enrolments_not_graduated (Double): The count of students currently enrolled or who left the program without graduating.</li>
-  <li>total_enrolments (Double): The aggregate count of all students registered in the program stratum.</li>
+  <li>year (numeric): Calendar year.</li>
+  <li>institution (string): The name of the private training institution.</li>
+  <li>program (string): The descriptive title of the specific program of study.</li>
+  <li>cip (string): The Classification of Instructional Programs (CIP) code for the program of study.</li>
+  <li>age_group (string): The standardized age range category for the student population.</li>
+  <li>credential (string): The type of qualification awarded (e.g., "Certification" or "Diploma").</li>
+  <li>immigration_status (string): The reported residency status of the student (e.g., "Domestic", "International").</li>
+  <li>graduates (numeric): The count of students who successfully completed the program requirements.</li>
+  <li>enrolments_not_graduated (numeric): The count of students currently enrolled or who left the program without graduating.</li>
+  <li>total_enrolments (numeric): The aggregate count of all students registered in the program stratum.</li>
 </ul>
 
 ### Internal/Processed Data Sources
 
-### Data Storage Structure (Incomplete)
-
-This section needs work - some decisions on design are needed before finalziing.
-
-Final outputs and historical reconciliations are committed to the SQL SERVER database.
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── source/          # Processed intermediate files
-    └── raw/             # Raw input data
-        └── [subfolder]/ # [Description]
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
+None
 
 ## Methodology Overview
 
@@ -103,8 +85,6 @@ Count estimates summaries are generated for downstream analysis, for the followi
 * Age and Credential
 * Age, 4-digit CIP and Credential
 
-#### Data Dictionary
-
 ## Key Output Tables
 
 The final outputs of this module are persisted to the SQL environment as standardized tables. 
@@ -112,33 +92,27 @@ The final outputs of this module are persisted to the SQL environment as standar
 **qry_Private_Credentials_06d1_Cohort_Dist**:
 
 <ul class="list-variable-names">
-  <li>SURVEY (String): The source survey identifier (e.g., "PTIB").</li>
-  <li>PSSM_CREDENTIAL (String): Standardized credential category used for PSSM reporting.</li>
-  <li>PSSM_CRED (String): Concatenated string identifier (e.g., "P - CERT") used for system-level classification.</li>
-  <li>LCP4_CD (String): The 4-digit Classification of Instructional Programs (CIP) code.</li>
-  <li>LCIP4_CRED (String): Grouping identifier combining the 4-digit CIP code and the credential type.</li>
-  <li>LCIP2_CRED (String): Broad-level grouping identifier combining the 2-digit CIP (Area of Study) and the credential.</li>
-  <li>AGE_GROUP (String): The standardized age range bracket of the student cohort.</li>
-  <li>YEAR (String): The reporting period or longitudinal horizon year (e.g., "2023/2024").</li>
-  <li>COUNT (Double): The specific number of records or estimated graduates within each credential, age group, LCP4_CD stratum.</li>
-  <li>TOTAL (Double): The aggregate denominator used for percentage calculations. Counts for each age group and credential stratum.</li>
-  <li>PERCENT (Double): The calculated proportion of the group represented by the count (COUNT / TOTAL).</li>
-  <li>GRAD_STATUS (String): A descriptor of the graduation outcome or immigration-based attribution status.</li>
-  <li>TTRAIN (String): Identifier for Teacher Training program alignment or specific provincial reporting flags.</li>
+  <li>SURVEY (string): The source survey identifier (e.g., "PTIB").</li>
+  <li>PSSM_CREDENTIAL (string): Standardized credential category used for PSSM reporting.</li>
+  <li>PSSM_CRED (string): Concatenated string identifier (e.g., "P - CERT") used for system-level classification.</li>
+  <li>LCP4_CD (string): The 4-digit Classification of Instructional Programs (CIP) code.</li>
+  <li>LCIP4_CRED (string): Grouping identifier combining the 4-digit CIP code and the credential type.</li>
+  <li>LCIP2_CRED (string): Broad-level grouping identifier combining the 2-digit CIP (Area of Study) and the credential.</li>
+  <li>AGE_GROUP (string): The standardized age range bracket of the student cohort.</li>
+  <li>YEAR (string): The reporting period or longitudinal horizon year (e.g., "2023/2024").</li>
+  <li>COUNT (numeric): The specific number of records or estimated graduates within each credential, age group, LCP4_CD stratum.</li>
+  <li>TOTAL (numeric): The aggregate denominator used for percentage calculations. Counts for each age group and credential stratum.</li>
+  <li>PERCENT (numeric): The calculated proportion of the group represented by the count (COUNT / TOTAL).</li>
+  <li>GRAD_STATUS (string): A descriptor of the graduation outcome or immigration-based attribution status.</li>
+  <li>TTRAIN (string): Identifier for Teacher Training program alignment or specific provincial reporting flags.</li>
 </ul>
 
 **qry_Private_Credentials_05i1_Grads_by_Year**
 
 <ul class="list-variable-names">
-  <li>Survey (String): The administrative source identifier for the data collection (e.g., "PTIB").</li>
-  <li>PSSM_CRED (String): A concatenated identifier representing the PSSM-specific credential classification (e.g., "P - DIPL").</li>
-  <li>Age_Group (String): The standardized categorical age range of the graduate cohort.</li>
-  <li>Year (String): The academic reporting period.</li>
-  <li>Graduates (Double): The calculated total count of graduates, including those derived through proportional attribution.</li>
+  <li>Survey (string): The administrative source identifier for the data collection (e.g., "PTIB").</li>
+  <li>PSSM_CRED (string): A concatenated identifier representing the PSSM-specific credential classification (e.g., "P - DIPL").</li>
+  <li>Age_Group (string): The standardized categorical age range of the graduate cohort.</li>
+  <li>Year (string): The academic reporting period.</li>
+  <li>Graduates (numeric): The calculated total count of graduates, including those derived through proportional attribution.</li>
 </ul>
-
-## Suggested Improvements
-
-## Additional Details
-
-This module is the PTIB side branch that prepares private-institution graduate counts for later forecasting. `load-ptib.R` reads the PTIB workbook plus the explicit lookup files `INFOWARE_L_CIP_6DIGITS_CIP2016`, `T_PSSM_Credential_Grouping`, and `T_PTIB_Y1_to_Y10`, and writes `t_private_institutions_credentials_r`, `t_pssm_credential_grouping_r`, and `t_ptib_y1_to_y10_r`. `05-ptib-analysis.R` then consumes those tables and writes `qry_Private_Credentials_05i_Grads_r`, `qry_Private_Credentials_05i1_Grads_by_Year_r`, and `qry_Private_Credentials_06d1_Cohort_Dist_r`. The cohort-distribution output feeds `02b-1-pssm-cohorts.R`, and the graduate-by-year output supports later projection modules where PTIB counts are appended to the main model. Both scripts depend on the configured SQL Server connection plus externally maintained PTIB source files.
