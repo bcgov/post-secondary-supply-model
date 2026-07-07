@@ -35,44 +35,44 @@ None
 
 For the full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables.
 
-#### occupation_distributions_stat_can
+##### occupation_distributions_stat_can
 
 <ul>
-  <li><b>SURVEY</b> (<i>character</i>): Survey name or identifier, e.g. "2021 Census PSSM 2022-2023"</li>
-  <li><b>PSSM_CREDENTIAL</b> (<i>character</i>): Post-secondary credential type, e.g. "MAST"</li>
-  <li><b>PSSM_CRED</b> (<i>character</i>): Credential code or abbreviation,e.g. "MAST"</li>
-  <li><b>LCP4_CD</b> (<i>character</i>): <mark> 4-digit program code (LCP4) - mislabel? </mark></li>
-  <li><b>LCIP4_CRED</b> (<i>character</i>): Combined program and credential code label</li>
-  <li><b>CURRENT_REGION_PSSM_CODE_ROLLUP</b> (<i>double</i>): 4-digit Geographic region code (rollup)</li>
-  <li><b>NOC</b> (<i>character</i>): 5-digit National Occupational Classification code</li>
-  <li><b>AGE_GROUP_ROLLUP</b> (<i>double</i>): Age group category</li>
-  <li><b>COUNT</b> (<i>double</i>): Number of individuals in group</li>
-  <li><b>TOTAL</b> (<i>double</i>): Total number in group for denominator</li>
-  <li><b>PERCENT</b> (<i>double</i>): Proportion of group (COUNT/TOTAL)</li>
-  <li><b>TTRAIN</b> (<i>character</i>): TTRAIN flag</li>
-  <li><b>LCIP2_CRED</b> (<i>character</i>): <mark> 2-digit program and credential code - all NA? </mark></li>
+  <li>SURVEY (character): Survey name or identifier, e.g. "2021 Census PSSM 2022-2023"</li>
+  <li>PSSM_CREDENTIAL (character): Post-secondary credential type, e.g. "MAST"</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation,e.g. "MAST"</li>
+  <li>LCP4_CD (character): <mark> 4-digit program code (LCP4) - mislabel? </mark></li>
+  <li>LCIP4_CRED (character): Combined program and credential code label</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): 4-digit Geographic region code (rollup)</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category</li>
+  <li>COUNT (numeric): Number of individuals in group</li>
+  <li>TOTAL (numeric): Total number in group for denominator</li>
+  <li>PERCENT (numeric): Proportion of group (COUNT/TOTAL)</li>
+  <li>TTRAIN (character): TTRAIN flag</li>
+  <li>LCIP2_CRED (character): <mark> 2-digit program and credential code - all NA? </mark></li>
 </ul>
 
-#### tmp_tbl_weights_nls
+##### tmp_tbl_weights_nls
 
 <ul>
-  <li><b>SURVEY</b> (<i>character</i>): Survey name or identifier</li>
-  <li><b>SURVEY_YEAR</b> (<i>double</i>): Year of the survey</li>
-  <li><b>INST_CD</b> (<i>character</i>): Institution code</li>
-  <li><b>AGE_GROUP_ROLLUP</b> (<i>double</i>): Age group category</li>
-  <li><b>GRAD_STATUS</b> (<i>character</i>): Graduate status code</li>
-  <li><b>TTRAIN</b> (<i>double</i>): TTRAIN flag</li>
-  <li><b>LCIP4_CRED</b> (<i>character</i>): Combined 4-digit program and credential code</li>
-  <li><b>WEIGHT</b> (<i>double</i>): YEAR_WEIGHT * PROBABILITY_WEIGHT</li>
-  <li><b>COUNT</b> (<i>integer</i>): Number of individuals in group</li>
-  <li><b>RESPONDENTS</b> (<i>integer</i>): Number of respondents in group</li>
-  <li><b>WEIGHT_YEAR</b> (<i>double</i>): Year-specific weight</li>
-  <li><b>WEIGHT_PROB</b> (<i>double</i>): Probability weight</li>
-  <li><b>WEIGHTED</b> (<i>double</i>): Weighted count (COUNT × WEIGHT)</li>
-  <li><b>BASE_TOTAL</b> (<i>integer</i>): Total unweighted base count</li>
-  <li><b>WEIGHTED_TOTAL</b> (<i>double</i>): Total weighted count</li>
-  <li><b>WEIGHT_ADJ_FAC</b> (<i>double</i>): Adjustment factor for weights</li>
-  <li><b>WEIGHT_NLS</b> (<i>double</i>): New Labour Supply weight</li>
+  <li>SURVEY (character): Survey name or identifier</li>
+  <li>SURVEY_YEAR (numeric): Year of the survey</li>
+  <li>INST_CD (character): Institution code</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category</li>
+  <li>GRAD_STATUS (character): Graduate status code</li>
+  <li>TTRAIN (numeric): TTRAIN flag</li>
+  <li>LCIP4_CRED (character): Combined 4-digit program and credential code</li>
+  <li>WEIGHT (numeric): YEAR_WEIGHT * PROBABILITY_WEIGHT</li>
+  <li>COUNT (numeric): Number of individuals in group</li>
+  <li>RESPONDENTS (numeric): Number of respondents in group</li>
+  <li>WEIGHT_YEAR (numeric): Year-specific weight</li>
+  <li>WEIGHT_PROB (numeric): Probability weight</li>
+  <li>WEIGHTED (numeric): Weighted count (COUNT × WEIGHT)</li>
+  <li>BASE_TOTAL (numeric): Total unweighted base count</li>
+  <li>WEIGHTED_TOTAL (numeric): Total weighted count</li>
+  <li>WEIGHT_ADJ_FAC (numeric): Adjustment factor for weights</li>
+  <li>WEIGHT_NLS (numeric): New Labour Supply weight</li>
 </ul>
 
 
@@ -200,22 +200,38 @@ Finally, externally sourced occupation distributions from Statistics Canada (Cen
 
 ## Key Output Tables
 
-<mark>TO COMPLETE </mark>
-
-##### Table: occupation_distribution
+##### Table: occupation_distributions/occupation_distributions_no_tt
 
 <ul>
-  <li><b>Survey</b> (<i>character</i>): Survey name or identifier (e.g., "Student Outcomes")</li>
-  <li><b>PSSM_Credential</b> (<i>character</i>): Post-secondary credential type label (e.g. "ADCT or ADIP")</li>
-  <li><b>PSSM_CRED</b> (<i>character</i>): Credential code or abbreviation label. (e.g."1 - ADCT or ADIP")</li>
-  <li><b>LCP4_CD</b> (<i>character</i>): 4-digit CIP program code</li>
-  <li><b>TTRAIN</b> (<i>double</i>): Training type code</li>
-  <li><b>LCIP4_CRED</b> (<i>character</i>): Combined 4-digit CIP and credential code</li>
-  <li><b>LCIP2_CRED</b> (<i>character</i>): Combined 2-digit CIP and credential code</li>
-  <li><b>NOC</b> (<i>character</i>): 5-digit National Occupational Classification code</li>
-  <li><b>Current_Region_PSSM_Code_Rollup</b> (<i>double</i>): Geographic economic region code (rollup)</li>
-  <li><b>Age_Group_Rollup</b> (<i>double</i>): Age group category ("1", "2", etc.)</li>
-  <li><b>Count</b> (<i>double</i>): Weighted count of individuals in the group with this NOC</li>
-  <li><b>Total</b> (<i>double</i>): Total weighted count across all NOCs in the group</li>
-  <li><b>Percent</b> (<i>double</i>): Proportion of the group in this NOC (Count / Total)</li>
+  <li>SURVEY (character): Survey name or identifier (e.g., "Student Outcomes")</li>
+  <li>PSSM_Credential (character): Post-secondary credential type label (e.g. "ADCT or ADIP")</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation label. (e.g."1 - ADCT or ADIP")</li>
+  <li>LCP4_CD (character): 4-digit CIP program code</li>
+  <li>TTRAIN (character): Training type code</li>
+  <li>LCIP4_CRED (character): Combined 4-digit CIP and credential code</li>
+  <li>LCIP2_CRED (character): Combined 2-digit CIP and credential code</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): Geographic economic region code (rollup)</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category ("1", "2", etc.)</li>
+  <li>COUNT (numeric): Weighted count of individuals in the group with this NOC</li>
+  <li>TOTAL (numeric): Total weighted count across all NOCs in the group</li>
+  <li>PERCENT (numeric): Proportion of the group in this NOC (COUNT / TOTAL)</li>
 </ul>
+
+##### Table: occupation_distributions_lcp2/occupation_distributions_no_tt_lcp2
+
+<ul>
+  <li>SURVEY (character): Survey name or identifier (e.g., "Student Outcomes")</li>
+  <li>PSSM_Credential (character): Post-secondary credential type label (e.g. "ADCT or ADIP")</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation label. (e.g."1 - ADCT or ADIP")</li>
+  <li>LCP2_CD (character): 2-digit CIP program code</li>
+  <li>TTRAIN (character): Training type code</li>
+  <li>LCIP2_CRED (character): Combined 2-digit CIP and credential code</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): Geographic economic region code (rollup)</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category ("1", "2", etc.)</li>
+  <li>COUNT (numeric): Weighted count of individuals in the group with this NOC</li>
+  <li>TOTAL (numeric): Total weighted count across all NOCs in the group</li>
+  <li>PERCENT (numeric): Proportion of the group in this NOC (COUNT / TOTAL)</li>
+</ul>
+
