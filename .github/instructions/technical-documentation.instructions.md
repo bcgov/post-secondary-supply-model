@@ -1,6 +1,6 @@
 ---
 description: 'Rmarkdown language and document formats (Quarto): coding standards and Copilot guidance for idiomatic, safe, and consistent code generation.'
-applyTo: '**/*technical-documentation*.md, **/*technical-documentation*.qmd'
+applyTo: '**/*technical-documentation*.{md,qmd}'
 ---
 
 # Markdown / Quarto Language Instructions
