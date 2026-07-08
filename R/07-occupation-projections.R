@@ -41,18 +41,18 @@
 
 # ============================================================================
 # WHAT THIS SCRIPT DOES
-  Final pipeline step. Turns graduate forecasts into occupation (NOC) supply
-  projections by chaining three probability distributions together:
+# Final pipeline step. Turns graduate forecasts into occupation (NOC) supply
+# projections by chaining three probability distributions together:
 
-    OCCSN(NOC) = GRADUATES(cred, age)                                  (04)
-               x P(CIP | cred, age)        <- cohort_program_distributions (06)
-               x P(in labour supply | CIP) <- labour_supply_distribution  (02b-2)
-               x P(NOC | CIP, region)      <- occupation_distributions     (02b-3)
+#   OCCSN(NOC) = GRADUATES(cred, age)                                  (04)
+#              x P(CIP | cred, age)        <- cohort_program_distributions (06)
+#              x P(in labour supply | CIP) <- labour_supply_distribution  (02b-2)
+#              x P(NOC | CIP, region)      <- occupation_distributions     (02b-3)
 
-  GRADS  = GRADUATES x P(CIP|cred,age)   (Q_1 series)
-  NLS    = GRADS     x P(supply|CIP)     (Q_2 series)  "New Labour Supply"
-  OCCSN  = NLS       x P(NOC|CIP,region) (Q_3 series)  occupation supply
-  then rolled up the NOC hierarchy (Q_4) and across regions (Q_5).
+# GRADS  = GRADUATES x P(CIP|cred,age)   (Q_1 series)
+# NLS    = GRADS     x P(supply|CIP)     (Q_2 series)  "New Labour Supply"
+# OCCSN  = NLS       x P(NOC|CIP,region) (Q_3 series)  occupation supply
+# then rolled up the NOC hierarchy (Q_4) and across regions (Q_5).
 #
 # THE KEY PATTERN - A PROXY WATERFALL
 #   Every grad cell is matched to the distribution tables on its LCIP4_CRED key

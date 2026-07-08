@@ -187,9 +187,9 @@ if (regular_run == TRUE | ptib_run == TRUE) {
       AGE_GROUP_AT_GRAD,
       PSI_CREDENTIAL_CATEGORY,
       PSI_AWARD_SCHOOL_YEAR_DELAYED,
-      PSI_VISA_STATUS,
-      RESEARCH_UNIVERSITY,
-      OUTCOMES_CRED
+      PSI_VISA_STATUS
+      # RESEARCH_UNIVERSITY,
+      # OUTCOMES_CRED
     ) |>
     # Attach the age-group label for each graduate.
     inner_join(
@@ -200,7 +200,13 @@ if (regular_run == TRUE | ptib_run == TRUE) {
     inner_join(
       credential_non_dup |>
         rename_with(toupper, everything()) |>
-        select(ID, FINAL_CIP_CODE_4, FINAL_CIP_CLUSTER_CODE),
+        select(
+          ID,
+          FINAL_CIP_CODE_4,
+          FINAL_CIP_CLUSTER_CODE,
+          RESEARCH_UNIVERSITY,
+          OUTCOMES_CRED
+        ),
       by = "ID"
     ) |>
     # Population scope for the program projection:
