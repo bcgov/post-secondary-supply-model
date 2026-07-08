@@ -247,8 +247,8 @@ A key design choice follows from the Tier-1/Tier-2 split in §4:
 `config.yml` defines two schemas for this purpose:
 
 ```yaml
-myschema:      "IDIR\\JDUAN"      # the analyst's own working schema (Tier-2 writes go here)
-second_schema: "IDIR\\BASHCROF"   # shared input library — frozen Tier-1 outputs live here
+myschema:      "IDIR\\myschema"      # the analyst's own working schema (Tier-2 writes go here)
+second_schema: "IDIR\\dboorotheruser"   # shared input library — frozen Tier-1 outputs live here
 ```
 
 The copy happens in `prep-for-fresh-run.R` (and the QI/PTIB prep scripts), which

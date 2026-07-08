@@ -116,7 +116,7 @@ credentials <- credentials %>%
     "YEAR" = "PSI_AWARD_SCHOOL_YEAR_DELAYED"
   ) %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4))) %>%
-  select(-Expr1) %>%
+  # select(-Expr1) %>%
   filter(YEAR >= 2006, YEAR <= 2022)
 
 # ---- Forecasted Enrolments ----

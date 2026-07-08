@@ -29,6 +29,7 @@ flog.threshold(INFO, name = "file_logger")
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+second_schema <- config::get("second_schema")
 # initiate flags
 regular_run <- T
 qi_run <- F
@@ -63,6 +64,7 @@ tables_query <- paste0(
   my_schema,
   "' AND TABLE_TYPE = 'BASE TABLE'"
 )
+
 all_tables <- dbGetQuery(decimal_con, tables_query)$TABLE_NAME
 
 # remove all other non-raw student outcome data.
@@ -212,15 +214,19 @@ dbExecute(
 
 # ---- 3. Copy tables required for re-run ----
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
+# TODO: copy tables from bonnie's schema with _r
 copy_tables <- c(
-  '[dbo]."T_bgs_data_final_for_outcomesmatching"', # from 02a-bgs-program-matching.R
-  '[dbo]."Labour_Supply_Distribution_Stat_Can"',
-  '[dbo]."Occupation_Distributions_Stat_Can"',
-  '[dbo]."Credential_Non_Dup"', # from 01c-credential-analysis.R
-  '[dbo]."STP_Credential"',
-  '[dbo]."qry09c_minenrolment"', # from 01e-stp-distribution.r
-  '[dbo]."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"', # from 01e-stp-distribution.r
-  '[dbo]."tblCredential_HighestRank"' # from 01c-credential-analysis.R
+  glue::glue('[{second_schema}]."T_bgs_data_final_for_outcomesmatching_r"'), # from 02a-bgs-program-matching.R
+  glue::glue('[{second_schema}]."Labour_Supply_Distribution_Stat_Can"'), # the same as it is from statscan
+  glue::glue('[{second_schema}]."Occupation_Distributions_Stat_Can"'), # the same as it is from statscan
+  glue::glue('[{second_schema}]."Credential_Non_Dup_r"'), # from 01c-credential-analysis.R
+  glue::glue('[{second_schema}]."STP_Credential_r"'), # from PSFS
+  glue::glue('[{second_schema}]."qry09c_minenrolment_r"'), # from 01e-stp-distribution.r
+  glue::glue(
+    '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs_r"'
+  ), # from 01e-stp-distribution.r
+  # glue::glue('[{second_schema}]."tblCredential_HighestRank_r"'), # from 01c-credential-analysis.R
+  glue::glue('[{second_schema}]."tbl_credential_highest_rank_r"')
 )
 
 purrr::map_dfr(copy_tables, \(t) {
@@ -232,11 +238,10 @@ purrr::map_dfr(copy_tables, \(t) {
     table = short,
     exists_in_dbo = dbExistsTable(
       decimal_con,
-      Id(schema = "dbo", table = short)
+      Id(schema = second_schema, table = short)
     )
   )
 })
-
 
 for (table in copy_tables) {
   # Extract the part after the dot
@@ -246,7 +251,7 @@ for (table in copy_tables) {
   # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}"))){
   # Some tables will be changed by the code so it is better to recreate them.
   copy_statement <- glue::glue(
-    'SELECT * 
+    'SELECT *
            INTO [{my_schema}].{table_short}
            FROM {table};'
   )
@@ -254,22 +259,21 @@ for (table in copy_tables) {
   # }
 }
 
-
 # ---- 4. re-run step by step ----
 
 # List of R file paths
 regular_run_files <- c(
-  "./R/load-cohort-appso.R",
-  "./R/load-cohort-bgs.R",
-  "./R/load-cohort-dacso.R",
-  "./R/load-cohort-trd.R",
-  "./R/02b-1-pssm-cohorts.R",
-  "./R/02b-2-pssm-cohorts-new-labour-supply.R",
-  "./R/02b-3-pssm-cohorts-occupation-distributions.R",
-  "./R/load-near-completers-ttrain.R",
-  "./R/03-near-completers-ttrain.R",
-  "./R/load-graduate-projections.R",
-  "./R/04-graduate-projections.R",
+  # "./R/load-cohort-appso.R",
+  # "./R/load-cohort-bgs.R",
+  # "./R/load-cohort-dacso.R",
+  # "./R/load-cohort-trd.R",
+  # "./R/02b-1-pssm-cohorts.R",
+  # "./R/02b-2-pssm-cohorts-new-labour-supply.R",
+  # "./R/02b-3-pssm-cohorts-occupation-distributions.R",
+  # "./R/load-near-completers-ttrain.R",
+  # "./R/03-near-completers-ttrain.R",
+  # "./R/load-graduate-projections.R",
+  # "./R/04-graduate-projections.R",
   # "./R/load-ptib.R",
   # "./R/05-ptib-analysis.R",
   "./R/load-program-projections.R",
