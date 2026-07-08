@@ -154,13 +154,13 @@ if (regular_run == TRUE | ptib_run == TRUE) {
   # Highest-ranked credential per graduate (built in an earlier step).
   tbl_credential_highest_rank <- dbReadTable(
     con,
-    SQL(glue::glue('"{my_schema}"."tblCredential_HighestRank"'))
+    SQL(glue::glue('"{my_schema}"."tbl_credential_highest_rank_r"'))
   )
 
   # De-duplicated credential records (carry CIP and source flags per graduate).
   credential_non_dup <- dbReadTable(
     con,
-    SQL(glue::glue('"{my_schema}"."credential_non_dup"'))
+    SQL(glue::glue('"{my_schema}"."credential_non_dup_r"'))
   )
 
   # Bring RESEARCH_UNIVERSITY and OUTCOMES_CRED onto the highest-rank table.

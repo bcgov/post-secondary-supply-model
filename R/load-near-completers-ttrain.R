@@ -260,13 +260,13 @@ t_dacso_data_part_1 <- dbReadTable(
 
 credential_non_dup <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"'))
 ) |>
   rename_with(tolower)
 
 stp_credential <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+  SQL(glue::glue('"{my_schema}"."STP_Credential_r"'))
 )
 
 # ---- Clean up and disconnect ----
