@@ -25,3 +25,9 @@ tmp/input-data.csv
 tmp/output.csv
 .github/agents/*
 .github/instructions/*
+docs/02a-update-cred-non-dup-diagiam.md
+AGENTS.md
+.gitignore
+docs/agents/triage-labels.md
+docs/agents/domain.md
+docs/agents/issue-tracker.md
