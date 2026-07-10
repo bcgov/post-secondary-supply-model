@@ -655,7 +655,7 @@ write_table_to_db <- function(table_name, schema, con) {
   dbWriteTable(
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
-    .GlobalEnv[[table_name]],
+    base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
 }
