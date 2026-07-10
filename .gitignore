@@ -6,24 +6,12 @@
 config.yml
 scratch/*
 *_log.txt
-tmp
+tmp/
 *.html
 .github/copilot-instructions.md
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv
-BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv
-T_BGS_Data_Unmatched_CIPS_to_review.csv
-T_BGS_Data_Unmatched_CIPS_to_update.csv
-.github/copilot-instructions.md
-R/02a-appso-programs.txt
-R/02a-bgs-program-matching-backup-2.R
-R/02a-dacso-program-matching-test-id.R
-R/02a-dacso-program-matching.txt
-sql/Notebook-refactor-1.ipynb
-sql/test_refactor.r
-sql/test_refactor.sql
-tmp/input-data.csv
-tmp/output.csv
-R/app.R
-R/app.R
-R/Compare the current in-memory tmp_tb_model.R
-docs/PSSM Analyst Manual — Running the Mode.md
+AGENTS.md
+docs/agents/domain.md
+docs/agents/issue-tracker.md
+docs/agents/triage-labels.md
+presentations/presentation-06-2026_files/
+.claude/

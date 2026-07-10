@@ -99,8 +99,8 @@ names(ptib) <- str_to_upper(names(ptib))
 # tbl_Age_Groups_Near_Completers.
 #
 # A one-time manual table copy used to live here; it is intentionally disabled.
-# If ever needed, do NOT hardcode schemas (the original used [IDIR\SYURCHAK] /
-# [IDIR\LFREDRIC]). Use {my_schema} and guard with IF OBJECT_ID(...) DROP TABLE
+# If ever needed, do NOT hardcode schemas (the original used [IDIR\FIRSTNAME] /
+# [IDIR\LASTNAME]). Use {my_schema} and guard with IF OBJECT_ID(...) DROP TABLE
 # so it stays re-runnable, e.g.:
 #   dbExecute(decimal_con, glue::glue(
 #     "IF OBJECT_ID('[{my_schema}].[T_DACSO_Near_Completers_RatiosAgeAtGradCIP4_TTRAIN_history]') IS NOT NULL
