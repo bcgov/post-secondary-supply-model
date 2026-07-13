@@ -15,3 +15,5 @@ docs/agents/issue-tracker.md
 docs/agents/triage-labels.md
 presentations/presentation-06-2026_files/
 .claude/
+.factory/
+sql/

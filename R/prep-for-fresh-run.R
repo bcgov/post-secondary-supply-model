@@ -68,8 +68,8 @@ all_tables <- dbGetQuery(decimal_con, tables_query)$TABLE_NAME
 # remove all other non-raw student outcome data.
 remove_tables <- all_tables[stringr::str_detect(
   all_tables,
-  pattern = "_raw$",
-  negate = T
+  pattern = "^t_.*_r$",
+  negate = F
 )]
 
 
