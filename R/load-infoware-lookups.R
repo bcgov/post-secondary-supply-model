@@ -135,7 +135,7 @@ dbWriteTable(
 )
 dbWriteTable(
   con,
-  "INFOWARE_L_CIP_2DIGITS_CIP2016",
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_2DIGITS_CIP2016"),
   INFOWARE_L_CIP_2DIGITS_CIP2016
 )
 
