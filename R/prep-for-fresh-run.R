@@ -243,15 +243,17 @@ for (table in copy_tables) {
   table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>%
     str_remove_all("\"")
   # must have the SQL to make dbExistsTable work
-  # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}"))){
-  # Some tables will be changed by the code so it is better to recreate them.
-  copy_statement <- glue::glue(
-    'SELECT * 
+  if (
+    !dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}")))
+  ) {
+    # Some tables will be changed by the code so it is better to recreate them.
+    copy_statement <- glue::glue(
+      'SELECT * 
            INTO [{my_schema}].{table_short}
            FROM {table};'
-  )
-  dbExecute(decimal_con, copy_statement)
-  # }
+    )
+    dbExecute(decimal_con, copy_statement)
+  }
 }
 
 
