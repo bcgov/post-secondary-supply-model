@@ -86,6 +86,20 @@ library(DBI)
 library(glue)
 library(RJDBC)
 library(dbplyr)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 02a-bgs-program-matching.R START ====")
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
@@ -100,6 +114,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "TRUE"
 )
+log_info("Connected to SQL Server database")
 
 
 # ---- Read in INFOWARE tables ----
@@ -128,6 +143,7 @@ if (length(missing_tables) > 0) {
     "The following required tables are missing in schema '{my_schema}': {paste(missing_tables, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
   ))
 }
+log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
 infoware_bgs_19_23 <- tbl(con, in_schema(my_schema, "INFOWARE_BGS_DIST_19_23"))
@@ -143,6 +159,7 @@ cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
 
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
 stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
+log_info("Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential")
 
 # # id should be unique for updates to be reliable.
 # infoware_cohort_info |> tally()
@@ -357,6 +374,7 @@ t_bgs_final <- t_bgs_final %>%
 # id should be unique for updates to be reliable.
 t_bgs_final |> tally()
 # 143811
+log_info(glue::glue("Part 1: Built T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_final %>% tally() %>% pull()} rows"))
 
 # ------------------------------------------------------------------------------
 # Part 2: Standardize STP CIP codes to match BGS structure
@@ -503,6 +521,7 @@ stp_cip_cleaning <- stp_cip_cleaning %>%
 
 stp_cip_cleaning |> tally()
 # 681
+log_info(glue::glue("Part 2: Materialized Credential_Non_Dup_STP_CIP4_Cleaning_r: {stp_cip_cleaning %>% tally() %>% pull()} rows"))
 
 # ---- Part 2 (continued): Create BGS and GRAD credential ID tables ----
 # WHAT: Splits STP credential data into two separate tables: one for BGS credentials (which will undergo
@@ -576,6 +595,7 @@ bgs_ids_base <- stp_cip_ids %>%
 
 bgs_ids_base |> tally() # verify count matches expected from documentation
 # 485925 matching the number of records in 2023 according to the documentation
+log_info(glue::glue("Part 2: BGS credentials base (bgs_ids_base): {bgs_ids_base %>% tally() %>% pull()} rows"))
 
 # Add PSI_PEN (Personal Education Number) from STP_Credential table
 # PSI_PEN is the linking key between STP credentials and BGS survey outcomes.
@@ -604,6 +624,7 @@ credential_bgs_ids <- credential_bgs_ids %>%
     name = Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r"),
     temporary = FALSE
   )
+log_info("Part 2: Materialized Credential_Non_Dup_BGS_IDs_r to SQL Server")
 
 
 # ---- GRAD Credentials: Credential_Non_Dup_GRAD_IDs ----
@@ -657,6 +678,7 @@ credential_grad_ids <- credential_grad_ids %>%
 credential_grad_ids |> tally() # verify count matches expected from documentation
 # 133844 matching the number of records in 2023 according to the documentation
 # later used in the 02a-update-cred-non-dup.R script
+log_info(glue::glue("Part 2: Materialized Credential_Non_Dup_GRAD_IDs_r: {credential_grad_ids %>% tally() %>% pull()} rows"))
 
 ## check Credential_Non_Dup_BGS_IDs_r for (Unspecified) - when Credential_Non_Dup loaded NULLs changed to (Unspecified)
 # {
@@ -824,6 +846,7 @@ bgs_matching %>%
 
   bgs_matching %>% tally() # Verify actual matches expected count: the same
 }
+log_info(glue::glue("Part 3A: Created bgs_matching (PEN join): {bgs_matching %>% tally() %>% pull()} rows"))
 
 
 ### Part 3B: Auto matching using flags ----
@@ -1031,6 +1054,7 @@ bgs_matching_flagged <- bgs_matching_flagged |>
     name = Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r"),
     temporary = FALSE
   )
+log_info(glue::glue("Part 3B: Materialized BGS_Matching_STP_Credential_PEN_r with match flags: {bgs_matching_flagged %>% tally() %>% pull()} rows"))
 
 # bgs_matching_flagged |> tally() # Verify: 133,952 (2023)
 # bgs_matching_flagged |> glimpse() # Review structure
@@ -1212,6 +1236,7 @@ t1 <- bgs_matching_flagged |>
   )
 
 t1 |> tally() # Should be ~1,593 unique combinations (varies by year)
+log_info(glue::glue("Part 3B+: Aggregated 2-digit CIP match candidates (t1): {t1 %>% tally() %>% pull()} unique combinations"))
 
 ## t2: Aggregated view of 2-digit CIP matches for program-level decision making
 ## Groups individual records by institution, programs, and CIP codes to create
@@ -1238,6 +1263,7 @@ t2 <- bgs_matching_flagged %>%
   collect()
 
 t2 |> tally() # ~1593 unique program decision points
+log_info(glue::glue("Part 3B+: Collected t2 program decision points: {nrow(t2)} unique combinations"))
 
 # ---- Step 2: Apply multi-step decision tree to assign CIP_TO_USE ----
 # This decision tree prioritizes data quality and consistency:
@@ -1448,6 +1474,7 @@ matched_2d_cips <- matched_2d_cips %>%
   )
 
 count(matched_2d_cips, CIP_TO_USE) # All rows should have a CIP_TO_USE assignment now
+log_info("Part 3B+: All CIP_TO_USE decisions assigned (general program, cross-validation, custom, default STP)")
 
 matched_2d_cips |> tally()
 matched_2d_cips |> glimpse()
@@ -1491,6 +1518,7 @@ copy_to(
 )
 
 src_tbl <- tbl(con, "matched_2d_cips_r")
+log_info("Part 3B+: Staged matched_2d_cips_r decision table to SQL Server")
 src_tbl |> glimpse()
 src_tbl |> tally()
 # 1593
@@ -1577,6 +1605,7 @@ bgs_matching_flagged |> glimpse()
 
 bgs_matching_flagged |> tally()
 # 133952
+log_info(glue::glue("Part 3B+: Applied 2-digit CIP decisions to main matching table: {bgs_matching_flagged %>% tally() %>% pull()} rows"))
 
 # id should be unique for updates to be reliable.
 
@@ -2232,6 +2261,7 @@ bgs_matching_final <- tbl(
     count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) |>
     collect()
 }
+log_info(glue::glue("Part 3C/3D: Materialized final BGS_Matching_STP_Credential_PEN_r with manual review + final CIP names/clusters"))
 # ? still ~14000 NAs
 
 # ------------------------------------------------------------------------------
@@ -2255,6 +2285,7 @@ bgs_matching_final <- tbl(
 # ------------------------------------------------------------------------------
 
 ### Part 4A: Update with XWALK ----
+log_info("Part 4: Updating BGS credential table with final CIP decisions")
 
 {
   ## may want to make a backup copy of Credential_Non_Dup_BGS_IDs
@@ -3146,6 +3177,7 @@ credential_bgs_updated |> tally()
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed: no missing CIP names or cluster codes remain after the override and refill steps.
+log_info(glue::glue("Part 4: Updated Credential_Non_Dup_BGS_IDs_r with final CIPs: {credential_bgs_updated %>% tally() %>% pull()} rows"))
 
 ## remove local tables
 rm(
@@ -3178,6 +3210,7 @@ rm(
 # ------------------------------------------------------------------------------
 
 ### Part 5A: Update with XWALK ----
+log_info("Part 5: Updating BGS outcomes table with final CIP values")
 
 {
   ## may want to make a backup copy of T_BGS_Data_Final_for_OutcomesMatching
@@ -4021,6 +4054,7 @@ t_bgs_updated <- tbl(con, in_schema(my_schema, target_name))
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed - no blanks in final CIP name or cluster code
+log_info(glue::glue("Part 5: Updated T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_updated %>% tally() %>% pull()} rows"))
 
 # ---- Clean up ----
 
@@ -4028,4 +4062,9 @@ t_bgs_updated <- tbl(con, in_schema(my_schema, target_name))
 dbRemoveTable(con, "BGS_Matching_STP_Credential_PEN_bu_r")
 dbRemoveTable(con, "Credential_Non_Dup_BGS_IDs_bu_r")
 dbRemoveTable(con, "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+log_info("Removed backup tables")
+
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== 02a-bgs-program-matching.R COMPLETE ====")
