@@ -13,6 +13,20 @@
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 01e-stp-distributions.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -26,6 +40,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -34,6 +49,7 @@ age_group_lookup <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."age_group_lookup_r"'))
 )
+log_info(glue::glue("Loaded age_group_lookup_r: {nrow(age_group_lookup)} rows"))
 
 # We need to bring in PSI_VISA_STATUS here as well.  (add in 01d)
 min_enrolment <- dbGetQuery(
@@ -48,26 +64,30 @@ min_enrolment <- dbGetQuery(
     FROM "{my_schema}"."min_enrolment_r"'
   )
 )
+log_info(glue::glue("Loaded min_enrolment_r: {nrow(min_enrolment)} rows"))
 
 credential_non_dup <- dbGetQuery(
   con,
   glue::glue(
     'SELECT
-      id,
+      ID,
       RESEARCH_UNIVERSITY,
       OUTCOMES_CRED,
-      FINAL_CIP_CLUSTER_CODE,
+      FINAL_CIP_CLUSTER_CODE, 
       FINAL_CIP_CODE_4
     FROM "{my_schema}"."credential_non_dup_r"'
-  )
+  ) # the FINAL_CIP is created from 02a session, so 02a session must be done before this step
 )
+log_info(glue::glue(
+  "Loaded credential_non_dup_r: {nrow(credential_non_dup)} rows"
+))
 
 tbl_credential_highest_rank <-
   dbGetQuery(
     con,
     glue::glue(
       'SELECT
-      id,
+      ID,
       psi_gender_cleaned,
       AGE_GROUP_AT_GRAD,
       PSI_CREDENTIAL_CATEGORY,
@@ -76,15 +96,21 @@ tbl_credential_highest_rank <-
     FROM "{my_schema}"."tbl_credential_highest_rank_r"'
     )
   )
+log_info(glue::glue(
+  "Loaded tbl_credential_highest_rank_r: {nrow(tbl_credential_highest_rank)} rows"
+))
 
 
 # bring research university and outcomes credential into tbl_credential_highest_rank
 # this should have been done at end of 01c-credential-analysis.R
 tbl_credential_highest_rank <- tbl_credential_highest_rank |>
   left_join(
-    credential_non_dup |> select(id, RESEARCH_UNIVERSITY, OUTCOMES_CRED),
-    by = "id"
+    credential_non_dup |> select(ID, RESEARCH_UNIVERSITY, OUTCOMES_CRED),
+    by = "ID"
   )
+log_info(
+  "Enriched tbl_credential_highest_rank with RESEARCH_UNIVERSITY and OUTCOMES_CRED from credential_non_dup"
+)
 
 ## ---------------------------- Final Credential Distributions --------------------------------
 # References: 01c-credential-analysis.R
@@ -110,12 +136,16 @@ credential_by_year_age_group <- tbl_credential_highest_rank |>
   summarise(Count = n(), .groups = "drop") |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_age_group: {nrow(credential_by_year_age_group)} rows"
+))
+
 # Exclude CIP clusters 09 and 10
 credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
-    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
-    by = "id"
+    credential_non_dup |> select(ID, FINAL_CIP_CLUSTER_CODE),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -125,6 +155,10 @@ credential_by_year_age_group_exclude_cips <- tbl_credential_highest_rank |>
   group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
   summarise(Count = n(), .groups = "drop") |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
+
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_age_group_exclude_cips: {nrow(credential_by_year_age_group_exclude_cips)} rows"
+))
 
 # Domestic only
 credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
@@ -136,6 +170,10 @@ credential_by_year_age_group_domestic <- tbl_credential_highest_rank |>
   group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
   summarise(Count = n(), .groups = "drop") |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
+
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_age_group_domestic: {nrow(credential_by_year_age_group_domestic)} rows"
+))
 
 # Domestic only, exclude CIPs
 credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_rank |>
@@ -154,6 +192,10 @@ credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_ran
   summarise(Count = n(), .groups = "drop") |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
 
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_age_group_domestic_exclude_cips: {nrow(credential_by_year_age_group_domestic_exclude_cips)} rows"
+))
+
 # Domestic only, exclude research universities and DACSO
 # Notes from 2019 docs suggest we exclude credentials which are
 # included in DACSO but that are granted by research universities.
@@ -168,6 +210,10 @@ credential_by_year_age_group_domestic_exclude_ru_dacso <- tbl_credential_highest
   group_by(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED) |>
   summarise(Count = n(), .groups = "drop") |>
   arrange(AgeGroup, PSI_CREDENTIAL_CATEGORY, PSI_AWARD_SCHOOL_YEAR_DELAYED)
+
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_age_group_domestic_exclude_ru_dacso: {nrow(credential_by_year_age_group_domestic_exclude_ru_dacso)} rows"
+))
 
 # CIP4, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
 credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
@@ -197,6 +243,10 @@ credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_c
     PSI_CREDENTIAL_CATEGORY,
     PSI_AWARD_SCHOOL_YEAR_DELAYED
   )
+
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips: {nrow(credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips)} rows"
+))
 
 # CIP4, Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
 credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
@@ -230,6 +280,10 @@ credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <
     PSI_AWARD_SCHOOL_YEAR_DELAYED
   )
 
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips: {nrow(credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips)} rows"
+))
+
 # Gender, AgeGroup, Domestic, Exclude CIPs
 credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
@@ -257,6 +311,10 @@ credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highe
     PSI_CREDENTIAL_CATEGORY,
     PSI_AWARD_SCHOOL_YEAR_DELAYED
   )
+
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_gender_agegroup_domestic_exclude_cips: {nrow(credential_by_year_gender_agegroup_domestic_exclude_cips)} rows"
+))
 
 # Gender, AgeGroup, Domestic, Exclude RU & DACSO, Exclude CIPs
 credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
@@ -288,6 +346,10 @@ credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl
     PSI_AWARD_SCHOOL_YEAR_DELAYED
   )
 
+log_info(glue::glue(
+  "Credential distribution: credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips: {nrow(credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips)} rows"
+))
+
 ## ------------------------------Final Enrolment Distributions-----------------------------
 # Reference: 01d-enrolment-analysis.R
 # Replicates: qry09c_ series
@@ -302,6 +364,10 @@ credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl
 qry09c_minenrolment_by_credential_and_cip_code <- min_enrolment |>
   count(PSI_SCHOOL_YEAR, PSI_CREDENTIAL_CATEGORY, PSI_CIP_CODE, name = "Expr1")
 
+log_info(glue::glue(
+  "Enrolment distribution: qry09c_minenrolment_by_credential_and_cip_code: {nrow(qry09c_minenrolment_by_credential_and_cip_code)} rows"
+))
+
 # We need to bring in PSI_VISA_STATUS to min_enrolment for this  query to work.
 # qry09c_MinEnrolment_Domestic <- min_enrolment |>
 #   inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
@@ -312,6 +378,10 @@ qry09c_minenrolment <- min_enrolment |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_ENROL_DATE" = "AgeIndex")) |>
   mutate("Groups" = paste0(PSI_GENDER, AgeGroup)) |>
   count(PSI_GENDER, PSI_SCHOOL_YEAR, Groups, name = "Expr1")
+
+log_info(glue::glue(
+  "Enrolment distribution: qry09c_minenrolment: {nrow(qry09c_minenrolment)} rows"
+))
 
 
 ## ------------------------------------ Clean Up --------------------------------------------------
@@ -344,10 +414,19 @@ write_table_to_db <- function(table_name, schema, con) {
     base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== 01e-stp-distributions.R COMPLETE ====")
 
 rm(list = ls())

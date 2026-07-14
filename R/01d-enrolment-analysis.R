@@ -13,7 +13,21 @@
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
 set.seed(123456)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 01d-enrolment-analysis.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -27,6 +41,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -35,25 +50,35 @@ age_group_lookup <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."age_group_lookup_r"'))
 )
+log_info(glue::glue("Loaded age_group_lookup_r: {nrow(age_group_lookup)} rows"))
 
 credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."credential_r"'))
 )
+log_info(glue::glue(
+  "Loaded credential_r: {nrow(credential)} rows, {ncol(credential)} columns"
+))
 
 stp_enrolment <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_enrolment_r: {nrow(stp_enrolment)} rows, {ncol(stp_enrolment)} columns"
+))
 
 stp_enrolment_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_enrolment_record_type_r: {nrow(stp_enrolment_record_type)} rows"
+))
 
 ## ---------------------------------------Global Variables ---------------------------------------
 ## -----------------------------------------------------------------------------------------------
-na_vals = c("", " ", "(Unspecified)", NA)
+na_vals <- c("", " ", "(Unspecified)", NA)
 
 stp_cols <- c(
   "ID",
@@ -133,7 +158,9 @@ min_enrolment <- min_enrolment |>
   mutate(AGE_GROUP_ENROL_DATE = AgeIndex) |>
   select(-AgeIndex, -AgeGroup, -LowerBound, -UpperBound)
 
-## ----------Find gender for distinct non-null EPENs, or non-null PSI_CODE/PSI_NUMBER--------------
+log_info(glue::glue(
+  "Created min_enrolment (RecordStatus==0, is_min_enrol==1): {nrow(min_enrolment)} rows. AGE_AT_ENROL_DATE range: {min(min_enrolment$AGE_AT_ENROL_DATE, na.rm=TRUE)}-{max(min_enrolment$AGE_AT_ENROL_DATE, na.rm=TRUE)}"
+))
 # References: qry04a1 through qry04a2
 #
 # What the code does:
@@ -191,7 +218,9 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-gender_cred_epen, -gender_cred_no_epen, -gender_cred)
 
-## --------------Assign one gender/student and update MinEnrolment table ------------------------
+log_info(glue::glue(
+  "Gender backfill from credential: credential_epen={nrow(credential_epen)}, credential_no_epen={nrow(credential_no_epen)}"
+))
 # References: qry04c through qry04e2
 #
 # What the code does:
@@ -226,7 +255,9 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-FIRST_GENDER)
 
-## ---------------------------------impute gender -----------------------------------------------
+log_info(glue::glue(
+  "Historic gender forward-fill: first_gender_lookup has {nrow(first_gender_lookup)} distinct students"
+))
 # References:
 # Replicates: qry05a1 through qry06a5 and some R code from lines 101 to 170 (main)
 #
@@ -245,6 +276,10 @@ extract_no_gender_first <- min_enrolment |>
   select(ID, ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, PSI_GENDER)
 
 total_unknowns <- nrow(extract_no_gender_first)
+
+log_info(glue::glue(
+  "Gender imputation: {total_unknowns} first-enrolment records with unknown gender"
+))
 
 # first-time valid genders (Male, Female, Gender Diverse)
 gender_weights <- min_enrolment |>
@@ -306,8 +341,11 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-PSI_GENDER_IMPUTED.pen, -PSI_GENDER_IMPUTED.nopen)
 
-## --------------------------Create Age and Gender Distrbutions----------------------------------
-# AND
+log_info(glue::glue(
+  "Gender imputation complete. Remaining NA genders: {sum(is.na(min_enrolment$PSI_GENDER))} / {nrow(min_enrolment)}"
+))
+
+
 ## ----------------------Assign age to records with missing age----------------------------------
 # Where is the SQL version: Originally sourced from branch 'main' (line 164:281)
 # Replicates: qry07a-qry08 and much R code
@@ -350,6 +388,10 @@ extract_no_age_first_enrol <- min_enrolment |>
     AGE_AT_ENROL_DATE_first = AGE_AT_ENROL_DATE
   )
 
+log_info(glue::glue(
+  "Age extraction: {nrow(extract_no_age)} records with missing AGE_AT_ENROL_DATE, {nrow(extract_no_age_first_enrol)} are first enrolments"
+))
+
 # function to impute age by gender
 # assumes that wt contains a p for every age
 impute_age_by_gender <- function(df, gender_name, wt) {
@@ -389,6 +431,10 @@ extract_no_age_first_enrol <- extract_no_age_first_enrol |>
   imap(~ impute_age_by_gender(.x, .y, age_weights)) |>
   list_rbind()
 
+log_info(glue::glue(
+  "Age imputation: imputed ages for {nrow(extract_no_age_first_enrol)} first-enrolment records"
+))
+
 # assign ages to all first enrolment records that are missing ages
 extract_no_age <- extract_no_age |>
   select(-AGE_AT_ENROL_DATE) |>
@@ -425,7 +471,9 @@ extract_no_age <- extract_no_age |>
   ) |>
   select(-AGE_AT_ENROL_DATE_to_update)
 
-# ---- start manual edits ----
+log_info(glue::glue(
+  "Age forward-fill complete. extract_no_age now has {sum(is.na(extract_no_age$AGE_AT_ENROL_DATE))} remaining NAs"
+))
 # BA Notes: Some manual updates were made here to remaining missing ages.
 # I haven't done the manual fixes as we're getting away from manual work
 # ---- end manual edits  ----
@@ -451,7 +499,9 @@ min_enrolment <- min_enrolment |>
   ) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-## ------------------------------------ Clean Up --------------------------------------------------
+log_info(glue::glue(
+  "Age update applied to min_enrolment. Remaining NA AGE_AT_ENROL_DATE: {sum(is.na(min_enrolment$AGE_AT_ENROL_DATE))} / {nrow(min_enrolment)}"
+))
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
 # that might be needed for later reference outside of this analysis.
@@ -471,10 +521,19 @@ write_table_to_db <- function(table_name, schema, con) {
     base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== 01d-enrolment-analysis.R COMPLETE ====")
 
 rm(list = ls())

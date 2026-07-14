@@ -14,6 +14,20 @@
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 01a-enrolment-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -27,6 +41,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 ## --------------------------------------Required Tables------------------------------------------
 # currently repurposing data from 2023 run.  When running next update change this code to pull
@@ -62,6 +77,9 @@ stp_enrolment <- dbGetQuery(
   FROM [{my_schema}].[STP_Enrolment];"
   )
 )
+log_info(glue::glue(
+  "Loaded STP_Enrolment: {nrow(stp_enrolment)} rows, {ncol(stp_enrolment)} columns"
+))
 
 
 ## --------------------------------------Initial Data Checks--------------------------------------
@@ -69,15 +87,19 @@ stp_enrolment <- dbGetQuery(
 ##   qry00a to qry00d
 ## -----------------------------------------------------------------------------------------------
 
-stp_enrolment |>
+invalid_pen_count <- stp_enrolment |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
       c("", " ", "(Unspecified)") |
       is.na(ENCRYPTED_TRUE_PEN)
   ) |>
   nrow()
+log_info(glue::glue(
+  "Rows with invalid/missing ENCRYPTED_TRUE_PEN: {invalid_pen_count}"
+))
 
-stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> count()
+distinct_pen_count <- stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
+log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
 # stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
@@ -160,6 +182,10 @@ stp_enrolment_record_type_base <- stp_enrolment |>
   ) |>
   mutate(CIP2 = str_sub(PSI_CIP_CODE, 1, 2))
 
+log_info(glue::glue(
+  "Created stp_enrolment_record_type_base: {nrow(stp_enrolment_record_type_base)} rows"
+))
+
 
 stp_enrolment_record_type <- stp_enrolment_record_type_base |>
   mutate(
@@ -198,6 +224,12 @@ stp_enrolment_record_type <- stp_enrolment_record_type_base |>
     )
   )
 
+log_info("First RecordStatus pass complete. Counts by status:")
+log_info(paste(
+  capture.output(print(stp_enrolment_record_type |> count(RecordStatus))),
+  collapse = "\n"
+))
+
 # Notes: in the SQL queries from 2019 and earlier, some manual investigation was done to
 # find more skills based courses that were inadvertently excluded (s.b. RecordStatus 0) in the above work.
 # The manual investigation result were recorded column "Keep".  We did not do this manual work so I'm
@@ -219,6 +251,10 @@ tmp_tbl_skills_based_courses <- stp_enrolment_record_type_base |>
     PSI_CONTINUING_EDUCATION_COURSE_ONLY
   ) |>
   mutate(KEEP = as.character(NA)) # Initializing KEEP as NULL/NA
+
+log_info(glue::glue(
+  "Created tmp_tbl_skills_based_courses: {nrow(tmp_tbl_skills_based_courses)} distinct skill-based course combinations"
+))
 
 # this needs to be here
 stp_enrolment_record_type <- stp_enrolment_record_type |>
@@ -254,6 +290,10 @@ ids_to_flag_6 <- stp_enrolment_record_type_base |>
   ) |>
   pull(ID)
 
+log_info(glue::glue(
+  "IDs flagged as skills-based (RecordStatus 6) from semi-join: {length(ids_to_flag_6)}"
+))
+
 
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(
@@ -276,6 +316,12 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
 stp_enrolment_record_type <- stp_enrolment_record_type |>
   select(ID, RecordStatus)
 
+log_info("Final RecordStatus assignment complete. Counts by status:")
+log_info(paste(
+  capture.output(print(stp_enrolment_record_type |> count(RecordStatus))),
+  collapse = "\n"
+))
+
 
 ## --------------------------------------- Create Valid Enrolment Table ---------------------------
 ## Creates a table of Record Status = 0 only (Valid Enrolment)
@@ -295,6 +341,10 @@ stp_enrolment_valid <- stp_enrolment |>
   inner_join(stp_enrolment_record_type, by = join_by(ID)) |>
   filter(RecordStatus == 0) |>
   select(-RecordStatus)
+
+log_info(glue::glue(
+  "Created stp_enrolment_valid (RecordStatus == 0): {nrow(stp_enrolment_valid)} rows"
+))
 
 
 ## ------------------------------------- Min Enrolment --------------------------------------------
@@ -332,6 +382,10 @@ invalid_pen_data <- stp_enrolment_valid |>
   mutate(is_min_enrol_seq_combo = row_number() == 1) |>
   ungroup()
 
+log_info(glue::glue(
+  "Valid PEN records: {nrow(valid_pen_data)}, Invalid PEN records: {nrow(invalid_pen_data)}"
+))
+
 # Combine - this should be the same as the old stp_enrolment_record_type
 stp_enrolment_valid_final <- bind_rows(valid_pen_data, invalid_pen_data) |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, FALSE))) |>
@@ -346,6 +400,15 @@ stp_enrolment_record_type <- stp_enrolment_record_type |>
   mutate(across(starts_with("is_"), ~ replace_na(.x, 0)))
 
 stp_enrolment_record_type |> count(RecordStatus, is_min_enrol, is_first_enrol)
+
+log_info("Min enrolment summary (RecordStatus, is_min_enrol, is_first_enrol):")
+log_info(paste(
+  capture.output(print(
+    stp_enrolment_record_type |>
+      count(RecordStatus, is_min_enrol, is_first_enrol)
+  )),
+  collapse = "\n"
+))
 
 
 ## ------------------------------------- Clean Birthdates -----------------------------------------
@@ -383,6 +446,10 @@ birthdate_cleaning_summary <- stp_enrolment |>
   ) |>
   ungroup()
 
+log_info(glue::glue(
+  "Birthdate cleaning summary: {nrow(birthdate_cleaning_summary)} students with birthdate records"
+))
+
 #qry09 to qry11
 birthdate_update <- birthdate_cleaning_summary |>
   mutate(
@@ -411,6 +478,9 @@ stp_enrolment <- stp_enrolment |>
   ) |>
   mutate(psi_birthdate_cleaned = coalesce(psi_birthdate_cleaned, PSI_BIRTHDATE))
 # Keeping as lower case to match the SQL versions, jfn.
+log_info(glue::glue(
+  "Birthdate cleaning complete. Students with cleaned birthdate: {sum(!is.na(stp_enrolment$psi_birthdate_cleaned))} / {nrow(stp_enrolment)}"
+))
 
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
@@ -434,10 +504,19 @@ write_table_to_db <- function(table_name, schema, con) {
     base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
 
 rm(list = ls())
