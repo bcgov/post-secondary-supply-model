@@ -35,3 +35,7 @@ docs/PSSM Analyst Manual — Running the Mode.md
 *.png
 plugin.yml
 presentations/presentation-06-2026_files/
+.claude/
+docs/agents/
+.factory/
+AGENTS.md
