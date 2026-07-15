@@ -20,19 +20,38 @@ library(tidyverse)
 library(odbc)
 library(DBI)
 library(config)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== load-stp-enrol.R START ====")
 
 # ---- Configure LAN and file paths ----
 lan <- config::get("lan")
 
 fls <- list.files(
-  glue::glue("{lan}/data/stp/STP_ISA_PSSM"),
+  glue::glue("{lan}/Data/stp/BCSTATS_STP_ISA_PSSM_JUL13_2026/"),
   full.names = TRUE,
   recursive = FALSE
 )
 fls <- fls[grepl("STP_ENROLMENT", fls)]
 
-# ---- Connection to decimal ----
-db_config <- config::get("decimal")
+log_info(glue::glue(
+  "Found {length(fls)} STP enrolment file(s): {paste(basename(fls), collapse=', ')}"
+))
+
+
+## ----- Connection to decimal ----
+db_config <- config::get("decimal2026")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
@@ -40,8 +59,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-
-# ---- Define Schema ----
+log_info(glue::glue("Connected to SQL Server | Database: {db_config$database}"))
 schema <-
   schema(
     PSI_PEN = string(),
@@ -96,6 +114,9 @@ schema <-
   )
 
 # ---- Write to decimal ----
+log_info(glue::glue(
+  "Writing {length(fls[1])} file(s) to STP_Enrolment table | append = TRUE"
+))
 invisible(lapply(
   fls[1],
   write_to_decimal,
@@ -113,6 +134,7 @@ write_to_decimal <- function(
   format = "tsv"
 ) {
   tblnm <- tools::file_path_sans_ext(basename(flnm))
+  log_info(glue::glue("Processing enrolment file: {basename(flnm)}"))
   cat(glue::glue("Processing {tblnm}: {Sys.time()} ..."))
   cat()
 
@@ -125,14 +147,18 @@ write_to_decimal <- function(
 
   DBI::dbWriteTableArrow(
     con,
-    name = "STP_Enrolment",
+    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )
 
   cat(glue::glue("...completed {Sys.time()}"))
   cat("\n")
+  log_info(glue::glue("Finished writing: {basename(flnm)}"))
 }
 
 # ---- Disconnect ----
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== load-stp-enrol.R COMPLETE ====")
