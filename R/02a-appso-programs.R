@@ -77,6 +77,12 @@ con <- dbConnect(
 )
 log_info("Connected to SQL Server database")
 
+
+# ---- Read in INFOWARE tables ----
+# Note: These tables should be loaded by 'R/load-infoware-lookups.R'
+# source("R/load-infoware-lookups.R")
+# We check for their existence and proceed.
+
 # ---- Reference source tables -------------------------------------------------
 # Adjust schema/table resolution if your environment stores these elsewhere.
 # All tables below are lazy dbplyr references; queries are executed only when

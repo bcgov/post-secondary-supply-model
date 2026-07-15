@@ -179,8 +179,8 @@ log_info(glue::glue(
 credential_by_year_age_group_domestic_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
-    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE),
-    by = "id"
+    credential_non_dup |> select(ID, FINAL_CIP_CLUSTER_CODE),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -219,8 +219,8 @@ log_info(glue::glue(
 credential_by_year_cip4_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl_credential_highest_rank |>
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
-    credential_non_dup |> select(id, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
-    by = "id"
+    credential_non_dup |> select(ID, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -253,8 +253,8 @@ credential_by_year_cip4_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
-      select(id, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
-    by = "id"
+      select(ID, FINAL_CIP_CLUSTER_CODE, FINAL_CIP_CODE_4),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -289,8 +289,8 @@ credential_by_year_gender_agegroup_domestic_exclude_cips <- tbl_credential_highe
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
-      select(id, FINAL_CIP_CLUSTER_CODE),
-    by = "id"
+      select(ID, FINAL_CIP_CLUSTER_CODE),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
@@ -321,8 +321,8 @@ credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips <- tbl
   inner_join(age_group_lookup, by = c("AGE_GROUP_AT_GRAD" = "AgeIndex")) |>
   inner_join(
     credential_non_dup |>
-      select(id, FINAL_CIP_CLUSTER_CODE),
-    by = "id"
+      select(ID, FINAL_CIP_CLUSTER_CODE),
+    by = "ID"
   ) |>
   filter(
     PSI_CREDENTIAL_CATEGORY != "Apprenticeship",
