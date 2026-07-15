@@ -26,6 +26,13 @@ source("./R/utils.R")
 log_file <- "./R/execution_log.txt"
 flog.appender(appender.file(log_file), name = "file_logger")
 flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== prep-for-fresh-run.R START ====")
 # ---- Configuration ----
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
@@ -44,8 +51,9 @@ decimal_con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-
-# ---- 1. CAUTION: delete every table in your schema ----
+log_info(glue::glue(
+  "Connected to SQL Server | Schema: {my_schema} | Run flags: regular={regular_run}, qi={qi_run}, ptib={ptib_run}"
+))
 # Option 1a
 #Open a query in SQL Server Mgmt Studio and run/execute the following:
 
@@ -73,6 +81,10 @@ remove_tables <- all_tables[stringr::str_detect(
   pattern = "^t_.*_r$"
 )]
 
+log_info(glue::glue(
+  "Step 1: Found {length(all_tables)} tables in schema, {length(remove_tables)} match pattern '^t_.*_r$' to drop"
+))
+
 
 # Step 2: Begin transaction and delete tables
 # commented out to prevent accidental deletions
@@ -87,6 +99,9 @@ tryCatch(
     }
     dbCommit(decimal_con) # Commit transaction if all deletions succeed
     print("All tables deleted successfully.")
+    log_info(glue::glue(
+      "Step 1: Dropped {length(remove_tables)} _r tables successfully"
+    ))
   },
   error = function(e) {
     dbRollback(decimal_con) # Rollback if there's an error
@@ -106,6 +121,7 @@ decimal_con <- dbConnect(
 )
 
 # ---- 2. Drop specific tables required for re-run ----
+log_info("Step 2: Dropping specific model output tables for re-run")
 # assumes you also ran the drops in 07-occupation-projections.R
 dbExecute(
   decimal_con,
@@ -212,6 +228,7 @@ dbExecute(
 
 
 # ---- 3. Copy tables required for re-run ----
+
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
 # TODO: copy tables from bonnie's schema with _r
 copy_tables <- c(
@@ -220,7 +237,7 @@ copy_tables <- c(
   # glue::glue('[{second_schema}]."Occupation_Distributions_Stat_Can"'), # the same as it is from statscan
   # glue::glue('[{second_schema}]."Credential_Non_Dup_r"'), # from 01c-credential-analysis.R
   # glue::glue('[{second_schema}]."STP_Credential"'), # from ECC
-  glue::glue('[{second_schema}]."STP_Enrolment"') #, # from ECC
+  # glue::glue('[{second_schema}]."STP_Enrolment"') #, # from ECC
   # glue::glue('[{second_schema}]."qry09c_minenrolment_r"'), # from 01e-stp-distribution.r
   # glue::glue(
   #   '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs_r"'
@@ -228,36 +245,42 @@ copy_tables <- c(
   # # glue::glue('[{second_schema}]."tblCredential_HighestRank_r"'), # from 01c-credential-analysis.R
   # glue::glue('[{second_schema}]."tbl_credential_highest_rank_r"')
 )
+log_info(glue::glue(
+  "Step 3: Copy tables from second schema (currently {length(copy_tables)} tables to copy)"
+))
 
-purrr::map_dfr(copy_tables, \(t) {
-  short <- stringr::str_remove_all(
-    stringr::str_extract(t, '(?<=\\.)"[^"]+"'),
-    '"'
-  )
-  tibble::tibble(
-    table = short,
-    exists_in_dbo = dbExistsTable(
-      decimal_con,
-      Id(schema = second_schema, table = short)
+if (length(copy_tables) > 0) {
+  purrr::map_dfr(copy_tables, \(t) {
+    short <- stringr::str_remove_all(
+      stringr::str_extract(t, '(?<=\\.)"[^"]+"'),
+      '"'
     )
-  )
-})
+    tibble::tibble(
+      table = short,
+      exists_in_dbo = dbExistsTable(
+        decimal_con,
+        Id(schema = second_schema, table = short)
+      )
+    )
+  })
 
-for (table in copy_tables) {
-  # Extract the part after the dot
-  table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>%
-    str_remove_all("\"")
-  # must have the SQL to make dbExistsTable work
-  # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}"))){
-  # Some tables will be changed by the code so it is better to recreate them.
-  copy_statement <- glue::glue(
-    'SELECT *
+  for (table in copy_tables) {
+    # Extract the part after the dot
+    table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>%
+      str_remove_all("\"")
+    # must have the SQL to make dbExistsTable work
+    # if (!dbExistsTable(decimal_con, SQL(glue::glue("{my_schema}.{table_short}"))){
+    # Some tables will be changed by the code so it is better to recreate them.
+    copy_statement <- glue::glue(
+      'SELECT *
            INTO [{my_schema}].{table_short}
            FROM {table};'
-  )
-  dbExecute(decimal_con, copy_statement)
-  # }
+    )
+    dbExecute(decimal_con, copy_statement)
+    # }
+  }
 }
+
 
 # ---- 4. re-run step by step ----
 
@@ -282,6 +305,9 @@ regular_run_files <- c(
   "./R/07-occupation-projections.R"
 )
 
+log_info(glue::glue(
+  "Step 4: Re-running {length(regular_run_files)} scripts for regular model run"
+))
 
 # for regular run
 
@@ -289,6 +315,9 @@ print(glue::glue("regular model run flag: {regular_run}"))
 if (regular_run == T & qi_run != T & ptib_run != T) {
   # Loop through each file, calling time_execution for each
   for (file_path in regular_run_files) {
+    log_info(glue::glue(
+      "[{which(regular_run_files == file_path)}/{length(regular_run_files)}] Running: {basename(file_path)}"
+    ))
     print(glue::glue("regular model run flag: {regular_run}"))
     print(glue::glue("qi model run flag: {qi_run}"))
     print(glue::glue("ptib model furn flag: {ptib_run}"))
@@ -300,3 +329,4 @@ if (regular_run == T & qi_run != T & ptib_run != T) {
 # ---- Disconnect ----
 dbDisconnect(decimal_con)
 gc()
+log_info("==== prep-for-fresh-run.R COMPLETE ====")

@@ -119,7 +119,7 @@ log_info("Connected to SQL Server database")
 
 # ---- Read in INFOWARE tables ----
 # Note: These tables should be loaded by 'R/load-infoware-lookups.R'
-source("R/load-infoware-lookups.R")
+# source("R/load-infoware-lookups.R")
 # We check for their existence and proceed.
 
 required_tables <- c(
@@ -159,7 +159,9 @@ cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
 
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
 stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
-log_info("Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential")
+log_info(
+  "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential"
+)
 
 # # id should be unique for updates to be reliable.
 # infoware_cohort_info |> tally()
@@ -374,7 +376,9 @@ t_bgs_final <- t_bgs_final %>%
 # id should be unique for updates to be reliable.
 t_bgs_final |> tally()
 # 143811
-log_info(glue::glue("Part 1: Built T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_final %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 1: Built T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_final %>% tally() %>% pull()} rows"
+))
 
 # ------------------------------------------------------------------------------
 # Part 2: Standardize STP CIP codes to match BGS structure
@@ -521,7 +525,9 @@ stp_cip_cleaning <- stp_cip_cleaning %>%
 
 stp_cip_cleaning |> tally()
 # 681
-log_info(glue::glue("Part 2: Materialized Credential_Non_Dup_STP_CIP4_Cleaning_r: {stp_cip_cleaning %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 2: Materialized Credential_Non_Dup_STP_CIP4_Cleaning_r: {stp_cip_cleaning %>% tally() %>% pull()} rows"
+))
 
 # ---- Part 2 (continued): Create BGS and GRAD credential ID tables ----
 # WHAT: Splits STP credential data into two separate tables: one for BGS credentials (which will undergo
@@ -595,7 +601,9 @@ bgs_ids_base <- stp_cip_ids %>%
 
 bgs_ids_base |> tally() # verify count matches expected from documentation
 # 485925 matching the number of records in 2023 according to the documentation
-log_info(glue::glue("Part 2: BGS credentials base (bgs_ids_base): {bgs_ids_base %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 2: BGS credentials base (bgs_ids_base): {bgs_ids_base %>% tally() %>% pull()} rows"
+))
 
 # Add PSI_PEN (Personal Education Number) from STP_Credential table
 # PSI_PEN is the linking key between STP credentials and BGS survey outcomes.
@@ -678,7 +686,9 @@ credential_grad_ids <- credential_grad_ids %>%
 credential_grad_ids |> tally() # verify count matches expected from documentation
 # 133844 matching the number of records in 2023 according to the documentation
 # later used in the 02a-update-cred-non-dup.R script
-log_info(glue::glue("Part 2: Materialized Credential_Non_Dup_GRAD_IDs_r: {credential_grad_ids %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 2: Materialized Credential_Non_Dup_GRAD_IDs_r: {credential_grad_ids %>% tally() %>% pull()} rows"
+))
 
 ## check Credential_Non_Dup_BGS_IDs_r for (Unspecified) - when Credential_Non_Dup loaded NULLs changed to (Unspecified)
 # {
@@ -846,7 +856,9 @@ bgs_matching %>%
 
   bgs_matching %>% tally() # Verify actual matches expected count: the same
 }
-log_info(glue::glue("Part 3A: Created bgs_matching (PEN join): {bgs_matching %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 3A: Created bgs_matching (PEN join): {bgs_matching %>% tally() %>% pull()} rows"
+))
 
 
 ### Part 3B: Auto matching using flags ----
@@ -1054,7 +1066,9 @@ bgs_matching_flagged <- bgs_matching_flagged |>
     name = Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r"),
     temporary = FALSE
   )
-log_info(glue::glue("Part 3B: Materialized BGS_Matching_STP_Credential_PEN_r with match flags: {bgs_matching_flagged %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 3B: Materialized BGS_Matching_STP_Credential_PEN_r with match flags: {bgs_matching_flagged %>% tally() %>% pull()} rows"
+))
 
 # bgs_matching_flagged |> tally() # Verify: 133,952 (2023)
 # bgs_matching_flagged |> glimpse() # Review structure
@@ -1236,7 +1250,9 @@ t1 <- bgs_matching_flagged |>
   )
 
 t1 |> tally() # Should be ~1,593 unique combinations (varies by year)
-log_info(glue::glue("Part 3B+: Aggregated 2-digit CIP match candidates (t1): {t1 %>% tally() %>% pull()} unique combinations"))
+log_info(glue::glue(
+  "Part 3B+: Aggregated 2-digit CIP match candidates (t1): {t1 %>% tally() %>% pull()} unique combinations"
+))
 
 ## t2: Aggregated view of 2-digit CIP matches for program-level decision making
 ## Groups individual records by institution, programs, and CIP codes to create
@@ -1263,7 +1279,9 @@ t2 <- bgs_matching_flagged %>%
   collect()
 
 t2 |> tally() # ~1593 unique program decision points
-log_info(glue::glue("Part 3B+: Collected t2 program decision points: {nrow(t2)} unique combinations"))
+log_info(glue::glue(
+  "Part 3B+: Collected t2 program decision points: {nrow(t2)} unique combinations"
+))
 
 # ---- Step 2: Apply multi-step decision tree to assign CIP_TO_USE ----
 # This decision tree prioritizes data quality and consistency:
@@ -1474,7 +1492,9 @@ matched_2d_cips <- matched_2d_cips %>%
   )
 
 count(matched_2d_cips, CIP_TO_USE) # All rows should have a CIP_TO_USE assignment now
-log_info("Part 3B+: All CIP_TO_USE decisions assigned (general program, cross-validation, custom, default STP)")
+log_info(
+  "Part 3B+: All CIP_TO_USE decisions assigned (general program, cross-validation, custom, default STP)"
+)
 
 matched_2d_cips |> tally()
 matched_2d_cips |> glimpse()
@@ -1605,7 +1625,9 @@ bgs_matching_flagged |> glimpse()
 
 bgs_matching_flagged |> tally()
 # 133952
-log_info(glue::glue("Part 3B+: Applied 2-digit CIP decisions to main matching table: {bgs_matching_flagged %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 3B+: Applied 2-digit CIP decisions to main matching table: {bgs_matching_flagged %>% tally() %>% pull()} rows"
+))
 
 # id should be unique for updates to be reliable.
 
@@ -1663,10 +1685,10 @@ bgs_matching_tbl %>%
 # Output:
 # - BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly (review input/output table)
 #
-# "lan\25-1319 Post-Secondary Supply Model 2022-2023\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
-# "lan\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
-# "lan\25-1319 Post-Secondary Supply Model 2022-2023\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
-
+# "lan\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
+# "lan\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
+# "lan\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
+lan
 # Important:
 # This section requires a manual step outside R. The script expects the reviewed
 # CSV to be returned with a populated USE_BGS_CIP field. If the file is missing,
@@ -1781,7 +1803,9 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>%
 # Read back the CSV with manual USE_BGS_CIP decisions from subject matter experts.
 
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos <- read_csv(
-  "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
+  glue::glue(
+    "{lan}\\development\\work\\02a-program-matching\\BGS\\prod on 2023 data\\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
+  )
 )
 
 # ---- Part 3C.1d: Broadcast Manual Decisions to All Matching Records ----
@@ -1938,14 +1962,14 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
 
 if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
   # Stage manual updates to temporary SQL table for efficient database joining
-  copy_to(
+
+  dbWriteTable(
     con,
-    BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
     Id(
       schema = my_schema,
       table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_r"
     ),
-    temporary = FALSE,
+    BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
     overwrite = TRUE
   )
 
@@ -2261,7 +2285,9 @@ bgs_matching_final <- tbl(
     count(FINAL_CONSIDER_A_MATCH, FINAL_PROBABLE_MATCH) |>
     collect()
 }
-log_info(glue::glue("Part 3C/3D: Materialized final BGS_Matching_STP_Credential_PEN_r with manual review + final CIP names/clusters"))
+log_info(glue::glue(
+  "Part 3C/3D: Materialized final BGS_Matching_STP_Credential_PEN_r with manual review + final CIP names/clusters"
+))
 # ? still ~14000 NAs
 
 # ------------------------------------------------------------------------------
@@ -2893,10 +2919,13 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
   filter(
     MATCHED_BGS_EXAMPLE == "Yes",
     BGS_CIP_DIFFERS_FROM_STP == "Yes"
-  ) %>%
-  arrange(FINAL_CIP_CODE_4)
+  )
+# %>%
+#   arrange(FINAL_CIP_CODE_4)
 
 credential_unmatched_cips_to_review %>% glimpse()
+
+log_info("Test credential_unmatched_cips_to_review")
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------
@@ -3135,8 +3164,12 @@ credential_bgs_updated <- credential_bgs_updated %>%
 
 # Preview the updated credentials table structure
 credential_bgs_updated |> glimpse()
-credential_bgs_updated <- credential_bgs_updated %>%
-  as_tibble() %>%
+credential_bgs_updated_df <- credential_bgs_updated %>%
+  as_tibble()
+
+
+# str_pad function does not support tbl table.
+credential_bgs_updated_df <- credential_bgs_updated_df %>%
   mutate(
     FINAL_CIP_CODE_4 = str_pad(
       FINAL_CIP_CODE_4,
@@ -3156,7 +3189,7 @@ credential_bgs_updated <- credential_bgs_updated %>%
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_BGS_IDs_r"')),
-  credential_bgs_updated,
+  credential_bgs_updated_df,
   overwrite = TRUE
 )
 
@@ -3177,7 +3210,9 @@ credential_bgs_updated |> tally()
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed: no missing CIP names or cluster codes remain after the override and refill steps.
-log_info(glue::glue("Part 4: Updated Credential_Non_Dup_BGS_IDs_r with final CIPs: {credential_bgs_updated %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 4: Updated Credential_Non_Dup_BGS_IDs_r with final CIPs: {credential_bgs_updated %>% tally() %>% pull()} rows"
+))
 
 ## remove local tables
 rm(
@@ -4054,7 +4089,9 @@ t_bgs_updated <- tbl(con, in_schema(my_schema, target_name))
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed - no blanks in final CIP name or cluster code
-log_info(glue::glue("Part 5: Updated T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_updated %>% tally() %>% pull()} rows"))
+log_info(glue::glue(
+  "Part 5: Updated T_BGS_Data_Final_for_OutcomesMatching_r: {t_bgs_updated %>% tally() %>% pull()} rows"
+))
 
 # ---- Clean up ----
 
