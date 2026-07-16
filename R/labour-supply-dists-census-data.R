@@ -119,10 +119,13 @@ t_region_statcan_xwalk <-
   ) %>%
   janitor::clean_names(case = "all_caps") %>%
   mutate(RAW_STAT_CAN_NAME = str_replace(RAW_STAT_CAN_NAME, "\x96", "–"))
-
+# repeated in 'occ-dists-census-data.R'
 dbWriteTable(
   decimal_con,
-  name = "t_current_region_pssm_rollup_codes_statcan_r",
+  name = Id(
+    schema = my_schema,
+    table = "t_current_region_pssm_rollup_codes_statcan_r"
+  ),
   value = t_current_region_pssm_rollup_codes_statcan
 )
 

@@ -429,4 +429,4 @@ log_info("Disconnected from SQL Server")
 
 log_info("==== 01e-stp-distributions.R COMPLETE ====")
 
-rm(list = ls())
+# rm(list = ls())
