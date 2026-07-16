@@ -114,16 +114,6 @@ schema <-
   )
 
 # ---- Write to decimal ----
-log_info(glue::glue(
-  "Writing {length(fls[1])} file(s) to STP_Enrolment table | append = TRUE"
-))
-invisible(lapply(
-  fls[1],
-  write_to_decimal,
-  con = con,
-  schema = schema,
-  append = TRUE
-))
 
 # ---- Functions ----
 write_to_decimal <- function(
@@ -156,6 +146,19 @@ write_to_decimal <- function(
   cat("\n")
   log_info(glue::glue("Finished writing: {basename(flnm)}"))
 }
+
+
+log_info(glue::glue(
+  "Writing {length(fls)} file(s) to STP_Enrolment table | append = TRUE"
+))
+invisible(lapply(
+  fls,
+  write_to_decimal,
+  con = con,
+  schema = schema,
+  append = TRUE
+))
+
 
 # ---- Disconnect ----
 dbDisconnect(con)
