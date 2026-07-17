@@ -144,9 +144,11 @@ for (i in seq_along(preprocessing_files)) {
       stop(paste("Pipeline halted at", script_name))
     }
   )
+  gc()
 }
 
 # ---- Summary ----
+
 pipeline_end <- Sys.time()
 pipeline_elapsed <- round(
   difftime(pipeline_end, pipeline_start, units = "mins"),
