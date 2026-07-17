@@ -36,7 +36,8 @@ log_info <- function(msg) {
 log_info("==== load-stp-enrol.R START ====")
 
 # ---- Configure LAN and file paths ----
-lan <- config::get("lan")
+lan <- config::get("lan_2027")
+my_schema <- config::get("myschema")
 
 fls <- list.files(
   glue::glue("{lan}/Data/stp/BCSTATS_STP_ISA_PSSM_JUL13_2026/"),
@@ -51,7 +52,7 @@ log_info(glue::glue(
 
 
 ## ----- Connection to decimal ----
-db_config <- config::get("decimal2026")
+db_config <- config::get("decimal")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
@@ -59,59 +60,59 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
-log_info(glue::glue("Connected to SQL Server | Database: {db_config$database}"))
-schema <-
-  schema(
-    PSI_PEN = string(),
-    PSI_BIRTHDATE = string(),
-    PSI_GENDER = string(),
-    PSI_STUDENT_NUMBER = string(),
-    PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT = string(),
-    TRUE_PEN = string(),
-    ENCRYPTED_TRUE_PEN = string(),
-    STP_ALT_ID = string(),
-    LAST_SEEN_BIRTHDATE = string(),
-    LAST_SEEN_GENDER = string(),
-    BC_K_12_STUDENT_EVER = string(),
-    LAST_SEEN_INDIGENOUS_EVER_BACKDATED = string(), # data codes also different
-    LAST_SEEN_SCHOOL_YEAR = string(),
-    LAST_SEEN_DISTRICT_NUMBER = string(),
-    LAST_SEEN_DISTRICT_NAME = string(),
-    LAST_SEEN_STUDENT_GRADE = string(),
-    LAST_SEEN_SPECIAL_NEED_CODE = string(),
-    GRAD_YEAR_MONTH = string(),
-    AT_GRAD_DISTRICT_NUMBER = string(),
-    AT_GRAD_DISTRICT_NAME = string(),
-    AT_GRAD_CURRENT_COLLEGE_REGION_NAME = string(),
-    AT_GRAD_CURRENT_COLLEGE_REGION_NUMBER = string(),
-    CREDENTIAL_NAME = string(),
-    AGPA_PERCENT = string(),
-    ATTENDING_PSI_OUTSIDE_BC = string(),
-    LAST_SEEN_HOME_LANGUAGE = string(),
-    LAST_SEEN_RESIDENCY = string(),
-    PSI_SCHOOL_YEAR = string(),
-    PSI_REGISTRATION_TERM = string(),
-    PSI_STUDENT_POSTAL_CODE_CURRENT = string(),
-    PSI_INDIGENOUS_STATUS = string(),
-    PSI_NEW_STUDENT_FLAG = string(),
-    PSI_ENROLMENT_SEQUENCE = string(),
-    PSI_CODE = string(),
-    PSI_TYPE = string(),
-    PSI_FULL_NAME = string(),
-    PSI_BASIS_OF_ADMISSION = string(),
-    PSI_MIN_START_DATE = string(),
-    PSI_CREDENTIAL_PROGRAM_DESCRIPTION = string(),
-    PSI_PROGRAM_CODE = string(),
-    PSI_PROGRAM_EFFECTIVE_DATE = string(),
-    PSI_CIP_CODE = string(),
-    PSI_FACULTY = string(),
-    PSI_CONTINUING_EDUCATION_COURSE_ONLY = string(),
-    PSI_CREDENTIAL_CATEGORY = string(),
-    PSI_VISA_STATUS = string(),
-    PSI_STUDY_LEVEL = string(),
-    PSI_ENTRY_STATUS = string(),
-    OVERALL_INDIGENOUS_STATUS = string()
-  )
+# log_info(glue::glue("Connected to SQL Server | Database: {db_config$database}"))
+# schema <-
+#   schema(
+#     PSI_PEN = string(),
+#     PSI_BIRTHDATE = string(),
+#     PSI_GENDER = string(),
+#     PSI_STUDENT_NUMBER = string(),
+#     PSI_STUDENT_POSTAL_CODE_FIRST_CONTACT = string(),
+#     TRUE_PEN = string(),
+#     ENCRYPTED_TRUE_PEN = string(),
+#     STP_ALT_ID = string(),
+#     LAST_SEEN_BIRTHDATE = string(),
+#     LAST_SEEN_GENDER = string(),
+#     BC_K_12_STUDENT_EVER = string(),
+#     LAST_SEEN_INDIGENOUS_EVER_BACKDATED = string(), # data codes also different
+#     LAST_SEEN_SCHOOL_YEAR = string(),
+#     LAST_SEEN_DISTRICT_NUMBER = string(),
+#     LAST_SEEN_DISTRICT_NAME = string(),
+#     LAST_SEEN_STUDENT_GRADE = string(),
+#     LAST_SEEN_SPECIAL_NEED_CODE = string(),
+#     GRAD_YEAR_MONTH = string(),
+#     AT_GRAD_DISTRICT_NUMBER = string(),
+#     AT_GRAD_DISTRICT_NAME = string(),
+#     AT_GRAD_CURRENT_COLLEGE_REGION_NAME = string(),
+#     AT_GRAD_CURRENT_COLLEGE_REGION_NUMBER = string(),
+#     CREDENTIAL_NAME = string(),
+#     AGPA_PERCENT = string(),
+#     ATTENDING_PSI_OUTSIDE_BC = string(),
+#     LAST_SEEN_HOME_LANGUAGE = string(),
+#     LAST_SEEN_RESIDENCY = string(),
+#     PSI_SCHOOL_YEAR = string(),
+#     PSI_REGISTRATION_TERM = string(),
+#     PSI_STUDENT_POSTAL_CODE_CURRENT = string(),
+#     PSI_INDIGENOUS_STATUS = string(),
+#     PSI_NEW_STUDENT_FLAG = string(),
+#     PSI_ENROLMENT_SEQUENCE = string(),
+#     PSI_CODE = string(),
+#     PSI_TYPE = string(),
+#     PSI_FULL_NAME = string(),
+#     PSI_BASIS_OF_ADMISSION = string(),
+#     PSI_MIN_START_DATE = string(),
+#     PSI_CREDENTIAL_PROGRAM_DESCRIPTION = string(),
+#     PSI_PROGRAM_CODE = string(),
+#     PSI_PROGRAM_EFFECTIVE_DATE = string(),
+#     PSI_CIP_CODE = string(),
+#     PSI_FACULTY = string(),
+#     PSI_CONTINUING_EDUCATION_COURSE_ONLY = string(),
+#     PSI_CREDENTIAL_CATEGORY = string(),
+#     PSI_VISA_STATUS = string(),
+#     PSI_STUDY_LEVEL = string(),
+#     PSI_ENTRY_STATUS = string(),
+#     OVERALL_INDIGENOUS_STATUS = string()
+#   )
 
 # ---- Write to decimal ----
 
@@ -121,23 +122,29 @@ write_to_decimal <- function(
   con,
   schema,
   append = FALSE,
-  format = "tsv"
+  format = "csv"
 ) {
   tblnm <- tools::file_path_sans_ext(basename(flnm))
   log_info(glue::glue("Processing enrolment file: {basename(flnm)}"))
   cat(glue::glue("Processing {tblnm}: {Sys.time()} ..."))
   cat()
 
-  data <- open_dataset(
-    sources = flnm,
-    format = format,
-    schema = schema,
-    skip = 1
+  # data <- open_dataset(
+  #   sources = flnm,
+  #   format = format,
+  #   schema = schema,
+  #   skip = 1
+  # )
+
+  data <- readr::read_csv(
+    flnm,
+    locale = locale(encoding = "latin1"),
+    col_types = cols(.default = col_character())
   )
 
   DBI::dbWriteTableArrow(
     con,
-    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment"')),
+    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_2024"')),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )

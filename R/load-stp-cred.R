@@ -38,14 +38,18 @@ log_info <- function(msg) {
 log_info("==== load-stp-cred.R START ====")
 
 # ---- Configure LAN and file paths ----
-lan <- config::get("lan")
+lan <- config::get("lan_2027")
+my_schema <- config::get("myschema")
 raw_data <- glue::glue(
   "{lan}/Data/stp/BCSTATS_STP_ISA_PSSM_JUL13_2026/STP_CREDENTIAL_2024.dsv"
 )
 log_info(glue::glue("Loading STP credential data from: {raw_data}"))
 
+
 ## ----- Connection to decimal ----
-db_config <- config::get("decimal2026")
+# db_config <- config::get("decimal2026")
+# test in 2023 database
+db_config <- config::get("decimal")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
@@ -53,45 +57,58 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+
 log_info(glue::glue("Connected to SQL Server | Database: {db_config$database}"))
-schema <-
-  schema(
-    CREDENTIAL_AWARD_DATE = string(),
-    PSI_CODE = string(),
-    PSI_FULL_NAME = string(),
-    PSI_PEN = string(),
-    PSI_STUDENT_NUMBER = string(),
-    PSI_SCHOOL_YEAR = string(),
-    PSI_PROGRAM_CODE = string(),
-    PSI_PROGRAM_EFFECTIVE_DATE = string(),
-    PSI_CREDENTIAL_CATEGORY = string(),
-    PSI_CREDENTIAL_LEVEL = string(),
-    PSI_CREDENTIAL_CIP = string(),
-    PSI_CREDENTIAL_PROGRAM_DESCRIPTION = string(),
-    SNAPSHOT_DATE = string(),
-    ENCRYPTED_TRUE_PEN = string(),
-    STP_ALT_ID = string()
-  )
+# schema <-
+#   schema(
+#     CREDENTIAL_AWARD_DATE = string(),
+#     PSI_CODE = string(),
+#     PSI_FULL_NAME = string(),
+#     PSI_PEN = string(),
+#     PSI_STUDENT_NUMBER = string(),
+#     PSI_SCHOOL_YEAR = string(),
+#     PSI_PROGRAM_CODE = string(),
+#     PSI_PROGRAM_EFFECTIVE_DATE = string(),
+#     PSI_CREDENTIAL_CATEGORY = string(),
+#     PSI_CREDENTIAL_LEVEL = string(),
+#     PSI_CREDENTIAL_CIP = string(),
+#     PSI_CREDENTIAL_PROGRAM_DESCRIPTION = string(),
+#     SNAPSHOT_DATE = string(),
+#     ENCRYPTED_TRUE_PEN = string(),
+#     STP_ALT_ID = string()
+#   )
 
 # ---- Write to decimal ----
 tblnm <- tools::file_path_sans_ext(basename(raw_data))
 log_info(glue::glue("Writing table: {tblnm} | append = TRUE"))
 
-data <- open_dataset(
-  sources = raw_data,
-  format = "tsv",
-  schema = schema,
-  skip = 1
+
+# data <- open_dataset(
+#   sources = raw_data,
+#   format = "csv", #The DSV file is comma-delimited
+#   schema = schema,
+#   skip = 1,
+# )
+# Arrow's CSV reader expects UTF-8 text.
+# If your CSV is encoded in Latin-1 or Windows-1252, Arrow doesn't transcode it—it will often infer the column as binary instead of string, exactly as you're seeing.
+
+data <- readr::read_csv(
+  raw_data,
+  locale = locale(encoding = "latin1"),
+  col_types = cols(.default = col_character())
 )
+# data |> glimpse()
 
 dbWriteTableArrow(
   con,
-  name = SQL(glue::glue('"{my_schema}"."STP_Credential"')),
+  name = SQL(glue::glue('"{my_schema}"."{tblnm}"')),
   nanoarrow::as_nanoarrow_array_stream(data),
-  append = TRUE
+  append = TRUE,
 )
 
-log_info(glue::glue("STP_Credential written to SQL Server (table: STP_Credential)"))
+log_info(glue::glue(
+  "STP_Credential written to SQL Server (table: STP_Credential)"
+))
 cat(glue::glue("...completed {Sys.time()}"))
 cat("\n")
 
