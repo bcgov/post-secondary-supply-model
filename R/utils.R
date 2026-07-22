@@ -88,11 +88,11 @@ time_execution <- function(file_path) {
       print(error_message)
       print("###############################################")
       # Log the error message if execution fails
-      flog.error(
+      futile.logger::flog.error(
         paste("Error in file:", file_path, "-", e$message),
         name = "file_logger"
       )
-      flog.error(traceback(), name = "file_logger") # Log the traceback for details
+      futile.logger::flog.error(paste(capture.output(traceback()), collapse = "\n"), name = "file_logger")
 
       # Re-raise the original condition so callers see the real error message,
       # class, and call site. A bare stop() would throw an empty error and
