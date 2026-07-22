@@ -6,7 +6,6 @@
 # local = TRUE: Executes in a local environment, preventing side effects on the global environment (optional but useful for modularization).
 # traceback(): After an error, traceback() provides a stack trace that shows the line numbers and function calls leading up to the error, making it easier to identify the specific line in the sourced file that caused the issue.
 
-
 # By default, source() runs the code in a new environment, so variables defined in the global environment (like log_file) are not accessible within that sourced script unless explicitly passed or the globalenv is specified.
 # To make all global variables accessible within each source() call, set local = globalenv(). This allows the sourced file to inherit the global environment variables, including log_file and file_logger:
 
