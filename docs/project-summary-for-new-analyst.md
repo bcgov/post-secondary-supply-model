@@ -993,7 +993,7 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
 4. ✅ Be on the **secure LAN** (some sources like PTIB live on LAN file shares).
 5. ✅ Read the per-module `.qmd` files in `docs/` for full detail; render with
    `quarto preview docs/<file>.qmd`.
-6. ✅ Skim the **PSSM Analyst Manual** HTML in `docs/` for the run procedure.
+6. ✅ Skim the run entry point scripts (`R/run_all_three_model_runs.r` and `R/prep-for-*-run.R`) for the run procedure.
 7. ✅ Before any flagged run, set the run flags (§6) at the top of the scripts.
 8. ✅ **Keep the key formula (§2) open while you read any script** and ask
    "which term is this computing?" — it is the fastest way to stay oriented.
