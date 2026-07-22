@@ -1,5 +1,5 @@
 # NULL IDS ----
-## 
+##
 ## qry_NULL_STP_CIP_Cleaning ----
 ## collect STP NULL data
 ## this will grab any NULLs that are leftover in the final_4_cip_code column and try to match them on their STP codes
@@ -16,7 +16,7 @@ GROUP BY
        OUTCOMES_CRED
 "
 
-# add columns 
+# add columns
 qry_NULL_STP_CIP_add_columns <- "
 ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning
 ADD STP_CIP_CODE_4 varchar (255),
@@ -122,7 +122,7 @@ WHERE Credential_Non_Dup_STP_NULL_Cleaning.STP_CIP_CODE_4_NAME is NULL"
 
 ## qry_Update_Credential_with_STP_CIP_NULL ----
 ## Update STP columns in Credential_Non_Dup and filter on NULL credentials
-qry_Update_Credential_with_STP_CIP_NULL <-"
+qry_Update_Credential_with_STP_CIP_NULL <- "
 Select Credential_Non_Dup.ID,
        Credential_Non_Dup.PSI_CODE,
        Credential_Non_Dup.PSI_PROGRAM_CODE,
@@ -160,6 +160,3 @@ SET    FINAL_CIP_CODE_4 = Credential_Non_Dup_NULL_IDs.FINAL_CIP_CODE_4,
        FINAL_CIP_CLUSTER_NAME = Credential_Non_Dup_NULL_IDs.FINAL_CIP_CLUSTER_NAME
 FROM   Credential_Non_Dup_NULL_IDs INNER JOIN Credential_Non_Dup 
 ON     Credential_Non_Dup_NULL_IDs.id = Credential_Non_Dup.id"
-
-
-

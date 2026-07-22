@@ -49,22 +49,30 @@ stp_enrolment <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
 )
-log_info(glue::glue("Loaded stp_enrolment_r: {nrow(stp_enrolment)} rows, {ncol(stp_enrolment)} columns"))
+log_info(glue::glue(
+  "Loaded stp_enrolment_r: {nrow(stp_enrolment)} rows, {ncol(stp_enrolment)} columns"
+))
 stp_credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_credential_r"'))
 )
-log_info(glue::glue("Loaded stp_credential_r: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"))
+log_info(glue::glue(
+  "Loaded stp_credential_r: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"
+))
 stp_credential_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_credential_record_type_r"'))
 )
-log_info(glue::glue("Loaded stp_credential_record_type_r: {nrow(stp_credential_record_type)} rows"))
+log_info(glue::glue(
+  "Loaded stp_credential_record_type_r: {nrow(stp_credential_record_type)} rows"
+))
 stp_enrolment_valid <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_valid_r"'))
 )
-log_info(glue::glue("Loaded stp_enrolment_valid_r: {nrow(stp_enrolment_valid)} rows"))
+log_info(glue::glue(
+  "Loaded stp_enrolment_valid_r: {nrow(stp_enrolment_valid)} rows"
+))
 
 # Define lookup tables
 outcome_credential <- tibble(
@@ -183,7 +191,9 @@ credential <- stp_credential |>
     RecordStatus
   )
 
-log_info(glue::glue("Created credential view (RecordStatus == 0, non-blank award date): {nrow(credential)} rows"))
+log_info(glue::glue(
+  "Created credential view (RecordStatus == 0, non-blank award date): {nrow(credential)} rows"
+))
 
 ## ----------------------- Make Credential Sup Vars Enrolment Table ------------------------------
 # WHAT: Build `credential_supvars_enrolment`, a crosswalk table linking each valid credential
@@ -239,7 +249,9 @@ cred_supvars_enrol_epen <- latest_enrolment_epen |>
   ) |>
   distinct()
 
-log_info(glue::glue("cred_supvars_enrol_epen (PEN match): {nrow(cred_supvars_enrol_epen)} rows"))
+log_info(glue::glue(
+  "cred_supvars_enrol_epen (PEN match): {nrow(cred_supvars_enrol_epen)} rows"
+))
 
 
 # Match via PSI_CODE/Student Number to recover records missed by PEN join.
@@ -282,7 +294,9 @@ cred_supvars_enrol_no_pen <- latest_enrolment_no_epen |>
   ) |>
   distinct()
 
-log_info(glue::glue("cred_supvars_enrol_no_pen (Student Number/PSI match): {nrow(cred_supvars_enrol_no_pen)} rows"))
+log_info(glue::glue(
+  "cred_supvars_enrol_no_pen (Student Number/PSI match): {nrow(cred_supvars_enrol_no_pen)} rows"
+))
 
 credential_supvars_enrolment <- rbind(
   cred_supvars_enrol_epen,
@@ -290,7 +304,9 @@ credential_supvars_enrolment <- rbind(
 ) |>
   distinct()
 
-log_info(glue::glue("Combined credential_supvars_enrolment: {nrow(credential_supvars_enrolment)} rows"))
+log_info(glue::glue(
+  "Combined credential_supvars_enrolment: {nrow(credential_supvars_enrolment)} rows"
+))
 
 # ----------------------------- Make Credential Sup Vars Table -----------------------------------
 # WHAT: Create `credential_supvars`, a credential-level table that mirrors `credential`
@@ -399,7 +415,9 @@ stp_credential_record_type <-
     by = "ID"
   )
 
-log_info(glue::glue("02 Developmental Records: DropCredCategory flagged on {sum(!is.na(stp_credential_record_type$DropCredCategory))} records"))
+log_info(glue::glue(
+  "02 Developmental Records: DropCredCategory flagged on {sum(!is.na(stp_credential_record_type$DropCredCategory))} records"
+))
 
 
 ## ---------------------------------------- 03 Miscellaneous -------------------------------------
@@ -422,7 +440,9 @@ stp_credential_record_type <-
   mutate(DropPartialYear = "Yes") |>
   right_join(stp_credential_record_type, by = "ID")
 
-log_info(glue::glue("03 Miscellaneous: DropPartialYear flagged on {sum(!is.na(stp_credential_record_type$DropPartialYear))} records"))
+log_info(glue::glue(
+  "03 Miscellaneous: DropPartialYear flagged on {sum(!is.na(stp_credential_record_type$DropPartialYear))} records"
+))
 
 rm(
   latest_enrolment_no_epen,
@@ -557,7 +577,9 @@ credential <- stp_credential |>
     is.na(DropPartialYear)
   )
 
-log_info(glue::glue("04 Birthdate cleaning complete. credential rebuilt: {nrow(credential)} rows after filtering RecordStatus==0, DropCredCategory, DropPartialYear"))
+log_info(glue::glue(
+  "04 Birthdate cleaning complete. credential rebuilt: {nrow(credential)} rows after filtering RecordStatus==0, DropCredCategory, DropPartialYear"
+))
 ## -----------------------------------------------------------------------------------------------
 credential <- credential |>
   mutate(
@@ -612,7 +634,9 @@ credential <- credential |>
   ) |>
   select(-PSI_GENDER_FROM_ENROLMENT)
 
-log_info(glue::glue("05 Age and Credential: {nrow(credential)} rows. AGE_AT_GRAD range: {min(credential$AGE_AT_GRAD, na.rm=TRUE)}-{max(credential$AGE_AT_GRAD, na.rm=TRUE)}"))
+log_info(glue::glue(
+  "05 Age and Credential: {nrow(credential)} rows. AGE_AT_GRAD range: {min(credential$AGE_AT_GRAD, na.rm=TRUE)}-{max(credential$AGE_AT_GRAD, na.rm=TRUE)}"
+))
 ## -----------------------------------------------------------------------------------------------
 
 ## -----------------------------------05b Make Non-Dup Table--------------------------------------
@@ -668,7 +692,9 @@ credential_non_dup <- credential_non_dup |>
   mutate(psi_gender_cleaned = last(psi_gender_cleaned)) |>
   ungroup()
 
-log_info(glue::glue("Non-dup table created: {nrow(credential_non_dup)} rows (deduplicated from {nrow(credential)} credential rows)"))
+log_info(glue::glue(
+  "Non-dup table created: {nrow(credential_non_dup)} rows (deduplicated from {nrow(credential)} credential rows)"
+))
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
 # It calculates the existing gender distribution for each credential category and then
 # uses those ratios as weights to "flip a coin" for every empty record
@@ -703,7 +729,9 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-genders, -weights)
 
-log_info(glue::glue("Gender imputation complete. Remaining NA genders: {sum(is.na(credential_non_dup$psi_gender_cleaned))}"))
+log_info(glue::glue(
+  "Gender imputation complete. Remaining NA genders: {sum(is.na(credential_non_dup$psi_gender_cleaned))}"
+))
 
 rm(
   credential_supvars_birthdate_clean,
@@ -777,7 +805,9 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-RANK)
 
-log_info(glue::glue("08 Credential Ranking complete. HIGHEST_CRED_BY_DATE: {sum(credential_non_dup$HIGHEST_CRED_BY_DATE == 'Yes', na.rm=TRUE)}, HIGHEST_CRED_BY_RANK: {sum(credential_non_dup$HIGHEST_CRED_BY_RANK == 'Yes', na.rm=TRUE)}"))
+log_info(glue::glue(
+  "08 Credential Ranking complete. HIGHEST_CRED_BY_DATE: {sum(credential_non_dup$HIGHEST_CRED_BY_DATE == 'Yes', na.rm=TRUE)}, HIGHEST_CRED_BY_RANK: {sum(credential_non_dup$HIGHEST_CRED_BY_RANK == 'Yes', na.rm=TRUE)}"
+))
 ## -----------------------------------------------------------------------------------------------
 age_weights <- credential_non_dup |>
   filter(
@@ -859,7 +889,9 @@ credential_non_dup <- credential_non_dup |>
   mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-log_info(glue::glue("09 Age/Gender distributions: imputed {nrow(imputed_student_ages)} ages. Remaining NA AGE_AT_GRAD: {sum(is.na(credential_non_dup$AGE_AT_GRAD))}"))
+log_info(glue::glue(
+  "09 Age/Gender distributions: imputed {nrow(imputed_student_ages)} ages. Remaining NA AGE_AT_GRAD: {sum(is.na(credential_non_dup$AGE_AT_GRAD))}"
+))
 ## -----------------------------------------------------------------------------------------------
 cols_specific <- c(
   "ENCRYPTED_TRUE_PEN",
@@ -914,7 +946,9 @@ credential_non_dup <- credential_non_dup |>
     by = "ID"
   )
 
-log_info(glue::glue("VISA Status mapping complete. VISA mapped on {sum(!is.na(credential_non_dup$PSI_VISA_STATUS))} / {nrow(credential_non_dup)} records"))
+log_info(glue::glue(
+  "VISA Status mapping complete. VISA mapped on {sum(!is.na(credential_non_dup$PSI_VISA_STATUS))} / {nrow(credential_non_dup)} records"
+))
 
 
 ## -----------------------13 Delay Date and Highest rank------------------------------------------
@@ -954,7 +988,9 @@ credential_non_dup <- credential_non_dup |>
 tbl_credential_highest_rank <- credential_non_dup |>
   filter(HIGHEST_CRED_BY_RANK == "Yes")
 
-log_info(glue::glue("13 Delay Date: tbl_credential_highest_rank: {nrow(tbl_credential_highest_rank)} rows"))
+log_info(glue::glue(
+  "13 Delay Date: tbl_credential_highest_rank: {nrow(tbl_credential_highest_rank)} rows"
+))
 
 tbl_credential_delay_effect <- credential_non_dup |>
   select(
@@ -977,7 +1013,9 @@ tbl_credential_delay_effect <- credential_non_dup |>
   ) |>
   filter(LATER_AWARD_DATE > HIGHEST_AWARD_DATE)
 
-log_info(glue::glue("13 Delay Date: delay effect candidates before temporal threshold filter: {nrow(tbl_credential_delay_effect)}"))
+log_info(glue::glue(
+  "13 Delay Date: delay effect candidates before temporal threshold filter: {nrow(tbl_credential_delay_effect)}"
+))
 
 tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   mutate(
@@ -1045,7 +1083,9 @@ tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   ) |>
   filter(keep)
 
-log_info(glue::glue("13 Delay Date: delay effect records after temporal threshold filter: {nrow(tbl_credential_delay_effect)}"))
+log_info(glue::glue(
+  "13 Delay Date: delay effect records after temporal threshold filter: {nrow(tbl_credential_delay_effect)}"
+))
 
 tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   # Isolate the latest award date per student
@@ -1113,7 +1153,9 @@ credential_non_dup <- credential_non_dup |>
     by = "PSI_CREDENTIAL_CATEGORY"
   )
 
-log_info(glue::glue("14-15 Research University + Outcomes Credential complete. RESEARCH_UNIVERSITY flagged: {sum(credential_non_dup$RESEARCH_UNIVERSITY == 1, na.rm=TRUE)} records"))
+log_info(glue::glue(
+  "14-15 Research University + Outcomes Credential complete. RESEARCH_UNIVERSITY flagged: {sum(credential_non_dup$RESEARCH_UNIVERSITY == 1, na.rm=TRUE)} records"
+))
 
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
@@ -1143,10 +1185,14 @@ write_table_to_db <- function(table_name, schema, con) {
     base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
-  log_info(glue::glue("Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"))
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
-log_info(glue::glue("Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"))
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)

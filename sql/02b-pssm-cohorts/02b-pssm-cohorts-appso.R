@@ -1,5 +1,5 @@
-APPSO_Graduates_Projection_Input <- 
-"SELECT t_appso_data_final.pssm_credential,
+APPSO_Graduates_Projection_Input <-
+  "SELECT t_appso_data_final.pssm_credential,
        t_appso_data_final.pssm_credential AS PSSM_CRED,
        tbl_age_groups.age_group_label,
        t_year_survey_year.award_school_year,
@@ -19,8 +19,8 @@ GROUP  BY t_appso_data_final.pssm_credential,
 ORDER  BY tbl_age_groups.age_group_label,
           t_year_survey_year.award_school_year;"
 
-APPSO_Program_Projection_Input <- 
-"SELECT tbl_age_groups.age_group_label,
+APPSO_Program_Projection_Input <-
+  "SELECT tbl_age_groups.age_group_label,
        t_appso_data_final.pssm_credential,
        pssm_credential & age_group_label        AS Expr1,
        t_appso_data_final.lcip_lcp4_cd,
@@ -44,8 +44,8 @@ GROUP  BY tbl_age_groups.age_group_label,
 ORDER  BY tbl_age_groups.age_group_label,
           t_year_survey_year.award_school_year;"
 
-APPSO_Q003b_Add_CURRENT_REGION_PSSM <- 
-"ALTER TABLE T_APPSO_Data_Final
+APPSO_Q003b_Add_CURRENT_REGION_PSSM <-
+  "ALTER TABLE T_APPSO_Data_Final
 ADD CURRENT_REGION_PSSM_CODE INT NULL;"
 
 APPSO_Q003b_Add_CURRENT_REGION_PSSM2 <- "
@@ -103,13 +103,13 @@ WHERE t_weights.model = '2022-2023'
   AND t_weights.survey = 'APPSO';"
 
 
-APPSO_Q005_1b1_Delete_Cohort <- 
-"DELETE T_Cohorts_Recoded
+APPSO_Q005_1b1_Delete_Cohort <-
+  "DELETE T_Cohorts_Recoded
 FROM T_Cohorts_Recoded
 WHERE T_Cohorts_Recoded.Survey = 'APPSO';"
 
-APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded <- 
-"INSERT INTO t_cohorts_recoded
+APPSO_Q005_DACSO_DATA_Part_1b2_Cohort_Recoded <-
+  "INSERT INTO t_cohorts_recoded
             (pen,
              stqu_id,
              survey,
@@ -158,19 +158,17 @@ FROM   t_appso_data_final
 WHERE  t_year_survey_year.survey = 'appso';"
 
 
-
-
-APPSO_Q99A_ENDDT <- 
-"UPDATE (INFOWARE_APPRENTICE_COHORT_INFO INNER JOIN APPSO_Q99A_STQUI_ID ON INFOWARE_APPRENTICE_COHORT_INFO.KEY = APPSO_Q99A_STQUI_ID.KEY) 
+APPSO_Q99A_ENDDT <-
+  "UPDATE (INFOWARE_APPRENTICE_COHORT_INFO INNER JOIN APPSO_Q99A_STQUI_ID ON INFOWARE_APPRENTICE_COHORT_INFO.KEY = APPSO_Q99A_STQUI_ID.KEY) 
 INNER JOIN T_Cohorts_Recoded 
 ON APPSO_Q99A_STQUI_ID.STQU_ID = T_Cohorts_Recoded.STQU_ID 
 SET T_Cohorts_Recoded.ENDDT = Left(INFOWARE_APPRENTICE_COHORT_INFO.ENDDT,4) + '-' & Right(INFOWARE_APPRENTICE_COHORT_INFO.ENDDT,2)
 WHERE (((T_Cohorts_Recoded.Survey)='APPSO'));"
 
-APPSO_Q99A_ENDDT_IMPUTED <- 
-"UPDATE T_Cohorts_Recoded SET T_Cohorts_Recoded.ENDDT = (Survey_year-1) & '-12'
+APPSO_Q99A_ENDDT_IMPUTED <-
+  "UPDATE T_Cohorts_Recoded SET T_Cohorts_Recoded.ENDDT = (Survey_year-1) & '-12'
 WHERE (((T_Cohorts_Recoded.ENDDT) Is Null) AND ((T_Cohorts_Recoded.Survey)='APPSO'));"
 
-APPSO_Q99A_STQUI_ID <- 
-"SELECT INFOWARE_APPRENTICE_COHORT_INFO.KEY, 'APPSO - ' + KEY AS STQU_ID
+APPSO_Q99A_STQUI_ID <-
+  "SELECT INFOWARE_APPRENTICE_COHORT_INFO.KEY, 'APPSO - ' + KEY AS STQU_ID
 FROM INFOWARE_APPRENTICE_COHORT_INFO;"
