@@ -159,7 +159,7 @@ forward. 02b-3 does **not** re-apply year weight; it's already inside `WEIGHT_NL
 
 ### Stage B — NOC respondents (Z02b)
 
-```r
+```text
 RESPONDENTS = respondents with NLS∈{1,3} AND valid NOC
               (or in a group that is 100% unknown-NOC)
 # note: NLS=2 (studying AND working) is EXCLUDED from the NOC denominator
