@@ -22,6 +22,23 @@ format:
 
 In the script `02b-1-pssm-cohorts.R`, survey cohorts from TRD, APPSO, BGS, and DACSO are standardized and consolidated into a unified `t_cohorts_recoded` table for downstream modelling. Across cohorts, the script applies model-year weights, derives age and age-group fields, recodes institution and credential mappings where needed, and constructs harmonized labour-supply and cohort keys (including LCIP4/LCIP2 credential groupings). 
 
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)         ← Module 02b-2 (this script)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+This script computes **Term 3 — P(in labour supply | CIP)**: the probability that a graduate in a given field of study actually enters BC's workforce as *new labour supply*, rather than continuing in education or not working.
+
+The quantity it produces is the `New_Labour_Supply` column in `labour_supply_distribution` — a weighted proportion, stratified by 4-digit CIP × credential (`LCIP4_CRED`), age rollup, and region. The numerator is survey respondents classified as active new labour supply (NLS codes 1 = in workforce, 2 = studying and working, 3 = derived); the denominator is the full weighted cohort in the same stratum.
+
+Term 3 is built only from survey respondents (`t_cohorts_recoded`: BGS, DACSO, APPSO, TRD). GRAD graduates are not surveyed, so they never appear in this table. Rather, their labour-supply probability is estimated by proxy; Module 07 joins them to the survey-derived `New_Labour_Supply` of the matching credential/CIP group. This is the structural reason the model separates "how many graduated" (admin data, includes GRAD) from "of those, how many entered the workforce" (survey data, excludes GRAD).
+
+Year, institution, region, and response-rate weights correct for non-response and for variation across survey cycles, so the shares reflect the current graduate cohort rather than raw survey counts.
+
 ## Data Sources
 
 ### External Data Sources

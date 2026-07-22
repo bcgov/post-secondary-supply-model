@@ -20,7 +20,11 @@ format:
 
 ## Overview
 
+Graduates from BC's private career colleges aren't in the public DACSO/BGS/APPSO/TRD outcome surveys, so they're missing from the supply estimate. 05 processes the private-institution credential extract and shapes it to match the public pipeline's tables so PTIB grads can be folded into the program/occupation projections. 
+
 The analytical pipeline for generating graduate estimates for the Private Training Institution Branch (PTIB) data is incorporated in two scripts, or stages. Initial processing in `load-ptib.R` manages the ingestion of raw enrollment records from secure LAN storage, repairing structure of program classification codes to ensure taxonomic alignment. Subsequently, `05-ptib-analysis.R` applies a deterministic attribution model to estimate domestic graduate volumes by proportionally distributing records with indeterminate immigration status. The refined estimates are then projected across a ten-year horizon and aggregated by age, credential, and program area to meet standardized reporting mandates.  Two datasets are generated for downstream analysis.
+
+This is the script that only runs in the PTIB model run (ptib_run == TRUE).
 
 ## Data Sources and Storage
 

@@ -22,6 +22,24 @@ format:
 
 This script aligns BGS and graduate-outcomes program records with STP credential records so that final CIP assignments can be assigned and propagated back into the credential_non_dup table. It builds the BGS outcomes file used for matching, standardizes STP CIP codes through a staged lookup process, links records primarily by PEN, applies automatic decision rules for exact and near-exact matches, and then routes unresolved institution/year conflicts through a manual review workflow. The script writes updated BGS and GRAD-linked CIP tables for downstream consolidation in `02a-update-cred-non-dup.R`.
 
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)         ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+This script does not compute a term in the projection chain itself, but it decides the field-of-study (CIP) code that every downstream term relies on.
+
+Every CIP code in that chain originates from the matching work done here and in the sibling `02a-*` scripts. This script assigns `FINAL_CIP_CODE_4` / `_2` (and the cluster) to each BGS- and GRAD-sourced credential record by reconciling the Baccalaureate Graduate Survey (BGS) against STP administrative records via the Personal Education Number (PEN). Those finalised CIPs are then propagated into `credential_non_dup` by `02a-update-cred-non-dup.R` — the table that Modules 04 and 06 read.
+
+Where the two record populations flow downstream:
+
+- **BGS records** (survey respondents) feed **all four terms**: counted as graduates (Term 1), contribute their CIP to the program distribution (Term 2), and — because they were surveyed — also supply the labour-supply and occupation distributions (Terms 3-4) via `T_Cohorts_Recoded`.
+- **GRAD records** (graduates never surveyed) feed **only Terms 1 and 2**: they are counted and their finalised CIP enters the program distribution, but their labour-supply and occupation behaviour is *borrowed* from the BGS/DACSO survey distributions of the same credential category. Their occupation is never observed — it is imputed.
+
 ## Data Sources
 
 ### External Data Sources

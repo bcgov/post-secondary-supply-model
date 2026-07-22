@@ -22,6 +22,25 @@ format:
 
 This script `07-occupation-projections.R` converts program-level graduate projections into occupation-level NLS (New Labour Supply) and occupation counts using labour-supply and occupation-distribution inputs. It produces final NLS distributions by age group, credential, region, and year for downstream labour-market modelling and quality-indicator reruns.
 
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition, and this script implements the multiplication as three sequential joins (Q_1 → Q_2 → Q_3):
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)         ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+    Q_1   GRADS  = GRADUATES × P(CIP | cred, age)            → graduates allocated to each field of study
+    Q_2   NLS    = GRADS × P(in labour supply | CIP)         → of those, the share entering the workforce
+    Q_3   OCCSN  = NLS × P(NOC | CIP, region)                → workforce supply mapped to occupations
+
+The result is `OCCSN` — the projected count of new workers per occupation (NOC), by age, region, and year — written to `q_5_noc_totals_by_year_and_bc_and_total` (aliased `tmp_tbl_model` for the standard run and `tmp_tbl_qi` for the quality-indicator run).
+
+When a 4-digit-CIP stratum has no survey-derived labour-supply or occupation row, Q_2 and Q_3 fall back in order to the no-trades-training variant, a PTIB (private-institution) proxy, and finally the 2-digit-CIP rollup. This keeps every graduate cohort mapped to *some* occupation rather than dropping it.
+
+A quality-indicator (QI) rerun repeats the Q_1→Q_3 sequence with the most recent survey year zeroed out, to measure how predictable each NOC projection is.
+
 ## Data Sources
 
 ### External Data Sources

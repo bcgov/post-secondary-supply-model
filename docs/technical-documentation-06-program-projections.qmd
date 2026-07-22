@@ -28,6 +28,34 @@ The methodological framework utilizes weighted historical cohorts to prioritize 
 
 To ensure mathematical consistency across both static and dynamic program registries, raw volumes are converted into standardized proportions ($P = \frac{count}{total}$). Demographic consistency is maintained through the application of standardized age groups ranging from 17–19 to 55–64. Temporal parameters are updated per cycle to reflect the current transition from the Year 1 baseline (2023/2024) through the extended projection horizon (2024/2025–2035/2036).
 
+## Role in the Project Pipeline
+
+The PSSM projects graduates into occupations via a four-term conditional-probability chain:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04 (graduate counts)
+               × P(CIP | cred, age)                ← Module 06 (this script)
+               × P(in labour supply | CIP)         ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+Module 06 computes **Term 2 — P(CIP | cred, age)**: graduate counts from Module 04 (aggregated by credential × age) don not contain a CIP dimension ; this script distributes that count across CIP codes and writes the `PERCENT` column in `cohort_program_distributions`. This allows Term 3 and 4 to condition on CIP; Module 07 finally multiplies all four terms together.
+
+Every `PERCENT` in `06` follows the same structure: the numerator is grouped by CIP, cred and age, the denominator groups on `cred × age`**;  `Q013e` (graduate credentials), `Q014e` (apprenticeships), and the Werner-program outputs `qry10c` / `qry12c`. They differ only in which credential set and which CIP field (4-digit vs 2-digit) they group on. 
+
+The Werner variants additionally include `YEAR` in the denominator, making the distribution time-varying for the projected series.
+
+### How the four terms connect
+
+| Quantity | Script | Defining grouping | Output column |
+| --- | --- | --- | --- |
+| `GRADUATES(cred, age)` | 04 | count by cred × age | `Graduate_Projections.GRADUATES` |
+| `P(CIP ∣ cred, age)` | **06 — this script** | numerator +CIP; denom `.by = c(PSSM_CRED, AGE_GROUP)` | `cohort_program_distributions.PERCENT` |
+| …made year-varying | 06 (Werner: qry10c / qry12c) | denom `.by = c(PSSM_CRED, AGE_GROUP, YEAR)` | `cohort_program_distributions_projected` |
+| `P(in labour supply ∣ CIP)` | 02b-2 | numerator = NLS status; denom = LCIP4_CRED × age × region | `labour_supply_distribution.New_Labour_Supply` |
+| `P(NOC ∣ CIP, region)` | 02b-3 | numerator +NOC_CD; denom incl. LCIP4_CRED | `occupation_distributions.Percent` |
+| Combined → `OCCSN` | 07 | inner join on LCIP4_CRED (+ age, region) | `OCCSN` |
+
+
+
 ## Data Sources
 
 None

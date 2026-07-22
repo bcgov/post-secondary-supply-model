@@ -23,6 +23,26 @@ format:
 
 In the script 02b-3-occupation-distributions.R, the recoded student-outcomes cohort (`t_cohorts_recoded`) is transformed into weighted occupation distributions that can be joined to program-level labour supply. Respondent bases are calculated, and groups where unknown NOC values must be retained are isolated. Occupation shares are then derived for observed NOC outcomes, and Statistics Canada proxy distributions are appended for groups that remain unobserved in the survey data. The final outputs include distribution tables at both LCIP4 and LCP2 levels, along with BC-only and no-trades variants, so the occupation model can apply the appropriate fallback path at runtime.
 
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)         ← Module 02b-2 (this script)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+This script computes **Term 4 — P(NOC | CIP, region)**: given a graduate's field of study and region, the probability distribution over the occupations (NOC codes) they end up in.
+
+The quantity it produces is the `Percent` column in `occupation_distributions` — for each credential × 4-digit CIP × region × age × training-type group, the share of weighted respondents working in each NOC, summing to 1 across NOCs within the group.
+
+Like Term 3, it is built only from survey respondents in `t_cohorts_recoded` (BGS, DACSO, APPSO, TRD), reusing the same NLS weighting base and then applying an occupation-specific weight. Respondents with an unknown NOC are retained only when *every* respondent in their group has an unknown NOC, so small groups don't silently drop their volume. Statistics Canada census distributions are appended for credential types the graduate surveys don't cover.
+
+This is the term that converts workforce volume into occupations. Module 07 applies it in its Q_3 step (`OCCSN = NLS × Percent`), again drawing on the LCIP2 / BC-only / no-trades fallback variants this script provides.
+
+## Data Sources
+
+
 ## Data Sources
 
 ### External Data Sources
