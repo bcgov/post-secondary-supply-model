@@ -34,14 +34,11 @@ library(config)
 library(DBI)
 
 # ---- Run flags ----
-# Defaults below are for a standalone "regular + PTIB" load (load everything).
-# When this script is sourced via the orchestrator (prep-for-*-run.R with
-# local = globalenv()), the run flags are inherited from the caller, so these
-# assignments are effectively overrides - keep that in mind if results look like
-# the wrong run was loaded. (TRUE/FALSE per project convention, not T/F.)
-# regular_run <- TRUE
-# ptib_run <- FALSE
-# qi_run <- FALSE
+# If sourced via an orchestrator (local = globalenv()), these are expected to
+# already exist. If run standalone, provide safe defaults.
+if (!exists("regular_run", inherits = TRUE)) regular_run <- TRUE
+if (!exists("ptib_run", inherits = TRUE)) ptib_run <- FALSE
+if (!exists("qi_run", inherits = TRUE)) qi_run <- FALSE
 
 # ---- Configure LAN and file paths ----
 # All environment-specific values come from config.yml (never hardcoded).
