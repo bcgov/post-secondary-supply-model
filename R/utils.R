@@ -24,18 +24,8 @@ library(RODBC)
 library(DBI)
 library(futile.logger)
 
-# ---- Connect to SQL Server and read StatCan Tables ----
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-db_config <- config::get("decimal")
-con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
+# Keep utils side-effect free: do not read config or open DB connections on source.
+# Create connections in the calling script and pass them into helper functions.
 
 time_execution <- function(file_path) {
   # Log a start message with a timestamp
