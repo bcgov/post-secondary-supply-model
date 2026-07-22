@@ -17,7 +17,6 @@ library(futile.logger)
 # Keep utils side-effect free: do not read config or open DB connections on source.
 # Create connections in the calling script and pass them into helper functions.
 
-
 time_execution <- function(file_path) {
   # Log a start message with a timestamp
   futile.logger::flog.info(paste("Starting:", file_path), name = "file_logger")
