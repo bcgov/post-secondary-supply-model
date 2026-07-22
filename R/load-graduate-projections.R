@@ -46,13 +46,13 @@ population_projections <- readr::read_csv(
 
 min_enrolments <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment"'))
+  SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment_r"'))
 )
 
 credentials <- dbReadTable(
   con,
   SQL(glue::glue(
-    '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs"'
+    '"{my_schema}"."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs_r"'
   ))
 )
 

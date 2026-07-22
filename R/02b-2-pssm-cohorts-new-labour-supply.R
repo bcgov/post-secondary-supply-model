@@ -23,9 +23,17 @@
 # Includes records with a labour force status for those aged 17 to 64,
 # Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
 
+#  participation term P(in labour supply | CIP) is the New_Labour_Supply column from 02b-2's labour_supply_distribution
+
+# OCCSN(NOC) = GRADUATES(cred, age)
+#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
+#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
+#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
+
 # Notes:  create Weight_Age is used to calculate the age for the private institution credentials
 # and needed if the data set doesn’t have age. Some invalid NOC codes (see documentation)
 #         PDEG included at the end of occupation_distribution scripts.
+
 #
 # FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
 # FIXME Missing Non-Student Outcomes and PDEG at this point.  To be brought in after
@@ -62,7 +70,7 @@ con <- dbConnect(
 
 labour_supply_distribution_stat_can <- tibble(dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"'))
+  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
 )) |>
   # not sure which one this should be but this matches what is in the SQL table
   mutate(
@@ -1080,7 +1088,7 @@ labour_supply_distribution <- labour_supply_distribution %>%
         AGE_GROUP_ROLLUP,
         LCP4_CD,
         LCIP4_CRED,
-        LCIP2_CRED,
+        # LCIP2_CRED,
         COUNT,
         TOTAL,
         New_Labour_Supply = NEW_LABOUR_SUPPLY

@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
+# get the utils functions
+source("R/utils.R")
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 
@@ -36,7 +38,12 @@ if (length(missing) > 0) {
   ))
 }
 
-na_vals = c("", " ", "(Unspecified)", NA)
+walk(missing, read_table_from_db, schema = my_schema, con = con)
+
+# optional: standardise a table's column names to lower case
+walk(missing, lower_col_names_global)
+
+na_vals <- c("", " ", "(Unspecified)", NA)
 
 # ---- Derive Age at Grad ----
 # replicates lines 69:87 (main branch)
@@ -138,7 +145,8 @@ if ("psi_pen" %in% names(credential_non_dup)) {
 credential_non_dup <- credential_non_dup |>
   left_join(
     stp_credential |>
-      select(id = ID, psi_pen = PSI_PEN), #ID is unique, s.b. distinct
+      rename_with(str_to_lower) |>
+      select(id = id, psi_pen = psi_pen), #ID is unique, s.b. distinct
     by = "id"
   )
 
@@ -149,6 +157,7 @@ credential_non_dup <- credential_non_dup |>
 ## Notes:
 dacso_matching_stp_credential_pen <- t_dacso_data_part_1 |>
   filter(!coci_pen %in% na_vals) |>
+  mutate(coci_pen = as.character(coci_pen)) |>
   inner_join(
     credential_non_dup,
     by = c("coci_pen" = "psi_pen"),
@@ -844,7 +853,7 @@ completers_agg_by_gender <- base |>
     name = "completers"
   )
 
-ratio.df = near_completes_total_by_gender |>
+ratio.df <- near_completes_total_by_gender |>
   left_join(near_completes_total_with_stp_by_gender) |>
   left_join(completers_agg_by_gender) |>
   rename("gender" = "tpid_lgnd_cd")
@@ -949,7 +958,7 @@ completers_agg_by_gender_age_year <- base |>
     name = "completers"
   )
 
-ratio.df = near_completes_total_by_gender_year |>
+ratio.df <- near_completes_total_by_gender_year |>
   left_join(near_completes_total_with_stp_by_gender_year) |>
   left_join(completers_agg_by_gender_age_year) |>
   rename("gender" = "tpid_lgnd_cd")
@@ -1251,5 +1260,3 @@ write_table_to_db <- function(table_name, schema, con) {
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
-
-rm(list = ls())
