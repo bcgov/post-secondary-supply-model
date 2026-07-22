@@ -23,18 +23,12 @@ library(tidyverse)
 library(RODBC)
 library(DBI)
 
-# ---- Connect to SQL Server and read StatCan Tables ----
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-db_config <- config::get("decimal")
-con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
+# NOTE: Keep utils.R side-effect free.
+# Do not open DB connections or read config at source-time;
+# callers should establish connections explicitly and pass them into helpers.
 
+# ---- Connect to SQL Server and read StatCan Tables ----
+# (moved to calling scripts)
 
 time_execution <- function(file_path) {
   # Log a start message with a timestamp
