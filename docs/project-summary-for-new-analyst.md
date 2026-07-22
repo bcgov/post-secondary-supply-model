@@ -1005,7 +1005,6 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
 - **Project entry point:** `README.md`
 - **Per-module methodology & data dictionaries:** every `*.qmd` in `docs/`
 - **Weighting deep-dive (standalone copy of §9):** `docs/weights-explained-02b-2-and-02b-3.md`
-- **Run procedure:** `docs/PSSM Analyst Manual - Running the Mode.html`
 - **Issues/contributing:** GitHub issues + `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
 
 *License: Apache 2.0 — © Province of British Columbia.*
