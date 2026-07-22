@@ -31,7 +31,7 @@ log_info("==== 01c-credential-analysis.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2026")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
