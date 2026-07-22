@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-library(tidyverse)
-library(odbc)
-library(DBI)
-library(futile.logger)
+pacman::p_load(
+  tidyverse,
+  odbc,
+  DBI,
+  futile.logger
+)
+
 
 ## -------------------------- Logging Setup -------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -31,7 +34,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2026")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -53,7 +56,7 @@ stp_enrolment <- dbGetQuery(
   con,
   glue::glue(
     "SELECT
-    ID,
+    /*ID,*/
     ENCRYPTED_TRUE_PEN,
     ATTENDING_PSI_OUTSIDE_BC,
     PSI_CIP_CODE,
@@ -74,7 +77,7 @@ stp_enrolment <- dbGetQuery(
     PSI_VISA_STATUS,
     PSI_BIRTHDATE,
     LAST_SEEN_BIRTHDATE
-  FROM [{my_schema}].[STP_Enrolment];"
+  FROM [STP_Enrolment_2024];"
   )
 )
 log_info(glue::glue(
@@ -102,7 +105,7 @@ distinct_pen_count <- stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
 log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
-# stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
+stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")

@@ -1,5 +1,5 @@
 # APPSO IDS ----
-## 
+##
 ## qry_APPSO_STP_CIP_Cleaning ----
 ## collect STP APPSO data
 ## New (from documentation): create table Credential_Non_Dup_STP_APPSO_Cleaning for cleaning STP CIP codes
@@ -14,7 +14,7 @@ GROUP BY
        OUTCOMES_CRED
 HAVING OUTCOMES_CRED = 'APPSO'"
 
-# add columns 
+# add columns
 qry_APPSO_STP_CIP_add_columns <- "
 ALTER TABLE Credential_Non_Dup_STP_APPSO_Cleaning
 ADD STP_CIP_CODE_4 varchar (255),
@@ -116,7 +116,7 @@ WHERE Credential_Non_Dup_STP_APPSO_Cleaning.STP_CIP_CODE_4_NAME is NULL"
 
 ## qry_Update_Credential_with_STP_CIP_APPSO ----
 ## Update STP columns in Credential_Non_Dup and filter on APPSO credentials
-qry_Update_Credential_with_STP_CIP_APPSO <-"
+qry_Update_Credential_with_STP_CIP_APPSO <- "
 Select Credential_Non_Dup.ID,
        Credential_Non_Dup.PSI_CODE,
        Credential_Non_Dup.PSI_PROGRAM_CODE,

@@ -1,3 +1,11 @@
 {
-  "mayank1513.trello-kanban.Workspace.filePath": ".tkb"
+  "mayank1513.trello-kanban.Workspace.filePath": ".tkb",
+  "[r]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "Posit.air-vscode"
+  },
+  "[quarto]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "quarto.quarto"
+  }
 }

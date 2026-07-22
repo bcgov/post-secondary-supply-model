@@ -16,8 +16,8 @@ qry00d_SetPKeyinSTPCredential <- "
   ADD CONSTRAINT STP_Credential_PK_ID PRIMARY KEY (ID)"
 
 
-# ---- qry01_ExtractAllID_into_STP_Credential_Record_Type ---- 
-qry01_ExtractAllID_into_STP_Credential_Record_Type <-"
+# ---- qry01_ExtractAllID_into_STP_Credential_Record_Type ----
+qry01_ExtractAllID_into_STP_Credential_Record_Type <- "
   CREATE TABLE [STP_Credential_Record_Type] (
   [ID] int NOT NULL,
   [ENCRYPTED_TRUE_PEN] varchar(50),
@@ -30,7 +30,7 @@ qry01_ExtractAllID_into_STP_Credential_Record_Type <-"
   FROM STP_Credential;"
 
 
-# ---- qry02a_Record_With_PEN_Or_STUID ---- 
+# ---- qry02a_Record_With_PEN_Or_STUID ----
 qry02a_Record_With_PEN_Or_STUID <- "SELECT      id, PSI_STUDENT_NUMBER, PSI_CODE, ENCRYPTED_TRUE_PEN
 INTO       tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID
 FROM       STP_Credential
@@ -39,7 +39,7 @@ AND        PSI_CODE NOT IN ('', ' ', '(Unspecified)'))
 OR (ENCRYPTED_TRUE_PEN NOT IN ('', ' ', '(Unspecified)'));"
 
 
-# ---- qry02b_Drop_No_PEN_Or_No_STUID ---- 
+# ---- qry02b_Drop_No_PEN_Or_No_STUID ----
 qry02b_Drop_No_PEN_Or_No_STUID <- "
 SELECT STP_Credential.ID, STP_Credential.ENCRYPTED_TRUE_PEN, STP_Credential.PSI_CODE, STP_Credential.PSI_STUDENT_NUMBER
 INTO Drop_Cred_No_PEN_or_No_STUID
@@ -49,7 +49,7 @@ ON tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID.ID = STP_Credential.ID
 WHERE (((tmp_tbl_qry02a_Cred_Record_With_PEN_or_STUID.ID) Is Null));"
 
 
-# ---- qry02c_Update_Drop_No_PEN_or_No_STUID.SQL ---- 
+# ---- qry02c_Update_Drop_No_PEN_or_No_STUID.SQL ----
 qry02c_Update_Drop_No_PEN_or_No_STUID <- "
 UPDATE    STP_Credential_Record_Type
 SET       RecordStatus = 1
@@ -58,7 +58,7 @@ INNER JOIN Drop_Cred_No_PEN_or_No_STUID
 ON STP_Credential_Record_Type.ID = Drop_Cred_No_PEN_or_No_STUID.ID;"
 
 
-# ---- qry03a_Drop_Record_Developmental ---- 
+# ---- qry03a_Drop_Record_Developmental ----
 qry03a_Drop_Record_Developmental <- "
 SELECT    ID, ENCRYPTED_TRUE_PEN,  PSI_CODE, PSI_STUDENT_NUMBER, PSI_CREDENTIAL_CATEGORY, LEFT(STP_CREDENTIAL.PSI_CREDENTIAL_CIP, 2) AS CIP2, PSI_CREDENTIAL_LEVEL
 INTO      Drop_Cred_Developmental
@@ -66,7 +66,7 @@ FROM      STP_Credential
 WHERE     PSI_CREDENTIAL_LEVEL = 'DEVELOPMENTAL';"
 
 
-# ---- qry03b_Update_Drop_Record_Developmental ---- 
+# ---- qry03b_Update_Drop_Record_Developmental ----
 qry03b_Update_Drop_Record_Developmental <- "
 UPDATE    STP_Credential_Record_Type
 SET       RecordStatus = 2
@@ -75,7 +75,7 @@ INNER JOIN Drop_Cred_Developmental
   ON STP_Credential_Record_Type.ID = Drop_Cred_Developmental.ID
 WHERE STP_Credential_Record_Type.RecordStatus is null;"
 
-# ---- qry03c_create_table_EnrolmentSkillsBasedCourse ---- 
+# ---- qry03c_create_table_EnrolmentSkillsBasedCourse ----
 qry03c_create_table_EnrolmentSkillsBasedCourse <- "
 SELECT    STP_Enrolment.PSI_CODE, STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
           LEFT(STP_Enrolment.PSI_CIP_CODE, 2) AS CIP2, STP_Enrolment.PSI_CREDENTIAL_CATEGORY, 
@@ -89,7 +89,7 @@ GROUP BY STP_Enrolment.PSI_CODE, STP_Enrolment.PSI_PROGRAM_CODE, STP_Enrolment.P
                       STP_Enrolment.PSI_CREDENTIAL_CATEGORY, STP_Enrolment.PSI_STUDY_LEVEL, STP_Enrolment.PSI_CONTINUING_EDUCATION_COURSE_ONLY;"
 
 
-# ---- qry03d_create_table_Suspect_Skills_Based ---- 
+# ---- qry03d_create_table_Suspect_Skills_Based ----
 qry03d_create_table_Suspect_Skills_Based <- "
 SELECT    STP_Credential.ID, STP_Credential.ENCRYPTED_TRUE_PEN, STP_Credential.PSI_STUDENT_NUMBER, STP_Credential.PSI_SCHOOL_YEAR,
           STP_Credential.PSI_CODE, STP_Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, LEFT(STP_Credential.PSI_CREDENTIAL_CIP,2) AS CIP2, STP_Credential.PSI_CREDENTIAL_CATEGORY, 
@@ -100,7 +100,7 @@ INNER JOIN STP_Credential
   ON STP_Credential_Record_Type.ID = STP_Credential.ID
 WHERE    (STP_Credential_Record_Type.RecordStatus IS NULL);"
 
-# ---- qry03e_Find_Suspect_Skills_Based ---- 
+# ---- qry03e_Find_Suspect_Skills_Based ----
 qry03e_Find_Suspect_Skills_Based <- "
 SELECT    tmp_tbl_Cred_Suspect_Skills_Based.ID, tmp_tbl_Cred_Suspect_Skills_Based.ENCRYPTED_TRUE_PEN, tmp_tbl_Cred_Suspect_Skills_Based.PSI_CODE,  tmp_tbl_Cred_Suspect_Skills_Based.PSI_STUDENT_NUMBER,
           tmp_tbl_Cred_Suspect_Skills_Based.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, tmp_tbl_Cred_Suspect_Skills_Based.CIP2, 
@@ -115,7 +115,7 @@ INNER JOIN tmp_tbl_EnrolmentSkillsBasedCourses
   AND tmp_tbl_Cred_Suspect_Skills_Based.PSI_CREDENTIAL_LEVEL = tmp_tbl_EnrolmentSkillsBasedCourses.PSI_STUDY_LEVEL;"
 
 
-# ---- qry03f_Update_Suspect_Skills_Based ---- 
+# ---- qry03f_Update_Suspect_Skills_Based ----
 qry03f_Update_Suspect_Skills_Based <- "
 UPDATE    STP_Credential_Record_Type
 SET       RecordStatus = 6
@@ -124,7 +124,7 @@ INNER JOIN STP_Credential_Record_Type
   ON Cred_Suspect_Skills_Based.ID = STP_Credential_Record_Type.ID
 WHERE STP_Credential_Record_Type.RecordStatus IS NULL;"
 
-# ---- qry03g_Drop_Developmental_Credential_CIPS ---- 
+# ---- qry03g_Drop_Developmental_Credential_CIPS ----
 qry03g_Drop_Developmental_Credential_CIPS <- "
 SELECT    STP_Credential.ID, STP_Credential.ENCRYPTED_TRUE_PEN, STP_Credential.PSI_CODE, STP_Credential.PSI_STUDENT_NUMBER, STP_Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
           LEFT(STP_Credential.PSI_CREDENTIAL_CIP, 2) AS CIP2, STP_Credential.PSI_CREDENTIAL_CATEGORY, STP_Credential_Record_Type.RecordStatus
@@ -135,7 +135,7 @@ INNER JOIN STP_Credential_Record_Type
 WHERE     (LEFT(STP_Credential.PSI_CREDENTIAL_CIP, 2) IN ('21', '32', '33', '34', '35', '36', '37', '53', '89')) 
   AND (STP_Credential_Record_Type.RecordStatus IS NULL);"
 
-# ---- qry03g2_Drop_Developmental_Credential_CIPS ---- 
+# ---- qry03g2_Drop_Developmental_Credential_CIPS ----
 qry03g2_Drop_Developmental_Credential_CIPS <- "
 UPDATE Drop_Developmental_PSI_CREDENTIAL_CIPS
    SET Keep = 'Yes'
@@ -144,7 +144,7 @@ UPDATE Drop_Developmental_PSI_CREDENTIAL_CIPS
     OR (PSI_CODE = 'NIC' AND PSI_CREDENTIAL_PROGRAM_DESCRIPTION = 'Coastal Forest Resource')
     OR (PSI_CODE = 'NIC' AND PSI_CREDENTIAL_PROGRAM_DESCRIPTION = 'Underground Mining Essentials');"
 
-# ---- qry03h_Update_Developmental_CIPs ---- 
+# ---- qry03h_Update_Developmental_CIPs ----
 qry03h_Update_Developmental_CIPs <- "
 UPDATE    STP_Credential_Record_Type
 SET       RecordStatus = 7
@@ -154,7 +154,7 @@ INNER JOIN Drop_Developmental_PSI_CREDENTIAL_CIPS
 WHERE STP_Credential_Record_Type.RecordStatus IS NULL and Drop_Developmental_PSI_CREDENTIAL_CIPS.Keep IS Null;"
 
 
-# ---- qry03i_Drop_RecommendationForCert ---- 
+# ---- qry03i_Drop_RecommendationForCert ----
 qry03i_Drop_RecommendationForCert <- "
 SELECT      STP_Credential.ID, STP_Credential.ENCRYPTED_TRUE_PEN, STP_Credential.PSI_CODE, STP_Credential.PSI_CREDENTIAL_PROGRAM_DESCRIPTION, 
                          LEFT(STP_Credential.PSI_CREDENTIAL_CIP, 2) AS CIP2, STP_Credential.PSI_CREDENTIAL_CATEGORY, STP_Credential_Record_Type.RecordStatus
@@ -165,8 +165,8 @@ INNER JOIN STP_Credential_Record_Type
 WHERE        (PSI_CREDENTIAL_CATEGORY = 'RECOMMENDATION FOR CERTIFICATION') AND (STP_Credential_Record_Type.RecordStatus IS NULL);"
 
 
-# ---- qry03j_Update_RecommendationForCert  ---- 
-qry03j_Update_RecommendationForCert  <- "
+# ---- qry03j_Update_RecommendationForCert  ----
+qry03j_Update_RecommendationForCert <- "
 UPDATE    STP_Credential_Record_Type
 SET       RecordStatus = 8
 FROM      STP_Credential_Record_Type 
@@ -175,7 +175,7 @@ INNER JOIN Drop_Cred_RecommendForCert
 WHERE STP_Credential_Record_Type.RecordStatus IS NULL;"
 
 
-# ---- qry04_Update_RecordStatus_Not_Dropped ---- 
+# ---- qry04_Update_RecordStatus_Not_Dropped ----
 qry04_Update_RecordStatus_Not_Dropped <- "
 UPDATE STP_Credential_Record_Type 
 SET STP_Credential_Record_Type.RecordStatus = 0
@@ -186,5 +186,3 @@ RecordTypeSummary <-
   "SELECT RecordStatus, COUNT(*) AS Expr1
 FROM  STP_Credential_Record_Type
 GROUP BY RecordStatus"
-
-
