@@ -1,0 +1,122 @@
+---
+title: "Graduate Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+Graduates from BC's private career colleges aren't in the public DACSO/BGS/APPSO/TRD outcome surveys, so they're missing from the supply estimate. 05 processes the private-institution credential extract and shapes it to match the public pipeline's tables so PTIB grads can be folded into the program/occupation projections. 
+
+The analytical pipeline for generating graduate estimates for the Private Training Institution Branch (PTIB) data is incorporated in two scripts, or stages. Initial processing in `load-ptib.R` manages the ingestion of raw enrollment records from secure LAN storage, repairing structure of program classification codes to ensure taxonomic alignment. Subsequently, `05-ptib-analysis.R` applies a deterministic attribution model to estimate domestic graduate volumes by proportionally distributing records with indeterminate immigration status. The refined estimates are then projected across a ten-year horizon and aggregated by age, credential, and program area to meet standardized reporting mandates.  Two datasets are generated for downstream analysis.
+
+This is the script that only runs in the PTIB model run (ptib_run == TRUE).
+
+## Data Sources and Storage
+
+### External Data Sources
+
+##### PTIB 2021 and 2022 Enrolment Data
+
+Description: 
+
+<ul class="list-variable-names">
+  <li>year (numeric): Calendar year.</li>
+  <li>institution (string): The name of the private training institution.</li>
+  <li>program (string): The descriptive title of the specific program of study.</li>
+  <li>cip (string): The Classification of Instructional Programs (CIP) code for the program of study.</li>
+  <li>age_group (string): The standardized age range category for the student population.</li>
+  <li>credential (string): The type of qualification awarded (e.g., "Certification" or "Diploma").</li>
+  <li>immigration_status (string): The reported residency status of the student (e.g., "Domestic", "International").</li>
+  <li>graduates (numeric): The count of students who successfully completed the program requirements.</li>
+  <li>enrolments_not_graduated (numeric): The count of students currently enrolled or who left the program without graduating.</li>
+  <li>total_enrolments (numeric): The aggregate count of all students registered in the program stratum.</li>
+</ul>
+
+### Internal/Processed Data Sources
+
+None
+
+## Methodology Overview
+
+##### Data Integration and Standardization
+
+Raw PTIB survey data are read from Excel into R from secure LAN storage; the data includes the following identifiers: year, age group, and 6-digit LCIP codes.  Metrics for enrollment, non-graduated registrants, and graduates are also included.
+
+Some initial data cleaning is performed:
+
+- Credentials are filtered to include Credential and Diploma only; blanks and other erroneous credetential records are removed.
+- LCIP formats are aligned with provincial standards;  uniform six-digit identifiers are reconstructed via string-padding and decimal suppression to remove leading or trailing zeroes. These identifiers uare validated against a main CIP registry lookup. 
+- Eligibility is refined by systematically excluding "English as a Second Language," "not-for-credit," and unclassified (99.9999) programs to ensure taxonomic alignment with reporting mandates.
+- Age-range delimiters are standardized. 
+
+##### Longitudinal Averaging
+
+A two-year mean is calculated from the 2021 and 2022 reporting cycles. Enrollment count, non-graduated registrants, and count of graduates are aggregated by age group and program (6-digit CIP), and averaged over the two-year period. This dataset serves as the base dataset for subsequent proportional attribution.
+
+##### Graduate Count Estimation
+
+Total graduate counts are initially stratified by credential, CIP, and age group. To address the variance introduced by "unknown" or "blank" ($K_u$) status entries, a domestic participation rate ($R$) is calculated based on the ratio of total known domestic ($K_d$) and total including international ($K_{d+i}$) population within each stratum: $R = \frac{K_d}K_{d+i}$.
+
+This participation rate is applied the unknown cohort unsing proportional attributio, and an a estimated count of graduates is derived for stratum: $G = \sum(K_d + (K_u * R))$. 
+
+In instances where no known population exists within a specific stratum, the domestic participation rate is set to zero to maintain conservative estimation boundaries.
+
+##### Projection and Reporting
+
+Analytical summaries are projected forward 10 years to achieve standardized reporting formats for longitudinal forecasting:
+
+* Cross-sectional data are mapped to a longitudinal reference table to project distributions across a ten-year horizon.
+* Administrative metadata, including survey identifiers and standardized credential prefixes, are appended.
+* Demographic outliers including "Unknown," "(blank)," "16 or less," and "65+" age classifications are removed. 
+
+Count estimates summaries are generated for downstream analysis, for the following two stratum: 
+
+* Age and Credential
+* Age, 4-digit CIP and Credential
+
+## Key Output Tables
+
+The final outputs of this module are persisted to the SQL environment as standardized tables. 
+
+**qry_Private_Credentials_06d1_Cohort_Dist**:
+
+<ul class="list-variable-names">
+  <li>SURVEY (string): The source survey identifier (e.g., "PTIB").</li>
+  <li>PSSM_CREDENTIAL (string): Standardized credential category used for PSSM reporting.</li>
+  <li>PSSM_CRED (string): Concatenated string identifier (e.g., "P - CERT") used for system-level classification.</li>
+  <li>LCP4_CD (string): The 4-digit Classification of Instructional Programs (CIP) code.</li>
+  <li>LCIP4_CRED (string): Grouping identifier combining the 4-digit CIP code and the credential type.</li>
+  <li>LCIP2_CRED (string): Broad-level grouping identifier combining the 2-digit CIP (Area of Study) and the credential.</li>
+  <li>AGE_GROUP (string): The standardized age range bracket of the student cohort.</li>
+  <li>YEAR (string): The reporting period or longitudinal horizon year (e.g., "2023/2024").</li>
+  <li>COUNT (numeric): The specific number of records or estimated graduates within each credential, age group, LCP4_CD stratum.</li>
+  <li>TOTAL (numeric): The aggregate denominator used for percentage calculations. Counts for each age group and credential stratum.</li>
+  <li>PERCENT (numeric): The calculated proportion of the group represented by the count (COUNT / TOTAL).</li>
+  <li>GRAD_STATUS (string): A descriptor of the graduation outcome or immigration-based attribution status.</li>
+  <li>TTRAIN (string): Identifier for Teacher Training program alignment or specific provincial reporting flags.</li>
+</ul>
+
+**qry_Private_Credentials_05i1_Grads_by_Year**
+
+<ul class="list-variable-names">
+  <li>Survey (string): The administrative source identifier for the data collection (e.g., "PTIB").</li>
+  <li>PSSM_CRED (string): A concatenated identifier representing the PSSM-specific credential classification (e.g., "P - DIPL").</li>
+  <li>Age_Group (string): The standardized categorical age range of the graduate cohort.</li>
+  <li>Year (string): The academic reporting period.</li>
+  <li>Graduates (numeric): The calculated total count of graduates, including those derived through proportional attribution.</li>
+</ul>

@@ -21,99 +21,70 @@ format:
 
 ## Overview
 
-Script 01a executes ingestion and preprocessing of the Student Transition Program (STP) enrolment dataset. Temporal inconsistencies in birthdates are resolved and records are evaluated against a multi-tiered classification hierarchy to isolate valid post-secondary activity from developmental, skills-based, or malformed entries. This process generates a refined Record Type Table and validated dataset featuring binary markers for initial entry and annual registration milestones for downstream analysis.
+Script 01a ingests and preprocesses the Student Transition Program (STP) enrolment dataset. It standardizes date fields, resolves conflicting birthdates using hierarchical rules, and classifies records to isolate valid post-secondary activity from developmental, skills-based, and malformed records. It produces a record type table with each record’s unique ID, classification, and binary flags for first enrolment (`is_first_enrol`) and minimum annual enrolment (`is_min_enrol`) used in downstream analysis.
 
-Script 01b executes ingestion, preprocessing and validation of the Student Transition Program (STP) credential dataset to ensure longitudinal consistency with enrolment records. The pipeline applies programmatic century resolution for temporal alignment and implements a multi-tiered classification hierarchy to attribute record statuses (0–8).  Credential records are cross-referenced against previously isolated enrolment metadata to identify and flag non-credit, developmental, or skills-based training. This process generates a refined credential baseline for downstream analysis.
+Script 01b ingests and preprocesses the STP credential dataset and applies record-status validation aligned with enrolment exclusion logic. It classifies credential records to isolate valid post-secondary activity from developmental, skills-based, or malformed entries and produces a credential record type table keyed by unique record ID and classification status.
 
-Script 01c executes attribute enrichment and final analysis of the credential dataset, synchronize academic awards with enrolment metadata. The methodology employs a hierarchical recovery protocol for missing gender, birthdate, and VISA status markers, supplemented by stratified stochastic imputation to resolve residual gaps in gender nad age attributes, while preserving the empirical demographic variance of the graduate population.  Academic achievements are prioritized through a dual-ranking system to identify a student's peak educational attainment. Category-specific "delayed award" logic reconciles longitudinal exit points to ensure the data accurately reflects provincial graduation and performance metrics.
+Script 01c enriches and analyzes credential records by synchronizing awards with enrolment metadata and deriving new analytical variables. It applies hierarchical recovery for missing gender, birthdate, and visa status, then imputes residual gender and age values while preserving empirical demographic distributions. It also applies dual ranking logic to identify highest credentials and category-specific delayed-award logic to reconcile longitudinal exit timing.
 
-Script 01d executes the final consolidation of the enrolment baseline. A high-fidelity "Entry Cohort" is created by isolating the earliest valid record for each student within a reporting cycle. Conflicting identity markers are reconciled by prioritizing the student’s initial institutional contact.  Stratified stochastic imputation fills in gaps in missing gender and age values, leveraging empirical population weights to maintain statistical variance. Ages are incremented across the student’s academic history to ensure longitudinal consistency for downstream analysis and forecasting.
+Script 01d consolidates the enrolment baseline by isolating valid minimum-enrolment records to create the entry cohort (`min_enrolment`). It applies hierarchical gender recovery and weighted imputation for unresolved gender and age fields, then increments age across each student’s longitudinal history to maintain temporal consistency.
 
-Script 01e aggregates the validated credential baseline into several high-resolution frequency distributions based on unique student achievements. The data is partitioned by residency, institution type, and disciplinary cluster, specifically isolating academic cohorts for provincial modeling. 
+Script 01e aggregates validated credential and enrolment baselines into forecasting frequency distributions. Outputs are stratified by residency, institution grouping, credential category, school year, age group, gender, and disciplinary cluster (CIP), including policy-relevant filtered variants (for example, domestic-only and RU/DACSO exclusions).
 
-Standardized frequency distributions are generated from the `min_enrolment` baseline, quantifying student entry points across stratified academic and socio-demographic cohorts. The data is partitioned by residency, credential category, and disciplinary cluster to isolate specific cohorts for longitudinal provincial modeling.
-
-## Data Sources and Storage (Not completed)
+## Data Sources
 
 ### External Data Sources
 
-#### [External Data Source Name]
+##### Table: stp_credential
 
-#### STP_Credential Data
-Source: Retrieved from Secure Database
-Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
+This dataset contains raw academic award records including student identifiers (ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER), institutional markers (PSI_CODE), and academic variables such as award dates and Classification of Instructional Programs (CIP) codes. Coverage spans the provincial post-secondary system.
 
-  - Requirements: Standardized database credentials; kept in config.yml file
-  - Function calls: `dbExceute()` or `dbGetQuery()`
+<ul class="list-variable-names">
+<li>ID (Integer, PK): Unique credential record identifier.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Credential award date.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_CODE (String): Post-secondary institution code.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category label.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level descriptor.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Credential program description.</li>
+<li>PSI_FULL_NAME (String): Student full name as supplied in source.</li>
+<li>PSI_PEN (String): Institution-reported PEN field.</li>
+<li>PSI_PROGRAM_CODE (String): Institution program code.</li>
+<li>PSI_PROGRAM_EFFECTIVE_DATE (String): Program effective date.</li>
+<li>PSI_SCHOOL_YEAR (String): School year value.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+</ul>
 
-Description: This dataset contains raw academic award records including student identifiers (ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER), institutional markers (PSI_CODE), and academic variables such as award dates and Classification of Instructional Programs (CIP) codes. Coverage spans the provincial post-secondary system.
+##### Table: stp_enrolment
 
-#### STP_Enrolment Data
-Source: Retrieved from Secure Database
-Access Method: Read-access from data warehouse into R, using `DBI` and `odbc` packages.
+The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
 
-  - Requirements: Standardized database credentials; kept in config.yml file
-  - Function calls: `dbExecute()` or `dbGetQuery()`
+The following columns are the minimum requirements for the pipeline:
 
-Description: The primary repository of student registration activity. It contains raw demographic attributes (Gender, Birthdate, Visa Status) and enrolment-specific markers such as school year and start dates. It serves as the foundational population for all demographic and entry-point analysis.
-
-### Internal/Processed Data Sources (Not completed)
-
-#### STP_Enrolment_Valid (Processed Baseline)
-Source: Generated within the pipeline scripts.  
-Access Method: <mark>(TBD)</mark>
-Description: A high-fidelity, standardized version of the enrolment dataset featuring unique student-level identifiers (CONCATENATED_ID) and longitudinal flags for initial and annual registration milestones, isolated from developmental and skills-based records.
-
-#### Credential_Supvars (Enriched Achievement Baseline)
-Source: Generated within the pipeline scripts.  
-Access Method: <mark>(TBD)</mark>
-Description: This data product represents the peak educational attainment for each student. It contains enriched markers for age at graduation, academic rank, and reconciled award dates, serving as the primary input for provincial transition modeling and frequency distribution matrices.
-
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: 20GB Secure Storage <mark>(CHECK)</mark>
-- External Data: STP Credential Data, STP Enrollment Data, Lookups Tables (TBD)
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
-
+<ul class="list-variable-names">
+<li>ID (Integer, PK): Unique record identifier for each enrolment row.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>ATTENDING_PSI_OUTSIDE_BC (String): Indicator for attendance outside British Columbia.</li>
+<li>PSI_CIP_CODE (String): Classification of Instructional Programs (CIP) code for the enrolment program.</li>
+<li>PSI_CODE (String): Post-secondary institution code.</li>
+<li>PSI_CONTINUING_EDUCATION_COURSE_ONLY (String): Marker for continuing-education/skills-only activity.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category associated with enrolment.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description text.</li>
+<li>PSI_ENROLMENT_SEQUENCE (String): Sequence indicator for enrolment records.</li>
+<li>PSI_ENTRY_STATUS (String): Entry transition status value.</li>
+<li>PSI_GENDER (String): Reported gender from source.</li>
+<li>PSI_MIN_START_DATE (String): Earliest start date for the enrolment record.</li>
+<li>PSI_PROGRAM_CODE (String): Institution-specific program code.</li>
+<li>PSI_PROGRAM_EFFECTIVE_DATE (String): Program effective date from source.</li>
+<li>PSI_SCHOOL_YEAR (String): School year in `YYYY/YYYY` style.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_STUDENT_POSTAL_CODE_CURRENT (String): Current student postal code.</li>
+<li>PSI_STUDY_LEVEL (String): Study-level descriptor.</li>
+<li>PSI_VISA_STATUS (String): Reported visa/residency status.</li>
+<li>PSI_BIRTHDATE (String): Student's birthdate from source.</li>
+<li>LAST_SEEN_BIRTHDATE (String): Administrative last-seen birthdate fallback.</li>
+</ul>
 
 ## Methodology Overview
 
@@ -158,38 +129,6 @@ A multi-tiered classification logic is used to assign status codes (0–8) to ea
 Each student's "first" and "minimum" enrolment events are identified establishing markers used in downstream analysis.
 
 The main enrolment data is subset into a "valid" baseline containing only records with RecordStatus == 0; developmental, administrative, and out-of-province entries are discarded.  Only core identifiers and key temporal markers are retained.  The population is further partitioned into two cohorts, those with a unique `ENCRYPTED_TRUE_PEN` and those without.  For records lacking a PEN, the script utilizes the institutional composite key (`PSI_STUDENT_NUMBER` and `PSI_CODE`).  Flags are created for the absolute first record in their history (`is_first_enrol`) and the first record within each distinct academic year (`is_min_enrol`) and integrated back into the `stp_enrolment_record_type` table (see data dictionary, below)
-
-#### Data Dictionary
-
-Includes variables used in this analysis (unused dataset variables are ommitted).  Calculated variables are in bold font.
-
-##### Table: stp_enrolment/stp_enrolment_valid
-
-<ul class="list-variable-names">
-<li>ID (Integer): A unique primary key for each record in the enrolment table.</li>
-<li>ENCRYPTED_TRUE_PEN (String): An encrypted version of the Provincial Education Number used for student tracking.</li>
-<li>PSI_STUDENT_NUMBER (String): The unique identifier assigned to a student by the Post-Secondary Institution.</li>
-<li>PSI_CODE (String): A character code representing the specific Post-Secondary Institution.</li>
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
-<li>PSI_MIN_START_DATE (Date/String): The earliest recorded start date for a student's program or course.</li>
-<li>PSI_BIRTHDATE (Date/String): The raw birthdate as provided in the administrative records.</li>
-<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
-<li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
-<li><b>psi_birthdate_cleaned (Date)</b>: CALCULATED IN THIS ANALYSIS via hierarchical tie-breaker logic.</li>
-<li><b>CONCATENATED_ID (String)</b>: CALCULATED IN THIS ANALYSIS to unify student records across institutions.</li>
-</ul>
-
-##### Table: stp_enrolment_record_type
-
-Key variables used in this analysis, calculated varaiables are in bold font.
-
-<ul class="list-variable-names">
-<li>ID (Integer): Unique identifier used to join with the primary enrolment table.</li>
-<li><b>RecordStatus (Integer)</b>: A classification code used to validate or filter records (e.g., 0 = "Good").</li>
-<li><b>MinEnrolment (Integer)</b>: A binary flag (0/1) identifying the earliest recorded enrolment for a student.</li>
-<li><b>FirstEnrolment (Integer)</b>: A binary flag (0/1) identifying the first chronological enrolment in the current dataset.</li>
-</ul>
 
 
 ### STP Credential Data Pre-processing
@@ -365,7 +304,6 @@ Records are partitioned into discrete analytical strata through the application 
 - Subsets are generated that isolate domestic students and differentiate between institutional types, specifically controlling for Research Universities and DACSO outcome reporting mandates.
 - Standardized summary tables are produced that cross-tabulate annual award frequencies by PSI_AWARD_SCHOOL_YEAR_DELAYED, gender, and four-digit CIP codes. These outputs reconcile original award timelines with the previously established "delayed award" logic, providing the granular data lineage required for provincial longitudinal transition modeling.
 
-
 **Enrolment Distribution for Forecasting**
 
 Several standardized frequency distributions are generated from individual student-level records within the min_enrolment baseline dataset. Discrete, stratified cohorts are aggregated to quantify enrolment metrics across school years, academic credential categories, and socio-demographic dimensions. Standardized age groups are defined via a relational join with the age_group_lookup table.
@@ -374,35 +312,152 @@ The resulting matrices provide granular frequency counts stratified by residency
 
 ## Key Output Tables
 
-##### Table: qry09c_MinEnrolment_by_Credential_and_CIP_Code
+The following tables are key outputs from scripts `01a` through `01e`. Column-level schemas are based on script logic and may be inferred.
+
+### Table: stp_enrolment_record_type
+
+Record-status classification table with first-enrolment and minimum-annual-enrolment flags.
 
 <ul class="list-variable-names">
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
+<li>ID (Integer, PK, FK -> stp_enrolment_r.ID): Enrolment record identifier.</li>
+<li>RecordStatus (Numeric): Classification code for validity/exclusion logic (0-8).</li>
+<li>is_min_enrol (Numeric): Indicator for first enrolment within a school year (0/1).</li>
+<li>is_first_enrol (Numeric): Indicator for first observed enrolment in history (0/1).</li>
+</ul>
+
+### Table: stp_credential_record_type
+
+Credential record-status table used to retain valid rows and exclude non-target records.
+
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> stp_credential_r.ID): Credential record identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>RecordStatus (Numeric): Credential validity/exclusion code (0-8).</li>
+<li>DropCredCategory (String): Drop marker for excluded credential categories (Yes/No).</li>
+<li>DropPartialYear (String): Drop marker for incomplete reporting periods (Yes/No).</li>
+</ul>
+
+### Table: credential_non_dup
+
+Deduplicated credential output containing final demographic, ranking, and delayed-award variables.
+
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> credential_r.ID): Credential record identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_SCHOOL_YEAR (String): Credential issued in this school year.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
+<li>CREDENTIAL_AWARD_DATE_D (Date): Standardized award date.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Date credential was awarded.</li>
+<li>psi_gender_cleaned (String): Final cleaned or imputed gender.</li>
+<li>PSI_BIRTHDATE_CLEANED (String): Final cleaned or imputed birthdate.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized final cleaned or imputed birthdate.</li>
+<li>RecordStatus (Numeric): Record-status code (0-8).</li>
+<li>AGE_AT_GRAD (Numeric): Age at graduation (observed/imputed).</li>
+<li>AGE_GROUP_AT_GRAD (Numeric): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Derived award school year.</li>
+<li>HIGHEST_CRED_BY_DATE (String): Marker for highest credential by date logic.</li>
+<li>HIGHEST_CRED_BY_RANK (String): Marker for highest credential by rank logic.</li>
+<li>PSI_VISA_STATUS (String): Recovered visa status.</li>
+<li>CONCATENATED_ID (String): Unified student identifier used for delay logic.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>RESEARCH_UNIVERSITY (Boolean): Indicator for research-university institution grouping.</li>
+<li>OUTCOMES_CRED (String): Standardized outcomes credential grouping.</li>
+</ul>
+
+
+### Table: tbl_credential_highest_rank
+
+One-record-per-student highest-rank credential table with delayed-award reconciliations.
+
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> credential_non_dup_r.ID): Selected highest-rank credential identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Credential program description.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential CIP code.</li>
+<li>CREDENTIAL_AWARD_DATE_D (Date): Original award date.</li>
+<li>CREDENTIAL_AWARD_DATE (Date): Original award date.</li>
+<li>PSI_BIRTHDATE_CLEANED (Date): Cleaned birthdate value.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized cleaned birthdate.</li>
+<li>psi_gender_cleaned (String): Cleaned/imputed gender value.</li>
+<li>RecordStatus (String): Record status value.</li>
+<li>AGE (Integer): Age at graduation.</li>
+<li>AGE_GROUP_AT_GRAD (Integer): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Original award school year.</li>
+<li>HIGHEST_CRED_BY_RANK (String): Highest-rank marker.</li>
+<li>HIGHEST_CRED_BY_DATE (String): Highest-rank by date marker.</li>
+<li>PSI_VISA_STATUS (String): Visa status marker.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
+<li>CONCATENATED_ID (String): Unified student identifier.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>CREDENTIAL_AWARD_DATE_DELAYED (Date): Delay-adjusted award date.</li>
+</ul>
+
+### Table: tbl_credential_delay_effect
+
+Resolved delayed-award mapping from highest credential records to adjusted completion timing.
+
+<ul class="list-variable-names">
+<li>HID (Integer, PK, FK -> tbl_credential_highest_rank_r.ID): Highest-rank credential ID.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Final delayed award date.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Final delayed award school year.</li>
+</ul>
+
+### Table: min_enrolment
+
+Entry-cohort enrolment baseline containing valid minimum-enrolment records with recovered demographics.
+
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> stp_enrolment.ID): Enrolment record identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_SCHOOL_YEAR (String): School year.</li>
+<li>PSI_CIP_CODE (String): CIP code.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_GENDER (String): Final cleaned or imputed gender value.</li>
+<li>PSI_BIRTHDATE (Date): Raw birthdate.</li>
+<li>PSI_BIRTHDATE_CLEANED (Date): Cleaned birthdate value.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized cleaned birthdate.</li>
+<li>PSI_MIN_START_DATE (Date): Minimum enrolment start date.</li>
+<li>PSI_MIN_START_DATE_D (Date): Standardized enrolment start date.</li>
+<li>IS_FIRST_ENROLMENT (String): Indicator for first observed enrolment.</li>
+<li>CONCATENATED_ID (String): Unified student identifier.</li>
+<li>AGE_AT_ENROL_DATE (Integer): Age at enrolment date.</li>
+<li>AGE_GROUP_ENROL_DATE (Integer): Age-group key at enrolment.</li>
+</ul>
+
+### Table: credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips
+
+Domestic credential frequencies by gender, age group, category, and delayed school year with RU/DACSO and CIP exclusions.
+
+<ul class="list-variable-names">
+<li>psi_gender_cleaned (String): Cleaned/imputed gender category.</li>
+<li>AgeGroup (String): Graduation age-group label.</li>
 <li>PSI_CREDENTIAL_CATEGORY (String): The classification of the credential (e.g., "Bachelors Degree").</li>
-<li>PSI_CIP_CODE (String): The Classification of Instructional Programs code used to identify the field of study.</li>
-<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>Count (Integer): Frequency count for each stratum.</li>
 </ul>
 
-##### Table: qry09c_MinEnrolment_Domestic
+### Table: qry09c_minenrolment
+
+Frequency matrix of minimum enrolment by school year, gender, and combined demographic grouping.
 
 <ul class="list-variable-names">
-<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
-<li>AgeGroup (String): Age of student in the given school year, mapped to discrete a grouping (e.g. "20-24").</li>
-<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
+<li>PSI_GENDER (String): Final gender category.</li>
+<li>PSI_SCHOOL_YEAR (String): The academic year associated with the minimum enrolment record.</li>
+<li>Groups (String): Combined grouping label (gender-age composite).</li>
+<li>Expr1 (Integer): Frequency count for each stratum.</li>
 </ul>
 
-##### Table: qry09c_MinEnrolment
-
-<ul class="list-variable-names">
-<li>PSI_GENDER (String): The raw gender code provided by the reporting institution.</li>
-<li>PSI_SCHOOL_YEAR (String): The academic year associated with the enrolment record.</li>
-<li>Groups (String): A concatenated demographic identifier, representing Age Group and Gender of a student.</li>
-<li><b>Expr1</b> (Integer): Count of students in the given stratum.</li>
-</ul>
-
-## Suggested Improvements
-
-## Additional Details
-
-_This template provides a comprehensive structure for documenting technical modules, supporting consistency and clarity across your project._

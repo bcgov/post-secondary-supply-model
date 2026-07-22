@@ -20,106 +20,73 @@ format:
 
 ## Overview
 
-This script follows an established methodology for computing success ratios of "Near-Completers" relative to confirmed graduates, stratified by demographic age cohorts, gender and institutional credentials. The analytical framework utilizes student survey records from the `t_dacso_data_part_1` repository (DASCO survey data) in conjunction with administrative Student Transitions Project (STP) credential files to facilitate graduation status reclassification. By identifying individuals initially classified as non-graduates who subsequently attained provincial credentials or possessed prior administrative qualifications, the process derives a residual Near-Completer population used to refine provincial success metrics.
+The script `03-near-completers-ttrain.R` utilizes student survey records from the `t_dacso_data_part_1` repository (DASCO survey data) along with administrative Student Transitions Project (STP) credential files to reclassify graduation status and identify a residual near-completer population. Individuals initially classified as non-graduates who subsequently attained provincial credentials or possessed prior administrative qualifications are flagged as "near-completers".  A **near-completer** is a DACSO respondent who reported being within sight of completing (survey status `3`) for whom no matching STP credential is found; those *with* a matching STP credential are promoted to graduate and removed from the residual.
 
-The process generates frequency distributions and ratios across several dimensions, resulting in the production of three primary output tables: `t_dacso_near_completers_ratio_by_gender_year`, `t_dacso_near_completers_ratio_by_gender`, and `t_dacso_nearcompleters_ratioageatgradcip4`. These outputs provide both longitudinal and cross-sectional frequency counts, with ratios computed annually or averaged across representative reporting cycles—such as the 2018–2019 baseline utilized in the PSSM 2023 model—to ensure statistical stability. The final data products represent a purified synthesis of survey observations and longitudinal administrative evidence, enabling high-fidelity reporting of student outcomes across disparate academic fields.
 
-## Data Sources and Storage
+Frequency distributions and ratios of near-completers to completers are computed across several dimensions, resulting in three primary output tables: `t_dacso_near_completers_ratio_by_gender_year`, `t_dacso_near_completers_ratio_by_gender`, and `t_dacso_nearcompleters_ratioageatgradcip4`. These outputs provide both longitudinal and cross-sectional frequency counts, with ratios computed annually or averaged across representative reporting cycles—such as the 2018–2019 baseline utilized in the PSSM 2023 model—to ensure statistical stability. The final data products represent a purified synthesis of survey observations and longitudinal administrative evidence, enabling high-fidelity reporting of student outcomes across disparate academic fields.
+
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                 ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)          ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)               ← Module 02b-3 (occupation_distributions)
+
+
+This script produces the **near-completer ratios** that expand the graduate supply to include students who finished most of a program without a formal credential.  It is an upstream adjustment to the volume of graduates in Term 1 — not a term in the chain itself.
+
+Module 04 splits Term 1 into two supply streams, and the size of the second one comes from this script:
+
+    near-completers (cred, age)  = graduates (Module 4) × R_NC(cred, age, CIP4)
+
+Where `R_NC` is the residual near-completer population divided by confirmed completers, stratified by age group, 4-digit CIP, and credential (with gender and survey-year variants in the other output tables). 
+
+The Near Completer ratios are also consumed in Module 06 (Q013 series) as one of the program-distribution inputs to Term 2.
+
+## Data Sources
 
 ### External Data Sources 
 
-#### STP Credential Data
+##### STP Credential Data
 
-Source: Provided from Ministry of Post-Secondary Education and Future Skills [?]
-Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
-Description: STP Credential years searched: 2002/03 - 2022/23
+STP Credential years searched: 2002/03 - 2022/23
+
+For full data dictionary see technical-documentation-01-stp-processing.qmd, Key Output Tables.
 
 ### Internal/Processed Data Sources
 
-#### credential_non_dup
+##### credential_non_dup
 
-Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
-Description: STP Credential years searched: 2002/03 - 2022/23
+STP Credential years searched: 2002/03 - 2022/23
 
-#### t_dacso_data_part_1
+For full data dictionary see technical-documentation-01-stp-processing.qmd, Key Output Tables.
 
-Source and Access Method: Contact Student Outcomes Team
+##### t_dacso_data_part_1
+
 Description: 
 - Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
 - Credentials: Diploma, Associate Degree, and Certificate 
 - Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
 
-#### tmp_tbl_age 
+For full data dictionary see technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables.
 
-Source and Access Method: Contact Student Outcomes Team
+##### tmp_tbl_age 
+
 Description: 
-
 - longitudinal master-lookup of birthdates and survey exit dates. Used to derive the age filters (such as the 17–64 range) we in aggregated tables.
 - Historically, new data was appended to prior model run's data.  For 2026, we can request the full range required, SQL queries saved on the LAN for convenience.
 
-### Data Storage Structure
-
-Where data is housed in internal storage locations, it is stored in a hierarchical folder structure accessible via read_csv().
-
-```
-[BASE_FOLDER]/
-├── data/
-    ├── student-outcomes/  
-    └── csv/            
-        └── so-provision/ # provided by Student Outcomes
-├── development/
-    ├── csv/  
-    └── gh-source/ # temporary storage for lookups and etc.         
-
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
-
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### System Requirements
-
-- Network Access: Secure LAN
-- Database Connection: Project database connection - SQL Server
-- Storage: [Note storage requirements]
-- External Data: [List any required external data]
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
+<ul class="list-variable-names">
+<li>cosc_stqu_id (numeric): Student identifier, unique. </li>
+<li>cosc_subm_cd (character): Survey cycle (e.g. "C_Outc19"). </li>
+<li>tpid_date_of_birth (date): Student date of birth. </li>
+<li>cosc_enrl_end_date (date): Enrollment end date. </li>
+<li>cosc_grad_credential_date (date): Graduation credential date. </li>
+<li>coci_age_at_survey (numeric): Age at time of survey. </li>
+<li>age_at_grad (numeric): Age at graduation. </li>
+</ul>
 
 ## Methodology Overview
 
@@ -160,21 +127,28 @@ The section outlines methodolgy originaly developed in this Excel workbook: _201
 As such, this bolded sub-section labels include a reference to the associated column in the sheet _C\_Outc12\_13\_14RatiosAgeGradCIP4_ of the original workbook. Column references also indicate a section of code in the R script. Column references can be removed in the final draft.  If referencing the workbook as a guide, please note those values will not be identical to the 2023 outputs as different base years were used. 
 
 ##### Primary Baseline Consolidation (`base`)
+
 A standardized baseline cohort is derived from the `t_dacso_data_part_1` administrative dataset consiting of records with the Outcomes 19 and 20 reporting cycles. Observations are stratified into discrete age cohorts via a non-equi join with the `age_group_lookup` table and synchronized with the `credential_rank` hierarchy. To ensure regulatory alignment, the cohort is restricted to institutional credentials verified for the PSSM 2017-18 framework. Taxonomic normalization is applied via regular expressions to purge administrative noise and deterministically reclassify credential prefixes from "1 - " to "3 - ".
 
 ##### Near Completers from Survey (Column H)
+
 The "Near-Completer" population (`cosc_grad_status_lgds_cd_group = '3'`) is extracted from the consolidated baseline. A frequency matrix is generated by aggregating record counts across demographic age groups, 4-digit Classification of Instructional Programs (CIP) codes, and combined credential classifications.
+(requires more explanation).
 
 ##### Near Completers Changed to Graduate Status (Column I)
+
 Records identified for status correction are isolated by filtering confirmed provincial matches (`has_stp_credential` = 'Yes'). These records are synchronized with the baseline cohort and aggregated by ademographic age groups, 4-digit Classification of Instructional Programs (CIP) codes, and combined credential classifications.  The final distributions quantify individuals whose academic status was transitioned from "Near-Completer" to "Graduate" based on external Student Transitions Project (STP) evidence.
 
 ##### Confirmed Graduate from STP (Column K)
+
 Recordss are identified for individuals attaining a confirmed graduate status factoring in administrative promotion (`grad_status_factoring_in_stp` = '1'). The cohort is restricted to the 17–64 age range aggregated by ademographic age groups, 4-digit Classification of Instructional Programs (CIP) codes, and combined credential classifications to provide count of total graduates.
 
 ##### Confirmed Completers from Survey (Column M)
-Baseline graduate records are isolated for survey-reported graduates (`cosc_grad_status_lgds_cd_group` = '1') within the 17–64 age parameter. Counts are aggregated by ademographic age groups, 4-digit Classification of Instructional Programs (CIP) codes, and combined credential classifications.  The distributions represent the quantity of completers prior to the application of administrative promotion logic.
+
+Baseline graduate records are isolated for survey-reported graduates (`cosc_grad_status_lgds_cd_group` = '1') within the 17–64 age parameter. Counts are aggregated by demographic age groups, 4-digit Classification of Instructional Programs (CIP) codes, and combined credential classifications.  The distributions represent the quantity of completers prior to the application of administrative promotion logic.
 
 ##### Final Age at Grad Ratios
+
 The final analytical phase implements a multivariate join of the four preceding distributions. The residual Near-Completer population is derived through the following subtraction:
 
 $$NC_{Residual} = NC_{Survey} - NC_{Promoted}$$
@@ -218,51 +192,6 @@ Calculated values are subjected to data cleaning where numeric missingness is re
 
 A longitudinal variant of the Gender at Grad Ratios modifies the baseline aggregation logic by adding submission cycle identifier (`coci_subm_cd`) to the list of grouping varibales for all frequency tables. Unlike the aggregate model, this methodology maintains discrete record sets for each reporting period. This technical adjustment allows the reporting framework to generate independent success ratios for each cycle, providing a high-fidelity view of institutional performance trends over time.
 
-#### Data Dictionary 
-
-##### tbl_age
-
-<ul class="list-variable-names">
-<li>Age (Integer): </li>
-<li>Age_Group (Integer): </li>
-</ul>
-
-##### t_pssm_projection_cred_grp
-
-<ul class="list-variable-names">
-<li>PSSM_Projection_Credential (String): </li>
-<li>PSSM_Credential (String): </li>
-<li>PSSM_Credential_Name (String): </li>
-<li>COSC_GRAD_STATUS_LGDS_CD (Integer): </li>
-</ul>
-
-##### combine_creds
-
-<ul class="list-variable-names">
-<li>sort_order (Integer): </li>
-<li>credential_code (String): </li>
-<li>credential_name (String): </li>
-<li>reporting_category (String): </li>
-<li>is_active (String): </li>
-</ul>
-
-##### stp_dacso_prgrm_credential_lookup
-
-<ul class="list-variable-names">
-<li>PRGRM_Credential_Awarded (String): </li>
-<li>PRGM_Credential_Awarded_Name (String): </li>
-<li>STP_PRGM_Credential_Awarded_Name (String): </li>
-</ul>
-
-##### age_group_lookup
-
-<ul class="list-variable-names">
-<li>AgeIndex (Integer): </li>
-<li>AgeGroup (String): </li>
-<li>LowerBound (Integer): </li>
-<li>UpperBound (Integer): </li>
-</ul>
-
 ## Key Output Tables
 
 The following data objects represent the terminal outputs of the near-completer stratification and ratio calculation pipeline. These tables are taxonomically aligned with the PSSM 2017-18 framework and incorporate longitudinal administrative adjustments.
@@ -272,18 +201,16 @@ The following data objects represent the terminal outputs of the near-completer 
 Success ratios stratified by age-group, 4-digit Classification of Instructional Programs (CIP-4) and normalized credential categories.
 
 <ul class="list-variable-names">
-  <li>age_group (String): The categorical age cohort.</li>
-  <li>combined_cred_name (String): The verified credential category under the PSSM 2017-18 regulatory framework.</li>
-  <li>lcip4_cred (String): The taxonomically normalized program and credential identifier, subjected to regex-based cleaning.</li>
-  <li>lcp4_cd (String): The primary 4-digit CIP classification code.</li>
-  <li>lcp4_cip_4digits_name (String): The standardized program classification nomenclature.</li>
-  <li>count (Numeric): The frequency of survey-reported Near-Completers.</li>
-  <li>nc_with_earlier_or_later (Numeric): The count of individuals promoted via provincial administrative verification.</li>
-  <li>completers (Numeric): The total graduate count factoring in administrative adjustments.</li>
-  <li>c_not_factoring_stp (Numeric): The baseline graduate count derived exclusively from survey reporting.</li>
-  <li>near_completers_stp_cred (Numeric): The net residual Near-Completer count.</li>
-  <li>ratio (Double): The primary success ratio utilizing STP-adjusted graduate counts.</li>
-  <li>ratio_not_factoring_stp (Double): The baseline success ratio utilizing survey-only graduate counts.</li>
+  <li>age_group (string): The categorical age cohort.</li>
+  <li>lcip4_cred (string): The taxonomically normalized program and credential identifier, subjected to regex-based cleaning.</li>
+  <li>lcp4_cd (string): The primary 4-digit CIP classification code.</li>
+  <li>count (numeric): The frequency of survey-reported Near-Completers.</li>
+  <li>nc_with_earlier_or_later (numeric): The count of individuals promoted via provincial administrative verification.</li>
+  <li>completers (numeric): The total graduate count factoring in administrative adjustments.</li>
+  <li>c_not_factoring_stp (numeric): The baseline graduate count derived exclusively from survey reporting.</li>
+  <li>near_completers_stp_cred (numeric): The net residual Near-Completer count.</li>
+  <li>ratio (numeric): The primary success ratio utilizing STP-adjusted graduate counts.</li>
+  <li>ratio_not_factoring_stp (numeric): The baseline success ratio utilizing survey-only graduate counts.</li>
 </ul>
 
 ##### t_dacso_near_completers_ratio_by_gender
@@ -291,31 +218,28 @@ Success ratios stratified by age-group, 4-digit Classification of Instructional 
 Success ratios across the multi-year reporting period, providing a cumulative assessment of provincial performance.
 
 <ul class="list-variable-names">
-  <li>gender (String): The standardized gender identifier.</li>
-  <li>age_group (String): The categorical age cohort.</li>
-  <li>prgm_credential_awarded_name (String): The institutional nomenclature for the awarded credential.</li>
-  <li>count (Numeric): The cumulative frequency of survey-reported Near-Completers.</li>
-  <li>nc_with_early_or_late (Numeric): The cumulative count of administratively promoted graduates across all reporting cycles.</li>
-  <li>completers (Numeric): The cumulative count of survey-confirmed graduates.</li>
-  <li>n_nc_stp (Numeric): The net residual Near-Completer population within the aggregate cohort.</li>
-  <li>ratio (Double): The aggregate success ratio representing the cumulative multi-year period.</li>
+  <li>gender (numeric): Numeric standardized gender identifier.</li>
+  <li>age_group (string): The categorical age cohort.</li>
+  <li>prgm_credential_awarded_name (string): The institutional nomenclature for the awarded credential.</li>
+  <li>count (numeric): The cumulative frequency of survey-reported Near-Completers.</li>
+  <li>nc_with_early_or_late (numeric): The cumulative count of administratively promoted graduates across all reporting cycles.</li>
+  <li>completers (numeric): The cumulative count of survey-confirmed graduates.</li>
+  <li>n_nc_stp (numeric): The net residual Near-Completer population within the aggregate cohort.</li>
+  <li>ratio (numeric): The aggregate success ratio representing the cumulative multi-year period.</li>
 </ul>
 
 ##### t_dacso_near_completers_ratio_by_gender_year
 A longitudinal frequency distribution of success ratios, disaggregated by individual submission cycles and demographic indicators.
 
 <ul class="list-variable-names">
-  <li>coci_subm_cd (String): The administrative submission cycle identifier (e.g., "C_Outc19").</li>
-  <li>gender (String): The standardized gender identifier derived from the primary survey records.</li>
-  <li>age_group (String): The categorical age cohort mapped via the non-equi join protocol.</li>
-  <li>prgm_credential_awarded_name (String): The institutional nomenclature for the awarded credential.</li>
-  <li>count (Numeric): The frequency of respondents maintaining a survey-reported "Near-Completer" status.</li>
-  <li>nc_with_early_or_late (Numeric): The frequency of individuals promoted to "Graduate" status via administrative Student Transitions Project (STP) evidence.</li>
-  <li>completers (Numeric): The count of survey-confirmed graduates within the specified strata.</li>
-  <li>n_nc_stp (Numeric): The net residual Near-Completer count following deterministic administrative adjustments.</li>
-  <li>ratio (Double): The calculated success ratio, defined as the quotient of the residual population and confirmed graduates.</li>
+  <li>coci_subm_cd (string): The administrative submission cycle identifier (e.g., "C_Outc20").</li>
+  <li>gender (numeric): Numeric standardized gender identifier derived from the primary survey records.</li>
+  <li>age_group (string): The categorical age cohort mapped via the non-equi join protocol.</li>
+  <li>prgm_credential_awarded_name (string): The institutional nomenclature for the awarded credential.</li>
+  <li>count (numeric): The frequency of respondents maintaining a survey-reported "Near-Completer" status.</li>
+  <li>nc_with_early_or_late (numeric): The frequency of individuals promoted to "Graduate" status via administrative Student Transitions Project (STP) evidence.</li>
+  <li>completers (numeric): The count of survey-confirmed graduates within the specified strata.</li>
+  <li>n_nc_stp (numeric): The net residual Near-Completer count following deterministic administrative adjustments.</li>
+  <li>ratio (numeric): The calculated success ratio, defined as the quotient of the residual population and confirmed graduates.</li>
+  <li>year (numeric): The calendar year corresponding to the submission cycle (e.g., 2019).</li>
 </ul>
-
-## Suggested Improvements
-
-## Additional Details

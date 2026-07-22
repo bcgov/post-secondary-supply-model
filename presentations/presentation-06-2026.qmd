@@ -1,0 +1,307 @@
+<!---# Copyright 2026 Province of British Columbia
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations under the License. -->
+
+---
+title: "Post-Secondary Supply Model"
+subtitle: "Debrief June 24, 2026"
+title-slide-attributes: 
+  data-notes: We have a few slides to help generate discussion for today's debrief. The deck is short and will take about 10 minutes to go through. The focus is on what we completed this spring, especially the SQL-to-R migration, what we validated, and what remains in progress. I’ll start with a quick project snapshot and workflow, then show how we tested alignment between the legacy SQL version of our pipeline and the refactored R pipeline using core projection tables. I’ll close with key challenges and decisions needed for next steps into future cycles.
+format:
+  revealjs:
+    theme: default
+    scrollable: true
+    slide-number: true
+    css: scratch/custom.css
+---
+
+## Project snapshot
+
+<br>
+
+- Total R scripts: 46 (`.R` / `.r`)
+- Core pipeline scripts (01a–08): 24
+- Data-load scripts (`load-*.R`): 14
+- Run/prep orchestration scripts: 5
+- Utility/ad hoc/support scripts: 3
+
+::: notes
+In total, we now have 46 R scripts in one git repository in bcgov GitHub which are clearly organized into data loading, core pipeline analysis and support. This structure makes it much easier to jump in and find which piece of the process you need to work on.
+:::
+
+## End-to-end workflow {style="font-size: 75%;"}
+
+1. Preprocess raw enrolment/credential data (01a–01d)
+2. Program matching (02a series)
+3. Build enrollment and grad forecasting inputs (01e)
+4. Cohort construction (02b series)
+5. Near-completer ratios + graduate projections (03, 04)
+6. Census distribution scripts
+7. PTIB integration (05)
+8. Program-level projections (06)
+9. Occupation-level projections/model tables (07)
+10. Final internal/public report outputs (08)
+
+::: notes
+We start with raw enrolment data and move step-by-step through program matching, cohort construction, and calculating near-completer ratios before doing enrolment forecasting and calculating graduate projections.  We use census and ptib data to supplement the student survey cohorts and graduate projections. The final pieces of the model predict program-level and occupation-level outcomes. Each step generates one or more key interim tables which are stored in decimal and consumed downstream. In theory we can pause, QA the data, or refresh a specific part of the pipeline without running the whole thing.
+:::
+
+
+## Spring 2026 Objectives/Scope
+
+<br>
+
+- Full migration of SQL logic into R.  **Complete**
+- Refactoring of existing R scripts for clarity and maintainability. **Ongoing**
+- Enhancement of documentation for core workflows. **Draft, 85% complete**
+
+
+::: notes
+Our objective this spring was to fully migrate the legacy SQL logic into R, and that migration is now complete. We’re currently focused on refactoring the scripts to improve clarity, consistency, and long-term maintainability. In parallel, we’ve been developing the core documentation, which is now about 85% complete in draft form. That documentation includes methodology and workflow write-ups that are technical, but still readable, and explain what happens in each sub-process from the previous slide.
+:::
+
+## Migration SQL -> R
+
+<br>
+
+- Transformed core transformation logic from `sql` scripts into `R` code with tidyverse syntax.
+- Use of SQL Server (decimal) shifted from transformation engine to storage layer for key interim/final tables.
+- Centralized business logic (joins, recodes, filters, aggregations).
+
+::: notes
+This was a structural simplification. We reduced split ownership across SQL and R and made the R pipeline the single source of truth for transformation logic. The SQL Server backend remains critical, but primarily for persistence and handoff rather than transformation and analysis.
+Previously, if there was a data bug, we had to hunt through both SQL and R code to find the culprit. Moving the transformation logic entirely into R tidyverse syntax means we have one central place to manage how the data is shaped.
+:::
+
+## Delivery Model {style="font-size: 75%;"}
+
+**Before**
+
+  - Module steps depended on external SQL query files.
+  - Logic was split across SQL + R, crippling debugging and understanding.
+  - Updates often required edits in multiple places.
+  - ~ 15,000 lines of SQL code + 13,500 lines of R code
+
+**Now**
+
+  - Data analysis is implemented in tidyverse within module scripts.
+  - SQL writes are used intentionally for checkpoints and publish-ready tables.
+  - `sql/` is mostly legacy/reference plus limited specialized DB-side work.
+  - 23,200 lines of R code, with continued reductions expected through refactoring
+
+::: notes
+Key improvement is fewer context switches and clearer lineage. If a number changes, we can trace it in one primary workflow and validate table outputs directly in R. This also improves readability because transformation logic is now in one language and one pipeline.
+
+Going from over 28,500 lines of fragmented SQL/R code to a consolidated pipeline fully written in R is a win for future analysts. We have moved from a fragmented system to an intentional design where the database is primarily used to store our final and key interim tables.
+:::
+
+## Final Projections Tables {style="font-size: 80%;"}
+
+
+**tmp_tbl_model**: a superset of our internal/public release table
+
+- Projected counts of new skilled labour by occupation (NOC)
+- Aggregated by age-group, geography, NOC hierarchy
+- Wide format: one column per projection year (e.g. `2023/2024`, `2024/2025`, …, `2034/2035`)
+
+**graduate_projections**: a superset of our internal/public release table
+
+ - Projected counts of graduates by credential
+ - Aggregated by age-group, and credential category
+ - Wide format: one column per projection year (e.g. `2023/2024`, `2024/2025`, …, `2034/2035`)
+
+::: notes
+
+For this refactor phase, we’ve used tables tmp_tbl_model and graduate_projections as validation proxies for the final report because they are the core raw outputs that feed downstream reporting tables. In addition, report-layer filtering, suppression, and formatting were already implemented in R and were outside this project’s scope, so the key test is whether SQL and R produce the same core projection tables.
+
+tmp_tbl_model contains projected totals by occupation (or NOC code), region and age group.  After report-stage filtering, suppression, and formatting, it becomes the release-ready output.
+:::
+
+## Labour Projections
+
+```{r setup}
+#| echo: false
+library(gt)
+source("presentation-helper-code-06-2026.R")
+```
+
+```{r occ-proj-scatter-plot}
+#| echo: false
+#| message: false
+#| warning: false
+
+p <- ggplot(
+  diff_r_sql,
+  aes(
+    x = VAL.sql,
+    y = VAL.r
+  )
+) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(
+    title = "Projected Labour Supply: SQL vs. R Model Implementations",
+    subtitle = "Each point represents a unique age group, NOC, region, and year combination",
+    x = "Projected Supply (SQL Model)",
+    y = "Projected Supply (R Model)"
+  ) +
+  theme_minimal()
+
+print(p)
+
+```
+
+::: notes
+This scatter plot validates our migration efforts by comparing occupation projection outputs from the new R pipeline against a fresh run of the legacy SQL pipeline (neither run includes manual program matching). Each point represents projected new skilled labour for a specific age group, NOC, region, and year combination; the final release reports a subset of these records.
+
+The red diagonal is the 1-to-1 reference line. Because points cluster tightly along that line, we can see that SQL versions and our full R version are producing near identical core projection tables. The close alignment of tmp_tbl_model across both versions is strong evidence that the refactor preserved prior production results.
+
+:::
+
+## Graduate Projections
+
+```{r grad-proj-scatter-plot}
+#| echo: false
+#| message: false
+#| warning: false
+
+p <- ggplot(
+  grad_proj_sql_r,
+  aes(
+    x = GRADUATES.sql,
+    y = GRADUATES.r
+  )
+) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(
+    title = "Comparison of Graduate Projections",
+    subtitle = "Each point = one credential × year × age group × survey",
+    x = "SQL Graduate Projections",
+    y = "R Graduate Projections"
+  ) +
+  theme_minimal()
+
+print(p)
+```
+
+::: notes
+
+Similarly, looking at the graduate projections, we have the SQL version graduate counts on the X-axis and the R version graduate counts on the Y-axis. Again, the vast majority of our data points fall exactly along the red line, telling us that the graduate projection logic has translated over as well.  
+
+:::
+
+## Graduate Projections (Log Scale)
+
+```{r grad-proj-scatter-plot-log}
+#| echo: false
+#| message: false
+#| warning: false
+
+p <- ggplot(
+  grad_proj_sql_r,
+  aes(
+    x = log1p(GRADUATES.sql),
+    y = log1p(GRADUATES.r)
+  )
+) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(
+    title = "Comparison of Graduate Projections",
+    subtitle = "Each point = one credential × year × age group × survey",
+    x = "SQL Graduate Projections",
+    y = "R Graduate Projections"
+  ) +
+  theme_minimal()
+
+print(p)
+```
+
+::: notes
+Applying a log transform brings the points onto a more comparable scale. Because projection sizes vary widely, the log view helps highlight differences that are less visible on the original scale.
+
+Most points still follow the main 1-to-1 trend, but a small number fall slightly off the red line. I’ve listed those specific cases on the next slide for follow-up review.
+:::
+
+## Graduate Projections (Mismatches)
+
+<br>
+
+```{r grad-proj-table}
+#| echo: false
+#| message: false
+#| warning: false
+grad_proj_sql_r |>
+  filter(p_diff > 2, diff > 1) |>
+  group_by(
+    PSSM_CREDENTIAL,
+    AGE_GROUP
+  ) |>
+  slice_min(n = 1, order_by = YEAR) |>
+  mutate(
+    across(starts_with("GRADUATES"), ~ round(., 0)), 
+    across(contains("diff"), ~ round(., 1))
+  ) |>
+  arrange(AGE_GROUP) |>
+  ungroup() |>
+  transmute(
+    "Credential"= PSSM_CREDENTIAL,
+    "Age Group" = AGE_GROUP,
+    GRADUATES.sql,
+    GRADUATES.r,
+    `Diff (%)` = p_diff
+  ) |>
+  gt() |> tab_spanner(
+    label = "Graduates (N)",
+    columns = c(GRADUATES.sql, GRADUATES.r)
+  ) |>
+  cols_label(
+    GRADUATES.sql = "SQL",
+    GRADUATES.r = "R"
+  )
+```
+
+::: notes
+
+Here, we’ve filtered the results to highlight credential and age-group combinations where the two models differ by more than 2% and by more than 1 graduate. ADGR/UT refers to Associate Degree/University Transfer credentials and the slide shows a subset of all Associate Degree/University Transfer graduates, specifically the near-completer cases. 
+
+:::
+
+## Challenges
+
+- Program Matching
+- Skills-based courses (manual work)
+- Manual updates (imputed values)
+- Demographic information sourced from many different tables
+- Missing demographic imputed multiple times and methods
+
+::: {.notes}
+While the migration was successful, we did hit some bumps. Program matching is still time-consuming and complex, and some decisions need to be made around manual work. We chose not to do any manual work to identify skills-based courses. There were decisions to be made around how to impute values. Additionally, tracking demographics is tough because there is no single source of truth for gender, which can change over time, requiring us to stitch demographic data together from several different tables.
+:::
+
+
+## Future Plan
+
+We need to make a decision on what to do next.  Some thoughts are:
+
+- Continue to improve documentation
+- Continue improving the code (refactoring, optimization, checks etc.)
+- Change the design/structure? (i.e. target-based approach)
+- 2026/2027 model run.  When to start?
+- Determine the value of program matching. 
+- Investigate how gender and age are being imputed.
+
+::: notes
+Looking ahead, we need to prioritize our next steps. We have some decisions to make: should we focus on low-hanging fruit like documentation, do more code optimization, or consider changing the model structure entirely to a target-based approach? We also need to start planning the timelines for the next model run, and step back to determine the actual value we are getting out of the manual program matching efforts. (Have other policy analysts or areas done work on this?)
+:::
+
