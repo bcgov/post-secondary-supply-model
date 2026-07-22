@@ -22,6 +22,7 @@
 library(tidyverse)
 library(RODBC)
 library(DBI)
+library(futile.logger)
 
 # ---- Connect to SQL Server and read StatCan Tables ----
 lan <- config::get("lan")
@@ -103,7 +104,10 @@ time_execution <- function(file_path) {
       )
       flog.error(traceback(), name = "file_logger") # Log the traceback for details
 
-      stop()
+      # Re-raise the original condition so callers see the real error message,
+      # class, and call site. A bare stop() would throw an empty error and
+      # discard everything we just logged about.
+      stop(e)
     }
   )
 }
