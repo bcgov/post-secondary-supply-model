@@ -39,9 +39,12 @@ library(config)
 library(DBI)
 library(odbc)
 
-# regular_run <- T
-# qi_run <- F
-# ptib_run <- F
+# ---- Run flags ----
+# If sourced via an orchestrator (local = globalenv()), these are expected to
+# already exist. If run standalone, provide safe defaults.
+if (!exists("regular_run", inherits = TRUE)) regular_run <- TRUE
+if (!exists("qi_run", inherits = TRUE)) qi_run <- FALSE
+if (!exists("ptib_run", inherits = TRUE)) ptib_run <- FALSE
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
