@@ -20,7 +20,7 @@ library(futile.logger)
 
 time_execution <- function(file_path) {
   # Log a start message with a timestamp
-  flog.info(paste("Starting:", file_path), name = "file_logger")
+  futile.logger::flog.info(paste("Starting:", file_path), name = "file_logger")
 
   # Log a start message with a timestamp
   print(
