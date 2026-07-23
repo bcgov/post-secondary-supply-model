@@ -20,3 +20,4 @@ AGENTS.md
 .gitignore
 docs/agents/
 .claude/
+split-pr-89.sh
