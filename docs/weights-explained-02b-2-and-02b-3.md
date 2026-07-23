@@ -357,8 +357,8 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
    NOC isn't a clean signal.
 
 3. **`WEIGHT_ADJ_FAC` naming collision.** Both scripts call their adjustment
-   factor `WEIGHT_ADJ_FAC` / `WEIGHT_ADJ_FAC`, but they are **different objects**
-   in different tables (`tmp_tbl_weights_nls` vs `dacso_q008_z04_weight_adj_fac`).
+   factor `WEIGHT_ADJ_FAC`, but they are **different objects** in different
+   tables (`tmp_tbl_weights_nls` vs `dacso_q008_z04_weight_adj_fac`).
    Don't assume they're the same number.
 
 4. **The R comments are honest about uncertainty.** E.g. 02b-3 line ~239: the
