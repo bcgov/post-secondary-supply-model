@@ -20,8 +20,4 @@ tmp/
 .claude/
 
 docs/agents/
-<<<<<<< HEAD
-=======
-AGENTS.md
->>>>>>> 0726738 (fix(utils): re-throw caught condition instead of bare stop())
 split-pr-89.sh
