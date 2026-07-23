@@ -14,6 +14,20 @@
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 01b-credential-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -27,6 +41,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 ## --------------------------------------Required Tables------------------------------------------
 # currently repurposing data from 2023 run.  When running next update, change this code to pull
@@ -55,11 +70,17 @@ stp_credential <- dbGetQuery(
   FROM "{my_schema}"."STP_Credential"'
   )
 )
+log_info(glue::glue(
+  "Loaded STP_Credential: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"
+))
 
 stp_enrolment_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_enrolment_record_type_r: {nrow(stp_enrolment_record_type)} rows"
+))
 
 stp_enrolment <- dbGetQuery(
   con,
@@ -74,20 +95,25 @@ stp_enrolment <- dbGetQuery(
   FROM "{my_schema}"."stp_enrolment_r"'
   )
 )
+log_info(glue::glue("Loaded stp_enrolment_r: {nrow(stp_enrolment)} rows"))
 
 ## --------------------------------------Initial Data Checks--------------------------------------
 ## reference: source("./sql/01-credential-preprocessing/01-credential-preprocessing-sql.R")
 ## -----------------------------------------------------------------------------------------------
 
-stp_credential |>
+invalid_pen_count <- stp_credential |>
   filter(
     ENCRYPTED_TRUE_PEN %in%
       c("", " ", "(Unspecified)") |
       is.na(ENCRYPTED_TRUE_PEN)
   ) |>
   nrow()
+log_info(glue::glue(
+  "Rows with invalid/missing ENCRYPTED_TRUE_PEN: {invalid_pen_count}"
+))
 
-stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> count()
+distinct_pen_count <- stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
+log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
 # stp_credential <- stp_credential |>
@@ -168,6 +194,10 @@ enrol_skills_lookup <- stp_enrolment |>
   ) |>
   mutate(is_skills_match = TRUE)
 
+log_info(glue::glue(
+  "Created enrol_skills_lookup: {nrow(enrol_skills_lookup)} distinct skill-based course combinations"
+))
+
 stp_credential_record_type <- stp_credential |>
   mutate(CIP2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) |>
   left_join(
@@ -209,6 +239,12 @@ stp_credential_record_type <- stp_credential |>
   ) |>
   select(ID, ENCRYPTED_TRUE_PEN, RecordStatus)
 
+log_info("Credential RecordStatus assignment complete. Counts by status:")
+log_info(paste(
+  capture.output(print(stp_credential_record_type |> count(RecordStatus))),
+  collapse = "\n"
+))
+
 
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
@@ -228,13 +264,22 @@ write_table_to_db <- function(table_name, schema, con) {
   dbWriteTable(
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
-    get(table_name, envir = .GlobalEnv),
+    base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
 
-rm(list = ls())
+log_info("==== 01b-credential-preprocessing.R COMPLETE ====")
+
+# rm(list = ls())

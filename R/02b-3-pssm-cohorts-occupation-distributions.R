@@ -9,6 +9,10 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
+# OCCSN(NOC) = GRADUATES(cred, age)
+#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
+#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
+#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
 
 library(tidyverse)
 library(glue)
@@ -56,7 +60,7 @@ con <- dbConnect(
 # move this into load scripts?
 occupation_distributions_stat_can <- dbReadTable(
   con,
-  SQL(glue::glue('"Occupation_Distributions_Stat_Can_r"'))
+  SQL(glue::glue('"Occupation_Distributions_Stat_Can"'))
 ) |>
   # not sure which one this should be but this matches what is in the SQL table
   mutate(
@@ -582,21 +586,22 @@ group_vars <- c(
 occupation_distributions <- dacso_q009_weight_occs |>
   group_by(across(c(all_of(group_vars), "NOC_CD"))) |>
   summarize(
-    COUNT = sum(WEIGHTED, na.rm = TRUE),
+    COUNT = sum(WEIGHTED, na.rm = TRUE), # + NOC = numerator
     .groups = "drop"
   ) |>
   left_join(
     dacso_q009_weight_occs |>
       group_by(across(all_of(group_vars))) |>
       summarize(
-        TOTAL = sum(WEIGHTED, na.rm = TRUE),
+        TOTAL = sum(WEIGHTED, na.rm = TRUE), # CIP×cred×region×age = denominator
         .groups = "drop"
       ),
     by = group_vars
   ) |>
   mutate(
-    PERC_DIST = COUNT / TOTAL
+    PERC_DIST = COUNT / TOTAL #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   ) |>
+  #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -647,7 +652,7 @@ occupation_distributions_lcp2 <-
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL) |>
+  mutate(PERC_DIST = COUNT / TOTAL) |> #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -696,7 +701,7 @@ occupation_distributions_lcp2_bc <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL) |>
+  mutate(PERC_DIST = COUNT / TOTAL) |> #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -745,7 +750,7 @@ occupation_distributions_lcp2_bc_no_tt <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL) |>
+  mutate(PERC_DIST = COUNT / TOTAL) |> #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -794,7 +799,7 @@ occupation_distributions_lcp2_no_tt <- dacso_q009_weight_occs |>
       ),
     by = group_vars
   ) |>
-  mutate(PERC_DIST = COUNT / TOTAL) |>
+  mutate(PERC_DIST = COUNT / TOTAL) |> #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   transmute(
     Survey = "Student Outcomes",
     PSSM_Credential = PSSM_CREDENTIAL,
@@ -861,7 +866,7 @@ occupation_distributions_no_tt <- dacso_q009_weight_occs |>
     by = c(group_vars)
   ) |>
   mutate(
-    PERC_DIST = COUNT / TOTAL
+    PERC_DIST = COUNT / TOTAL #        Percent = COUNT(NOC, CIP, …) / TOTAL(CIP, …) = P(NOC | CIP, region, age)
   ) |>
   transmute(
     Survey = "Student Outcomes",
@@ -879,63 +884,69 @@ occupation_distributions_no_tt <- dacso_q009_weight_occs |>
     Percent = PERC_DIST
   )
 
+# ------  PDEG/Law NEW LABOUR SUPPLY distribution is built in 02b-2 ------
+# Removed the duplicate NLS PDEG block that previously lived here.
+# It re-appended 'Student Outcomes' PDEG/07 rows that 02b-2 had already added
+# (the dedup filter only caught '2021 Census' rows), doubling lawyer supply.
+
 # ------  create distribution for pdeg/law distribution ------
 # These queries calculate New Labour Supply Distribution for Law/PDEG
+
 # TODO: Move to 02b-2
-labour_supply_distribution <- labour_supply_distribution |>
-  filter(
-    !(str_starts(Survey, '2021 Census') & # upper case SURVEY
-      PSSM_CREDENTIAL == "PDEG" &
-      str_starts(LCP4_CD, "07"))
-  ) #6459 records kept
+# labour_supply_distribution <- labour_supply_distribution |>
+#   filter(
+#     !(str_starts(Survey, '2021 Census') & # upper case SURVEY
+#       PSSM_CREDENTIAL == "PDEG" &
+#       str_starts(LCP4_CD, "07"))
+#   ) #6459 records kept
 
-labour_supply_distribution_pdeg <- labour_supply_distribution |>
-  filter(
-    PSSM_CREDENTIAL == "BACH",
-    str_starts(LCP4_CD, "22"),
-    str_starts(Survey, "Student Outcomes")
-  )
+# labour_supply_distribution_pdeg <- labour_supply_distribution |>
+#   filter(
+#     PSSM_CREDENTIAL == "BACH",
+#     str_starts(LCP4_CD, "22"),
+#     str_starts(Survey, "Student Outcomes")
+#   )
 
-group_vars <- c(
-  "Survey",
-  "TTRAIN",
-  "AGE_GROUP_ROLLUP"
-)
+# group_vars <- c(
+#   "Survey",
+#   "TTRAIN",
+#   "AGE_GROUP_ROLLUP"
+# )
 
-# ---- dacso_q010d2_nls_pdeg_07_count ----
-dacso_q010d5 <- labour_supply_distribution_pdeg |>
-  group_by(across(all_of(c(group_vars, "CURRENT_REGION_PSSM_CODE_ROLLUP")))) |>
-  summarize(
-    COUNT = sum(COUNT, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  left_join(
-    labour_supply_distribution_pdeg |>
-      distinct(across(all_of(c(group_vars, "TOTAL")))) |>
-      group_by(across(all_of(group_vars))) |>
-      summarize(
-        TOTAL = sum(TOTAL, na.rm = TRUE),
-        .groups = "drop"
-      ),
-    by = group_vars
-  ) |>
-  transmute(
-    Survey = "Student Outcomes",
-    PSSM_CREDENTIAL = "PDEG",
-    PSSM_CRED = "PDEG",
-    CURRENT_REGION_PSSM_CODE_ROLLUP,
-    AGE_GROUP_ROLLUP,
-    LCP4_CD = "07",
-    TTRAIN,
-    LCIP4_CRED = "07 - PDEG",
-    LCIP2_CRED = NA_character_,
-    COUNT,
-    TOTAL,
-    New_Labour_Supply = if_else(is.na(COUNT), 0, COUNT / TOTAL)
-  )
+# # ---- dacso_q010d2_nls_pdeg_07_count ----
+# dacso_q010d5 <- labour_supply_distribution_pdeg |>
+#   group_by(across(all_of(c(group_vars, "CURRENT_REGION_PSSM_CODE_ROLLUP")))) |>
+#   summarize(
+#     COUNT = sum(COUNT, na.rm = TRUE),
+#     .groups = "drop"
+#   ) |>
+#   left_join(
+#     labour_supply_distribution_pdeg |>
+#       distinct(across(all_of(c(group_vars, "TOTAL")))) |>
+#       group_by(across(all_of(group_vars))) |>
+#       summarize(
+#         TOTAL = sum(TOTAL, na.rm = TRUE),
+#         .groups = "drop"
+#       ),
+#     by = group_vars
+#   ) |>
+#   transmute(
+#     Survey = "Student Outcomes",
+#     PSSM_CREDENTIAL = "PDEG",
+#     PSSM_CRED = "PDEG",
+#     CURRENT_REGION_PSSM_CODE_ROLLUP,
+#     AGE_GROUP_ROLLUP,
+#     LCP4_CD = "07",
+#     TTRAIN,
+#     LCIP4_CRED = "07 - PDEG",
+#     LCIP2_CRED = NA_character_,
+#     COUNT,
+#     TOTAL,
+#     New_Labour_Supply = if_else(is.na(COUNT), 0, COUNT / TOTAL)
+#   )
 
-labour_supply_distribution <- labour_supply_distribution |>
-  rbind(dacso_q010d5)
+# labour_supply_distribution <- labour_supply_distribution |>
+#   rbind(dacso_q010d5)
 
 # ---- Calculate Occupational Distribution for Law/PDEG
 # Collapse the following 4 queries into one for readability.
@@ -1041,9 +1052,9 @@ occupation_distributions <- occupation_distributions |>
         PSSM_CREDENTIAL = PSSM_CREDENTIAL,
         PSSM_CRED,
         LCP4_CD,
-        TTRAIN,
+        TTRAIN = NA_character_,
         LCIP4_CRED,
-        LCIP2_CRED,
+        LCIP2_CRED = NA_character_,
         NOC,
         CURRENT_REGION_PSSM_CODE_ROLLUP,
         AGE_GROUP_ROLLUP,
@@ -1068,7 +1079,8 @@ tables_to_keep <- c(
   "occupation_distributions_lcp2",
   "occupation_distributions_lcp2_no_tt",
   "occupation_distributions_lcp2_bc",
-  "occupation_distributions_lcp2_bc_no_tt"
+  "occupation_distributions_lcp2_bc_no_tt",
+  "t_suppression_public_release_noc"
 )
 
 write_table_to_db <- function(table_name, schema, con) {

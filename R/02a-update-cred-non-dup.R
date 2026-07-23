@@ -52,6 +52,20 @@ library(arrow)
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 02a-update-cred-non-dup.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -67,6 +81,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 sch_tbl <- function(tbl, conn = con, schema = my_schema) {
   dplyr::tbl(conn, DBI::Id(schema = schema, table = tbl))
@@ -101,6 +116,7 @@ dbExistsTable(
   con,
   SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"'))
 )
+log_info("Checked all required tables exist")
 
 ## ---------------------Add CIP columns to Credential_Non_Dup--------------------------------------
 # The credential table doesn't yet have columns for the final matched CIP codes.
@@ -125,6 +141,7 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_2 varchar(2),
             STP_CIP_CODE_2_NAME varchar(255);"
 )
+log_info("Added 12 CIP columns to Credential_Non_Dup_r via ALTER TABLE")
 
 ## -------------- Update CIP codes from DACSO (primary source)------------------------------------
 # DACSO provides the richest matching — it joins on 7 columns (institution,
@@ -138,6 +155,10 @@ cred_non_dup <- sch_tbl("credential_non_dup_r")
 cred_non_dup <- cred_non_dup |> rename_with(toupper)
 cred_non_dup <- cred_non_dup |>
   collect()
+
+log_info(glue::glue(
+  "Loaded credential_non_dup_r: {nrow(cred_non_dup)} records"
+))
 
 
 dacso_cips <- sch_tbl("Credential_Non_Dup_Programs_DACSO_FinalCIPs_r")
@@ -186,11 +207,16 @@ cred_non_dup <- cred_non_dup %>%
     unmatched = "ignore"
   )
 
-## ---------------------Update CIP codes from BGS program matching --------------------------------
+log_info(glue::glue(
+  "DACSO update applied: {nrow(dacso_join)} matched records, {sum(!is.na(cred_non_dup$FINAL_CIP_CODE_4))} now have FINAL_CIP_CODE_4"
+))
+
+## -----------------------------------------------------------------------------------------------------------------------------------
 # BGS (BC Government Student outcomes) records weren't matched by DACSO.
 # These are matched by a simple ID lookup from the BGS program matching script
 # (02a-bgs-program-matching). rows_update only overwrites NA values where IDs match.
 ## ------------------------------------------------------------------------------------------------
+
 bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs_r") %>%
   select(
     ID,
@@ -202,6 +228,7 @@ bgs_cips <- sch_tbl("Credential_Non_Dup_BGS_IDs_r") %>%
     FINAL_CIP_CLUSTER_NAME
   ) %>%
   collect()
+
 bgs_cips <- bgs_cips |> rename_with(toupper)
 
 bgs_updates <- bgs_cips |>
@@ -228,6 +255,10 @@ bgs_updates <- bgs_cips |>
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(bgs_updates, by = "ID", unmatched = "ignore")
+
+log_info(glue::glue(
+  "BGS update applied: {nrow(bgs_updates)} IDs, {sum(!is.na(cred_non_dup$FINAL_CIP_CODE_4))} now have FINAL_CIP_CODE_4"
+))
 
 ## -------------------Update CIP codes from GRAD program matching----------------------------------
 # ---- update cluster codes for GRAD and APPSO (was left out of previous code)
@@ -270,6 +301,10 @@ grad_updates <- grad_cips %>%
 cred_non_dup <- cred_non_dup %>%
   rows_update(grad_updates, by = "ID", unmatched = "ignore")
 
+log_info(glue::glue(
+  "GRAD update applied: {nrow(grad_updates)} IDs, {sum(!is.na(cred_non_dup$FINAL_CIP_CODE_4))} now have FINAL_CIP_CODE_4"
+))
+
 ## -------------------Update CIP codes from APPSO program matching----------------------------------
 # APPSO (Apprentice outcomes) records get their CIP codes from the APPSO
 # cleaning script (02a-appso-programs). Like BGS/GRAD, simple ID-based lookup.
@@ -310,6 +345,10 @@ appso_updates <- appso_cips %>%
 cred_non_dup <- cred_non_dup %>%
   rows_update(appso_updates, by = "ID", unmatched = "ignore")
 
+log_info(glue::glue(
+  "APPSO update applied: {nrow(appso_updates)} IDs, {sum(!is.na(cred_non_dup$FINAL_CIP_CODE_4))} now have FINAL_CIP_CODE_4"
+))
+
 ## -------------------Populate cluster codes for GRAD and APPSO records-----------------------------
 # GRAD and APPSO records need cluster codes (broader career groupings) that
 # map from their 2-digit CIP codes. These clusters are used in downstream occupation
@@ -340,6 +379,10 @@ cred_non_dup <- cred_non_dup %>%
   ) %>%
   select(-LCP2_LCIPPC_CD, -LCP2_LCIPPC_NAME)
 
+log_info(glue::glue(
+  "Cluster codes populated for GRAD/APPSO records. Still NULL FINAL_CIP_CODE_4: {sum(is.na(cred_non_dup$FINAL_CIP_CODE_4))}"
+))
+
 # ---- check for any leftover NULLs in the final cip 4 column
 # These NULLs will be filled by the STP fallback below.
 {
@@ -364,6 +407,10 @@ cred_non_dup <- cred_non_dup %>%
 null_cleaning <- cred_non_dup %>%
   filter(is.na(FINAL_CIP_CODE_4)) %>%
   count(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, name = "Expr1")
+
+log_info(glue::glue(
+  "NULL CIP cleanup: {nrow(null_cleaning)} distinct CIP codes to clean for unmatched records"
+))
 
 dbWriteTable(
   con,
@@ -499,6 +546,11 @@ null_cleaning <- null_cleaning %>%
   select(-PSI_CIP_2, -LCIP_CD_WITH_PERIOD, -LCIP_LCP4_CD, -LCIP_LCP2_CD)
 
 
+log_info(glue::glue(
+  "NULL CIP cleaning: INFOWARE matching complete. {sum(!is.na(null_cleaning$STP_CIP_CODE_4))}/{nrow(null_cleaning)} codes matched to a 4-digit CIP"
+))
+
+
 ## --------------------- Step 11: Add CIP names from lookup tables ------------------------------
 # Add human-readable names for the matched CIP codes, needed for reporting and
 # for analysts to verify that the CIP matches are sensible.
@@ -527,6 +579,10 @@ null_cleaning <- null_cleaning %>%
       STP_CIP_CODE_4_NAME
     )
   )
+
+log_info(
+  "NULL CIP cleaning: CIP names added, unmatched flagged as 'Invalid 4-digit CIP'"
+)
 
 ## ------------- Step 12: Create ID list of NULL records with matched STP CIPs -----------------
 # Join the cleaned CIP results back to the original credential records that had
@@ -598,7 +654,10 @@ dbWriteTable(
   overwrite = TRUE
 )
 
-## ------------- Step 13: Apply the NULL CIP fallback to Credential_Non_Dup -----------------------
+log_info(glue::glue(
+  "NULL CIP fallback: Created null_ids lookup with {nrow(null_ids)} records to update"
+))
+##-----------------------
 # update the final NULL CIPs
 # dbExecute(con, qry_update_Credential_Non_Dup_NULL_Final_CIPs)
 # This is the final merge — update the main credential table with the STP-derived
@@ -619,6 +678,10 @@ null_updates <- null_ids %>%
 
 cred_non_dup <- cred_non_dup %>%
   rows_update(null_updates, by = "ID", unmatched = "ignore")
+
+log_info(glue::glue(
+  "NULL CIP fallback applied: {sum(is.na(cred_non_dup$FINAL_CIP_CODE_4))} records still missing FINAL_CIP_CODE_4"
+))
 
 ## checks
 {
@@ -690,6 +753,9 @@ cred_non_dup <- cred_non_dup %>%
   )
 
 # Write final table
+log_info(glue::glue(
+  "Final cleanup complete. Writing Credential_Non_Dup_r: {nrow(cred_non_dup)} records, {sum(!is.na(cred_non_dup$FINAL_CIP_CODE_4))} with FINAL_CIP_CODE_4"
+))
 dbWriteTable(
   con,
   SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"')),
@@ -698,5 +764,11 @@ dbWriteTable(
 )
 
 # ---- Clean up ----
-dbExecute(con, "DROP TABLE Credential_Non_Dup_STP_NULL_Cleaning")
+dbExecute(
+  con,
+  glue::glue("DROP TABLE [{my_schema}].Credential_Non_Dup_STP_NULL_Cleaning_r")
+)
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
+
+log_info("==== 02a-update-cred-non-dup.R COMPLETE ====")
