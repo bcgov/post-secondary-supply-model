@@ -266,7 +266,7 @@ credential_non_dup <- dbReadTable(
 
 stp_credential <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential"'))
+  SQL(glue::glue('"{my_schema}"."STP_Credential_r"'))
 )
 
 # ---- Clean up and disconnect ----
