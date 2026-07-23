@@ -244,12 +244,10 @@ A key design choice follows from the Tier-1/Tier-2 split in §4:
 > runs, so they are produced once, stored in a shared schema, and *copied* into
 > each analyst's working schema at the start of every run.**
 
-`config.yml` defines two schemas for this purpose:
+`config.yml` currently provides the analyst working schema (`myschema`). A separate shared-input schema is a potential improvement (see §6.3):
 
-```yaml
-myschema:      "IDIR\\myschema"      # the analyst's own working schema (Tier-2 writes go here)
-second_schema: "IDIR\\dboorotheruser"   # shared input library — frozen Tier-1 outputs live here
-```
+    myschema: "IDIR\\myschema"  # the analyst's own working schema (Tier-2 writes go here)
+    # second_schema: "IDIR\\pssm_inputs"  # optional shared input library (not wired up in current prep scripts)
 
 The copy happens in `prep-for-fresh-run.R` (and the QI/PTIB prep scripts), which
 runs a `copy_tables` list:
