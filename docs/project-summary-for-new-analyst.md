@@ -256,17 +256,17 @@ runs a `copy_tables` list:
 
 ```r
 copy_tables <- c(
-  '[{second_schema}]."T_bgs_data_final_for_outcomesmatching_r"',  # from 02a
-  '[{second_schema}]."Credential_Non_Dup_r"',                      # from 01c
-  '[{second_schema}]."STP_Credential_r"',                          # from PSFS
-  '[{second_schema}]."qry09c_minenrolment_r"',                     # from 01e  → feeds Term 1
-  '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_..._r"',  # from 01e  → feeds Term 1
-  '[{second_schema}]."tbl_credential_highest_rank_r"',             # from 01c
-  '[{second_schema}]."Labour_Supply_Distribution_Stat_Can"',       # external
-  '[{second_schema}]."Occupation_Distributions_Stat_Can"'          # external
+  '"T_bgs_data_final_for_outcomesmatching_r"',  # from 02a
+  '"Credential_Non_Dup_r"',                      # from 01c
+  '"STP_Credential_r"',                          # from PSFS
+  '"qry09c_minenrolment_r"',                     # from 01e  → feeds Term 1
+  '"Credential_By_Year_Gender_AgeGroup_..._r"',  # from 01e  → feeds Term 1
+  '"tbl_credential_highest_rank_r"',             # from 01c
+  '"Labour_Supply_Distribution_Stat_Can"',       # external
+  '"Occupation_Distributions_Stat_Can"'          # external
 )
 for (table in copy_tables) {
-  dbExecute(con, glue('SELECT * INTO [{my_schema}].{t} FROM {table};'))
+  dbExecute(con, glue('SELECT * INTO [{my_schema}].{table} FROM [{second_schema}].{table};'))
 }
 ```
 

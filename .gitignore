@@ -16,8 +16,8 @@ presentations/presentation-06-2026_files/
 tmp/
 .github/agents/*
 .github/instructions/*
-docs/02a-update-cred-non-dup-diagiam.md
 .gitignore
 .claude/
+
 docs/agents/
 split-pr-89.sh
