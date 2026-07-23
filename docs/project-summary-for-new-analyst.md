@@ -247,7 +247,7 @@ A key design choice follows from the Tier-1/Tier-2 split in §4:
 `config.yml` currently provides the analyst working schema (`myschema`). A separate shared-input schema is a potential improvement (see §6.3):
 
     myschema: "IDIR\\myschema"  # the analyst's own working schema (Tier-2 writes go here)
-    # second_schema: "IDIR\\pssm_inputs"  # optional shared input library (not wired up in current prep scripts)
+    pssm_inputs: "IDIR\\pssm_inputs"  # optional shared input library (not wired up in current prep scripts)
 
 The copy happens in `prep-for-fresh-run.R` (and the QI/PTIB prep scripts), which
 runs a `copy_tables` list:
@@ -264,7 +264,7 @@ copy_tables <- c(
   '"Occupation_Distributions_Stat_Can"'          # external
 )
 for (table in copy_tables) {
-  dbExecute(con, glue('SELECT * INTO [{my_schema}].{table} FROM [{second_schema}].{table};'))
+  dbExecute(con, glue('SELECT * INTO [{my_schema}].{table} FROM [{pssm_inputs}].{table};'))
 }
 ```
 
@@ -319,30 +319,12 @@ flowchart LR
    deliberately re-runs `01`/`02a` and refreshes `second_schema` — making it a
    versioned, reviewable hand-off rather than silent drift.
 
-### 6.3 Rough edges in the current implementation (and a path forward)
+### 6.3 A first-class `pssm_inputs` schema needs work
 
-The two-schema *idea* is sound, but the current code has some inconsistencies a
-new analyst should know about:
 
-- **Schema source is inconsistent across prep scripts.** `prep-for-fresh-run.R`
-  copies Tier-1 tables from `second_schema` with an `_r` suffix (e.g.
-  `Credential_Non_Dup_r`), but `prep-for-ptib-run.R` copies `Credential_Non_Dup`
-  from `dbo` with no suffix. A `TODO: copy tables from bonnie's schema with _r`
-  comment in `prep-for-fresh-run.R` flags that this isn't settled. An analyst can
-  easily grab the wrong vintage of an input depending on which prep script ran.
-- **The "shared library" is a person's IDIR schema** (`IDIR\BASHCROF`), not a
-  purpose-built schema. It's implicit, not documented as the canonical input
-  store, and its lifetime is tied to that person's account.
-- **The copy list is hand-maintained** in three places (the three prep scripts),
-  so the same table appears under different names/suffixes and can drift out of
-  sync.
-- **`prep-for-fresh-run.R` Option 1** will drop *every* table in `my_schema`
-  (except `_raw` suffixed ones). Powerful, but easy to lose work if mis-run.
+The shared library should be a first-class `pssm_inputs` schema:
 
-**Potential improvement — promote the shared library to a first-class
-`pssm_inputs` schema.** Concretely:
-
-1. **Create a dedicated schema** (e.g. `pssm_inputs`) owned by the team, not an
+1. **A dedicated schema** (e.g. `pssm_inputs`) owned by the team, not an
    individual IDIR. Move all Tier-1 frozen outputs and the StatCan inputs there.
    This makes the input library explicit, survives staff turnover, and can be
    permission-locked to read-only for analysts.
@@ -488,8 +470,10 @@ the end product is `labour_supply_distribution`, whose `New_Labour_Supply` colum
 
 **The participation rate (Term 3) itself:**
 
-$$P(\text{in labour supply}\mid\text{CIP, age, region})
-= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}$$
+$$
+P(\text{in labour supply}\mid\text{CIP, age, region})
+= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}
+$$
 
 > See §9 for how `WEIGHTED` (i.e. `WEIGHT_NLS`) is constructed and why the
 > two-stage weighting is **not** a double adjustment.
@@ -512,7 +496,8 @@ derivation in §9; the end product is `occupation_distributions`.
 **The occupation distribution (Term 4) itself:**
 
 $$P(\text{NOC}\mid\text{CIP, region})
-= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}$$
+= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}
+$$
 
 Outputs include `occupation_distributions` plus `_lcp2`, `_bc`, `_no_tt`, and a
 `_pdeg` (Professional Degree / Law) variant. Statistics Canada Census
@@ -540,7 +525,8 @@ residual is the true near-completer population.
 $$NC_{Residual} = NC_{Survey} - NC_{Promoted}$$
 
 $$Ratio_{Baseline} = \frac{NC_{Residual}}{Completers_{Survey}}, \qquad
-Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}$$
+Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}
+$$
 
 Produces ratios stratified by age, gender, 4-digit CIP, and credential; also by
 year. The 2018–2019 baseline cycle is used for the PSSM 2023 model.
@@ -575,7 +561,8 @@ $$R_G = \frac{N_G}{N_E}, \qquad N_G = R_G \times N_F$$
 (via Module 03 ratios and APPSO data respectively):
 
 $$N_{G_{NC}} = N_G \times R_{C_{NC}}, \qquad
-N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})$$
+N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})
+$$
 
 Output tables: `Graduate_Projections` and `Graduate_Projections_Include_Historical`.
 
