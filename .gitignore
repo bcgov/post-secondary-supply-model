@@ -10,13 +10,14 @@ tmp
 *.html
 .github/copilot-instructions.md
 
-.github/copilot-instructions.md
-
+plugin.yml
+presentations/presentation-06-2026_files/
+.factory/
 tmp/
 .github/agents/*
 .github/instructions/*
 docs/02a-update-cred-non-dup-diagiam.md
-AGENTS.md
 .gitignore
-docs/agents/
 .claude/
+docs/agents/
+split-pr-89.sh
