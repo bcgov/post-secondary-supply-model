@@ -322,7 +322,7 @@ if (regular_run == T & qi_run != T & ptib_run != T) {
     ))
     print(glue::glue("regular model run flag: {regular_run}"))
     print(glue::glue("qi model run flag: {qi_run}"))
-    print(glue::glue("ptib model furn flag: {ptib_run}"))
+    print(glue::glue("ptib model run flag: {ptib_run}"))
     time_execution(file_path)
   }
 }

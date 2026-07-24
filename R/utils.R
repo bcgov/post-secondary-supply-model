@@ -15,8 +15,8 @@ library(RODBC)
 library(DBI)
 library(futile.logger)
 
-# Keep utils side-effect free: do not read config or open DB connections on source.
-# Create connections in the calling script and pass them into helper functions.
+# Keep utils free of runtime side effects like reading config files or opening DB connections on source.
+# Create DB connections in the calling script and pass them into helper functions.
 
 
 # time_execution: source an R script with timing, console + file logging, and
