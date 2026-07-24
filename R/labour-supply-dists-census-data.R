@@ -133,7 +133,7 @@ dbWriteTable(
 # lookups
 dbExistsTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."tbl_age_groups_rollup_r"'))
+  Id(schema = my_schema, table = "tbl_age_groups_rollup_r")
 )
 
 # ---- Create required Region counts ----
@@ -466,7 +466,7 @@ Combined_Stat_Can_Original <- grct_grdp_data %>%
 ## Temporarily save to decimal ----
 dbWriteTable(
   decimal_con,
-  name = "Combined_Labour_Supply_Stat_Can_Original_r",
+  name = Id(schema = my_schema, table = "Combined_Labour_Supply_Stat_Can_Original_r"),
   value = Combined_Stat_Can_Original
 )
 
@@ -474,14 +474,14 @@ dbWriteTable(
 # filter out unused regions and ages based on lookup tables
 Combined_Stat_Can <- tbl(
   decimal_con,
-  "Combined_Labour_Supply_Stat_Can_Original_r"
+  Id(schema = my_schema, table = "Combined_Labour_Supply_Stat_Can_Original_r")
 ) %>%
   left_join(
     tbl(decimal_con, Id(schema = my_schema, table = "t_current_region_pssm_rollup_codes_statcan_r")),
     by = c("REGION" = "CURRENT_REGION_PSSM_NAME_ROLLUP_STAT_CAN")
   ) %>%
   left_join(
-    tbl(decimal_con, "tbl_age_groups_rollup_r"),
+    tbl(decimal_con, Id(schema = my_schema, table ="tbl_age_groups_rollup_r")),
     by = c("age_group" = "AGE_GROUP_ROLLUP_LABEL")
   ) %>%
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
@@ -514,17 +514,17 @@ Labour_Supply_Distribution_Stat_Can <- Combined_Stat_Can %>%
 ## Save final table ----
 dbWriteTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can_r"')),
+  name = Id(schema = my_schema, table = "Labour_Supply_Distribution_Stat_Can_r"),
   Labour_Supply_Distribution_Stat_Can,
   overwrite = TRUE
 )
 
 # ---- Clean Up ----
 ## Drop intermediate tables ----
-dbExecute(decimal_con, "DROP TABLE Combined_Labour_Supply_Stat_Can_Original")
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[Combined_Labour_Supply_Stat_Can_Original_r]")))
 
 ## Drop lookups ----
-dbExecute(decimal_con, "DROP TABLE t_current_region_pssm_rollup_codes_statcan")
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[t_current_region_pssm_rollup_codes_statcan_r]")))
 
 ## Disconnect ----
 dbDisconnect(decimal_con)

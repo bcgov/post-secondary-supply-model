@@ -97,17 +97,17 @@ dbWriteTable(
 # lookups
 dbExistsTable(
   decimal_con,
-  SQL(glue::glue('"{my_schema}"."tbl_age_groups_rollup_r"'))
+  Id(schema = my_schema, table = "tbl_age_groups_rollup_r")
 )
 
 # ---- Create required Region counts ----
 ## Create Northeast ----
 # Take "North Coast - Nechako and Northeast" and remove "North Coast and Nechako" to get Northeast
-NC_Nechako_NE <- tbl(decimal_con, "Stat_Can_Imputed_Data_Raw_r") %>%
+NC_Nechako_NE <- tbl(decimal_con, Id(schema = my_schema, table ="Stat_Can_Imputed_Data_Raw_r")) %>%
   filter(file_name == "North Coast - Nechako and Northeast") %>%
   collect()
 
-NC_Nechako <- tbl(decimal_con, "Stat_Can_Imputed_Data_Raw_r") %>%
+NC_Nechako <- tbl(decimal_con, Id(schema = my_schema, table ="Stat_Can_Imputed_Data_Raw_r")) %>%
   filter(file_name == "North Coast and Nechako") %>%
   collect()
 
@@ -156,11 +156,11 @@ dbWriteTable(
 
 ## Create Rest of Canada counts ----
 # Take "Canada" and remove "British Columbia" to get Rest of Canada
-Canada <- tbl(decimal_con, "Stat_Can_Imputed_Data_Raw_r") %>%
+Canada <- tbl(decimal_con, Id(schema = my_schema, table ="Stat_Can_Imputed_Data_Raw_r")) %>%
   filter(file_name == "Canada") %>%
   collect()
 
-British_Columbia <- tbl(decimal_con, "Stat_Can_Imputed_Data_Raw_r") %>%
+British_Columbia <- tbl(decimal_con, Id(schema = my_schema, table ="Stat_Can_Imputed_Data_Raw_r")) %>%
   filter(file_name == "British Columbia") %>%
   collect()
 
@@ -213,49 +213,49 @@ dbWriteTable(
 # make new table
 dbExecute(
   decimal_con,
-  "SELECT * 
-               INTO Stat_Can_Imputed_Data_Updated_r
-               FROM Stat_Can_Imputed_Data_Raw_r;"
+  SQL(glue::glue("SELECT *
+               INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+               FROM [{my_schema}].[Stat_Can_Imputed_Data_Raw_r];"))
 )
 
 # add Northeast
 dbGetQuery(
   decimal_con,
-  "INSERT INTO Stat_Can_Imputed_Data_Updated_r 
-  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC, 
+  SQL(glue::glue("INSERT INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC,
   New_Above_Bach, New_PDEG, New_Combined, New_Masters, New_Doctorate )
-SELECT qry_Northeast.age_group, 
-qry_Northeast.major_field_cip, 
-qry_Northeast.NOC_5, 
-qry_Northeast.file_name, 
-qry_Northeast.NOC_4, 
-qry_Northeast.occupation_NOC, 
-qry_Northeast.New_Above_Bach, 
-qry_Northeast.New_PDEG, 
-qry_Northeast.New_Combined, 
-qry_Northeast.New_Masters, 
-qry_Northeast.New_Doctorate
-FROM qry_Northeast"
+SELECT q.age_group,
+q.major_field_cip,
+q.NOC_5,
+q.file_name,
+q.NOC_4,
+q.occupation_NOC,
+q.New_Above_Bach,
+q.New_PDEG,
+q.New_Combined,
+q.New_Masters,
+q.New_Doctorate
+FROM [{my_schema}].[qry_Northeast] AS q"))
 )
 
 # Add rest of canada
 dbGetQuery(
   decimal_con,
-  "INSERT INTO Stat_Can_Imputed_Data_Updated_r 
-  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC, 
+  SQL(glue::glue("INSERT INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC,
   New_Above_Bach, New_PDEG, New_Combined, New_Masters, New_Doctorate )
-SELECT qry_Rest_of_Canada.age_group, 
-qry_Rest_of_Canada.major_field_cip, 
-qry_Rest_of_Canada.NOC_5, 
-qry_Rest_of_Canada.file_name, 
-qry_Rest_of_Canada.NOC_4, 
-qry_Rest_of_Canada.occupation_NOC, 
-qry_Rest_of_Canada.New_Above_Bach, 
-qry_Rest_of_Canada.New_PDEG, 
-qry_Rest_of_Canada.New_Combined, 
-qry_Rest_of_Canada.New_Masters, 
-qry_Rest_of_Canada.New_Doctorate
-FROM qry_Rest_of_Canada"
+SELECT q.age_group,
+q.major_field_cip,
+q.NOC_5,
+q.file_name,
+q.NOC_4,
+q.occupation_NOC,
+q.New_Above_Bach,
+q.New_PDEG,
+q.New_Combined,
+q.New_Masters,
+q.New_Doctorate
+FROM [{my_schema}].[qry_Rest_of_Canada] AS q"))
 )
 
 # ---- Prepare a Stat_Can version of Occupation_Distributions table ----
@@ -263,14 +263,14 @@ FROM qry_Rest_of_Canada"
 # filter out unused regions based on lookup table
 Combined_Stat_Can_Original <- tbl(
   decimal_con,
-  "Stat_Can_Imputed_Data_Updated_r"
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Updated_r")
 ) %>%
   left_join(
-    tbl(decimal_con, "t_current_region_pssm_rollup_codes_statcan_r"),
+    tbl(decimal_con, Id(schema = my_schema, table = "t_current_region_pssm_rollup_codes_statcan_r")),
     by = c("file_name" = "CURRENT_REGION_PSSM_NAME_ROLLUP_STAT_CAN")
   ) %>%
   left_join(
-    tbl(decimal_con, "tbl_age_groups_rollup_r"),
+    tbl(decimal_con, Id(schema = my_schema, table = "tbl_age_groups_rollup_r")),
     by = c("age_group" = "AGE_GROUP_ROLLUP_LABEL")
   ) %>%
   filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
@@ -359,20 +359,20 @@ Occupation_Distributions_Stat_Can <- Combined_Stat_Can %>%
 ## Save table ----
 dbWriteTable(
   decimal_con,
-  name = SQL(glue::glue('"{my_schema}"."Occupation_Distributions_Stat_Can_r"')),
+  name = Id(schema = my_schema, table ="Occupation_Distributions_Stat_Can_r"),
   Occupation_Distributions_Stat_Can
 )
 
 # ---- Clean Up ----
 ## Drop intermediate tables ----
-dbExecute(decimal_con, "DROP TABLE qry_Northeast")
-dbExecute(decimal_con, "DROP TABLE qry_Rest_of_Canada")
-dbExecute(decimal_con, "DROP TABLE Stat_Can_Imputed_Data_Updated_r")
-dbExecute(decimal_con, "DROP TABLE Stat_Can_Imputed_Data_Raw_r")
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[qry_Northeast]")))
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[qry_Rest_of_Canada]")))
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]")))
+dbExecute(decimal_con, SQL(glue::glue("DROP TABLE [{my_schema}].[Stat_Can_Imputed_Data_Raw_r]")))
 ## Drop lookups ----
 dbExecute(
   decimal_con,
-  "DROP TABLE t_current_region_pssm_rollup_codes_statcan_r"
+  SQL(glue::glue("DROP TABLE [{my_schema}].[t_current_region_pssm_rollup_codes_statcan_r]"))
 )
 ## Disconnect ----
 dbDisconnect(decimal_con)
