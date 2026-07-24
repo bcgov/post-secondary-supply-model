@@ -105,8 +105,9 @@ tryCatch(
   },
   error = function(e) {
     dbRollback(decimal_con) # Rollback if there's an error
-    print(paste("Error:", e$message))
-  },
+    log_info(glue::glue("Step 1 ERROR dropping tables: {e$message}"))
+    stop(e)
+  }
   finally = {
     dbDisconnect(decimal_con)
   }
