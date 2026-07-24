@@ -251,7 +251,7 @@ log_info(glue::glue(
 ))
 
 if (length(copy_tables) > 0) {
-  purrr::map_dfr(copy_tables, \(t) {
+  copy_check <- purrr::map_dfr(copy_tables, \(t) {
     short <- stringr::str_remove_all(
       stringr::str_extract(t, '(?<=\\.)"[^"]+"'),
       '"'
@@ -264,6 +264,7 @@ if (length(copy_tables) > 0) {
       )
     )
   })
+  print(copy_check)
 
   for (table in copy_tables) {
     # Extract the part after the dot
