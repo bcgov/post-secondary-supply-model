@@ -20,7 +20,7 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
+# library(RJDBC)
 library(futile.logger)
 source("./R/utils.R")
 log_file <- "./R/execution_log.txt"
