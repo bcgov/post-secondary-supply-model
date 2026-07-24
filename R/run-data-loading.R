@@ -48,7 +48,6 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
 library(futile.logger)
 library(glue)
 
