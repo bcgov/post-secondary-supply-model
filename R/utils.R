@@ -1,13 +1,14 @@
-# Define the time_execution function to track execution time and handle errors
-# source(file_path, echo = TRUE, keep.source = TRUE):
-#
-#   echo = TRUE: Prints each line of code as it is executed, helping to trace progress and identify errors.
-# keep.source = TRUE: Retains source references to each line, which can improve the accuracy of the traceback.
-# local = TRUE: Executes in a local environment, preventing side effects on the global environment (optional but useful for modularization).
-# traceback(): After an error, traceback() provides a stack trace that shows the line numbers and function calls leading up to the error, making it easier to identify the specific line in the sourced file that caused the issue.
-
-# By default, source() runs the code in a new environment, so variables defined in the global environment (like log_file) are not accessible within that sourced script unless explicitly passed or the globalenv is specified.
-# To make all global variables accessible within each source() call, set local = globalenv(). This allows the sourced file to inherit the global environment variables, including log_file and file_logger:
+# Copyright 2026 Province of British Columbia
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
 
 library(tidyverse)
 library(RODBC)
@@ -18,6 +19,30 @@ library(futile.logger)
 # Create connections in the calling script and pass them into helper functions.
 
 
+# time_execution: source an R script with timing, console + file logging, and
+# fail-fast error handling. Wraps each pipeline module so every step is timed,
+# logged, and aborts the run on the first failure. Intended use:
+#
+#   time_execution("R/01a-enrolment-preprocessing.R")
+#
+# The script is sourced with local = globalenv(), so objects it creates (data
+# frames, the DB connection, the file_logger, etc.) persist in the global
+# environment for the modules that follow. echo = TRUE echoes each line to the
+# console, and keep.source = TRUE keeps source references so traceback() can
+# point at the offending line on failure.
+#
+# Output goes to both the console (print()) and the "file_logger" appender
+# (futile.logger::flog.*). On error the handler logs the message and traceback,
+# then re-raises the original condition via stop(e) — callers see the real
+# error, not a blank one.
+#
+# Args:
+#   file_path: path to the R script to execute.
+#
+# Side effects: sources `file_path` into .GlobalEnv; writes START/COMPLETE (with
+# elapsed seconds) or error + traceback to console and "file_logger".
+# Returns: the result of source() (invisible NULL on success); on error the
+# original condition is re-raised.
 time_execution <- function(file_path) {
   # Log a start message with a timestamp
   futile.logger::flog.info(paste("Starting:", file_path), name = "file_logger")
