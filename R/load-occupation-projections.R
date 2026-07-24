@@ -200,9 +200,7 @@ occupation_distributions_lcp2_no_tt <-
   filter(!SURVEY == "PTIB")
 
 # ---- Cohort_Program_Distributions_Projected (P(CIP|cred,age), from 06) ----
-# NOTE: the program-mix and graduate tables do NOT drop PTIB. 07 reads their PTIB
-# rows directly (the private program mix from 06 is legitimate input), unlike the
-# distribution tables above where 07 rebuilds PTIB as proxies.
+
 cohort_program_distributions_projected <-
   dbReadTable(
     con,
@@ -468,3 +466,7 @@ write_table_to_db <- function(table_name, schema, con) {
 
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 gc()
+
+# NOTE: the program-mix and graduate tables do NOT drop PTIB. 07 reads their PTIB
+# rows directly (the private program mix from 06 is legitimate input), unlike the
+# distribution tables above where 07 rebuilds PTIB as proxies.
