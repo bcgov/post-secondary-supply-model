@@ -477,7 +477,7 @@ Combined_Stat_Can <- tbl(
   "Combined_Labour_Supply_Stat_Can_Original_r"
 ) %>%
   left_join(
-    tbl(decimal_con, "t_current_region_pssm_rollup_codes_statcan_r"),
+    tbl(decimal_con, Id(schema = my_schema, table = "t_current_region_pssm_rollup_codes_statcan_r")),
     by = c("REGION" = "CURRENT_REGION_PSSM_NAME_ROLLUP_STAT_CAN")
   ) %>%
   left_join(
