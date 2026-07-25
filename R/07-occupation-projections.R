@@ -962,7 +962,7 @@ q_3d21_occupations_unknown_lcp2_proxy_no_tt <-
     by = join_by(LCIP_LCP2_CD == LCP2_CD),
     relationship = "many-to-many"
   ) |>
-  select(-LCIP_LCP2_CD, ) |>
+  select(-LCIP_LCP2_CD) |>
   inner_join(
     q_3d2_occupations_unknown |>
       left_join(
