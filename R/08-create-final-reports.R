@@ -300,9 +300,9 @@ tmp_occ <- tmp_tbl_model %>%
   mutate(QI_calc = (abs(first_year - QI) / QI)) %>%
   mutate(
     `Quality Indicator` = case_when(
-      QI_calc < 0.25 ~ QI_calc, # stable estimate: report the value
       # too few graduates (or missing) to be reliable: suppress to NA
       (first_year < 10 | QI < 10 | is.na(first_year) | is.na(QI)) ~ NA_integer_,
+      QI_calc < 0.25 ~ QI_calc, # stable estimate: report the value
       TRUE ~ QI_calc # unstable but reportable (>= 0.25)
     )
   ) %>%
