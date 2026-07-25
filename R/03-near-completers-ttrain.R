@@ -14,7 +14,7 @@
 source("R/utils.R")
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
-
+library(purrr)
 # these should now be in the R environment
 required_tables <- c(
   "t_dacso_data_part_1",
