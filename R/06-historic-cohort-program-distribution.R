@@ -444,8 +444,8 @@ Cohort_Program_Distributions_history <-
     pdeg |> mutate(YEAR = as.character(YEAR)),
     appso |> mutate(YEAR = as.character(YEAR))
   )
-# Write to the analyst's IDIR schema. NOTE: written WITHOUT an "_r" suffix to
-# match the existing downstream consumers - do not rename without checking 07.
+# Write to the analyst's IDIR schema (written WITH an "_r" suffix).
+# Do not rename without checking downstream consumers.
 dbWriteTable(
   decimal_con,
   SQL(glue::glue('"{my_schema}"."Cohort_Program_Distributions_history_r"')),
