@@ -38,10 +38,9 @@ if (length(missing) > 0) {
   ))
 }
 
-walk(missing, read_table_from_db, schema = my_schema, con = con)
-
-# optional: standardise a table's column names to lower case
-walk(missing, lower_col_names_global)
+# Tables are expected to be preloaded by the paired load script; fail fast above if missing.
+# (If you intend to auto-load missing tables from the DB, remove the stop() and wrap
+# the read_table_from_db/lower_col_names_global calls in `if (length(missing) > 0)`.)
 
 na_vals <- c("", " ", "(Unspecified)", NA)
 
