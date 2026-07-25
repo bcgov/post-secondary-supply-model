@@ -136,9 +136,9 @@ time_execution <- function(file_path) {
 # Returns: `table_name` invisibly.
 read_table_from_db <- function(table_name, schema, con) {
   db_name <- glue::glue("{table_name}_r")
-  .GlobalEnv[[table_name]] <- dbReadTable(
+  .GlobalEnv[[table_name]] <- DBI::dbReadTable(
     con,
-    SQL(glue::glue('"{schema}"."{db_name}"'))
+    DBI::Id(schema = schema, table = as.character(db_name))
   )
   invisible(table_name)
 }

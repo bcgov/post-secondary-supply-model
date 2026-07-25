@@ -14,6 +14,20 @@
 library(tidyverse)
 library(odbc)
 library(DBI)
+library(futile.logger)
+
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 01c-credential-analysis.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -27,6 +41,7 @@ con <- dbConnect(
   Database = db_config$database,
   Trusted_Connection = "True"
 )
+log_info("Connected to SQL Server database")
 
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -34,18 +49,30 @@ stp_enrolment <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_enrolment_r: {nrow(stp_enrolment)} rows, {ncol(stp_enrolment)} columns"
+))
 stp_credential <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_credential_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_credential_r: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"
+))
 stp_credential_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_credential_record_type_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_credential_record_type_r: {nrow(stp_credential_record_type)} rows"
+))
 stp_enrolment_valid <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_valid_r"'))
 )
+log_info(glue::glue(
+  "Loaded stp_enrolment_valid_r: {nrow(stp_enrolment_valid)} rows"
+))
 
 # Define lookup tables
 outcome_credential <- tibble(
@@ -122,7 +149,20 @@ age_group_lookup <- data.frame(
 )
 
 ## ---------------------------------------Credential View-----------------------------------------
-# Create a view with STP_Credential data with record_type == 0 and a non-blank award date
+# WHAT: Create the working `credential` table from stp_credential, keeping only records
+#       with RecordStatus == 0 (valid credentials) and a non-blank CREDENTIAL_AWARD_DATE.
+# WHY:  This is the foundational credential table for the entire supply model. It filters
+#       out invalid records (missing student numbers, developmental, skills-based, etc.)
+#       and credentials without an award date so that only genuine, completed credentials
+#       enter the modelling pipeline.
+#       Downstream, this table is used in two key ways:
+#       1. In this script (01c): it is enriched with birthdate, gender, age, and CIP data,
+#          then deduplicated to create `credential_non_dup` (the main supply modelling table).
+#       2. In 01d-enrolment-analysis.R: it is read back from SQL to backfill gender data
+#          into the enrolment analysis.
+# HOW:  Inner join stp_credential with stp_credential_record_type on ID, filter for
+#       RecordStatus == 0 and valid award dates, then select the columns needed for
+#       downstream processing.
 # reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
 # qry00
 ## -----------------------------------------------------------------------------------------------
@@ -151,8 +191,23 @@ credential <- stp_credential |>
     RecordStatus
   )
 
+log_info(glue::glue(
+  "Created credential view (RecordStatus == 0, non-blank award date): {nrow(credential)} rows"
+))
 
-# ----------------------------- Make Credential Sup Vars Enrolment Table -------------------------
+## ----------------------- Make Credential Sup Vars Enrolment Table ------------------------------
+# WHAT: Build `credential_supvars_enrolment`, a crosswalk table linking each valid credential
+#       record to its most recent enrolment record. The join is done in two passes:
+#       1. By ENCRYPTED_TRUE_PEN (valid PENs only) -> cred_supvars_enrol_epen
+#       2. By PSI_CODE + PSI_STUDENT_NUMBER (for records with invalid/missing PENs) -> cred_supvars_enrol_no_pen
+#       The two passes are combined with rbind + distinct.
+# WHY:  Enrolment records contain supply-relevant variables that credential records lack:
+#       psi_birthdate_cleaned, PSI_VISA_STATUS, PSI_GENDER, LAST_SEEN_BIRTHDATE, etc.
+#       This crosswalk allows those enrolment-side variables to be joined onto the
+#       credential_supvars table for birthdate cleaning (section 04), gender backfill,
+#       and VISA status mapping.
+#       The many-to-many relationship is expected: a student may have multiple enrolment
+#       records and multiple credentials across the matching period.
 # reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
 # qry01 to qry12
 ## -----------------------------------------------------------------------------------------------
@@ -193,6 +248,10 @@ cred_supvars_enrol_epen <- latest_enrolment_epen |>
     PSI_ENROLMENT_SEQUENCE
   ) |>
   distinct()
+
+log_info(glue::glue(
+  "cred_supvars_enrol_epen (PEN match): {nrow(cred_supvars_enrol_epen)} rows"
+))
 
 
 # Match via PSI_CODE/Student Number to recover records missed by PEN join.
@@ -235,13 +294,37 @@ cred_supvars_enrol_no_pen <- latest_enrolment_no_epen |>
   ) |>
   distinct()
 
+log_info(glue::glue(
+  "cred_supvars_enrol_no_pen (Student Number/PSI match): {nrow(cred_supvars_enrol_no_pen)} rows"
+))
+
 credential_supvars_enrolment <- rbind(
   cred_supvars_enrol_epen,
   cred_supvars_enrol_no_pen
 ) |>
   distinct()
 
+log_info(glue::glue(
+  "Combined credential_supvars_enrolment: {nrow(credential_supvars_enrolment)} rows"
+))
+
 # ----------------------------- Make Credential Sup Vars Table -----------------------------------
+# WHAT: Create `credential_supvars`, a credential-level table that mirrors `credential`
+#       but adds CREDENTIAL_AWARD_DATE_D (date-typed award date) and serves as the base
+#       for enrichment with birthdate, gender, and VISA status in subsequent sections.
+# WHY:  `credential_supvars` ("supply variables") is the enrichment staging table. It
+#       starts as a copy of credential with a date-typed award date, then progressively
+#       accumulates:
+#       - psi_birthdate_cleaned / psi_birthdate_cleaned_D (section 04)
+#       - psi_gender_cleaned (section 03, via gender-cleaning.r)
+#       - LAST_SEEN_BIRTHDATE (section 04, fallback for missing birthdates)
+#       - PSI_VISA_STATUS (VISA Status section, via visa_map)
+#       Once enriched, these variables are joined back into the main `credential` table
+#       (rebuilt in section 04) and carried into `credential_non_dup` for supply modelling.
+# HOW:  Select credential columns, cast CREDENTIAL_AWARD_DATE to Date type.
+#       Separately, credential_supvars_enrolment links enrolment records to credentials
+#       (via PEN or PSI_CODE/Student Number) and brings in enrolment-side variables
+#       (birthdates, VISA status, gender) that don't exist on the credential side.
 # reference: source("./sql/01-credential-analysis/"credential-sup-vars-from-enrolment.R")
 # qry0?
 ## -----------------------------------------------------------------------------------------------
@@ -298,7 +381,21 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 
 
 ## ----------------------------02 Developmental Records-------------------------------------------
-# add a drop credential flag
+# WHAT: Flag credentials whose category is not meaningful for supply modelling so they
+#       can be excluded from the final credential table.
+# WHY:  The following PSI_CREDENTIAL_CATEGORY values represent credentials that do not
+#       correspond to a completed, recognized post-secondary qualification:
+#       - "Developmental Credential": Preparatory or upgrading coursework, not a
+#         standalone credential counted in supply.
+#       - "Other": Unclassified credentials that don't fit any standard category.
+#       - "None": No credential category was assigned by the institution.
+#       - "Short Certificate": Credentials below the threshold for supply modelling
+#         (e.g., brief non-credit courses).
+#       These records are kept in stp_credential_record_type for audit purposes but
+#       are filtered out later (line ~488) when the final `credential` table is rebuilt
+#       by requiring is.na(DropCredCategory).
+# HOW:  Left join a "Yes" flag onto stp_credential_record_type for any ID whose
+#       credential category matches the exclusion list.
 ## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   stp_credential_record_type |>
@@ -318,8 +415,23 @@ stp_credential_record_type <-
     by = "ID"
   )
 
+log_info(glue::glue(
+  "02 Developmental Records: DropCredCategory flagged on {sum(!is.na(stp_credential_record_type$DropCredCategory))} records"
+))
+
 
 ## ---------------------------------------- 03 Miscellaneous -------------------------------------
+# WHAT: Flag credentials awarded on or after September 1 of the current model year
+#       so they can be excluded from the final credential table.
+# WHY:  Credentials awarded in the partial/incomplete year (e.g., Sep 2023 onward for a
+#       2023/2024 model run) represent an incomplete cohort. The full academic year has
+#       not finished, so the count would under-represent the eventual total. These
+#       records are kept for audit but filtered out later (line ~489) when the final
+#       `credential` table is rebuilt by requiring is.na(DropPartialYear).
+#       Note: The cutoff date ("2023-09-01") must be updated for each new model cycle.
+# HOW:  Filter credential_supvars for records with CREDENTIAL_AWARD_DATE >= cutoff,
+#       tag them with DropPartialYear = "Yes", and right_join back to
+#       stp_credential_record_type so all records are preserved.
 ## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   credential_supvars |>
@@ -327,6 +439,10 @@ stp_credential_record_type <-
   select(ID) |>
   mutate(DropPartialYear = "Yes") |>
   right_join(stp_credential_record_type, by = "ID")
+
+log_info(glue::glue(
+  "03 Miscellaneous: DropPartialYear flagged on {sum(!is.na(stp_credential_record_type$DropPartialYear))} records"
+))
 
 rm(
   latest_enrolment_no_epen,
@@ -340,7 +456,9 @@ gc()
 # !! Entire section is replaced with the gender_cleaning.r script
 ## -----------------------------------------------------------------------------------------------
 
+log_info("03 Gender Cleaning: sourcing R/01c-gender-cleaning.r")
 source("R/01c-gender-cleaning.r")
+log_info("03 Gender Cleaning: complete")
 
 ## --------------------------------04 Birthdate cleaning (last seen birthdate)--------------------
 # note: check if LAST_SEEN_BIRTHDATE can be included when supvars tables are created (at the top of script)
@@ -459,8 +577,9 @@ credential <- stp_credential |>
     is.na(DropPartialYear)
   )
 
-
-## -----------------------------------05 Age and Credential---------------------------------------
+log_info(glue::glue(
+  "04 Birthdate cleaning complete. credential rebuilt: {nrow(credential)} rows after filtering RecordStatus==0, DropCredCategory, DropPartialYear"
+))
 ## -----------------------------------------------------------------------------------------------
 credential <- credential |>
   mutate(
@@ -515,8 +634,41 @@ credential <- credential |>
   ) |>
   select(-PSI_GENDER_FROM_ENROLMENT)
 
+log_info(glue::glue(
+  "05 Age and Credential: {nrow(credential)} rows. AGE_AT_GRAD range: {min(credential$AGE_AT_GRAD, na.rm=TRUE)}-{max(credential$AGE_AT_GRAD, na.rm=TRUE)}"
+))
+## -----------------------------------------------------------------------------------------------
 
-## ------------------------------------- make non dup table --------------------------------------
+## -----------------------------------05b Make Non-Dup Table--------------------------------------
+# WHAT: Deduplicate the `credential` table to create `credential_non_dup`, the primary
+#       credential-level table used for supply modelling.
+# WHY:  A student may receive the same credential (same institution, program, CIP, level,
+#       category, and award date) multiple times due to data entry duplicates or re-issuance.
+#       `credential_non_dup` keeps only one record per unique credential combination so that
+#       each completed credential is counted exactly once in the supply model.
+#
+#       This table is the central output of the credential analysis pipeline and is consumed
+#       by multiple downstream scripts:
+#       - 01e-stp-distributions.R: reads credential_non_dup_r for FINAL_CIP_CLUSTER_CODE,
+#         FINAL_CIP_CODE_4, RESEARCH_UNIVERSITY, and OUTCOMES_CRED to build aggregated
+#         credential distribution tables.
+#       - 02a-update-cred-non-dup.R: updates this table with final CIP codes from BGS/APPSO/GRAD
+#         program matching.
+#       - 02a-bgs-program-matching.R: uses credential_non_dup as the source for BGS and GRAD
+#         credential ID tables.
+#       - load-program-projections.R: reads this table for program projection loading.
+#
+#       After deduplication, the table is further enriched with:
+#       - Gender imputation (stochastic proportional fill)
+#       - Credential ranking (HIGHEST_CRED_BY_DATE, HIGHEST_CRED_BY_RANK)
+#       - Age imputation
+#       - VISA status
+#       - Delay date (CREDENTIAL_AWARD_DATE_D_DELAYED)
+#       - Research university flag and outcomes credential mapping
+# HOW:  Group by all credential-identifying fields (PEN, PSI_CODE, program code, description,
+#       CIP, level, category, award date) and keep the record with the highest ID per group.
+#       Then forward-fill gender within each student group (by PEN/Student Number/PSI Code)
+#       so the most recent gender value is applied to all that student's credentials.
 ## -----------------------------------------------------------------------------------------------
 
 credential_non_dup <- credential |>
@@ -540,8 +692,9 @@ credential_non_dup <- credential_non_dup |>
   mutate(psi_gender_cleaned = last(psi_gender_cleaned)) |>
   ungroup()
 
-
-## ----------------------------------Impute Missing Gender----------------------------------------
+log_info(glue::glue(
+  "Non-dup table created: {nrow(credential_non_dup)} rows (deduplicated from {nrow(credential)} credential rows)"
+))
 # This procedure performs proportional stochastic imputation to fill in missing gender data.
 # It calculates the existing gender distribution for each credential category and then
 # uses those ratios as weights to "flip a coin" for every empty record
@@ -575,6 +728,10 @@ credential_non_dup <- credential_non_dup |>
     )
   ) |>
   select(-genders, -weights)
+
+log_info(glue::glue(
+  "Gender imputation complete. Remaining NA genders: {sum(is.na(credential_non_dup$psi_gender_cleaned))}"
+))
 
 rm(
   credential_supvars_birthdate_clean,
@@ -648,7 +805,9 @@ credential_non_dup <- credential_non_dup |>
   ) |>
   select(-RANK)
 
-## ------------------------09 Age Gender Distributions--------------------------------------------
+log_info(glue::glue(
+  "08 Credential Ranking complete. HIGHEST_CRED_BY_DATE: {sum(credential_non_dup$HIGHEST_CRED_BY_DATE == 'Yes', na.rm=TRUE)}, HIGHEST_CRED_BY_RANK: {sum(credential_non_dup$HIGHEST_CRED_BY_RANK == 'Yes', na.rm=TRUE)}"
+))
 ## -----------------------------------------------------------------------------------------------
 age_weights <- credential_non_dup |>
   filter(
@@ -730,7 +889,9 @@ credential_non_dup <- credential_non_dup |>
   mutate(AGE_GROUP_AT_GRAD = AgeIndex) |>
   select(-AgeIndex, -LowerBound, -UpperBound)
 
-## ----------------------------------VISA Status--------------------------------------------------
+log_info(glue::glue(
+  "09 Age/Gender distributions: imputed {nrow(imputed_student_ages)} ages. Remaining NA AGE_AT_GRAD: {sum(is.na(credential_non_dup$AGE_AT_GRAD))}"
+))
 ## -----------------------------------------------------------------------------------------------
 cols_specific <- c(
   "ENCRYPTED_TRUE_PEN",
@@ -785,8 +946,35 @@ credential_non_dup <- credential_non_dup |>
     by = "ID"
   )
 
+log_info(glue::glue(
+  "VISA Status mapping complete. VISA mapped on {sum(!is.na(credential_non_dup$PSI_VISA_STATUS))} / {nrow(credential_non_dup)} records"
+))
+
 
 ## -----------------------13 Delay Date and Highest rank------------------------------------------
+# WHAT: Identify each student's highest-ranked credential and calculate a "delayed" award
+#       date/year that accounts for subsequent credentials earned after the highest one.
+# WHY:  In supply modelling, each student should be counted once, represented by their
+#       highest credential. However, some students earn a lower-ranked credential first
+#       and a higher-ranked one later. The "delay effect" captures the time gap between
+#       the highest credential and any later credential within a temporal threshold,
+#       so that the award year used for distribution counts reflects when the student
+#       effectively completed their highest qualification path.
+#
+#       `tbl_credential_highest_rank` contains only the single highest-ranked credential
+#       per student (HIGHEST_CRED_BY_RANK == "Yes"), enriched with:
+#       - CREDENTIAL_AWARD_DATE_D_DELAYED: the later award date if a delay effect exists,
+#         otherwise the original award date.
+#       - PSI_AWARD_SCHOOL_YEAR_DELAYED: the corresponding school year.
+#
+#       This table is consumed by:
+#       - 01e-stp-distributions.R: reads tbl_credential_highest_rank_r to build aggregated
+#         credential distribution tables by gender, age group, CIP, and school year.
+#       - load-program-projections.R: reads this table for program projection loading.
+# HOW:  Filter credential_non_dup for HIGHEST_CRED_BY_RANK == "Yes", then self-join on
+#       CONCATENATED_ID to find later credentials. Apply temporal thresholds per credential
+#       category (e.g., Bachelors = unlimited, Diploma <= 30 months) to filter valid delays.
+#       Coalesce delayed dates back onto the highest-rank table.
 ## -----------------------------------------------------------------------------------------------
 credential_non_dup <- credential_non_dup |>
   mutate(
@@ -799,6 +987,10 @@ credential_non_dup <- credential_non_dup |>
 
 tbl_credential_highest_rank <- credential_non_dup |>
   filter(HIGHEST_CRED_BY_RANK == "Yes")
+
+log_info(glue::glue(
+  "13 Delay Date: tbl_credential_highest_rank: {nrow(tbl_credential_highest_rank)} rows"
+))
 
 tbl_credential_delay_effect <- credential_non_dup |>
   select(
@@ -821,12 +1013,45 @@ tbl_credential_delay_effect <- credential_non_dup |>
   ) |>
   filter(LATER_AWARD_DATE > HIGHEST_AWARD_DATE)
 
+log_info(glue::glue(
+  "13 Delay Date: delay effect candidates before temporal threshold filter: {nrow(tbl_credential_delay_effect)}"
+))
+
 tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   mutate(
     MONTHS_DIFF = (year(LATER_AWARD_DATE) - year(HIGHEST_AWARD_DATE)) *
       12 +
       (month(LATER_AWARD_DATE) - month(HIGHEST_AWARD_DATE)),
     # Apply credential temporal thresholds
+    #
+    # WHAT: Filter delay-effect candidates so that only "realistic" delays are kept.
+    #       A delay is realistic when the time gap between the highest credential and
+    #       a later credential falls within a category-specific maximum number of months.
+    #
+    # WHY:  When a student earns a lower-ranked credential after their highest one, it
+    #       may be a genuine continuation of the same educational path (e.g., earning a
+    #       Certificate then a Diploma within 2 years) or an unrelated credential earned
+    #       much later in life (e.g., a Certificate earned 15 years after a Bachelors).
+    #       Only the former should shift the award year used for supply distribution
+    #       counting, because it represents the effective completion of the student's
+    #       highest qualification path. The thresholds are set based on typical program
+    #       durations and are inherited from the original SQL model:
+    #
+    #       - Apprenticeship, Bachelors Degree, First Professional Degree: NO limit.
+    #         These are high-value credentials where any subsequent lower credential is
+    #         considered part of the same educational progression regardless of time gap.
+    #       - Advanced Diploma, Advanced Certificate: <= 36 months (3 years).
+    #         These programs typically take 1-2 years to complete; a 3-year window allows
+    #         for part-time study or a gap year while still being a plausible continuation.
+    #       - Diploma, Masters Degree, Graduate Diploma, Post-Degree Diploma: <= 30 months.
+    #         Masters programs are typically 1-2 years; 30 months allows for thesis
+    #         extensions or part-time completion.
+    #       - Associate Degree, Certificate, Graduate Certificate, Post-Degree Certificate:
+    #         <= 18 months (1.5 years). These are shorter programs; a tighter window ensures
+    #         only closely-related subsequent credentials are counted as delays.
+    #
+    #       Records outside these thresholds are dropped (keep = FALSE), meaning the
+    #       student's award year remains based on their highest credential's original date.
     keep = case_when(
       PSI_CREDENTIAL_CATEGORY %in%
         c(
@@ -857,6 +1082,10 @@ tbl_credential_delay_effect <- tbl_credential_delay_effect |>
     )
   ) |>
   filter(keep)
+
+log_info(glue::glue(
+  "13 Delay Date: delay effect records after temporal threshold filter: {nrow(tbl_credential_delay_effect)}"
+))
 
 tbl_credential_delay_effect <- tbl_credential_delay_effect |>
   # Isolate the latest award date per student
@@ -924,6 +1153,10 @@ credential_non_dup <- credential_non_dup |>
     by = "PSI_CREDENTIAL_CATEGORY"
   )
 
+log_info(glue::glue(
+  "14-15 Research University + Outcomes Credential complete. RESEARCH_UNIVERSITY flagged: {sum(credential_non_dup$RESEARCH_UNIVERSITY == 1, na.rm=TRUE)} records"
+))
+
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
@@ -949,15 +1182,24 @@ write_table_to_db <- function(table_name, schema, con) {
   dbWriteTable(
     con,
     SQL(glue::glue('"{schema}"."{db_name}"')),
-    get(table_name, envir = .GlobalEnv),
+    base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
+  log_info(glue::glue(
+    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
+  ))
 }
 
+log_info(glue::glue(
+  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
+))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
+log_info("Disconnected from SQL Server")
 
-rm(list = ls())
+log_info("==== 01c-credential-analysis.R COMPLETE ====")
+
+# rm(list = ls())
 
 # ---- Break and do Program Matching ----

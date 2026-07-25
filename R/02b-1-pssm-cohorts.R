@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # This script prepares student outcomes data for the following student surveys: TRD, APP, DACSO, BGS
+# need tables: load-cohort-tablename.r
 #
 # APP:
 #     Assumes geocoding has been done, and CURRENT_REGION_PSSM_CODE contains final region code to use and
@@ -53,10 +54,24 @@ library(DBI)
 library(odbc)
 library(glue)
 library(assertthat)
+library(futile.logger)
 
-regular_run <- T
-qi_run <- F
-ptib_run <- T
+## -------------------------- Logging Setup -------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
+
+log_info("==== 02b-1-pssm-cohorts.R START ====")
+
+# regular_run <- T
+# qi_run <- F
+# ptib_run <- F
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -73,6 +88,8 @@ con <- dbConnect(
 )
 
 lan <- config::get("lan")
+
+log_info("Connected to SQL Server database")
 
 
 ## --------------------------------------Required Tables------------------------------------------
@@ -114,13 +131,20 @@ if (length(missing) > 0) {
     "The following required tables are missing from the environment:",
     paste(missing, collapse = ", ")
   ))
+} else {
+  log_info(glue::glue(
+    "All {length(required_tables)} required tables found in environment"
+  ))
 }
 
 
 # Set weight for model year
 target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
 
+tbl_age <- tbl_age |> janitor::clean_names("all_caps") |> select(AGE, AGE_GROUP)
+
 # ---- TRD Queries ----
+log_info("Processing TRD cohort: applying weights, age groups, labour supply")
 # Applies weight for model year and derives New Labour Supply
 trd_data <- trd_data |>
   select(-WEIGHT) |>
@@ -194,6 +218,9 @@ trd_data <-
 
 trd_data[setdiff(names(t_cohorts_recoded), names(trd_data))] <- NA
 t_cohorts_recoded <- t_cohorts_recoded |> rbind(trd_data)
+log_info(glue::glue(
+  "TRD cohort added: {nrow(trd_data)} records. T_Cohorts_Recoded now has {nrow(t_cohorts_recoded)} records"
+))
 
 # ---- APP Queries ----
 # Process APPSO data into the cohorts recoded table
@@ -237,9 +264,14 @@ appso_data_final[setdiff(
   names(appso_data_final)
 )] <- NA
 t_cohorts_recoded <- t_cohorts_recoded |> rbind(appso_data_final)
+log_info(glue::glue(
+  "APPSO cohort added: {nrow(appso_data_final)} records. T_Cohorts_Recoded now has {nrow(t_cohorts_recoded)} records"
+))
 
 # ---- BGS Queries ----
-# Recode institution codes to be consistent to STP file
+log_info(
+  "Processing BGS cohort: institution recode, CIP update, weights, labour supply"
+)
 t_bgs_data_final <- t_bgs_data_final |>
   left_join(
     t_bgs_inst_recode,
@@ -342,9 +374,14 @@ t_cohorts_recoded <-
   filter(SURVEY != "BGS")
 
 t_cohorts_recoded <- t_cohorts_recoded |> rbind(bgs_update)
+log_info(glue::glue(
+  "BGS cohort added: {nrow(bgs_update)} records. T_Cohorts_Recoded now has {nrow(t_cohorts_recoded)} records"
+))
 
 # ----DACSO Queries ----
-# !! investigate!! t_dacso_data_part_1_stepa  variables TTRAIN and COSC_GRAD_STATUS_LGDS_CD_GROUP are
+log_info(
+  "Processing DACSO cohort: credential grouping, age, CIP update, weights, labour supply"
+)
 # NA (why)?  This forces  LCIP4_CRED to include NA's in the concatenated parts
 # but SQL coerces the entire variable to NA
 
@@ -515,3 +552,8 @@ write_table_to_db <- function(table_name, schema, con) {
 }
 
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+log_info(glue::glue(
+  "Wrote {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse=', ')}"
+))
+
+log_info("==== 02b-1-pssm-cohorts.R COMPLETE ====")
