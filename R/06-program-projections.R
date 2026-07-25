@@ -225,19 +225,22 @@ cohort_program_distributions_static <- cohort_program_distributions_static |>
 # positive-weight total here cancels out in RATIO below, so it only rescales an
 # intermediate; the final RATIO is TotalWeight share within
 # credential x CIP x grad-status x age.
-cohort_ratios <- t_cohorts_recoded |>
-  filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
-  inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
-  summarise(
-    TotalWeight = sum(WEIGHT, na.rm = TRUE) /
-      sum(t_cohorts_recoded$WEIGHT[t_cohorts_recoded$WEIGHT > 0], na.rm = TRUE),
-    .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL, TTRAIN)
-  ) |>
-  mutate(
-    RATIO = TotalWeight / sum(TotalWeight, na.rm = TRUE),
-    .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL)
-  ) |>
-  select(-TotalWeight)
+# cohort_ratios <- t_cohorts_recoded |>
+#   filter(GRAD_STATUS != "3", !is.na(TTRAIN), WEIGHT > 0) |>
+#   inner_join(tbl_age_groups, by = join_by(AGE_GROUP == AGE_GROUP)) |>
+#   summarise(
+#     TotalWeight = sum(WEIGHT, na.rm = TRUE) /
+#       sum(t_cohorts_recoded$WEIGHT[t_cohorts_recoded$WEIGHT > 0], na.rm = TRUE),
+#     .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL, TTRAIN)
+#   ) |>
+#   mutate(
+#     RATIO = TotalWeight / sum(TotalWeight, na.rm = TRUE),
+#     .by = c(PSSM_CREDENTIAL, LCP4_CD, GRAD_STATUS, AGE_GROUP_LABEL)
+#   ) |>
+#   select(-TotalWeight)
+# cohort_ratios is computed twice back-to-back (same expression), and the first result is immediately overwritten by the second in line 286. 
+# This adds unnecessary work and makes it harder to reason about which definition is intended.
+
 
 # Base weighted cohort: credential grouping x program input x survey-year weights,
 # restricted to the public (non-grad, non-apprenticeship) credentials.
