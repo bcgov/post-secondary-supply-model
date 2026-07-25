@@ -10,7 +10,6 @@ tmp
 *.html
 .github/copilot-instructions.md
 
-plugin.yml
 presentations/presentation-06-2026_files/
 .factory/
 tmp/
@@ -20,4 +19,4 @@ tmp/
 .claude/
 
 docs/agents/
-split-pr-89.sh
+*.sh

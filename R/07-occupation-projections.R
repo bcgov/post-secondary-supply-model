@@ -1338,18 +1338,20 @@ q_5_noc_totals_by_year_and_bc_and_total <- bind_rows(
 # Q_6 SERIES - stash this run's result under a run-specific name ----
 #   Each of the three model runs lands in its own object so 08 can combine them.
 # ============================================================================
-if (regular_run == TRUE) {
-  tmp_tbl_model <- q_5_noc_totals_by_year_and_bc_and_total
-  # write tmp_tbl_model to decimal
-}
 
 
 tables_to_keep <- c(
-  "tmp_tbl_model"
+  # "tmp_tbl_model"
   # "tmp_tbl_qi",
   # "tmp_tbl_model_inc_private_inst",
   # "tmp_tbl_model_program_projection"
 )
+
+if (regular_run == TRUE) {
+  tmp_tbl_model <- q_5_noc_totals_by_year_and_bc_and_total
+  tables_to_keep <- c(tables_to_keep, "tmp_tbl_model")
+}
+
 
 if (qi_run == TRUE) {
   tmp_tbl_qi <- q_5_noc_totals_by_year_and_bc_and_total
