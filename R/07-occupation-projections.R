@@ -313,6 +313,12 @@ if (ptib_run == TRUE) {
   )
 }
 
+
+# ---- Q_1 Series ----
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
+# run distinct here to remove duplicates in case you 
+# grabbed the dbo version of graduate_projections (development only).
+
 # ============================================================================
 # Q_1 SERIES - apply the program mix:  GRADS = GRADUATES x P(CIP | cred, age) ----
 # ============================================================================
@@ -352,6 +358,10 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
     GRADS
   )
 
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
+# this will be identical to the query above, if the model toggle is set to
+# static (odd choice but we can deal with this later).
+
 # REMOVED: _static variant is never consumed downstream (it only differs by
 # blanking LCIP4_CRED). Kept commented for parity with the SQL query of the same
 # name; re-enable if a caller ever needs it.
@@ -389,6 +399,8 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
 
 # Roll the 9 fine age bands up to the 5 projection bands (17-19 ... 35-64) that
 # the labour-supply and occupation distributions are keyed on.
+
+#dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program)
 q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
   inner_join(
     tbl_age_groups,
@@ -416,6 +428,7 @@ q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
 # REMOVED: LCP2 grads table is never consumed - the LCP2 proxy steps join the
 # 4-digit grads table to labour_supply_distribution_lcp2 directly. Kept for SQL
 # parity.
+#dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
 # q_1c_grad_projections_by_program_lcp2 <- q_1_grad_projections_by_age_by_program |>
 #   inner_join(tbl_age_groups, by = c("AGE_GROUP" = "AGE_GROUP_LABEL")) |>
 #   inner_join(tbl_age_groups_rollup, by = "AGE_GROUP_ROLLUP") |>
@@ -440,6 +453,9 @@ q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
 #   Proxy waterfall (see header). Each step matches more leftovers; the running
 #   union is the *_union table carried into the next step.
 # ============================================================================
+# dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
+# Find all records where there are respondents for 4-digit CIP and age group rollup; 
+# Calc NLS using No Labour Supply Distribution.
 
 # Step 1 - exact LCIP4_CRED match (the best case).
 q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
@@ -935,6 +951,7 @@ q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_unio
   )
 
 
+# dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
 # Step 3 - private CERT<->DIPL occupation swap.
 q_3b2_occupations_unknown_private_cred_proxy <-
   q_3b14_occupations_unknown |>
@@ -1061,6 +1078,15 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
 # (mirror Q_2 steps 5-6). Rebuild the running union through step 4, then take
 # the new leftovers.
 # --- 03D Series
+# dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
+# dbExecute(decimal_con, Q_3d2_Occupations)
+# dbExecute(decimal_con, Q_3d2_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3d21_Occupations_Unknown_LCP2_Proxy_No_TT)
+# dbExecute(decimal_con, Q_3d22_Occupations_by_LCIP4_CRED_LCP2_No_T_Proxy_Union)
+# dbExecute(decimal_con, Q_3d24_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy)
+# dbExecute(decimal_con, Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+
 q_3d_occupations_by_lcip4_cred_lcp2_union <- bind_rows(
   tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp,
   q_3b2_occupations_unknown_private_cred_proxy,
