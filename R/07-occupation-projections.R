@@ -458,6 +458,17 @@ q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
   select(-GRADS, -GRAD_STATUS)
 
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
+# - dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
+# - dbExecute(decimal_con, Q_2a4_Labour_Supply)
+# 1 Finds all records where there are no respondents for 4-digit CIP and age group rollup; 
+# Basically those where TTRAIN was blank in LCIP4_CRED and in the Labour_Supply_Distribution table bc it had TTRAIN=0 injected + 
+# private training institutions, as these aren't in the Labour_Supply_Distribution table at all.
+# 2. Calc NLS using No TT Labour Supply Distribution. This is the labour supply distribution without the TTRAIN variable 
+# embedded in LCIP4_CRED to capture those programs that don’t have TTRAIN specified; 
+
 # Step 2 - No-TT proxy: cells with NO exact match (anti_join) borrow the
 # TTRAIN-stripped labour supply rate. Covers programs with blank/zero TTRAIN and
 # private institutions (absent from the survey table entirely).
@@ -502,6 +513,20 @@ tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp <- bind_rows(
 )
 
 rm(q_2a2_labour_supply_unknown_no_tt_proxy)
+
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for private institutions for 4-digit CIPs were no survey respondents 
+# Note 1. substituting CERT for DIPL and DIPL for CERT 4-digit CIP results b/c the 
+# Private Training Institution Branch says that private institutions do not have a 
+# hard and fast definition of credentials by length so CERT and DIPL used interchangeably; 
+# Note 2. use Labour_Supply_Distribution_No_TT table b/c obviously private institutions don’t have trades training variable; 
+# Note 3. because of the CERT/DIPL substitution,  actual total will be larger, reducing the unknown
 
 # Step 3 - private CERT<->DIPL swap: still-unmatched private cells borrow the
 # OTHER private credential's rate (PTIB Branch treats CERT/DIPL interchangeably).
@@ -555,6 +580,19 @@ rm(
   q_2b2_labour_supply_unknown_private_cred_proxy
 )
 
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
+# - dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for all 4-digit CIPs with no survey respondents (matching all the filter criteria) 
+# Note 1. connecting to the 2-digit CIP as a proxy via T_LCP2_LCP4 (2-digit to 4-digit CIP link); 
+# (make sure this is up-to-date - shouldn’t change until CIP 2016 updated again). 
+# Must have links between Q_2b4_Labour_Supply_Unknown and Q_2_Labour_Supply_by_LCIP2_CRED on PSSM_CRED, Year and Age_Group_Rollup_Label; 
+# Note 2. excludes programs that we don’t want 2-digit CIP to serve as a proxy for 4-digit CIPs (51 medical programs due to close program occ linkage). 
+# Note 3. allow the private institutions to use this proxy for all programs since the alternative is using an NHS tab which doesn’t have economic region in it. 
+# Note 4. Updated filter to “P - “ since now have the PDEG degree.
+
 # Step 4 - 2-digit CIP proxy: remaining cells borrow the broader LCP2 group's
 # rate via t_lcp2_lcp4. Excludes CIP-51 medical programs (occupation link too
 # tight to generalise); private "P - " programs are allowed to use this proxy.
@@ -602,6 +640,15 @@ q_2c2_labour_supply_unknown_lcp2_proxy_union <- bind_rows(
 
 rm(q_2c_labour_supply_unknown_lcp2_proxy)
 
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
+# - dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
+
+
 # Step 5 - LCP2 No-TT proxy for the private leftovers. Public programs were
 # matched in step 4, so only private ("P - ") cells remain; they borrow the
 # TTRAIN-stripped LCP2 labour-supply rate. is.na(LCIP_LCP4_CD) keeps rows the
@@ -624,6 +671,10 @@ q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
       YEAR
     )
   )
+
+# there was a bug in the original query. The filter is intended to capture the records where 
+# is.na(LCIP_LCP4_CD) is true, but also include any records where the LCIP4_CRED starts with "P - " (i.e. private institutions).
+# filter s.b. OR
 
 
 q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- labour_supply_distribution_lcp2_no_tt |>
@@ -669,6 +720,13 @@ rm(
   q_2c2_labour_supply_unknown_lcp2_proxy_union,
   q_2c3_labour_supply_unknown
 )
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+# - dbExecute(decimal_con, Q_2f_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
 
 # Step 6 - final LCP2 private CERT<->DIPL swap; result is the COMPLETE labour
 # supply union that the Q_3 occupation series consumes.
@@ -730,6 +788,9 @@ rm(
   q_2d3_labour_supply_unknown_lcp2_private_cred_proxy
 )
 
+# --- 2f series
+# dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
+
 # REMOVED: q_2f_labour_supply was computed then immediately rm()'d (author marked
 # "not used?"). It measured residual unmatched labour supply for QA only.
 # q_2f_labour_supply <- q_1c_grad_projections_by_program |>
@@ -743,6 +804,21 @@ rm(
 # Free the Q_1 intermediates (all matched into the labour-supply union now).
 removers <- ls()[grep("q_1", ls())]
 rm(list = removers)
+
+
+# ---- Q_3 Series ----
+# dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
+
+# --- 03B Series
+# dbExecute(decimal_con, Q_3b_Occupations_Unknown) # numbers too high
+# dbExecute(decimal_con, Q_3b11_Ocupations_Unknown_No_TT_Proxy) # numbers too high
+# dbExecute(decimal_con, q_3b12_Occupations_by_LCIP4_CRED_No_TT_Proxy_Union)
+# dbExecute(decimal_con, Q_3b13_Occupations)
+# dbExecute(decimal_con, Q_3b14_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
+# dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+# dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
+
 
 # ============================================================================
 # Q_3 SERIES - occupation factor:  OCCSN = NLS x P(NOC | CIP, region) ----
@@ -955,7 +1031,7 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
     relationship = "many-to-many"
   ) |>
   inner_join(
-    occupation_distributions_lcp2 |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    occupation_distributions_lcp2 |>rename_with(toupper) |> select(-PSSM_CREDENTIAL, -TTRAIN),
     by = join_by(
       AGE_GROUP_ROLLUP,
       PSSM_CRED,
@@ -1009,6 +1085,7 @@ q_3d21_occupations_unknown_lcp2_proxy_no_tt <-
   t_lcp2_lcp4 |>
   inner_join(
     occupation_distributions_lcp2_no_tt |>
+      rename_with(toupper) |> 
       select(
         NOC,
         PERCENT,
@@ -1517,3 +1594,4 @@ walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 # # dbExecute(decimal_con, qry9999_NOC_4031_4032)
 
 # ---- Clean Up ----
+dbDisconnect(con) 

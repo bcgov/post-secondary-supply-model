@@ -63,6 +63,21 @@
 #   for the next step; this script does not dbDisconnect().
 # ============================================================================
 
+# ---- Configure LAN and file paths ----
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
+db_schema <- config::get("dbschema")
+
+# ---- Connection to decimal ----
+db_config <- config::get("decimal")
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 # ---- Required inputs (must already be loaded by load-program-projections.R) ----
 required_tables <- c(
   # actually used in load script
@@ -108,6 +123,18 @@ if (length(missing) > 0) {
   ))
 }
 
+
+# if table does not exist, read it from db
+for (table_name in missing) {
+  print(table_name)
+
+  if(
+    !exists(table_name)){
+    read_table_from_db(table_name, my_schema, con)
+  }
+}
+
+
 # na_vals <- c("", " ", "(Unspecified)", NA)  # REMOVED: defined but never used here.
 
 # ============================================================================
@@ -138,6 +165,11 @@ if (ptib_run == TRUE) {
 # Near-completer stream. Row-level counts live in NEAR_COMPLETERS_STP_CREDENTIALS
 # (from step 03). Aggregate to age x CIP x grad-status x ttrain x credential, then
 # compute the program-mix PERCENT within PSSM_CRED x AGE_GROUP.
+
+# aggregate counts of near completers by age, cip, grad status, ttrain, credential
+# row-level counts are in variable 'NEAR_COMPLETERS_STP_CREDENTIALS'
+
+# some remapping needed when using dbo version
 
 # Heritage note: when sourcing the dbo (not _r) version of the near-completers
 # table, the " OR "/" or " casing differs and must be remapped first. Disabled
@@ -178,6 +210,10 @@ near_completers_totals <- near_completers_totals |>
     by = join_by(AGE_GROUP == AGE_GROUP_LABEL_NEAR_COMPLETER_PROJECTION),
     relationship = "many-to-many"
   )
+
+
+# SURVEY here is not a survey instrument — it's a lineage tag that says which processing "stream" produced each row. The names are inherited from the original dbo SQL queries (Q_012e, Q_013e, …, qry_13d), kept so every row can be traced back to its source and so each stream can replace only its own rows idempotently (filter(!str_detect(SURVEY, "Q012e$")) |> bind_rows(...)).
+# The five values you listed are exactly the tags in cohort_program_distributions_static_r (the static-mix output). The projected table carries a different set (Q015e21, qry10c, qry12c).
 
 # Shape to the common distribution schema (SURVEY tag, GRAD_STATUS/TTRAIN as
 # character, LCIP2_CRED key, recoded AGE_GROUP, fixed YEAR).
@@ -563,7 +599,7 @@ graduate_projections <- graduate_projections |>
 # Roll the STATIC near-completer + apprenticeship mix forward across Y2..Y12,
 # producing year-varying rows for the PROJECTED table (and a parallel static tag).
 
-# Expand every static row across the rollover horizon.
+# Expand every static row across the rollover horizon: 10 years in the future 2024/25-2034/35.
 static_projected <- cohort_program_distributions_static |>
   inner_join(
     t_cohort_program_distributions_y2_to_y12 |> select(-ID),
@@ -911,3 +947,4 @@ write_table_to_db <- function(table_name, schema, con) {
 }
 
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
+dbDisconnect(con) 
