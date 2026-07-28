@@ -276,7 +276,7 @@ flowchart LR
     end
 
     subgraph SHARED["second_schema  (shared input library)"]
-        LIB["IDIR\\BASHCROF<br/>(or a dedicated pssm_inputs schema)"]
+        LIB["second_schema<br/>(or a dedicated pssm_inputs schema)"]
     end
 
     subgraph T2["Tier 2 — run 3× per cycle"]
@@ -286,7 +286,7 @@ flowchart LR
     end
 
     subgraph ANA["my_schema  (analyst's working schema)"]
-        A1["IDIR\\JDUAN"]
+        A1["my_schema"]
     end
 
     OUT1 --> LIB
