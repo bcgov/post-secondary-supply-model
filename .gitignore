@@ -21,3 +21,4 @@ tmp/
 
 docs/agents/
 *.sh
+plan/
