@@ -448,19 +448,57 @@ log_info("Step 12: Replaced '(Unspecified)' PSI_PROGRAM_CODE values with NULL")
 #       database, making it available for direct querying and joins in
 #       subsequent scripts (e.g., 02a-update-cred-non-dup.R).
 
+if (
+  DBI::dbExistsTable(
+    con,
+    DBI::Id(schema = my_schema, table = "Credential_Non_Dup_APPSO_IDs_r")
+  )
+) {
+  DBI::dbRemoveTable(
+    con,
+    DBI::Id(schema = my_schema, table = "Credential_Non_Dup_APPSO_IDs_r")
+  )
+}
+
 credential_non_dup_appso_ids %>%
   compute(
     name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs_r"),
-    temporary = FALSE
+    temporary = FALSE,
+    overwrite = T
   )
 log_info(glue::glue(
   "Materialized Credential_Non_Dup_APPSO_IDs_r to SQL Server"
 ))
 
+log_info(glue::glue(
+  "Materialized Credential_Non_Dup_APPSO_IDs_r to SQL Server"
+))
+
+
+if (
+  DBI::dbExistsTable(
+    con,
+    DBI::Id(
+      schema = my_schema,
+      table = "Credential_Non_Dup_STP_APPSO_Cleaning_r"
+    )
+  )
+) {
+  DBI::dbRemoveTable(
+    con,
+    DBI::Id(
+      schema = my_schema,
+      table = "Credential_Non_Dup_STP_APPSO_Cleaning_r"
+    )
+  )
+}
+
+
 credential_non_dup_stp_appso_cleaning %>%
   compute(
     name = in_schema(my_schema, "Credential_Non_Dup_STP_APPSO_Cleaning_r"),
-    temporary = FALSE
+    temporary = FALSE,
+    overwrite = T
   )
 log_info(glue::glue(
   "Materialized Credential_Non_Dup_STP_APPSO_Cleaning_r to SQL Server"

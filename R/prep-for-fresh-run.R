@@ -20,7 +20,7 @@ library(tidyverse)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
+# library(RJDBC)
 library(futile.logger)
 source("./R/utils.R")
 log_file <- "./R/execution_log.txt"
@@ -105,7 +105,8 @@ tryCatch(
   },
   error = function(e) {
     dbRollback(decimal_con) # Rollback if there's an error
-    print(paste("Error:", e$message))
+    log_info(glue::glue("Step 1 ERROR dropping tables: {e$message}"))
+    stop(e)
   },
   finally = {
     dbDisconnect(decimal_con)
@@ -250,7 +251,7 @@ log_info(glue::glue(
 ))
 
 if (length(copy_tables) > 0) {
-  purrr::map_dfr(copy_tables, \(t) {
+  copy_check <- purrr::map_dfr(copy_tables, \(t) {
     short <- stringr::str_remove_all(
       stringr::str_extract(t, '(?<=\\.)"[^"]+"'),
       '"'
@@ -263,6 +264,7 @@ if (length(copy_tables) > 0) {
       )
     )
   })
+  print(copy_check)
 
   for (table in copy_tables) {
     # Extract the part after the dot
@@ -320,7 +322,7 @@ if (regular_run == T & qi_run != T & ptib_run != T) {
     ))
     print(glue::glue("regular model run flag: {regular_run}"))
     print(glue::glue("qi model run flag: {qi_run}"))
-    print(glue::glue("ptib model furn flag: {ptib_run}"))
+    print(glue::glue("ptib model run flag: {ptib_run}"))
     time_execution(file_path)
   }
 }

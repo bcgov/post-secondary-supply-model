@@ -28,109 +28,78 @@ The methodological framework utilizes weighted historical cohorts to prioritize 
 
 To ensure mathematical consistency across both static and dynamic program registries, raw volumes are converted into standardized proportions ($P = \frac{count}{total}$). Demographic consistency is maintained through the application of standardized age groups ranging from 17–19 to 55–64. Temporal parameters are updated per cycle to reflect the current transition from the Year 1 baseline (2023/2024) through the extended projection horizon (2024/2025–2035/2036).
 
-## Data Sources and Storage
-<mark> INCOMLPETE </mark>
+## Role in the Project Pipeline
 
-### Data Sources
+The PSSM projects graduates into occupations via a four-term conditional-probability chain:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04 (graduate counts)
+               × P(CIP | cred, age)                ← Module 06 (this script)
+               × P(in labour supply | CIP)         ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+Module 06 computes **Term 2 — P(CIP | cred, age)**: graduate counts from Module 04 (aggregated by credential × age) don not contain a CIP dimension ; this script distributes that count across CIP codes and writes the `PERCENT` column in `cohort_program_distributions`. This allows Term 3 and 4 to condition on CIP; Module 07 finally multiplies all four terms together.
+
+Every `PERCENT` in `06` follows the same structure: the numerator is grouped by CIP, cred and age, the denominator groups on `cred × age`**;  `Q013e` (graduate credentials), `Q014e` (apprenticeships), and the Werner-program outputs `qry10c` / `qry12c`. They differ only in which credential set and which CIP field (4-digit vs 2-digit) they group on. 
+
+The Werner variants additionally include `YEAR` in the denominator, making the distribution time-varying for the projected series.
+
+### How the four terms connect
+
+| Quantity | Script | Defining grouping | Output column |
+| --- | --- | --- | --- |
+| `GRADUATES(cred, age)` | 04 | count by cred × age | `Graduate_Projections.GRADUATES` |
+| `P(CIP ∣ cred, age)` | **06 — this script** | numerator +CIP; denom `.by = c(PSSM_CRED, AGE_GROUP)` | `cohort_program_distributions.PERCENT` |
+| …made year-varying | 06 (Werner: qry10c / qry12c) | denom `.by = c(PSSM_CRED, AGE_GROUP, YEAR)` | `cohort_program_distributions_projected` |
+| `P(in labour supply ∣ CIP)` | 02b-2 | numerator = NLS status; denom = LCIP4_CRED × age × region | `labour_supply_distribution.New_Labour_Supply` |
+| `P(NOC ∣ CIP, region)` | 02b-3 | numerator +NOC_CD; denom incl. LCIP4_CRED | `occupation_distributions.Percent` |
+| Combined → `OCCSN` | 07 | inner join on LCIP4_CRED (+ age, region) | `OCCSN` |
+
+
+
+## Data Sources
+
+None
 
 ### External Data Sources 
 
-#### STP Credential Data
-
-Source: Provided from Ministry of Post-Secondary Education and Future Skills [?]
-Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
-Description: STP Credential years searched: 2002/03 - 2022/23
-
 ### Internal/Processed Data Sources 
 
-#### Apprenticeship and TTRAIN Distributions
-Sourced from program cohort summaries (`T_Cohorts_Recoded`) developed in prior workflows.
+##### Table: tbl_credential_highest_rank
 
-#### Near-Completer Distributions
+One-record-per-student highest-rank credential table with delayed-award reconciliations.
 
-Derived from age and classification summaries of students in the DACSO program survey cohort.
+For full data dictionary refer to technical-documentation-01-stp-processing.qmd, Key Output Tables section.
 
-#### Core Program Distributions
-Derived from unduplicated credential tables and highest-ranking credential data.
+##### Table: credential_non_dup
 
+Deduplicated student credential information containing final demographic, ranking, and delayed-award variables.
 
-#### credential_non_dup
+For full data dictionary refer to technical-documentation-01-stp-processing.qmd, Key Output Tables section.
 
-Source and Access Method: Generated in Module 02 from STP Credential Data.  Tables should be in the current R environment or linked via ODBC link to database
-Description: STP Credential years searched: 2002/03 - 2022/23
+##### Table: tbl_program_projection_input
 
-#### t_dacso_data_part_1
+An aggregated table derived from tbl_credential_highest_rank and credential_non_dup, filtered to exclude apprenticeship and CIP clusters 09 and 10.  Only certain domestic/research-university cohorts are included. It provides base graduate counts by age group, credential category, school year, and CIP4.
 
-Source and Access Method: Contact Student Outcomes Team
-Description: 
-- Outcomes Survey cohorts Survey years: 2018, 2019, 2020, 2021, 2022, 2023 
-- Credentials: Diploma, Associate Degree, and Certificate 
-- Age groups: 17 to 19, 20 to 24, 25 to 29, and 35 to 64.  Using age at grad (not age at survey) for age groupings.
+<ul class="list-variable-names">
+  <li>AgeGroup (String): Standardized age-group label at graduation.</li>
+  <li>PSI_CREDENTIAL_CATEGORY (String): Broad post-secondary credential category used for grouping.</li>
+  <li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delayed award school-year value used in time-based weighting steps.</li>
+  <li>FINAL_CIP_CODE_4 (String): Final 4-digit CIP program code.</li>
+  <li>Expr1 (String): Derived helper field formed from credential category + age group.</li>
+  <li>Count (Integer): Aggregated graduate record count for each grouped row.</li>
+</ul>
 
-#### tmp_tbl_age 
+##### Table: qry_private_credentials_06d1_cohort_dist
 
-Source and Access Method: Contact Student Outcomes Team
-Description: 
+For full data dictionary refer to technical-documentation-05-ptib.qmd, Key Output Tables section.
 
-- longitudinal master-lookup of birthdates and survey exit dates. Used to derive the age filters (such as the 17–64 range) we in aggregated tables.
-- Historically, new data was appended to prior model run's data.  For 2026, we can request the full range required, SQL queries saved on the LAN for convenience.
+##### Table: dacso_near_completers_ratios_age_at_grad_cip4_ttrain
 
-#### Data Storage Structure
+For full data dictionary refer to technical-documentation-03-near-completers.qmd, Key Output Tables section.
 
-<mark> INCOMLPETE </mark>
-Where data is housed in internal storage locations, it is stored in a hierarchical folder structure accessible via read_csv().
+##### Table: t_cohorts_recoded
 
-```
-[BASE_FOLDER]/
-├── data/
-    ├── student-outcomes/  
-    └── csv/            
-        └── so-provision/ # provided by Student Outcomes
-├── development/
-    ├── csv/  
-    └── gh-source/ # temporary storage for lookups and etc.         
-
-└── outputs/
-    ├── tables/          # Final output tables  
-    └── visuals/         # Maps and visualizations
-```
-
-## Technical Specifications
-
-### Dependencies and Environment Requirements
-
-#### R Package Dependencies
-
-The following R packages are required for this module:
-
-- `tidyverse` (data manipulation and cleaning)
-- `DBI` (to connect to database)
-- `odbc` (to connect to database)
-- `config` (to connect to database)
-
-#### Authentication Setup
-
-To connect to SQL Servers, we require a configuration file to connect securely to various required databases, and use `config` to read in the configuration.
-
-```r
-library(DBI)
-library(odbc)
-library(config)
-
-# get configuration from config file 
-db_config <- config::get("decimal")
-
-# connect to database
-con <- dbConnect(odbc(),
-                 Driver = db_config$driver,
-                 Server = db_config$server,
-                 Database = db_config$database,
-                 Trusted_Connection = "True")
-
-# pull data from database 
-strSQL <- "SELECT * FROM <table>.<name>"
-df <- dbGetQuery(con, strSQL)
-```
+For full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables section.
 
 ## Methodology Overview
 
@@ -167,8 +136,6 @@ Program projection output from the Werner program for all programs (excluding ap
 Program projection output from the Werner program for graduate credentials are summarized by age, credential, cip and year $N$.  They are further standardized over age, credential and year.
 
 
-#### Data Dictionary 
-
 ## Key Output Tables
 
 The following data objects represent the terminal outputs of the program projection pipeline. 
@@ -203,8 +170,3 @@ The following data objects represent the terminal outputs of the program project
   <li>TOTAL (Double): The aggregate volume of graduates across the comparison cohort.</li>
   <li>PERCENT (Double): The derived proportional distribution density for the cohort.</li>
 </ul>
-
-
-## Suggested Improvements
-
-## Additional Details

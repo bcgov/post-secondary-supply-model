@@ -92,7 +92,7 @@ library(config)
 library(DBI)
 library(glue)
 library(assertthat)
-
+source("./R/utils.R")
 # model toggle: "static" fixes the program mix at 2023/24; "projected" lets it
 # drift by year (see 06). This picks which 06 output feeds the chain below.
 model <- "static"
@@ -147,8 +147,7 @@ required_tables <- c(
   "graduate_projections",
 
   # Lookups
-  "infoware_l_cip_4digits_cip2016",
-  "infoware_l_cip_6digits_cip2016",
+
   "t_exclude_from_projections_lcp4_cd",
   "t_exclude_from_projections_lcip4_cred",
   "t_exclude_from_projections_pssm_credential",
@@ -162,6 +161,54 @@ required_tables <- c(
   "t_pssm_cred_recode",
   "t_pssm_credential_grouping_appendix"
 )
+
+# Check for required data tables in global environment
+for (table_name in required_tables) {
+  assert_that(
+    exists(table_name),
+    msg = paste(
+      "Error:",
+      table_name,
+      "does not exist in the global environment."
+    )
+  )
+}
+
+# if table does not exist, read it from db
+for (table_name in required_tables) {
+  print(table_name)
+
+  if (table_name == "cohort_program_distributions") {
+    if (model == "static") {
+      read_table_from_db("cohort_program_distributions_static", my_schema, con)
+      cohort_program_distributions <- cohort_program_distributions_static
+    } else {
+      read_table_from_db(
+        "cohort_program_distributions_projected",
+        my_schema,
+        con
+      )
+      cohort_program_distributions <- cohort_program_distributions_projected
+    }
+  }
+
+  if (!exists(table_name)) {
+    read_table_from_db(table_name, my_schema, con)
+  }
+}
+
+required_tables_2 <- c(
+  "infoware_l_cip_4digits_cip2016",
+  "infoware_l_cip_6digits_cip2016"
+)
+
+for (table_name in required_tables_2) {
+  print(table_name)
+  .GlobalEnv[[table_name]] <- dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."{table_name}"'))
+  )
+}
 
 # Check for required data tables in global environment
 for (table_name in required_tables) {
@@ -269,6 +316,12 @@ if (ptib_run == TRUE) {
   )
 }
 
+
+# ---- Q_1 Series ----
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program)
+# run distinct here to remove duplicates in case you
+# grabbed the dbo version of graduate_projections (development only).
+
 # ============================================================================
 # Q_1 SERIES - apply the program mix:  GRADS = GRADUATES x P(CIP | cred, age) ----
 # ============================================================================
@@ -308,6 +361,10 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
     GRADS
   )
 
+# dbExecute(decimal_con, Q_1_Grad_Projections_by_Age_by_Program_Static)
+# this will be identical to the query above, if the model toggle is set to
+# static (odd choice but we can deal with this later).
+
 # REMOVED: _static variant is never consumed downstream (it only differs by
 # blanking LCIP4_CRED). Kept commented for parity with the SQL query of the same
 # name; re-enable if a caller ever needs it.
@@ -334,6 +391,9 @@ q_1_grad_projections_by_age_by_program <- graduate_projections |>
 #     LCIP4_CRED = NA_character_
 #   ) |>
 #   select(PSSM_CREDENTIAL, PSSM_CRED, AGE_GROUP, YEAR, LCP4_CD, GRAD_STATUS, TTRAIN, LCIP4_CRED, GRADS)
+
+# Roll the 9 fine age bands up to the 5 projection bands (17-19 ... 35-64) that
+# the labour-supply and occupation distributions are keyed on.
 
 # REMOVED: interactive QA only (Q_1b check) - not assigned, just prints a wide
 # grads-by-year table. Run by hand if validating against SQL.
@@ -372,6 +432,7 @@ q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
 # REMOVED: LCP2 grads table is never consumed - the LCP2 proxy steps join the
 # 4-digit grads table to labour_supply_distribution_lcp2 directly. Kept for SQL
 # parity.
+#dbExecute(decimal_con, Q_1c_Grad_Projections_by_Program_LCP2)
 # q_1c_grad_projections_by_program_lcp2 <- q_1_grad_projections_by_age_by_program |>
 #   inner_join(tbl_age_groups, by = c("AGE_GROUP" = "AGE_GROUP_LABEL")) |>
 #   inner_join(tbl_age_groups_rollup, by = "AGE_GROUP_ROLLUP") |>
@@ -396,11 +457,15 @@ q_1c_grad_projections_by_program <- q_1_grad_projections_by_age_by_program |>
 #   Proxy waterfall (see header). Each step matches more leftovers; the running
 #   union is the *_union table carried into the next step.
 # ============================================================================
+# dbExecute(decimal_con, Q_2_Labour_Supply_by_LCIP4_CRED)
+# Find all records where there are respondents for 4-digit CIP and age group rollup;
+# Calc NLS using No Labour Supply Distribution.
 
 # Step 1 - exact LCIP4_CRED match (the best case).
 q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
   inner_join(
     labour_supply_distribution |>
+      rename_with(toupper) |>
       select(
         LCIP4_CRED,
         NEW_LABOUR_SUPPLY,
@@ -413,12 +478,24 @@ q_2_labour_supply_by_lcip4_cred <- q_1c_grad_projections_by_program |>
   mutate(NLS = GRADS * NEW_LABOUR_SUPPLY) |>
   select(-GRADS, -GRAD_STATUS)
 
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2a_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2a2_Labour_Supply_Unknown_No_TT_Proxy)
+# - dbExecute(decimal_con, Q_2a3_Labour_Supply_by_LCIP4_CRED_No_TT_Proxy_Union)
+# - dbExecute(decimal_con, Q_2a4_Labour_Supply)
+# 1 Finds all records where there are no respondents for 4-digit CIP and age group rollup;
+# Basically those where TTRAIN was blank in LCIP4_CRED and in the Labour_Supply_Distribution table bc it had TTRAIN=0 injected +
+# private training institutions, as these aren't in the Labour_Supply_Distribution table at all.
+# 2. Calc NLS using No TT Labour Supply Distribution. This is the labour supply distribution without the TTRAIN variable
+# embedded in LCIP4_CRED to capture those programs that don’t have TTRAIN specified;
+
 # Step 2 - No-TT proxy: cells with NO exact match (anti_join) borrow the
 # TTRAIN-stripped labour supply rate. Covers programs with blank/zero TTRAIN and
 # private institutions (absent from the survey table entirely).
 q_2a2_labour_supply_unknown_no_tt_proxy <- q_1c_grad_projections_by_program |>
   anti_join(
-    labour_supply_distribution,
+    labour_supply_distribution |>
+      rename_with(toupper),
     by = join_by(LCIP4_CRED, AGE_GROUP_ROLLUP)
   ) |>
   summarise(
@@ -436,6 +513,7 @@ q_2a2_labour_supply_unknown_no_tt_proxy <- q_1c_grad_projections_by_program |>
   ) |>
   inner_join(
     labour_supply_distribution_no_tt |>
+      rename_with(toupper) |>
       select(
         LCIP4_CRED,
         AGE_GROUP_ROLLUP,
@@ -455,6 +533,20 @@ tmp_tbl_q_2a4_labour_supply_by_lcip4_cred_no_tt_union_tmp <- bind_rows(
 )
 
 rm(q_2a2_labour_supply_unknown_no_tt_proxy)
+
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2b2_Labour_Supply_Unknown_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2b3_Labour_Supply_by_LCIP4_CRED_Private_Cred_Proxy_Union)
+
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for private institutions for 4-digit CIPs were no survey respondents
+# Note 1. substituting CERT for DIPL and DIPL for CERT 4-digit CIP results b/c the
+# Private Training Institution Branch says that private institutions do not have a
+# hard and fast definition of credentials by length so CERT and DIPL used interchangeably;
+# Note 2. use Labour_Supply_Distribution_No_TT table b/c obviously private institutions don’t have trades training variable;
+# Note 3. because of the CERT/DIPL substitution,  actual total will be larger, reducing the unknown
 
 # Step 3 - private CERT<->DIPL swap: still-unmatched private cells borrow the
 # OTHER private credential's rate (PTIB Branch treats CERT/DIPL interchangeably).
@@ -481,6 +573,7 @@ q_2b2_labour_supply_unknown_private_cred_proxy <- q_1c_grad_projections_by_progr
   ) |>
   inner_join(
     labour_supply_distribution_no_tt |>
+      rename_with(toupper) |>
       filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
       select(
         AGE_GROUP_ROLLUP,
@@ -506,6 +599,19 @@ rm(
   # q_2b_labour_supply_unknown,
   q_2b2_labour_supply_unknown_private_cred_proxy
 )
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2b4_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c_Labour_Supply_Unknown_LCP2_Proxy)
+# - dbExecute(decimal_con, Q_2c2_Labour_Supply_Unknown_LCP2_Proxy_Union)
+# 1. finds all the records where labour supply still isn’t specified yet.
+# 2. calcs NLS for all 4-digit CIPs with no survey respondents (matching all the filter criteria)
+# Note 1. connecting to the 2-digit CIP as a proxy via T_LCP2_LCP4 (2-digit to 4-digit CIP link);
+# (make sure this is up-to-date - shouldn’t change until CIP 2016 updated again).
+# Must have links between Q_2b4_Labour_Supply_Unknown and Q_2_Labour_Supply_by_LCIP2_CRED on PSSM_CRED, Year and Age_Group_Rollup_Label;
+# Note 2. excludes programs that we don’t want 2-digit CIP to serve as a proxy for 4-digit CIPs (51 medical programs due to close program occ linkage).
+# Note 3. allow the private institutions to use this proxy for all programs since the alternative is using an NHS tab which doesn’t have economic region in it.
+# Note 4. Updated filter to “P - “ since now have the PDEG degree.
 
 # Step 4 - 2-digit CIP proxy: remaining cells borrow the broader LCP2 group's
 # rate via t_lcp2_lcp4. Excludes CIP-51 medical programs (occupation link too
@@ -539,7 +645,9 @@ q_2c_labour_supply_unknown_lcp2_proxy <- q_1c_grad_projections_by_program |>
     by = c("LCP4_CD" = "LCIP_LCP4_CD")
   ) |>
   inner_join(
-    labour_supply_distribution_lcp2 |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    labour_supply_distribution_lcp2 |>
+      rename_with(toupper) |>
+      select(-PSSM_CREDENTIAL, -TTRAIN),
     by = join_by(AGE_GROUP_ROLLUP, PSSM_CRED, LCIP_LCP2_CD == LCP2_CD),
     relationship = "many-to-many"
   ) |>
@@ -554,8 +662,18 @@ q_2c2_labour_supply_unknown_lcp2_proxy_union <- bind_rows(
 
 rm(q_2c_labour_supply_unknown_lcp2_proxy)
 
-# Step 5 - LCP2 No-TT proxy for the private leftovers.
-# ...existing code (bug-fix comment about OR filter) ...
+
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2c3_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2c4_Labour_Supply_Unknown_LCP2_Proxy_No_TT)
+# - dbExecute(decimal_con, Q_2d_Labour_Supply_by_LCIP4_CRED_LCP2_Union)
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
+
+# Step 5 - LCP2 No-TT proxy for the private leftovers. Public programs were
+# matched in step 4, so only private ("P - ") cells remain; they borrow the
+# TTRAIN-stripped LCP2 labour-supply rate. is.na(LCIP_LCP4_CD) keeps rows the
+# LCP2-exclude list did NOT flag.
 q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
   anti_join(
     q_2c2_labour_supply_unknown_lcp2_proxy_union,
@@ -575,8 +693,12 @@ q_2c3_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
+# there was a bug in the original query. The filter is intended to capture the records where
+# is.na(LCIP_LCP4_CD) is true, but also include any records where the LCIP4_CRED starts with "P - " (i.e. private institutions).
+# filter s.b. OR
 
 q_2c4_labour_supply_unknown_lcp2_proxy_no_tt <- labour_supply_distribution_lcp2_no_tt |>
+  rename_with(toupper) |>
   select(
     LCP2_CD,
     AGE_GROUP_ROLLUP,
@@ -619,6 +741,13 @@ rm(
   q_2c3_labour_supply_unknown
 )
 
+# Combine the following queries for readability
+# - dbExecute(decimal_con, Q_2d2_Labour_Supply_Unknown)
+# - dbExecute(decimal_con, Q_2d3_Labour_Supply_Unknown_LCP2_Private_Cred_Proxy)
+# - dbExecute(decimal_con, Q_2d4_Labour_Supply_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
+# - dbExecute(decimal_con, Q_2f_Labour_Supply)
+# 1. finds all the records where labour supply still isn’t specified yet.
+
 # Step 6 - final LCP2 private CERT<->DIPL swap; result is the COMPLETE labour
 # supply union that the Q_3 occupation series consumes.
 q_2d2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
@@ -640,6 +769,7 @@ q_2d2_labour_supply_unknown <- q_1c_grad_projections_by_program |>
     )
   )
 
+
 q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unknown |>
   filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")) |>
   inner_join(
@@ -648,6 +778,7 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
   ) |>
   inner_join(
     labour_supply_distribution_lcp2_no_tt |>
+      rename_with(toupper) |>
       filter(PSSM_CRED %in% c("P - CERT", "P - DIPL")),
     by = c("AGE_GROUP_ROLLUP" = "AGE_GROUP_ROLLUP", "LCIP_LCP2_CD" = "LCP2_CD")
   ) |>
@@ -658,7 +789,7 @@ q_2d3_labour_supply_unknown_lcp2_private_cred_proxy <- q_2d2_labour_supply_unkno
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN, # just TTRAIN?
+    TTRAIN = TTRAIN, # carried through unchanged
     LCP4_CD,
     LCIP4_CRED,
     NEW_LABOUR_SUPPLY,
@@ -678,6 +809,9 @@ rm(
   q_2d3_labour_supply_unknown_lcp2_private_cred_proxy
 )
 
+# --- 2f series
+# dbExecute(decimal_con, Q_2f2_Labour_Supply_Unknown) # numbers are low
+
 # REMOVED: q_2f_labour_supply was computed then immediately rm()'d (author marked
 # "not used?"). It measured residual unmatched labour supply for QA only.
 # q_2f_labour_supply <- q_1c_grad_projections_by_program |>
@@ -691,6 +825,16 @@ rm(
 # Free the Q_1 intermediates (all matched into the labour-supply union now).
 removers <- ls()[grep("q_1", ls())]
 rm(list = removers)
+
+
+# ---- Q_3 Series ----
+# dbExecute(decimal_con, Q_3_Occupations_by_LCIP4_CRED)
+
+# ============================================================================
+# Q_3 SERIES - occupation factor:  OCCSN = NLS x P(NOC | CIP, region) ----
+#   SAME proxy waterfall as Q_2, but now adds CURRENT_REGION_PSSM_CODE_ROLLUP to
+#   the match keys and multiplies NLS by the occupation share to get OCCSN.
+# ============================================================================
 
 # ============================================================================
 # Q_3 SERIES - occupation factor:  OCCSN = NLS x P(NOC | CIP, region) ----
@@ -754,6 +898,7 @@ q_3b_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union 
 q_3b11_occupations_unknown_no_tt_proxy <- q_3b_occupations_unknown |>
   inner_join(
     occupation_distributions_no_tt |>
+      rename_with(toupper) |>
       select(
         NOC,
         PERCENT,
@@ -807,6 +952,7 @@ q_3b14_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_unio
   )
 
 
+# dbExecute(decimal_con, Q_3b2_Occupations_Unknown_Private_Cred_Proxy)
 # Step 3 - private CERT<->DIPL occupation swap.
 q_3b2_occupations_unknown_private_cred_proxy <-
   q_3b14_occupations_unknown |>
@@ -825,6 +971,7 @@ q_3b2_occupations_unknown_private_cred_proxy <-
   ) |>
   inner_join(
     occupation_distributions_no_tt |>
+      rename_with(toupper) |>
       select(
         NOC,
         PERCENT,
@@ -852,6 +999,7 @@ q_3b2_occupations_unknown_private_cred_proxy <-
   ) |>
   select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
 
+# Union of occupation steps 1-3 (exact + No-TT + private swap).
 # dbExecute(decimal_con, Q_3b3_Occupations_by_LCIP4_CRED_Private_Cred_Proxy_Union)
 q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
   tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp,
@@ -859,6 +1007,7 @@ q_3b3_occupations_by_lcip4_cred_private_cred_proxy_union <- bind_rows(
     select(names(tmp_tbl_q3b12_occupations_by_lcip4_cred_no_tt_union_tmp))
 )
 
+# Leftovers still unmatched after the step 3 union (YEAR is part of the keys).
 # dbExecute(decimal_con, Q_3b4_Occupations_Unknown)
 q_3b4_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
@@ -881,7 +1030,9 @@ rm(
 )
 
 
-# Step 4 - 2-digit CIP occupation proxy (mirrors Q_2 step 4).
+# Step 4 - 2-digit CIP occupation proxy (mirrors Q_2 step 4): leftovers borrow
+# the broader LCP2 group's occupation share. LCP4s on the exclude list are
+# skipped; private ("P - ") programs are always allowed through.
 # --- 03C Series
 #dbExecute(decimal_con, Q_3c_Occupations_Unknown_LCP2_Proxy)
 q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
@@ -899,7 +1050,9 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
     relationship = "many-to-many"
   ) |>
   inner_join(
-    occupation_distributions_lcp2 |> select(-PSSM_CREDENTIAL, -TTRAIN),
+    occupation_distributions_lcp2 |>
+      rename_with(toupper) |>
+      select(-PSSM_CREDENTIAL, -TTRAIN),
     by = join_by(
       AGE_GROUP_ROLLUP,
       PSSM_CRED,
@@ -924,6 +1077,19 @@ q_3c_occupations_unknown_lcp2_proxy <- q_3b4_occupations_unknown |>
     OCCSN
   )
 
+
+# Steps 5-6 - LCP2 No-TT and LCP2 private CERT<->DIPL swap occupation proxies
+# (mirror Q_2 steps 5-6). Rebuild the running union through step 4, then take
+# the new leftovers.
+# --- 03D Series
+# dbExecute(decimal_con, Q_3d_Occupations_by_LCIP4_CRED_LCP2_Union)
+# dbExecute(decimal_con, Q_3d2_Occupations)
+# dbExecute(decimal_con, Q_3d2_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3d21_Occupations_Unknown_LCP2_Proxy_No_TT)
+# dbExecute(decimal_con, Q_3d22_Occupations_by_LCIP4_CRED_LCP2_No_T_Proxy_Union)
+# dbExecute(decimal_con, Q_3d24_Occupations_Unknown)
+# dbExecute(decimal_con, Q_3d3_Occupations_Unknown_LCP2_Private_Cred_Proxy)
+# dbExecute(decimal_con, Q_3d4_Occupations_by_LCIP4_CRED_LCP2_LCP2_Private_Union)
 
 # Steps 5-6 - LCP2 No-TT and LCP2 private swap occupation proxies.
 # --- 03D Series
@@ -951,6 +1117,7 @@ q_3d21_occupations_unknown_lcp2_proxy_no_tt <-
   t_lcp2_lcp4 |>
   inner_join(
     occupation_distributions_lcp2_no_tt |>
+      rename_with(toupper) |>
       select(
         NOC,
         PERCENT,
@@ -962,7 +1129,7 @@ q_3d21_occupations_unknown_lcp2_proxy_no_tt <-
     by = join_by(LCIP_LCP2_CD == LCP2_CD),
     relationship = "many-to-many"
   ) |>
-  select(-LCIP_LCP2_CD, ) |>
+  select(-LCIP_LCP2_CD) |>
   inner_join(
     q_3d2_occupations_unknown |>
       left_join(
@@ -1039,7 +1206,7 @@ q_3d3_occupations_unknown_lcp2_private_cred_proxy <- q_3d24_occupations_unknown 
     AGE_GROUP_ROLLUP,
     AGE_GROUP_ROLLUP_LABEL,
     YEAR,
-    TTRAIN = TTRAIN.x, # just TTRAIN?
+    TTRAIN = TTRAIN.x, # carry the left-side TTRAIN through
     LCP4_CD,
     LCIP4_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
@@ -1059,8 +1226,9 @@ q_3d4_occupations_by_lcip4_cred_lcp2_lcp2_private_union <- bind_rows(
 # dbExecute(decimal_con, Q_3e2_Occupations_Unknown)
 # dbExecute(decimal_con, Q_3e3_Occupations_by_LCIP4_CRED_LCP2_Union)
 
-# Unknown bucket: anything STILL unmatched gets NOC 99999 at PERCENT = 1, so its
-# full NLS flows through as "occupation unknown" rather than being dropped.
+# Unknown bucket: anything STILL unmatched after every proxy gets NOC 99999 at
+# PERCENT = 1, so its full NLS flows through as "occupation unknown" rather than
+# being dropped. q_3e tallies the leftover NLS; q_3e2 stamps it NOC 99999.
 
 q_3e_occupations_unknown <- tmp_tbl_q_2d_labour_supply_by_lcip4_cred_lcp2_union |>
   anti_join(
@@ -1146,7 +1314,7 @@ removers <- ls()[grep("q_2", ls())]
 rm(list = removers)
 
 
-# Keep only positive OCCSN; this is the single table the NOC rollups build on.
+# Keep only positive OCCSN; this single table is what the Q_4 NOC rollups build on.
 # --- 03F Series
 # dbExecute(decimal_con, Q_3f_Occupations)
 tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union <- q_3e3_occupations_by_lcip4_cred_lcp2_union |>
@@ -1198,6 +1366,10 @@ rm(list = removers)
 # dbExecute(decimal_con, Q_4_NOC_4D_Totals_by_Year)
 # dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year)
 # FIXME dbExecute(decimal_con, Q_4_NOC_5D_Totals_by_Year_Input_for_Rounding)
+
+# Attach the NOC hierarchy (1- to 5-digit) and region names to every occupation
+# cell. The SQL *_by_PSSM_CRED variants were never needed (only the by-year
+# totals below are used), so they are intentionally omitted here.
 
 noc_projections_base <- tmp_tbl_q_3d_occupations_by_lcip4_cred_lcp2_union |>
   mutate(
@@ -1275,6 +1447,7 @@ q_4_noc_5d_totals_by_year <- sum_noc_totals(noc_projections_base, 5)
 # dbExecute(decimal_con, Q_4_NOC_Totals_by_Year_Total)
 
 # ---- Q_4_NOC_Totals: stack all levels, then add BC and grand totals ----
+# Stack all five NOC levels into one table; BC and grand-total views follow.
 q_4_noc_totals_by_year <- rbind(
   q_4_noc_4d_totals_by_year,
   q_4_noc_3d_totals_by_year,
@@ -1323,6 +1496,9 @@ q_4_noc_totals_by_year_total <- q_4_noc_totals_by_year %>%
 # dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC)
 # dbExecute(decimal_con, Q_5_NOC_Totals_by_Year_and_BC_and_Total)
 
+# Region view = per-region rows + the BC aggregate; the *_and_total view also
+# appends the province-wide grand total.
+
 q_5_noc_totals_by_year_and_bc <- bind_rows(
   q_4_noc_totals_by_year,
   q_4_noc_totals_by_year_bc
@@ -1338,18 +1514,15 @@ q_5_noc_totals_by_year_and_bc_and_total <- bind_rows(
 # Q_6 SERIES - stash this run's result under a run-specific name ----
 #   Each of the three model runs lands in its own object so 08 can combine them.
 # ============================================================================
+
+# Collects the active run's result-table name(s); written to DB just below.
+tables_to_keep <- c()
+
 if (regular_run == TRUE) {
   tmp_tbl_model <- q_5_noc_totals_by_year_and_bc_and_total
-  # write tmp_tbl_model to decimal
+  tables_to_keep <- c(tables_to_keep, "tmp_tbl_model")
 }
 
-
-tables_to_keep <- c(
-  "tmp_tbl_model"
-  # "tmp_tbl_qi",
-  # "tmp_tbl_model_inc_private_inst",
-  # "tmp_tbl_model_program_projection"
-)
 
 if (qi_run == TRUE) {
   tmp_tbl_qi <- q_5_noc_totals_by_year_and_bc_and_total
@@ -1379,6 +1552,13 @@ write_table_to_db <- function(table_name, schema, con) {
 
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
+# ============================================================================
+# LEGACY SQL-ERA PUBLICATION CODE -- retained for reference, intentionally inert.
+# The commented blocks below are the original dbo/SQL publication, QI, public-
+# release and internal-release steps. They are kept as a reference for what
+# 08-create-final-reports.R now produces in R. Nothing here executes; the live
+# pipeline ends above with write_table_to_db().
+# ----------------------------------------------------------------------------
 # if (regular_run == TRUE | qi_run == TRUE) {
 #   dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC")
 #   dbExecute(decimal_con, "DROP TABLE Q_5_NOC_Totals_by_Year_and_BC_and_Total")
@@ -1446,3 +1626,4 @@ walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 # # dbExecute(decimal_con, qry9999_NOC_4031_4032)
 
 # ---- Clean Up ----
+dbDisconnect(con)

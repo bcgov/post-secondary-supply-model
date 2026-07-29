@@ -159,7 +159,7 @@ forward. 02b-3 does **not** re-apply year weight; it's already inside `WEIGHT_NL
 
 ### Stage B — NOC respondents (Z02b)
 
-```r
+```text
 RESPONDENTS = respondents with NLS∈{1,3} AND valid NOC
               (or in a group that is 100% unknown-NOC)
 # note: NLS=2 (studying AND working) is EXCLUDED from the NOC denominator
@@ -357,8 +357,8 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
    NOC isn't a clean signal.
 
 3. **`WEIGHT_ADJ_FAC` naming collision.** Both scripts call their adjustment
-   factor `WEIGHT_ADJ_FAC` / `WEIGHT_ADJ_FAC`, but they are **different objects**
-   in different tables (`tmp_tbl_weights_nls` vs `dacso_q008_z04_weight_adj_fac`).
+   factor `WEIGHT_ADJ_FAC`, but they are **different objects** in different
+   tables (`tmp_tbl_weights_nls` vs `dacso_q008_z04_weight_adj_fac`).
    Don't assume they're the same number.
 
 4. **The R comments are honest about uncertainty.** E.g. 02b-3 line ~239: the

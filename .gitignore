@@ -8,7 +8,7 @@ scratch/*
 *_log.txt
 tmp/
 *.html
-.github/copilot-instructions.md
+
 
 /sql
 
@@ -18,5 +18,11 @@ docs/agents/
 .factory/
 AGENTS.md
 *.sh
+
+tmp/
+.github/copilot-instructions.md
+.github/agents/*
+.github/instructions/*
+
 
 plan/

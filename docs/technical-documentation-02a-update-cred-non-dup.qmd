@@ -1,0 +1,167 @@
+---
+title: "Module 02a Update Credential Non-Dup - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid:
+      body-width: 1800px
+      sidebar-width: 100px
+      margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+This script is the merge point for all CIP (Classification of Instructional Programs) code matching in the pipeline. After four upstream program-matching scripts have each produced a table of matched CIP codes for their respective survey streams (DACSO, BGS, GRAD, and APPSO), this script consolidates those results into a single, authoritative record of final CIP codes within the main credential table (`credential_non_dup`). Any records not resolved by the four primary sources are resolved using a fallback based on institution-reported CIP codes, cleaned and validated against the INFOWARE taxonomy. The output feeds directly into cohort creation, near-completer analysis, PTIB analysis, and program projections.
+
+## Data Sources
+
+### External Data Sources
+
+None. All inputs are internal outputs of upstream pipeline scripts or reference tables held within the project database.
+
+### Internal/Processed Data Sources
+
+##### Table: credential_non_dup
+
+A deduplicated table of student credentials, with additional variables for gender, age, and credential ranking. Used as the internal reference for program matching and further analysis.
+
+At the start of this script it has no CIP code columns; these are added by a DDL step and progressively populated throughout the workflow.
+
+See technical-documentation-01-stp-processing.qmd for data dictionary.
+
+##### Table: Credential_Non_Dup_Programs_DACSO_FinalCIPs
+
+Contains final CIP assignments for records matched by the DACSO program-matching process. Matched on seven join columns (institution, program code, program description, CIP, credential level, credential category, and outcomes survey type), making it the most precise matching source.
+
+See technical-documentation-02a-dacso-program-matching.qmd for data dictionary.
+
+##### Table: Credential_Non_Dup_BGS_IDs
+
+This table contains credential records from the Student Transitions Project (STP) that have been successfully linked to Baccalaureate Graduate Survey (BGS) respondents. It includes detailed program and credential information from the administrative data, along with the final, authoritative program codes (CIP) determined through the matching process.
+
+See technical-documentation-02a-bgs-program-matching.qmd for data dictionary.
+
+##### Table: Credential_Non_Dup_GRAD_IDs
+
+This table contains credential records for graduates who were not surveyed in the Baccalaureate Graduate Survey (BGS). It represents the population of graduates who are not BGS respondents but are included in the overall outcomes analysis. The program codes (CIP) in this table are taken directly from the administrative data without a matching process against survey data.
+
+See technical-documentation-02a-bgs-program-matching.qmd for data dictionary.
+
+##### Table: Credential_Non_Dup_APPSO_IDs
+
+Contains final CIP codes for apprenticeship-stream credential records, matched by unique record ID.
+
+See technical-documentation-02a-appso-program-matching.qmd for data dictionary.
+
+##### Table: INFOWARE_L_CIP_6DIGITS_CIP2016, INFOWARE_L_CIP_4DIGITS_CIP2016, INFOWARE_L_CIP_2DIGITS_CIP2016
+
+Provincial CIP taxonomy tables used to validate and enrich institution-reported CIP codes. These provide official code-to-name mappings at the 6-, 4-, and 2-digit levels, as well as CIP cluster groupings (broad career families used in occupation matching).
+
+## Methodology Overview
+
+This script implements a **priority-ordered, source-of-truth merge** for CIP codes. Five sources are applied in sequence, from most to least reliable. Each source only fills records not yet resolved by a higher-priority source; no previously assigned code is overwritten.
+
+### Step 1 — Schema preparation
+
+Before any CIP codes can be assigned, twelve new columns are added to the credential table to accommodate the full range of CIP fields: outcomes-matched codes (4-digit), final codes (4- and 2-digit, with names), CIP cluster codes (2-digit career family groupings), and institution-reported STP codes (4- and 2-digit, with names). At this stage all new columns are empty.
+
+### Step 2 — DACSO match (highest priority)
+
+Records are matched against the DACSO program-matching results using a seven-column composite key: institution code, program code, program description, raw CIP, credential level, credential category, and survey stream. This multi-column join is the most precise matching strategy in the pipeline — a match here reflects a confirmed agreement between the institution's program submission and the student outcomes survey record. Where a match is found, all CIP fields (outcomes 4-digit, final 4-digit, final 2-digit, cluster codes, and institution 4-digit CIP) are populated in a single operation. Unmatched records retain empty CIP fields and proceed to the next step.
+
+### Step 3 — BGS match
+
+BGS records not resolved by DACSO are updated using a simple record-ID lookup. Because the same program can appear with minor variations across survey years, the update table is deduplicated to one row per ID (sorted by CIP fields to select the most complete record) before the merge. The four final CIP fields (4-digit code and name, 2-digit code and name) and CIP cluster fields are populated.
+
+### Step 4 — GRAD match
+
+Graduate-stream records are updated using the same ID-based strategy as BGS. The deduplication step is again applied before the merge. Only four final CIP fields are populated at this stage (cluster codes for GRAD are handled separately in Step 5).
+
+### Step 5 — APPSO match
+
+Apprenticeship records are updated using the same ID-based approach as BGS and GRAD. Four final CIP fields are populated.
+
+### Step 6 — Cluster code backfill for GRAD and APPSO
+
+After Steps 4 and 5, GRAD and APPSO records have 4- and 2-digit CIP codes but no cluster codes. Cluster codes (broad career family groupings) are derived by joining the 2-digit CIP code to the INFOWARE 2-digit taxonomy table and reading off the cluster code and name. This backfill is applied only to GRAD and APPSO records and only where a matching cluster code is available.
+
+A diagnostic count of remaining null 4-digit CIP codes is produced at this point to assess how many records require the STP fallback in the steps below.
+
+### Step 7 — STP fallback: identify unresolved records
+
+Records still lacking a final 4-digit CIP code after the four primary source steps are extracted and aggregated by raw institution CIP string and survey stream. This creates a compact working table of distinct unmatched CIP codes, each with a count of affected records, which is persisted to the database for audit purposes. The original CIP string is preserved separately as a future join key, because the cleaning steps that follow modify the working copy.
+
+### Step 8 — STP fallback: CIP code standardisation
+
+Institution-reported CIP codes (STP CIPs) often contain formatting inconsistencies that prevent direct matching against the INFOWARE taxonomy. Two sequential corrections are applied:
+
+1. If a code is exactly six characters long and does not contain a period in the second position, it is assumed to be missing a trailing zero and one is appended.
+2. If the code is still exactly six characters (i.e., the trailing-zero step did not lengthen it), a leading zero is prepended.
+
+These two transformations convert the most common malformed patterns into the seven-character `XX.XXXX` format expected by the INFOWARE lookup tables.
+
+### Step 9 — STP fallback: progressive CIP taxonomy matching
+
+The cleaned institution CIP codes are matched against the INFOWARE 6-digit taxonomy using a four-tier fallback strategy, mirroring the approach used in `02a-appso-programs.R`:
+
+1. **Exact 6-digit match** — the full cleaned CIP string is joined directly to the taxonomy table.
+2. **5-digit partial match** — for codes still unresolved, the first five characters are used as a join key against a deduplicated extract of the taxonomy.
+3. **General program mapping** — a set of CIP family codes known to use "general" designations (e.g., `52.00` for Business, General) have no direct taxonomy entry. These are mapped to the first specific sub-category within the same family (e.g., `52.00` → `5201`).
+4. **2-digit fallback** — codes still unresolved after the above steps are assigned only a 2-digit CIP family, derived from the first two characters of the institution string.
+
+At each tier, only records still missing a 4-digit code proceed to the next tier; previously resolved codes are preserved.
+
+### Step 10 — STP fallback: name and cluster enrichment
+
+The matched STP CIP codes are enriched with human-readable names and cluster groupings by joining to the 4-digit and 2-digit INFOWARE name tables. Any code for which no 4-digit name can be found is flagged as "Invalid 4-digit CIP" to alert analysts during review.
+
+### Step 11 — STP fallback: propagate results to credential records
+
+The cleaned and enriched STP CIP results are joined back to the original unresolved credential records using the preserved original CIP string and survey stream as the join key. The six final CIP fields (4-digit code and name, 2-digit code and name, cluster code and name) are populated from the STP results. The lookup table of resolved null records is persisted to the database. The main credential table is then updated with these final values.
+
+A second diagnostic count confirms how many records (if any) remain without a 4-digit CIP after this step.
+
+### Step 12 — Edge case handling
+
+Two residual conditions are addressed explicitly:
+
+- **BGS "undeclared activity" records** — BGS records carrying CIP 2-digit code `99` represent students whose program of study was not declared or could not be classified. These are assigned the label "Undeclared activity" for both the 2-digit name and cluster name, and cluster code `99`.
+- **Absolute last resort** — any record still carrying a null or blank final 4-digit CIP after all prior steps is populated directly with the institution's raw STP CIP values (4-digit, 2-digit, and names). This catches any records for which the cleaned STP lookup also failed to find a match.
+- **GRAD "undeclared" cluster codes** — GRAD records where both cluster code and cluster name remain null and the 2-digit CIP is `99` receive the same `99` / "Undeclared activity" treatment.
+
+### Step 13 — Write final output and clean up
+
+The completed credential table, now with a full set of CIP codes for every record, is written to the project database, replacing the prior version. The temporary STP null-cleaning staging table is dropped.
+
+## Key Output Tables
+
+### credential_non_dup (updated)
+
+The main output is the credential table itself, overwritten in place with all CIP columns populated. This table becomes the authoritative source of final CIP codes for all downstream modules.
+
+The following variables are derived and appended to the original credential_non_dup table.
+
+<ul class="list-variable-names">
+  <li>OUTCOMES_CIP_CODE_4 (String): The 4-digit CIP code as matched by the DACSO program-matching process.</li>
+  <li>OUTCOMES_CIP_CODE_4_NAME (String): Name for the DACSO-matched 4-digit CIP code.</li>
+  <li>FINAL_CIP_CODE_4 (String): Authoritative 4-digit CIP code assigned from the highest-priority matching source available for each record.</li>
+  <li>FINAL_CIP_CODE_4_NAME (String): Human-readable name for the final 4-digit CIP code.</li>
+  <li>FINAL_CIP_CODE_2 (String): Final 2-digit CIP family code.</li>
+  <li>FINAL_CIP_CODE_2_NAME (String): Human-readable name for the final 2-digit CIP family.</li>
+  <li>FINAL_CIP_CLUSTER_CODE (String): CIP cluster code — a broad career-family grouping derived from the 2-digit CIP; used in occupation matching (Module 07).</li>
+  <li>FINAL_CIP_CLUSTER_NAME (String): Human-readable name for the CIP cluster.</li>
+  <li>STP_CIP_CODE_4 (String): Institution-reported 4-digit CIP code (cleaned but unvalidated against outcomes data).</li>
+  <li>STP_CIP_CODE_4_NAME (String): Name for the institution-reported 4-digit CIP code.</li>
+  <li>STP_CIP_CODE_2 (String): Institution-reported 2-digit CIP family code.</li>
+  <li>STP_CIP_CODE_2_NAME (String): Name for the institution-reported 2-digit CIP family.</li>
+</ul>
+

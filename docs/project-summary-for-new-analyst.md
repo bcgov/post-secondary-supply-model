@@ -256,17 +256,17 @@ runs a `copy_tables` list:
 
 ```r
 copy_tables <- c(
-  '[{second_schema}]."T_bgs_data_final_for_outcomesmatching_r"',  # from 02a
-  '[{second_schema}]."Credential_Non_Dup_r"',                      # from 01c
-  '[{second_schema}]."STP_Credential_r"',                          # from PSFS
-  '[{second_schema}]."qry09c_minenrolment_r"',                     # from 01e  → feeds Term 1
-  '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_..._r"',  # from 01e  → feeds Term 1
-  '[{second_schema}]."tbl_credential_highest_rank_r"',             # from 01c
-  '[{second_schema}]."Labour_Supply_Distribution_Stat_Can"',       # external
-  '[{second_schema}]."Occupation_Distributions_Stat_Can"'          # external
+  '"T_bgs_data_final_for_outcomesmatching_r"',  # from 02a
+  '"Credential_Non_Dup_r"',                      # from 01c
+  '"STP_Credential_r"',                          # from PSFS
+  '"qry09c_minenrolment_r"',                     # from 01e  → feeds Term 1
+  '"Credential_By_Year_Gender_AgeGroup_..._r"',  # from 01e  → feeds Term 1
+  '"tbl_credential_highest_rank_r"',             # from 01c
+  '"Labour_Supply_Distribution_Stat_Can"',       # external
+  '"Occupation_Distributions_Stat_Can"'          # external
 )
 for (table in copy_tables) {
-  dbExecute(con, glue('SELECT * INTO [{my_schema}].{t} FROM {table};'))
+  dbExecute(con, glue('SELECT * INTO [{my_schema}].{table} FROM [{pssm_inputs}].{table};'))
 }
 ```
 
@@ -278,7 +278,7 @@ flowchart LR
     end
 
     subgraph SHARED["second_schema  (shared input library)"]
-        LIB["IDIR\\BASHCROF<br/>(or a dedicated pssm_inputs schema)"]
+        LIB["second_schema<br/>(or a dedicated pssm_inputs schema)"]
     end
 
     subgraph T2["Tier 2 — run 3× per cycle"]
@@ -288,7 +288,7 @@ flowchart LR
     end
 
     subgraph ANA["my_schema  (analyst's working schema)"]
-        A1["IDIR\\JDUAN"]
+        A1["my_schema"]
     end
 
     OUT1 --> LIB
@@ -321,30 +321,12 @@ flowchart LR
    deliberately re-runs `01`/`02a` and refreshes `second_schema` — making it a
    versioned, reviewable hand-off rather than silent drift.
 
-### 6.3 Rough edges in the current implementation (and a path forward)
+### 6.3 A first-class `pssm_inputs` schema needs work
 
-The two-schema *idea* is sound, but the current code has some inconsistencies a
-new analyst should know about:
 
-- **Schema source is inconsistent across prep scripts.** `prep-for-fresh-run.R`
-  copies Tier-1 tables from `second_schema` with an `_r` suffix (e.g.
-  `Credential_Non_Dup_r`), but `prep-for-ptib-run.R` copies `Credential_Non_Dup`
-  from `dbo` with no suffix. A `TODO: copy tables from bonnie's schema with _r`
-  comment in `prep-for-fresh-run.R` flags that this isn't settled. An analyst can
-  easily grab the wrong vintage of an input depending on which prep script ran.
-- **The "shared library" is a person's IDIR schema** (`IDIR\BASHCROF`), not a
-  purpose-built schema. It's implicit, not documented as the canonical input
-  store, and its lifetime is tied to that person's account.
-- **The copy list is hand-maintained** in three places (the three prep scripts),
-  so the same table appears under different names/suffixes and can drift out of
-  sync.
-- **`prep-for-fresh-run.R` Option 1** will drop *every* table in `my_schema`
-  (except `_raw` suffixed ones). Powerful, but easy to lose work if mis-run.
+The shared library should be a first-class `pssm_inputs` schema:
 
-**Potential improvement — promote the shared library to a first-class
-`pssm_inputs` schema.** Concretely:
-
-1. **Create a dedicated schema** (e.g. `pssm_inputs`) owned by the team, not an
+1. **A dedicated schema** (e.g. `pssm_inputs`) owned by the team, not an
    individual IDIR. Move all Tier-1 frozen outputs and the StatCan inputs there.
    This makes the input library explicit, survives staff turnover, and can be
    permission-locked to read-only for analysts.
@@ -490,8 +472,10 @@ the end product is `labour_supply_distribution`, whose `New_Labour_Supply` colum
 
 **The participation rate (Term 3) itself:**
 
-$$P(\text{in labour supply}\mid\text{CIP, age, region})
-= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}$$
+$$
+P(\text{in labour supply}\mid\text{CIP, age, region})
+= \frac{\text{WEIGHTED}_{\text{NLS 1--3, region}}}{\text{WEIGHTED}_{\text{NLS 0--3, all regions}}}
+$$
 
 > See §9 for how `WEIGHTED` (i.e. `WEIGHT_NLS`) is constructed and why the
 > two-stage weighting is **not** a double adjustment.
@@ -514,7 +498,8 @@ derivation in §9; the end product is `occupation_distributions`.
 **The occupation distribution (Term 4) itself:**
 
 $$P(\text{NOC}\mid\text{CIP, region})
-= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}$$
+= \frac{\sum_{j,k}\text{WEIGHTED}_{ijkln}}{\sum_{j,k,n}\text{WEIGHTED}_{ijkln}}
+$$
 
 Outputs include `occupation_distributions` plus `_lcp2`, `_bc`, `_no_tt`, and a
 `_pdeg` (Professional Degree / Law) variant. Statistics Canada Census
@@ -542,7 +527,8 @@ residual is the true near-completer population.
 $$NC_{Residual} = NC_{Survey} - NC_{Promoted}$$
 
 $$Ratio_{Baseline} = \frac{NC_{Residual}}{Completers_{Survey}}, \qquad
-Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}$$
+Ratio = \frac{NC_{Residual}}{Completers_{Survey+STP}}
+$$
 
 Produces ratios stratified by age, gender, 4-digit CIP, and credential; also by
 year. The 2018–2019 baseline cycle is used for the PSSM 2023 model.
@@ -577,7 +563,8 @@ $$R_G = \frac{N_G}{N_E}, \qquad N_G = R_G \times N_F$$
 (via Module 03 ratios and APPSO data respectively):
 
 $$N_{G_{NC}} = N_G \times R_{C_{NC}}, \qquad
-N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})$$
+N_{G_{AP}} = \text{mean}(N_{G_{AP,2022}}, N_{G_{AP,2023}})
+$$
 
 Output tables: `Graduate_Projections` and `Graduate_Projections_Include_Historical`.
 
@@ -993,7 +980,7 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
 4. ✅ Be on the **secure LAN** (some sources like PTIB live on LAN file shares).
 5. ✅ Read the per-module `.qmd` files in `docs/` for full detail; render with
    `quarto preview docs/<file>.qmd`.
-6. ✅ Skim the **PSSM Analyst Manual** HTML in `docs/` for the run procedure.
+6. ✅ Skim the run entry point scripts (`R/run_all_three_model_runs.r` and `R/prep-for-*-run.R`) for the run procedure.
 7. ✅ Before any flagged run, set the run flags (§6) at the top of the scripts.
 8. ✅ **Keep the key formula (§2) open while you read any script** and ask
    "which term is this computing?" — it is the fastest way to stay oriented.
@@ -1005,7 +992,6 @@ to cover 2022's missingness — that is precisely what ADJ₂ is for.
 - **Project entry point:** `README.md`
 - **Per-module methodology & data dictionaries:** every `*.qmd` in `docs/`
 - **Weighting deep-dive (standalone copy of §9):** `docs/weights-explained-02b-2-and-02b-3.md`
-- **Run procedure:** `docs/PSSM Analyst Manual - Running the Mode.html`
 - **Issues/contributing:** GitHub issues + `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
 
 *License: Apache 2.0 — © Province of British Columbia.*
