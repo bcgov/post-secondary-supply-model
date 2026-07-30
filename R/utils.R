@@ -18,6 +18,22 @@ library(futile.logger)
 # Keep utils free of runtime side effects like reading config files or opening DB connections on source.
 # Create DB connections in the calling script and pass them into helper functions.
 
+library(tidyverse)
+library(RODBC)
+library(DBI)
+
+# ---- Connect to SQL Server and read StatCan Tables ----
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
+db_config <- config::get("decimal")
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 
 # time_execution: source an R script with timing, console + file logging, and
 # fail-fast error handling. Wraps each pipeline module so every step is timed,
