@@ -10,19 +10,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-library(tidyverse)
-library(RODBC)
-library(odbc)
-library(DBI)
-library(glue)
-library(RJDBC)
-library(dbplyr)
+pacman::p_load(
+  tidyverse,
+  RODBC,
+  odbc,
+  DBI,
+  glue,
+  RJDBC,
+  dbplyr
+)
+
 
 # ---- Configure LAN Paths and DB Connection -----
 lan <- config::get("lan")
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-
+share_schema <- 
 # Connect to Decimal
 con <- dbConnect(
   odbc(),
@@ -37,13 +40,12 @@ con <- dbConnect(
 # ---- Read in INFOWARE tables ----
 # only run once to get tables ready
 iw_config <- config::get("infoware")
-
 odbcListDrivers()
 
 iw_con <- dbConnect(
   odbc::odbc(),
-  Driver = "Oracle in instantclient_19_30",
-  DBQ = "DEV01.world",
+  Driver = "Oracle in instantclient_19c",
+  DBQ = iw_config$dbq,
   UID = iw_config$uid,
   PWD = iw_config$pwd
 )
@@ -53,7 +55,79 @@ iw_con <- dbConnect(
 # ## Update which BGS_DIST tables to include.
 
 # ## Run the following to get a list of all tables available
-# # alltables_Infoware <- dbReadTable(iw_con,"ALL_TABLES")
+# alltables_Infoware <- dbReadTable(iw_con,"ALL_TABLES")
+cip_table_names <- alltables_Infoware |> 
+  filter(str_detect(TABLE_NAME, "^L_CIP_")) |> 
+  pull(TABLE_NAME)
+
+
+
+# ---- Tables to copy from INFOWARE to Decimal ----
+table_names <- c(
+  "BGS_DIST_19_23",
+  "BGS_DIST_18_22",
+  "BGS_COHORT_INFO",
+  "L_CIP_6DIGITS_CIP2016",
+  "L_CIP_4DIGITS_CIP2016",
+  "L_CIP_2DIGITS_CIP2016",
+  "PROGRAMS",
+  "PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021",
+  "PROGRAMS_HIST_PRGMID_XREF"
+)
+
+# ---- Function to copy INFOWARE tables to Decimal ----
+copy_infoware_tables <- function(tbl_name, source_con, dest_con, source_schema = "INFOWARE", dest_schema = my_schema) {
+
+    dest_table <- paste0("INFOWARE_", tbl_name)
+
+    if (!dbExistsTable(dest_con, DBI::Id(schema = dest_schema, table = dest_table))) {
+      cat("Copying", tbl_name, "...\n")
+      data <- dbReadTable(source_con, DBI::Id(schema = source_schema, table = tbl_name))
+      dbWriteTable(dest_con, DBI::Id(schema = dest_schema, table = dest_table), data)
+      cat("  Copied", nrow(data), "rows\n")
+      rm(data)
+    } else {
+      cat("Skipping", dest_table, "- already exists\n")
+    }
+  }
+
+for (tbl_name in table_names) {
+  copy_infoware_tables(tbl_name, iw_con, con)
+}
+
+
+
+dbDisconnect(iw_con)
+
+dbDisconnect(con)
+
+# ## check tables loaded correctly
+# {
+#   nrow <- tbl(con, "INFOWARE_BGS_DIST_19_23") %>% tally()
+#   nrow ## how many rows?
+#   tbl(con, "INFOWARE_BGS_DIST_19_23") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
+
+#   nrow <- tbl(con, "INFOWARE_BGS_DIST_18_22") %>% tally()
+#   nrow ## how many rows?
+#   tbl(con, "INFOWARE_BGS_DIST_18_22") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
+
+#   nrow <- tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% tally()
+#   nrow ## how many rows?
+#   tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
+
+#   rm(nrow)
+# }
+
+# ## remove tables and use decimal versions for remainder of code
+# rm(
+#   INFOWARE_BGS_DIST_19_23,
+#   INFOWARE_BGS_DIST_18_22,
+#   INFOWARE_BGS_COHORT_INFO,
+#   INFOWARE_L_CIP_6DIGITS_CIP2016,
+#   INFOWARE_L_CIP_4DIGITS_CIP2016,
+#   INFOWARE_L_CIP_2DIGITS_CIP2016
+# )
+
 
 # ---- Write initial tables to Decimal ----
 ## Save static versions of the INFOWARE tables and last cycle XWALK to Decimal
@@ -274,34 +348,3 @@ if (
   )
 }
 
-
-dbDisconnect(iw_con)
-
-dbDisconnect(con)
-
-# ## check tables loaded correctly
-# {
-#   nrow <- tbl(con, "INFOWARE_BGS_DIST_19_23") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_DIST_19_23") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   nrow <- tbl(con, "INFOWARE_BGS_DIST_18_22") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_DIST_18_22") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   nrow <- tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   rm(nrow)
-# }
-
-# ## remove tables and use decimal versions for remainder of code
-# rm(
-#   INFOWARE_BGS_DIST_19_23,
-#   INFOWARE_BGS_DIST_18_22,
-#   INFOWARE_BGS_COHORT_INFO,
-#   INFOWARE_L_CIP_6DIGITS_CIP2016,
-#   INFOWARE_L_CIP_4DIGITS_CIP2016,
-#   INFOWARE_L_CIP_2DIGITS_CIP2016
-# )
