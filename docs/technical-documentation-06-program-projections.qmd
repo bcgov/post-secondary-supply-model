@@ -1,0 +1,172 @@
+---
+title: "Program Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+The program projections analysis synthesize historical graduate data, survey distributions, and longitudinal modeling to forecast educational outcomes over a ten-year horizon. The `06-program-projections.R` script establishes stable relative frequencies across strata by aggregating and standardizing baseline counts to reflect the provincial post-secondary landscape.
+
+The `load-program-projections.R` script ingests historical and rollover datasets, partitioning them into two primary tracks. The **Projected Series** includes PTIB data alongside specific projection series such as apprenticeships (Q014e), undergraduate/general programs (qry10c), graduate programs (qry12c), and near-completers (qry_13d). Concurrently, the **Static Series** incorporates PTIB data and standardized distribution series for general programs (Q012e), graduate-level credentials (Q013e), apprenticeships (Q014e), and near-completers (qry_13d).
+
+The methodological framework utilizes weighted historical cohorts to prioritize recent trends, while maintaining a five-year baseline. The model leverages twenty years of achievement data to generate a count of estimate graduate through the 2035/2036 cycle, segmented by the highest credential attained. 
+
+To ensure mathematical consistency across both static and dynamic program registries, raw volumes are converted into standardized proportions ($P = \frac{count}{total}$). Demographic consistency is maintained through the application of standardized age groups ranging from 17–19 to 55–64. Temporal parameters are updated per cycle to reflect the current transition from the Year 1 baseline (2023/2024) through the extended projection horizon (2024/2025–2035/2036).
+
+## Role in the Project Pipeline
+
+The PSSM projects graduates into occupations via a four-term conditional-probability chain:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04 (graduate counts)
+               × P(CIP | cred, age)                ← Module 06 (this script)
+               × P(in labour supply | CIP)         ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+Module 06 computes **Term 2 — P(CIP | cred, age)**: graduate counts from Module 04 (aggregated by credential × age) don not contain a CIP dimension ; this script distributes that count across CIP codes and writes the `PERCENT` column in `cohort_program_distributions`. This allows Term 3 and 4 to condition on CIP; Module 07 finally multiplies all four terms together.
+
+Every `PERCENT` in `06` follows the same structure: the numerator is grouped by CIP, cred and age, the denominator groups on `cred × age`**;  `Q013e` (graduate credentials), `Q014e` (apprenticeships), and the Werner-program outputs `qry10c` / `qry12c`. They differ only in which credential set and which CIP field (4-digit vs 2-digit) they group on. 
+
+The Werner variants additionally include `YEAR` in the denominator, making the distribution time-varying for the projected series.
+
+### How the four terms connect
+
+| Quantity | Script | Defining grouping | Output column |
+| --- | --- | --- | --- |
+| `GRADUATES(cred, age)` | 04 | count by cred × age | `Graduate_Projections.GRADUATES` |
+| `P(CIP ∣ cred, age)` | **06 — this script** | numerator +CIP; denom `.by = c(PSSM_CRED, AGE_GROUP)` | `cohort_program_distributions.PERCENT` |
+| …made year-varying | 06 (Werner: qry10c / qry12c) | denom `.by = c(PSSM_CRED, AGE_GROUP, YEAR)` | `cohort_program_distributions_projected` |
+| `P(in labour supply ∣ CIP)` | 02b-2 | numerator = NLS status; denom = LCIP4_CRED × age × region | `labour_supply_distribution.New_Labour_Supply` |
+| `P(NOC ∣ CIP, region)` | 02b-3 | numerator +NOC_CD; denom incl. LCIP4_CRED | `occupation_distributions.Percent` |
+| Combined → `OCCSN` | 07 | inner join on LCIP4_CRED (+ age, region) | `OCCSN` |
+
+
+
+## Data Sources
+
+None
+
+### External Data Sources 
+
+### Internal/Processed Data Sources 
+
+##### Table: tbl_credential_highest_rank
+
+One-record-per-student highest-rank credential table with delayed-award reconciliations.
+
+For full data dictionary refer to technical-documentation-01-stp-processing.qmd, Key Output Tables section.
+
+##### Table: credential_non_dup
+
+Deduplicated student credential information containing final demographic, ranking, and delayed-award variables.
+
+For full data dictionary refer to technical-documentation-01-stp-processing.qmd, Key Output Tables section.
+
+##### Table: tbl_program_projection_input
+
+An aggregated table derived from tbl_credential_highest_rank and credential_non_dup, filtered to exclude apprenticeship and CIP clusters 09 and 10.  Only certain domestic/research-university cohorts are included. It provides base graduate counts by age group, credential category, school year, and CIP4.
+
+<ul class="list-variable-names">
+  <li>AgeGroup (String): Standardized age-group label at graduation.</li>
+  <li>PSI_CREDENTIAL_CATEGORY (String): Broad post-secondary credential category used for grouping.</li>
+  <li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delayed award school-year value used in time-based weighting steps.</li>
+  <li>FINAL_CIP_CODE_4 (String): Final 4-digit CIP program code.</li>
+  <li>Expr1 (String): Derived helper field formed from credential category + age group.</li>
+  <li>Count (Integer): Aggregated graduate record count for each grouped row.</li>
+</ul>
+
+##### Table: qry_private_credentials_06d1_cohort_dist
+
+For full data dictionary refer to technical-documentation-05-ptib.qmd, Key Output Tables section.
+
+##### Table: dacso_near_completers_ratios_age_at_grad_cip4_ttrain
+
+For full data dictionary refer to technical-documentation-03-near-completers.qmd, Key Output Tables section.
+
+##### Table: t_cohorts_recoded
+
+For full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables section.
+
+## Methodology Overview
+
+##### Near-Completer Projections (Q013 Series)
+
+Near-completer ratios (sourced from `dacso_near_completers_ratios_age_at_grad_cip4_ttrain`) were aggregated across several dimensions: age-groups, credential types, graduate status, and 4-digit CIP codes to establish a baseline frequency count and percent. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable. Age-group identifiers are remapped to standardized reporting groups before the distributions were added to both the projected and static program distributions.
+
+##### SO Survey Distributions Excluding Apprenticeship and Graduate Programs (Q012 Series)
+Graduate counts excluding Apprenticeship and Graduate Programs are redistributed through the a three-stage weighting and adjustment process. First, initial baseline volumes for the past 5 years are established by incorporating a year weight to historical graduate counts, expressed as $N_{base} = \sum (N \times W_{year}),  W_{year} \in 1..5$, with more recent years taking a higher weight then earlier ones. 
+
+Within the survey cohorts, an adjustment factor ($R$) is calculated to account for TTRAIN students. These ratios are applied as a scalar multiplier to the baseline counts as $N_{adj} = N_{base} \times R$, noting that for the vast majority of distribtions, $R = 1$. 
+
+For each discrete stratum baseline counts are standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{adj}}{\sum N_{adj}}$.
+
+Standard formatting is applied before the distributions are added to (static only) program distributions. 
+
+##### SO Survey Distributions For Graduate Programs (Q013e Series)
+Graduate counts for Graduate Programs were aggregated across age-groups, credential types, graduate status, and 2-digit CIP codes to establish a baseline frequency count $N_{base}$ and percent $P_{base}$. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{base}}{\sum N_{base}}$. Standard formatting is applied before the distributions are added to (static only) program distribution. 
+
+##### SO Survey Distributions For Apprenticeships (Q014e Series)
+Previoiusly weighted Apprenticeships survey data were aggregated across age-groups, credential types, ttrain and 4-digit CIP codes to establish a baseline frequency count and percent. The baseline counts were subsequently standardized by credential and age groups ensuring that the resulting relative frequencies remain stable: $P = \frac{N_{base}}{\sum N_{base}}$. Standard formatting is applied before the distributions are added to both static and projected program distributions. 
+
+##### Other steps to investigate
+Apprenticeship graduate projections for the current year, created in 04-graduate-projections.R, are expanded over 10 years.  This adds a 10 year projection for Apprenticeship Grads to the full Graduate Projection cohort.  (Possible better placement in workflow)
+Near Completer and Apprenticeship distributions are removed from the static programs to projected ones.
+
+##### Program Projections (Werner Program)
+This program generated projected distributions by CIP code, credential and age group. Historical counts of the highest ranking credential obtained for graduates from 2002/2003 to 2022/2023 were used to generate projected counts for the school years 2023/2024 to 2034/2035, inclusive.  Input and output datasets are combined into one output for further use.
+
+##### Projections Excluding Apprenticeship and Graduate Programs (qry_10c Series)
+Program projection output from the Werner program for all programs (excluding apprenticeship and graduate) are summarized by age, credential, cip and year $N$.  They are further standardized over age, credential and year.
+
+##### Projections Graduate Programs only (qry_12c Series)
+Program projection output from the Werner program for graduate credentials are summarized by age, credential, cip and year $N$.  They are further standardized over age, credential and year.
+
+
+## Key Output Tables
+
+The following data objects represent the terminal outputs of the program projection pipeline. 
+
+##### graduate_projections
+
+<ul class="list-variable-names">
+  <li>PSSM_CRED (String): Primary administrative key for credential classification.</li>
+  <li>YEAR (String): The academic or year associated with the graduate count.</li>
+  <li>AGE_GROUP (String): Standardized age demographic interval.</li>
+  <li>GRADUATES (Double): The numeric volume (count) of graduates.</li>
+  <li>SURVEY (String): The originating survey source identifier (e.g., PTIB, Q014e).</li>
+  <li>PSI_CREDENTIAL_CATEGORY (String): The broad category of the post-secondary credential.</li>
+  <li>PSSM_CREDENTIAL (String): The specific credential title or rank.</li>
+</ul>
+
+
+##### cohort_program_distributions_projected/static
+
+<ul class="list-variable-names">
+  <li>SURVEY (String): The originating survey source identifier (e.g., PTIB, Q012e, Q014e).</li>
+  <li>PSSM_CREDENTIAL (String): The specific title or rank of the post-secondary credential.</li>
+  <li>PSSM_CRED (String): Primary administrative code for credential classification.</li>
+  <li>LCP4_CD (String): Four-digit classification code for the program.</li>
+  <li>GRAD_STATUS (String): Current status indicator for the graduate cohort.</li>
+  <li>TTRAIN (String): Target training indicator used for survey cohort adjustments.</li>
+  <li>LCIP4_CRED (String): Four-digit CIP code associated with the specific credential.</li>
+  <li>LCIP2_CRED (String): Two-digit CIP code used for higher-level program aggregation.</li>
+  <li>AGE_GROUP (String): Standardized age demographic interval.</li>
+  <li>YEAR (String): The academic or fiscal year associated with the observation.</li>
+  <li>COUNT (Double): The numeric volume of graduates within the specific stratum.</li>
+  <li>TOTAL (Double): The aggregate volume of graduates across the comparison cohort.</li>
+  <li>PERCENT (Double): The derived proportional distribution density for the cohort.</li>
+</ul>

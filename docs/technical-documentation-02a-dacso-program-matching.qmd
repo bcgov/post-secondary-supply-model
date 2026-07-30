@@ -1,0 +1,179 @@
+---
+title: "02 - DACSO Program Matching Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+This script standardizes and aligns program records between two STP Credential and Student Outcomes datasets, supporting longitudinal consistency and data integrity across survey cycles. The process updates an existing master crosswalk (DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX) by incorporating new programs and those changed programs from recent years as sourced from Student Outcomes Survey data.
+
+Programs are matched using a combination of exact, fuzzy, and institution-specific rules to maximize linkage accuracy. For unmatched records, custom logic is applied based on known institutional coding practices. The script assigns standardized classification codes to all programs using the INFOWARE_L_CIP reference tables, ensuring each record receives a complete set of attributes. Diagnostic checks are performed to identify and review discrepancies. Finalized tables are written out for downstream analysis and reporting. 
+
+## Data Sources
+
+### External Data Sources
+
+##### Table: INFOWARE_PROGRAMS/INFOWARE_PROGRAMS_HIST_PRGMID_XREF
+
+##### Table: INFOWARE_L_CIP_XDIGITS_CIP2016 (2,4,6 DIGITS)
+
+##### Table: DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX
+
+### Internal/Processed Data Sources
+
+##### Table: credential_non_dup
+
+A deduplicated table of student credentials, with additional variables for gender, age, and credential ranking. Used as the internal reference for program matching and further analysis.
+
+See technical-documentation-01-stp-processing.qmd for data dictionary.
+
+## Methodology Overview
+
+### Join Key Normalization
+
+R is case-sensitive, but SQL often isn't. Additionally, database fields sometimes have hidden spaces. Helper functions are used to create "Helper Columns" (ending in _KEY). These columns are trimmed of spaces and converted to UPPERCASE. This ensures that a program named "Carpentry" in one table will correctly match "CARPENTRY " in another.
+
+### Part 1
+
+The previous year's crosswalk (XWALK_2020) is recycled and the CIP codes are padded with zeros (e.g., turning 401 into 0401) to ensure they are exactly 4 digits long.
+
+New educational programs from the 2021–2023 student outcomes data cohorts are filtered based on their historical lineage and appended to XWALK_2020. Institutional submissions are compared against master CIP definitions to ensure all 4-digit codes are accurate and longitudinally consistent, first.
+
+For each year since the previous cycle (2021, 2022, 2023, in this case) the master crosswalk is updated by capturing changes in program codes over time.
+
+Programs in the current survey cycle with a recorded historical connection in the cross-reference table are isolated. Current program attributes (such as institutional codes and classification titles) are compared against their historical predecessors. If a discrepancy is detected, the master crosswalk is updated to reflect the most recent data. Any records updated during the synchronization phase are marked with specific flags that indicate whether a change was made to the program code, the classification code, or both.
+
+A validation check is performed to identify "orphan" programs that still do not match the master crosswalk. These remaining discrepancies are isolated for targeted review. For complex cases where automated logic is insufficient, such as recursive program links or significant administrative restructuring, the methodology employs a manual audit. 
+
+
+### Part 2:
+A multi-step methodology is used to align and update program records between two datasets, using a combination of exact, fuzzy, and institution-specific matching rules. The process ensures that as many programs as possible are correctly linked, and that the crosswalk table is kept current for future analyses.
+
+1. STP credential programs are first matched to existing DACSO programs in the crosswalk on key fields (institution, program code, program description).  These programs tare flagged as "already matched".
+2. If no exact match is found, matching is attempted on normalized program codes with formatting differences (e.g., extra spaces, dashes, leading zeros). Program names may have minor variations (e.g., abbreviations, punctuation, case differences). Names are cleaned (standardized) before matching.   Additionally, some institutions use unique conventions for program codes (such as suffixes, prefixes, or variable code lengths). Custom logic is applied to extract or transform codes to improve matching accuracy.  
+3. If exact matches fail, the process may attempt to match on partial program names or codes, or use fuzzy string matching algorithms to identify likely matches based on similarity scores. These programs are flagged as "new auto matches".
+4. Unmatched programs are set aside for possible manual review or institution-specific custom matching.
+
+The crosswalk is updated with new matches so that future runs will recognize these as matched.  The update is performed first by matching on one set of keys (e.g., PSI_CODE), then by matching on another (e.g., COCI_INST_CD), ensuring all possible matches are captured.
+
+### Part 3:
+
+After standard and alternative matching, the process isolates STP programs that remain unmatched.  Custom, institution-aware matching strategies are applied to the records to ensure they receive a final standardized code.  The process is as follows:
+
+For certain institutions with unique program code formats (e.g., BCIT, CAPU, VIU), custom logic is applied:
+- _BCIT_: Strips credential suffixes from codes to align with DACSO formats.
+- _CAPU_: Handles codes of varying lengths and removes dash suffixes.
+- _VIU_: Extracts the relevant code segment from complex code patterns.
+
+Multiple matching attempts are made using these transformed codes, both with and without program descriptions.
+
+For any remaining unmatched programs, broader matching is attempted using combinations of institution and program code, or institution and program description. For each STP program:
+- If a match is found, the corresponding outcome CIP code is assigned as the final code.
+- If no match is found, the code is derived from the STP’s own CIP data using reference tables.
+- Additional attributes (e.g., 2-digit CIP, cluster codes) are filled in using hierarchical lookups.
+
+### Part 4:
+
+Classification of Instructional Program (CIP) codes for each STP program record are finalized ensuring every record receives a complete and standardized set of CIP codes and related attributes.
+
+1. If a program was matched to a DACSO outcome, the matched outcome’s 4-digit CIP code and name are used as the final assignment.  
+2. For unmatched programs, the final CIP code and related attributes are derived from the STP’s own CIP code, using reference tables to map from 6-digit to 4-digit and 2-digit codes, and to retrieve official CIP names.
+3. For any records still missing 4-digit or 2-digit CIP codes/names, these are filled by joining to reference tables using the available codes.  Cluster codes and names (groupings of related programs) are assigned based on the final 4-digit CIP code, again using reference data.
+4. The 2-digit CIP name is filled for all records by joining to the 2-digit reference table if still missing.
+5. Records where the final assigned CIP code differs from the original STP-derived code are identified and reviewed. This step is for quality control and to catch any unexpected or potentially incorrect matches.
+
+## Key Output Tables
+
+### Table: Credential_Non_Dup_Programs_DACSO_r
+
+Contains final CIP assignments for records matched by the DACSO program-matching process. Matched on seven join columns (institution, program code, program description, CIP, credential level, credential category, and outcomes survey type), making it the most precise matching source.
+
+<ul class="list-variable-names">
+<li>PSI_CODE (String): Institution code</li>
+<li>PSI_PROGRAM_CODE (String): Program code</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description</li>
+<li>PSI_CREDENTIAL_CIP (String): STP CIP code</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category</li>
+<li>OUTCOMES_CRED (String): Outcomes credential</li>
+<li>EXPR1 (Integer): Expression or helper column</li>
+<li>OUTCOMES_CIP_CODE_4 (String): Matched outcomes 4-digit CIP code</li>
+<li>OUTCOMES_CIP_CODE_4_NAME (String): Name for matched outcomes 4-digit CIP</li>
+<li>FINAL_CIP_CODE_4 (String): Final assigned 4-digit CIP code</li>
+<li>FINAL_CIP_CODE_4_NAME (String): Name for final 4-digit CIP code</li>
+<li>FINAL_CIP_CODE_2 (String): Final assigned 2-digit CIP code</li>
+<li>FINAL_CIP_CODE_2_NAME (String): Name for final 2-digit CIP code</li>
+<li>FINAL_CIP_CLUSTER_CODE (String): Final assigned CIP cluster code</li>
+<li>FINAL_CIP_CLUSTER_NAME (String): Name for final CIP cluster</li>
+<li>STP_CIP_CODE_4 (String): STP 4-digit CIP code</li>
+<li>STP_CIP_CODE_4_NAME (String): Name for STP 4-digit CIP code</li>
+<li>Already_Matched (String): Flag for exact match</li>
+<li>New_Auto_Match (String): Flag for auto match</li>
+<li>New_Manual_Match (String): Flag for manual match</li>
+<li>COCI_INST_CD (String): COCI institution code</li>
+<li>BCIT_TEST_PROGRAM_CODE (String): BCIT test program code (custom matching)</li>
+<li>CAP_TEST_PROGRAM_CODE (String): CAPU test program code (custom matching)</li>
+<li>VIU_TEST_PROGRAM_CODE (String): VIU test program code (custom matching)</li>
+</ul>
+
+### DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r
+
+<ul class="list-variable-names">
+<li>PSI_CODE (String): Institution code</li>
+<li>COCI_INST_CD (String): COCI institution code</li>
+<li>OUTCOMES_CRED (String): Outcomes credential</li>
+<li>PSI_PROGRAM_CODE (String): Program code</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESC (String): Program description</li>
+<li>STP_CIP4_CODE (String): STP 4-digit CIP code</li>
+<li>STP_CIP4_NAME (String): Name for STP 4-digit CIP code</li>
+<li>PRGM_LCPC_CD (String): Program code (DACSO format)</li>
+<li>PRGM_INST_PROGRAM_NAME (String): Program name (DACSO format)</li>
+<li>One_To_One_Match (String): Flag for one-to-one match</li>
+<li>One_to_Many_Match (String): Flag for one-to-many match</li>
+<li>Probable_Match (String): Flag for probable match</li>
+<li>Manual_Match (String): Flag for manual match</li>
+<li>Extra_Flag (String): Additional matching flag</li>
+<li>PRGM_ID (Double): Program unique identifier</li>
+<li>PRGM_CREDENTIAL (String): Credential type</li>
+<li>New_DACSO_Program2018 (String): New DACSO program in 2018</li>
+<li>New_STP_Program2018 (String): New STP program in 2018</li>
+<li>Updated_DACSO_CPC2018 (String): Updated DACSO program code in 2018</li>
+<li>Updated_DACSO_CIP2018 (String): Updated DACSO CIP in 2018</li>
+<li>Updated_DACSO_CDTL2018 (String): Updated DACSO credential detail in 2018</li>
+<li>Added to XWALK 2018 (Integer): Added to crosswalk in 2018</li>
+<li>MostRecentSubmCdYear (Logical): Most recent submission code year</li>
+<li>PGRM_ID_Not_in_DACSO_programs_seen (Integer): Program ID not in DACSO programs seen</li>
+<li>New_DACSO_Program2020 (String): New DACSO program in 2020</li>
+<li>New_STP_Program2020 (String): New STP program in 2020</li>
+<li>Updated_DACSO_CPC2020 (String): Updated DACSO program code in 2020</li>
+<li>Updated_DACSO_CIP2020 (String): Updated DACSO CIP in 2020</li>
+<li>Updated_DACSO_CDTL2020 (Logical): Updated DACSO credential detail in 2020</li>
+<li>New_DACSO_Program2021_23 (String): New DACSO program in 2021–2023</li>
+<li>Updated_DACSO_CPC2021 (String): Updated DACSO program code in 2021</li>
+<li>Updated_DACSO_CIP2021 (String): Updated DACSO CIP in 2021</li>
+<li>Updated_DACSO_CPC2022 (String): Updated DACSO program code in 2022</li>
+<li>Updated_DACSO_CIP2022 (String): Updated DACSO CIP in 2022</li>
+<li>Updated_DACSO_CPC2023 (String): Updated DACSO program code in 2023</li>
+<li>Updated_DACSO_CIP2023 (String): Updated DACSO CIP in 2023</li>
+<li>New_DACSO_Program2021to23 (String): New DACSO program in 2021–2023 (alternate flag)</li>
+<li>CIP_CODE_4 (String): 4-digit CIP code</li>
+<li>LCP4_CIP_4DIGITS_NAME (String): Name for 4-digit CIP code</li>
+<li>New_STP_Program2021_23 (String): New STP program in 2021–2023</li>
+<li>Updated_DACSO_CDTL2021_23 (String): Updated DACSO credential detail in 2021–2023</li>
+</ul>
+

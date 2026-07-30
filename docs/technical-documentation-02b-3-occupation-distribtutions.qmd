@@ -1,0 +1,257 @@
+---
+title: "02b-3 Occupation Distributions"
+subtitle: "Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+In the script 02b-3-occupation-distributions.R, the recoded student-outcomes cohort (`t_cohorts_recoded`) is transformed into weighted occupation distributions that can be joined to program-level labour supply. Respondent bases are calculated, and groups where unknown NOC values must be retained are isolated. Occupation shares are then derived for observed NOC outcomes, and Statistics Canada proxy distributions are appended for groups that remain unobserved in the survey data. The final outputs include distribution tables at both LCIP4 and LCP2 levels, along with BC-only and no-trades variants, so the occupation model can apply the appropriate fallback path at runtime.
+
+## Role in the Project Pipeline
+
+The PSSM projection chain is a four-term conditional-probability decomposition:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04
+               × P(CIP | cred, age)                ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)         ← Module 02b-2 (this script)
+               × P(NOC | CIP, region)              ← Module 02b-3 (occupation_distributions)
+
+This script computes **Term 4 — P(NOC | CIP, region)**: given a graduate's field of study and region, the probability distribution over the occupations (NOC codes) they end up in.
+
+The quantity it produces is the `Percent` column in `occupation_distributions` — for each credential × 4-digit CIP × region × age × training-type group, the share of weighted respondents working in each NOC, summing to 1 across NOCs within the group.
+
+Like Term 3, it is built only from survey respondents in `t_cohorts_recoded` (BGS, DACSO, APPSO, TRD), reusing the same NLS weighting base and then applying an occupation-specific weight. Respondents with an unknown NOC are retained only when *every* respondent in their group has an unknown NOC, so small groups don't silently drop their volume. Statistics Canada census distributions are appended for credential types the graduate surveys don't cover.
+
+This is the term that converts workforce volume into occupations. Module 07 applies it in its Q_3 step (`OCCSN = NLS × Percent`), again drawing on the LCIP2 / BC-only / no-trades fallback variants this script provides.
+
+## Data Sources
+
+
+## Data Sources
+
+### External Data Sources
+
+None
+
+### Internal/Processed Data Sources
+
+##### T_Cohorts_Recoded
+
+For the full data dictionary refer to technical-documentation-02b-1-pssm-cohorts.qmd, Key Output Tables.
+
+##### occupation_distributions_stat_can
+
+<ul>
+  <li>SURVEY (character): Survey name or identifier, e.g. "2021 Census PSSM 2022-2023"</li>
+  <li>PSSM_CREDENTIAL (character): Post-secondary credential type, e.g. "MAST"</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation,e.g. "MAST"</li>
+  <li>LCP4_CD (character): <mark> 4-digit program code (LCP4) - mislabel? </mark></li>
+  <li>LCIP4_CRED (character): Combined program and credential code label</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): 4-digit Geographic region code (rollup)</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category</li>
+  <li>COUNT (numeric): Number of individuals in group</li>
+  <li>TOTAL (numeric): Total number in group for denominator</li>
+  <li>PERCENT (numeric): Proportion of group (COUNT/TOTAL)</li>
+  <li>TTRAIN (character): TTRAIN flag</li>
+  <li>LCIP2_CRED (character): <mark> 2-digit program and credential code - all NA? </mark></li>
+</ul>
+
+##### tmp_tbl_weights_nls
+
+<ul>
+  <li>SURVEY (character): Survey name or identifier</li>
+  <li>SURVEY_YEAR (numeric): Year of the survey</li>
+  <li>INST_CD (character): Institution code</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category</li>
+  <li>GRAD_STATUS (character): Graduate status code</li>
+  <li>TTRAIN (numeric): TTRAIN flag</li>
+  <li>LCIP4_CRED (character): Combined 4-digit program and credential code</li>
+  <li>WEIGHT (numeric): YEAR_WEIGHT * PROBABILITY_WEIGHT</li>
+  <li>COUNT (numeric): Number of individuals in group</li>
+  <li>RESPONDENTS (numeric): Number of respondents in group</li>
+  <li>WEIGHT_YEAR (numeric): Year-specific weight</li>
+  <li>WEIGHT_PROB (numeric): Probability weight</li>
+  <li>WEIGHTED (numeric): Weighted count (COUNT × WEIGHT)</li>
+  <li>BASE_TOTAL (numeric): Total unweighted base count</li>
+  <li>WEIGHTED_TOTAL (numeric): Total weighted count</li>
+  <li>WEIGHT_ADJ_FAC (numeric): Adjustment factor for weights</li>
+  <li>WEIGHT_NLS (numeric): New Labour Supply weight</li>
+</ul>
+
+
+## Methodology Overview
+
+### Pre-processing
+
+#### Initial Data Checks
+
+1. Check inital base weights by year to ensure the year weights have been applied according to the desired weighting
+strategy
+2. Recode invalid NOC codes.  In 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999.  Again in 2021/23, NOC codes 4122X were set to 99999
+
+#### Recode New Labour Supply
+
+Survey responses for those individuals who meet the definition for "NEW_LABOUR_SUPPLY 1" (NLS-1) and have a valid NOC code are identified and compared against survey responses for those who are "NEW_LABOUR_SUPPLY 2" (NLS-2). Student responses where NLS-2 but the student has no history of a matching NLS-1 record are recoded; the NEW_LABOUR_SUPPLY for this record is set to 3. 
+
+NEW LABOUR SUPPLY codes definitions:  
+
+- 0: individuals do not qualify as new labour supply, or didn't respond to survey (BGS only)
+- 1: individulas were in the work force at time of survey
+- 2: studying and working (DAC only)
+- 3: derived
+
+### Weighting Approach
+
+#### Definitons
+
+Weights are calculated and applied to the data to account for non-response, as well as variation in program graduation and employment across survey years, regions, institutions and age bands.
+
+To formalize the weighting procedures applied to the data, the following notation is used:
+
+- $i$: Index representing a specific grouping of responses by survey, age group, grad status, CIP and credential. 
+
+- $j$: Index representing a specific year.
+
+- $k$: Index representing a specific institution. 
+
+- $l$: Index representing a specific geographical region.
+
+- $R$: Total # of respondents.
+
+- $N$: Total # of surveys.
+
+- $YW$: The year weight assigned to a record. More details in [Year Weights](#year-weights).
+
+The overall goal of the weighting procedure is to adjust individual records so as to minimize bias caused by factors such as non-response or differences in population characteristics. The weights assigned to individual records reflect the impact of several factors, and the methodology is described in the following sections.
+
+#### Occupation Distribution Weights
+
+Weights are calculated to account for non-response and variation in graduation and employment across survey years, regions, institutions, and age bands. For individuals aged 17–34 with $\text{NLS} \in \{1,2,3\}$, $\text{grad status} \in \{1,3\}$, each person is initially assigned a base weight of 1.
+
+For each demographic group (by survey, year, institution, region, age, grad status, training, credential), calculate the nls-weighted population.
+
+$\text{BASE}_{ijkl} = \text{NLSW}_{ijkl} \times N_{ijkl}$
+
+A valid respondent, $R_{ijkl}$, has $\text{NLS} \in \{1,3\}$ and either a known NOC code, or belongs to a group where all respondents have unknown NOC (99999).
+
+$R_{ijkl} = \text{count of respondents} \quad \{= 0 \text{ if missing NOC or NLS} = 2\}$
+
+For each group, divide the nls-weighted population by the respondent count:
+
+$\text{NLSBW}_{ijkl} = \text{NLSW}_{ijkl} \times \left(\frac{N_{ijkl}}{R_{ijkl}}\right) \quad \{= 1 \text{ if } R_{ijkl} \text{ is null or } 0\}$
+
+The base population ($N_{ijkl}$) includes individuals with $\text{NLS} \in \{1,2,3\}$, while the respondent count ($R_{ijkl}$) includes only $\text{NLS} \in \{1,3\}$. This ensures NLS=2 individuals are represented in the weighted totals through the scaling factor $\text{NLSBW}_{ijkl}$.
+
+Multiply the respondent count by the occupation base weight. If respondents is null or 0, the weighted count is 0.
+
+$n_{ijkl} = R_{ijkl} \times \text{NLSBW}_{ijkl} \quad \{= 0 \text{ if } R_{ijkl} \text{ is null or } 0\}$
+
+**Adjustment factor**: Sum the base and weighted counts across survey years (removing the year level) to maintain proportional distributions of the combined base and year weights:
+
+$$
+F_{ikl} = \frac{\sum_j \text{BASE}_{ijkl}}{\sum_j n_{ijkl}} \quad \{= 0 \text{ if weighted is } 0\}
+$$
+
+**Final occupation weight**: Apply the adjustment factor to the occupation base weight:
+
+$\text{OCCW}_{ijkl} = F_{ikl} \times \text{NLSBW}_{ijkl}$
+
+**Assign to individuals**: After calculating $\text{OCCW}_{ijkl}$, the final occupation weight is assigned to each individual record $m$ as the occupation weight for the individual's matching group. The matching group may have either known or all-unknown NOCs. Records outside the eligible universe ($m \notin S_{\text{base}}$) or with a missing NOC receive no occupation weight.
+
+#### Occupation Distributions
+
+The weighted occupation distribution base table is created by applying $\text{OCCW}_{ijkl}$ to individual records and aggregating. This table feeds all downstream occupation distribution summaries.
+
+For individuals with $\text{NLS} \in \{1,3\}$, $\text{grad status} \in \{1,3\}$, $w > 0$, a valid region ($l \neq 99999$), a non-missing NOC code, and a non-missing occupation weight, the weighted count is:
+
+$n$: Index representing a specific NOC.
+$$
+\text{WEIGHTED}_{ijkln} = N_{ijkln} \times \text{OCCW}_{ijkl}
+$$
+
+This table is the basis for all occupation distribution aggregations that follow (by CIP level, region, training type, etc.).
+
+
+#### Occupation Distribution Variations
+
+The primary output table (`occupation_distributions`) summarizes weighted occupation counts by credential, region, age group, 4-digit CIP, training type, and credential label. For each combination of these grouping variables and NOC code $n$:
+
+$\text{N}_{iln} = \sum_{j,k} \text{WEIGHTED}_{ijkln}$
+
+$\text{N}_{il} = \sum_{j,k,n} \text{WEIGHTED}_{ijkln}$
+
+$\text{Percent}_{iln} = \frac{\text{N}_{iln}}{\text{N}_{il}}$
+
+where the sums collapse across survey years and institutions. The result is a percentage distribution of occupations within each credential-region-age-program group.
+
+Several other similar aggregations are subsequently made: 
+
+| Table | CIP Level | Region | Age Group | Training Type | Geography Filter |
+|-------|-----------|--------|-----------|---------------|-----------------|
+| `occupation_distributions` | 4-digit | Yes | Yes | Yes | All valid regions |
+| `occupation_distributions_lcp2` | 2-digit | Yes | Yes | Yes | All valid regions |
+| `occupation_distributions_lcp2_bc` | 2-digit | No | No | Yes | BC only |
+| `occupation_distributions_lcp2_bc_no_tt` | 2-digit | No | No | No | BC only |
+| `occupation_distributions_lcp2_no_tt` | 2-digit | Yes | Yes | No | All valid regions |
+| `occupation_distributions_no_tt` | 4-digit | Yes | Yes | No | All valid regions |
+
+All tables follow the same calculation pattern as `occupation_distributions`: sum weighted counts by NOC within each set of grouping variables, compute a total across all NOCs within the group, and derive the percentage distribution. Tables with "no_tt" in the name collapse across training type by removing it from the grouping variables. Tables with "bc" filter to records with a BC region code before aggregating.
+
+Additionally, a special `occupation_distributions_pdeg` table is created for Professional Degree (Law, CIP 2-digit = "22") programs. This filters the primary `occupation_distributions` table to Bachelor-level Law records, re-aggregates by region, age group, training type, and NOC, and appends the result with credential label "PDEG".
+
+Finally, externally sourced occupation distributions from Statistics Canada (Census data) are appended to the primary `occupation_distributions` table to supplement survey-based distributions with census-based estimates for credential types not covered by the graduate surveys.
+
+## Key Output Tables
+
+##### Table: occupation_distributions/occupation_distributions_no_tt
+
+<ul>
+  <li>SURVEY (character): Survey name or identifier (e.g., "Student Outcomes")</li>
+  <li>PSSM_Credential (character): Post-secondary credential type label (e.g. "ADCT or ADIP")</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation label. (e.g."1 - ADCT or ADIP")</li>
+  <li>LCP4_CD (character): 4-digit CIP program code</li>
+  <li>TTRAIN (character): Training type code</li>
+  <li>LCIP4_CRED (character): Combined 4-digit CIP and credential code</li>
+  <li>LCIP2_CRED (character): Combined 2-digit CIP and credential code</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): Geographic economic region code (rollup)</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category ("1", "2", etc.)</li>
+  <li>COUNT (numeric): Weighted count of individuals in the group with this NOC</li>
+  <li>TOTAL (numeric): Total weighted count across all NOCs in the group</li>
+  <li>PERCENT (numeric): Proportion of the group in this NOC (COUNT / TOTAL)</li>
+</ul>
+
+##### Table: occupation_distributions_lcp2/occupation_distributions_no_tt_lcp2
+
+<ul>
+  <li>SURVEY (character): Survey name or identifier (e.g., "Student Outcomes")</li>
+  <li>PSSM_Credential (character): Post-secondary credential type label (e.g. "ADCT or ADIP")</li>
+  <li>PSSM_CRED (character): Credential code or abbreviation label. (e.g."1 - ADCT or ADIP")</li>
+  <li>LCP2_CD (character): 2-digit CIP program code</li>
+  <li>TTRAIN (character): Training type code</li>
+  <li>LCIP2_CRED (character): Combined 2-digit CIP and credential code</li>
+  <li>NOC (character): 5-digit National Occupational Classification code</li>
+  <li>CURRENT_REGION_PSSM_CODE_ROLLUP (numeric): Geographic economic region code (rollup)</li>
+  <li>AGE_GROUP_ROLLUP (numeric): Age group category ("1", "2", etc.)</li>
+  <li>COUNT (numeric): Weighted count of individuals in the group with this NOC</li>
+  <li>TOTAL (numeric): Total weighted count across all NOCs in the group</li>
+  <li>PERCENT (numeric): Proportion of the group in this NOC (COUNT / TOTAL)</li>
+</ul>
+
