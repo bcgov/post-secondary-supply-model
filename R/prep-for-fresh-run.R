@@ -229,7 +229,6 @@ dbExecute(
 
 
 # ---- 3. Copy tables required for re-run ----
-
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
 # TODO: copy tables from bonnie's schema with _r
 copy_tables <- c(
