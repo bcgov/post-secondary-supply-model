@@ -233,18 +233,17 @@ dbExecute(
 # copy those tables. those tables (Credential_Non_Dup) are changed during the steps so it needs to copy again from scratch.
 # TODO: copy tables from bonnie's schema with _r
 copy_tables <- c(
-  # glue::glue('[{second_schema}]."T_bgs_data_final_for_outcomesmatching_r"'), # from 02a-bgs-program-matching.R
-  # glue::glue('[{second_schema}]."Labour_Supply_Distribution_Stat_Can"'), # the same as it is from statscan
-  # glue::glue('[{second_schema}]."Occupation_Distributions_Stat_Can"'), # the same as it is from statscan
-  # glue::glue('[{second_schema}]."Credential_Non_Dup_r"'), # from 01c-credential-analysis.R
-  # glue::glue('[{second_schema}]."STP_Credential"'), # from ECC
-  # glue::glue('[{second_schema}]."STP_Enrolment"') #, # from ECC
-  # glue::glue('[{second_schema}]."qry09c_minenrolment_r"'), # from 01e-stp-distribution.r
-  # glue::glue(
-  #   '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs_r"'
-  # ), # from 01e-stp-distribution.r
-  # # glue::glue('[{second_schema}]."tblCredential_HighestRank_r"'), # from 01c-credential-analysis.R
-  # glue::glue('[{second_schema}]."tbl_credential_highest_rank_r"')
+  glue::glue('[{second_schema}]."T_bgs_data_final_for_outcomesmatching_r"'), # from 02a-bgs-program-matching.R
+  glue::glue('[{second_schema}]."Labour_Supply_Distribution_Stat_Can"'), # the same as it is from statscan
+  glue::glue('[{second_schema}]."Occupation_Distributions_Stat_Can"'), # the same as it is from statscan
+  glue::glue('[{second_schema}]."Credential_Non_Dup_r"'), # from 01c-credential-analysis.R
+  glue::glue('[{second_schema}]."STP_Credential_r"'), # from PSFS
+  glue::glue('[{second_schema}]."qry09c_minenrolment_r"'), # from 01e-stp-distribution.r
+  glue::glue(
+    '[{second_schema}]."Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs_r"'
+  ), # from 01e-stp-distribution.r
+  # glue::glue('[{second_schema}]."tblCredential_HighestRank_r"'), # from 01c-credential-analysis.R
+  glue::glue('[{second_schema}]."tbl_credential_highest_rank_r"')
 )
 log_info(glue::glue(
   "Step 3: Copy tables from second schema (currently {length(copy_tables)} tables to copy)"
@@ -281,7 +280,6 @@ if (length(copy_tables) > 0) {
     # }
   }
 }
-
 
 # ---- 4. re-run step by step ----
 
