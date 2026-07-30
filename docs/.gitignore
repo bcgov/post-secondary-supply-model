@@ -1,0 +1,10 @@
+*.html
+*.js
+*.woff
+*.css
+/.quarto/
+!styles.css
+cip-to-noc*
+*.ttf
+*.map
+*.png

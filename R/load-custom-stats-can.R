@@ -10,6 +10,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
+# ******************************************************************************
+# Load custom Statistics Canada data from staging area in LAN project folder, to decimal.
+# ******************************************************************************
+
 # ---- libraries and global variables
 library(tidyverse)
 library(janitor)
@@ -18,53 +22,39 @@ library(janitor)
 lan <- config::get("lan")
 raw_data_file <- glue::glue("{lan}/data/statcan/stat-can-data-export.csv")
 
+# ----- Connection to decimal ----
+db_config <- config::get("decimal")
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
 # ---- Read raw data  ----
 raw_data <- read_csv(raw_data_file, locale = locale(encoding = "latin1"))
 
 # ---- Clean data ----
-stat_can_data_raw <- raw_data |>
-  clean_names() |>
+data <- raw_data %>%
+  clean_names() %>%
   rename(
     age_group = age,
     occupation_NOC = occupation,
     masters_degree_and_earned_doctorate = master_s_degree_and_earned_doctorate # funky apostrophe header name
-  ) |>
+  ) %>%
   # fix the geography column en-dashes
   mutate(geography = str_replace(geography, "\u0096", "-"))
 
+# ---- Write to decimal ----
+dbWriteTableArrow(
+  con,
+  name = "STAT_CAN_r",
+  nanoarrow::as_nanoarrow_array_stream(data)
+)
 
-# create region variable based off geography
-stat_can_data <- stat_can_data_raw |>
-  mutate(
-    region = case_when(
-      str_detect(geography, "Canada") ~ "Canada",
-      str_detect(
-        geography,
-        "BC excluding"
-      ) ~ "BC excluding Vancouver Island Coast and Lower Mainland",
-      str_detect(
-        geography,
-        "Vancouver Island and Coast"
-      ) ~ "Vancouver Island and Coast",
-      str_detect(geography, "Lower Mainland") ~ "Lower Mainland - Southwest",
-      (str_detect(geography, "Thompson") &
-        str_detect(
-          geography,
-          "Okanagan and Kootenay"
-        )) ~ "Thompson - Okanagan and Kootenay",
-      (str_detect(geography, "Thompson") &
-        str_detect(geography, "Okanagan")) ~ "Thompson - Okanagan",
-      str_detect(geography, "Cariboo") ~ "Cariboo",
-      str_detect(
-        geography,
-        "North Coast, Nechako and Northeast"
-      ) ~ "North Coast - Nechako and Northeast",
-      str_detect(geography, "North Coast, Nechako") ~ "North Coast and Nechako",
-      str_detect(geography, "British Columbia") ~ "British Columbia",
-      str_detect(geography, "Kootenay") ~ "Kootenay",
-      TRUE ~ "missing"
-    )
-  )
+# ---- Read from decimal ----
+dbReadTable(con, "STAT_CAN_r")
 
 # check
 stat_can_data |> filter(region == "missing") # expect 0 rows

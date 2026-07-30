@@ -1,0 +1,137 @@
+---
+title: "Graduate Projections - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+As a critical predictive component of the Post-Secondary Supply Model (PSSM), the Graduate Projections analysis generates longitudinal forecasts for student graduations and "near-completers" within British Columbia; accordingly, the script `04-graduate-projections.R` provides the code used to calculate these specific graduation projection outputs.
+
+Estimates of population and population projections from the BC Stats Population App (People Soft) are used to calculate enrollment rates by age and gender.  Enrolment rates for 2002/03 to 2018/19 are forecasted for 5 years and then held constant for 5 years. Forecasted enrolment rates are applied to the projected population by age and gender to derive forecasted enrollment.
+
+A 2-year average graduation rate is calculated as a percentage of enrollment by age group/gender; this is multiplied by forecasted enrollments to directly derive forecasted graduates. Finally, forecasted graduates by credential/age/year is extrapolated from 2-yr average distribution of graduates by credential.
+
+## Role in the Project Pipeline
+
+The PSSM projects graduates into occupations via a four-term conditional-probability chain:
+
+    OCCSN(NOC) = GRADUATES(cred, age)              ← Module 04 (this script)
+               × P(CIP | cred, age)                 ← Module 06 (cohort_program_distributions)
+               × P(in labour supply | CIP)          ← Module 02b-2 (labour_supply_distribution)
+               × P(NOC | CIP, region)               ← Module 02b-3 (occupation_distributions)
+
+This script computes **Term 1 — GRADUATES(cred, age)** : Credential data (see Internal/Processed Data Sources section, below) is aggregated by `PSI_CREDENTIAL_CATEGORY × YEAR × AGE_GROUP × GENDER`.  The CIP dimension is intentionally absent from Term 1, where graduates are counted by credential and age, not by field of study.  This dimension is brought in later downstream in Module 6.
+
+## Data Sources
+
+### External Data Sources
+
+##### Population Projections (PEOPLE)
+
+Description: This dataset provides annual population estimates and projections. The module normalizes "X-prefixed" age-group columns and filters for binary gender categories (Male/Female) to maintain consistency with historical reporting standards and model constraints.
+
+### Internal/Processed Data Sources
+
+##### MinEnrolment (qry09c_minenrolment)
+
+Longitudinal enrollment data providing the historical baseline for provincial post-secondary participation.  Generated in `01e-stp-distributions.R` and derived from the STP Enrolment data.
+
+See technical-documentation-01-stp-processing.qmd for data dictionary.
+
+##### Credential Distributions (credential_by_year_gender_agegroup_domestic_exclude_ru_dacso_exclude_cips)
+
+A multi-dimensional dataset documenting historical graduation outcomes. It serves as the primary distribution matrix for disaggregating total forecasted graduates into specific PSSM credential categories.
+
+See technical-documentation-01-stp-processing.qmd for data dictionary.
+
+
+##### DACSO Near-Completer Ratios (T_DACSO_Near_Completers_RatioByGender)
+
+Contains pre-calculated ratios used to estimate the volume of "Near Completers" relative to traditional graduates. This accounts for students who complete a significant portion of their program without a formal award, representing an additional supply stream.
+
+See technical-documentation-03-near-completers-ttrain.qmd for data dictionary.
+
+## Methodology Overview
+
+### Preprocessing
+
+##### Data Normalization and Preprocessing
+
+The `population_projections` dataset is transformed into a long-format structure to facilitate province-wide analysis. Sub-provincial geographic identifiers are removed and age-specific columns are combined into a singular `AGE_GROUP` variable. The cohort is restricted to binary gender categories.
+
+The primary enrollment and graduate credential distributions used in this analysis were generated upstream in the `01` series.  Referential integrity is enforced by truncating academic year to four-digit numeric integers, and mapping gender and age groups to a unified nomenclature. 
+
+### Forecasting
+
+##### Enrollment Forecasting
+
+Historical enrollment rates are calculated as a percentage of historical enrolment counts over the the total provincial population; all stratified by gender, age cohort, and academic year. 
+
+$R_{E} = 100 \times (N_{E} / N_P)$ for $2002 \lt t \lt 2022$
+
+Future participation rates are derived through linear regression analysis using R function, `lm()`. Baseline data stratified by age and gender are fit to the historical rates, predicting enrollment rates for the initial five-year period (2023–2027). 
+
+$R_F = \beta_0 + \beta_1Yr.  
+
+To prevent long-term divergence the projected rate for 2027 is held constant for seven susequent years (2028–2034), establishing a stabilized rate ceiling for the remainder of the forecast period.  The rates are used to forecast enrollment numbers using the projected population counts from PEOPLESOFT.
+
+ $N_{F} = R_F \times N_P \times 0.01$.
+
+##### Graduate Forecasting
+A 2-year annual stratified graduation rate, $R_G$, is calculated from graduate and enrollment counts for 2021 and 2022 acedemic years.  $R_G = \frac{N_G}{N_E}$  This rate is subsequently applied back to the forecasted enrollment counts generate anticipated graduates $N_G = R_G \times N_F$.
+
+### Credential Distribution Methodology
+Stratified graduation credential counts, $N_{G_C}$, are derived for the 2021–2022 observation period and are defined as a proportion relative to each gender-age: 
+
+$P_{G_C} = \frac{N_{G_C}}{N_C}$
+
+Uunobserved credential categories are assigned an explicit zero-value ($P=0$), maintaining a balanced data matrix across all defined demographic and credential vectors.
+
+##### Inclusion of Near-Completers
+The "Near-Completer" population is estimated by applying credential-specific ratios, $R_{C_{NC}}$ calculated in a previous analysis (see `03-near-completers-ttrain.R`).  Near completer ratios ire applied to the forecasted grad count to derive an estimate of near completer graduates, $N_G_{NC}$ = $N_G \times R_{C_{NC}}$, who have completed significant program requirements without formal credential attainment. 
+
+##### Categorical Mapping and PSSM Standardization
+Administrative award categories are mapped to a standardized PSSM reporting hierarchy to ensure consistency across the model. This protocol consolidates granular credential strings into unified labels while preserving the distinction between graduates and near-completers via numerical prefixes. To maintain workforce relevance, cohorts representing individuals aged 15–16 and 65–89 are excluded from the final projections.
+
+The reclassified graduate and near-completer datasets are merged into a unified supply table and aggregated by credential, fiscal year, and age cohort. This consolidated output is designated as the `Credential_Projections_Transp` stream; the table is named `Graduate_Projections`.
+
+##### Inclusion of Apprenticeship Supply
+Data from the Apprenticeship Student Outcomes (APPSO) survey is used to integrate the apprenticeship supply stream into forecasted data.  To establish a stable forecast baseline, a two-year arithmetic mean graduate count, $N_{G_{AP}}$ is calculated from the 2022 and 2023 Apprenticeship grad counts.  
+
+##### Longitudinal Historical Reconstruction
+To facilitate long-term trend analysis, an additional extended time series is generated by appending the 12-year forecast horizon to aggregated historical enrolment, graduation, and near-completer counts.  The new extension includes a window of $2006 \leq t \leq 2022$, or $2019 \leq t \leq 2022$ for near-completers.
+
+The methodology maintains structural parity with the projection model, applying identical PSSM credential mapping and demographic stratification to the historical time series. Near-completer counts for the 2019–2022 period are recovered using year-specific ratios ($N_{NC\_STP}$), while apprenticeship data from the APPSO survey is reconciled across previous submission cycles. The final output is the table `Graduate_Projections_Include_Historical` and contains a continuous longitudinal dataset suitable for back-testing.
+
+## Key Output Tables
+
+The final outputs of this module are persisted to the SQL environment as standardized tables. The primary table, `Graduate_Projections`, serves as the supply-side foundation for the Post-Secondary Supply Model, containing integrated forecasts for graduates, near-completers, and apprenticeships.
+
+### Table: Graduate_Projections/Graduate_Projections_Include_Historical
+
+The following variables comprise the schema for the consolidated projection table:
+
+<ul class="list-variable-names">
+<li>PSSM_CRED (String): A standardized credential label incorporating supply-stream prefixes (e.g., "1 - BACH" for graduates or "3 - CERT" for near-completers).</li>
+<li>YEAR (String): The fiscal academic year formatted as a range (e.g., "2023/2024").</li>
+<li>AGE_GROUP (String): The demographic age cohort associated with the projection (e.g., "20 to 24").</li>
+<li>GRADUATES (Numeric): The count of forecasted individuals for the specific year, age, and credential strata.</li>
+<li>SURVEY (String): A categorical identifier denoting the data origin (e.g., "Credential_Projections_Transp" for academic supply or "APPSO" for apprenticeships).</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): The original administrative award classification; primarily used for data lineage and validation.</li>
+<li>PSSM_CREDENTIAL (String): The cleaned credential category with prefixes removed - facilitates reporting.</li>
+</ul>

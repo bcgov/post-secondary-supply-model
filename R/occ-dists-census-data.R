@@ -25,140 +25,301 @@ if (length(missing) > 0) {
   ))
 }
 
+library(tidyverse)
+library(RODBC)
+library(config)
+library(DBI)
+library(RJDBC)
 
-stat_can_imputed_data_raw <- new_noc_counts |> rename(file_name = region)
+# ---- Configure LAN and file paths ----
+db_config <- config::get("decimal")
+lan <- config::get("lan")
+my_schema <- config::get("myschema")
+
+# ---- Connection to decimal ----
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
+
+# ---- Import all csv outputs ----
+output_folder <- glue::glue(
+  "{lan}/development/work/graduate noc imputation/output/"
+)
+
+# Get a list of all new counts CSV files in the output folder
+new_counts_file_list <- list.files(
+  path = output_folder,
+  pattern = "\\- new counts.csv$",
+  full.names = TRUE
+)
+new_counts_file_list
+
+# Read all CSV files, add a column for the filename, and combine them into one data frame
+combined_new_counts <- map_dfr(
+  new_counts_file_list,
+  ~ {
+    name <- basename(.x)
+    data <- read_csv(.x)
+    data <- mutate(data, file_name = str_split(name, " - new counts")[[1]][1])
+
+    return(data)
+  }
+)
+
+# save initial imputed data
+dbWriteTable(
+  decimal_con,
+  name = Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Raw_r"),
+  combined_new_counts
+)
+
+# ---- Import required lookups ----
+t_current_region_pssm_rollup_codes_statcan <-
+  readr::read_csv(
+    glue::glue(
+      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_StatCan.csv"
+    ),
+    col_types = cols(.default = col_guess())
+  ) %>%
+  janitor::clean_names(case = "all_caps")
+
+dbWriteTable(
+  decimal_con,
+  name = Id(
+    schema = my_schema,
+    table = "t_current_region_pssm_rollup_codes_statcan_r"
+  ),
+  value = t_current_region_pssm_rollup_codes_statcan
+)
+
+# ---- Check for required data tables ----
+# lookups
+dbExistsTable(
+  decimal_con,
+  Id(schema = my_schema, table = "tbl_age_groups_rollup_r")
+)
 
 # ---- Create required Region counts ----
 ## Create Northeast ----
 # Take "North Coast - Nechako and Northeast" and remove "North Coast and Nechako" to get Northeast
-NC_Nechako_NE <-
-  stat_can_imputed_data_raw |>
-  filter(file_name == "North Coast - Nechako and Northeast")
+NC_Nechako_NE <- tbl(
+  decimal_con,
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Raw_r")
+) %>%
+  filter(file_name == "North Coast - Nechako and Northeast") %>%
+  collect()
 
-NC_Nechako <- stat_can_imputed_data_raw |>
-  filter(file_name == "North Coast and Nechako")
+NC_Nechako <- tbl(
+  decimal_con,
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Raw_r")
+) %>%
+  filter(file_name == "North Coast and Nechako") %>%
+  collect()
 
 qry_Northeast <- NC_Nechako_NE %>%
-  inner_join(
-    NC_Nechako,
-    by = c('noc_5', 'major_field_cip', 'age_group', 'noc_4', 'occupation_NOC')
+  inner_join(NC_Nechako, by = c('NOC_5', 'major_field_cip', 'age_group')) %>%
+  mutate(
+    file_name = "qry_Northeast",
+    NOC_4 = NOC_4.x,
+    occupation_NOC = occupation_NOC.x
   ) %>%
   mutate(
-    file_name = "qry_Northeast"
-  ) %>%
-  mutate(
-    New_above_bach = ifelse(
-      (New_above_bach.x - New_above_bach.y <= 0),
+    New_Above_Bach = ifelse(
+      (New_Above_Bach.x - New_Above_Bach.y <= 0),
       0,
-      (New_above_bach.x - New_above_bach.y)
+      (New_Above_Bach.x - New_Above_Bach.y)
     ),
     New_PDEG = ifelse(
-      (New_pdeg.x - New_pdeg.y <= 0),
+      (New_PDEG.x - New_PDEG.y <= 0),
       0,
-      (New_pdeg.x - New_pdeg.y)
+      (New_PDEG.x - New_PDEG.y)
     ),
     New_Combined = ifelse(
-      (New_combined.x - New_combined.y <= 0),
+      (New_Combined.x - New_Combined.y <= 0),
       0,
-      (New_combined.x - New_combined.y)
+      (New_Combined.x - New_Combined.y)
     ),
     New_Masters = ifelse(
-      (New_masters.x - New_masters.y <= 0),
+      (New_Masters.x - New_Masters.y <= 0),
       0,
-      (New_masters.x - New_masters.y)
+      (New_Masters.x - New_Masters.y)
     ),
     New_Doctorate = ifelse(
-      (New_doctorate.x - New_doctorate.y <= 0),
+      (New_Doctorate.x - New_Doctorate.y <= 0),
       0,
-      (New_doctorate.x - New_doctorate.y)
+      (New_Doctorate.x - New_Doctorate.y)
     )
   ) %>%
   select(-ends_with(".x"), -ends_with(".y"))
+
+dbWriteTable(
+  decimal_con,
+  name = Id(schema = my_schema, table = "qry_Northeast"),
+  value = qry_Northeast
+)
 
 
 ## Create Rest of Canada counts ----
 # Take "Canada" and remove "British Columbia" to get Rest of Canada
-Canada <- stat_can_imputed_data_raw |>
-  filter(file_name == "Canada")
+Canada <- tbl(
+  decimal_con,
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Raw_r")
+) %>%
+  filter(file_name == "Canada") %>%
+  collect()
 
-British_Columbia <- stat_can_imputed_data_raw |>
-  filter(file_name == "British Columbia")
+British_Columbia <- tbl(
+  decimal_con,
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Raw_r")
+) %>%
+  filter(file_name == "British Columbia") %>%
+  collect()
 
 qry_Rest_of_Canada <- Canada %>%
   inner_join(
     British_Columbia,
-    by = c('noc_5', 'noc_4', 'occupation_NOC', 'major_field_cip', 'age_group')
+    by = c('NOC_5', 'major_field_cip', 'age_group')
   ) %>%
   mutate(
-    file_name = "qry_Rest_of_Canada"
+    file_name = "qry_Rest_of_Canada",
+    NOC_4 = NOC_4.x,
+    occupation_NOC = occupation_NOC.x
   ) %>%
   mutate(
     New_Above_Bach = ifelse(
-      (New_above_bach.x - New_above_bach.y <= 0),
+      (New_Above_Bach.x - New_Above_Bach.y <= 0),
       0,
-      (New_above_bach.x - New_above_bach.y)
+      (New_Above_Bach.x - New_Above_Bach.y)
     ),
     New_PDEG = ifelse(
-      (New_pdeg.x - New_pdeg.y <= 0),
+      (New_PDEG.x - New_PDEG.y <= 0),
       0,
-      (New_pdeg.x - New_pdeg.y)
+      (New_PDEG.x - New_PDEG.y)
     ),
     New_Combined = ifelse(
-      (New_combined.x - New_combined.y <= 0),
+      (New_Combined.x - New_Combined.y <= 0),
       0,
-      (New_combined.x - New_combined.y)
+      (New_Combined.x - New_Combined.y)
     ),
     New_Masters = ifelse(
-      (New_masters.x - New_masters.y <= 0),
+      (New_Masters.x - New_Masters.y <= 0),
       0,
-      (New_masters.x - New_masters.y)
+      (New_Masters.x - New_Masters.y)
     ),
     New_Doctorate = ifelse(
-      (New_doctorate.x - New_doctorate.y <= 0),
+      (New_Doctorate.x - New_Doctorate.y <= 0),
       0,
-      (New_doctorate.x - New_doctorate.y)
+      (New_Doctorate.x - New_Doctorate.y)
     )
   ) %>%
   select(-ends_with(".x"), -ends_with(".y"))
 
+dbWriteTable(
+  decimal_con,
+  name = Id(schema = my_schema, table = "qry_Rest_of_Canada"),
+  value = qry_Rest_of_Canada
+)
+
 # ---- Add the updated regions to an updated StatCan table ----
-names(qry_Rest_of_Canada) <- tolower(names(qry_Rest_of_Canada))
-names(qry_Northeast) <- tolower(names(qry_Northeast))
-names(stat_can_imputed_data_raw) <- tolower(names(stat_can_imputed_data_raw))
+# make new table
+dbExecute(
+  decimal_con,
+  SQL(glue::glue(
+    "SELECT *
+               INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+               FROM [{my_schema}].[Stat_Can_Imputed_Data_Raw_r];"
+  ))
+)
 
-stat_can_imputed_data_imputed <- stat_can_imputed_data_raw |>
-  rbind(qry_Rest_of_Canada) |>
-  rbind(qry_Northeast)
+# add Northeast
+dbGetQuery(
+  decimal_con,
+  SQL(glue::glue(
+    "INSERT INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC,
+  New_Above_Bach, New_PDEG, New_Combined, New_Masters, New_Doctorate )
+SELECT q.age_group,
+q.major_field_cip,
+q.NOC_5,
+q.file_name,
+q.NOC_4,
+q.occupation_NOC,
+q.New_Above_Bach,
+q.New_PDEG,
+q.New_Combined,
+q.New_Masters,
+q.New_Doctorate
+FROM [{my_schema}].[qry_Northeast] AS q"
+  ))
+)
 
+# Add rest of canada
+dbGetQuery(
+  decimal_con,
+  SQL(glue::glue(
+    "INSERT INTO [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]
+  ( age_group, major_field_cip, NOC_5, file_name, NOC_4, occupation_NOC,
+  New_Above_Bach, New_PDEG, New_Combined, New_Masters, New_Doctorate )
+SELECT q.age_group,
+q.major_field_cip,
+q.NOC_5,
+q.file_name,
+q.NOC_4,
+q.occupation_NOC,
+q.New_Above_Bach,
+q.New_PDEG,
+q.New_Combined,
+q.New_Masters,
+q.New_Doctorate
+FROM [{my_schema}].[qry_Rest_of_Canada] AS q"
+  ))
+)
 
 # ---- Prepare a Stat_Can version of Occupation_Distributions table ----
-# Note: original versions were filtered on age groups here
-combined_stat_can_original <- stat_can_imputed_data_imputed |>
+## Add in lookups ----
+# filter out unused regions based on lookup table
+Combined_Stat_Can_Original <- tbl(
+  decimal_con,
+  Id(schema = my_schema, table = "Stat_Can_Imputed_Data_Updated_r")
+) %>%
   left_join(
-    t_current_region_pssm_rollup_codes_statcan,
+    tbl(
+      decimal_con,
+      Id(
+        schema = my_schema,
+        table = "t_current_region_pssm_rollup_codes_statcan_r"
+      )
+    ),
     by = c("file_name" = "CURRENT_REGION_PSSM_NAME_ROLLUP_STAT_CAN")
-  ) |>
+  ) %>%
   left_join(
-    tbl_age_groups_rollup,
+    tbl(decimal_con, Id(schema = my_schema, table = "tbl_age_groups_rollup_r")),
     by = c("age_group" = "AGE_GROUP_ROLLUP_LABEL")
-  ) |>
-  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) |>
-  select(-age_group, -file_name)
+  ) %>%
+  filter(!is.na(CURRENT_REGION_PSSM_CODE_ROLLUP)) %>%
+  select(-age_group, -file_name) %>%
+  collect()
 
 ## Prepare columns ----
 # create one column for all the counts & rename accordingly
-combined_stat_can <- combined_stat_can_original %>%
-  pivot_longer(cols = starts_with("new_"), names_to = "Credential") %>%
-  filter(!Credential == "new_combined") %>%
+Combined_Stat_Can_Pivot <- Combined_Stat_Can_Original %>%
+  pivot_longer(cols = starts_with("New_"), names_to = "Credential") %>%
+  filter(!Credential == "New_Combined") %>%
   mutate(
     PSSM_CREDENTIAL = case_when(
-      Credential == "new_above_bach" ~ "GRCT or GRDP",
-      Credential == "new_pdeg" ~ "PDEG",
-      Credential == "new_masters" ~ "MAST",
-      Credential == "new_doctorate" ~ "DOCT",
-      TRUE ~ NA_character_
+      Credential == "New_Above_Bach" ~ "GRCT or GRDP",
+      Credential == "New_PDEG" ~ "PDEG",
+      Credential == "New_Masters" ~ "MAST",
+      Credential == "New_Doctorate" ~ "DOCT"
     )
-  ) |>
+  )
+
+# update required variables
+Combined_Stat_Can <- Combined_Stat_Can_Pivot %>%
   mutate(PSSM_CRED = PSSM_CREDENTIAL) %>%
   mutate(LCIPPC_CD = substr(major_field_cip, 1, 2)) %>%
   mutate(LCIPPC_CD_CRED = paste0(LCIPPC_CD, " - ", PSSM_CREDENTIAL)) %>%
@@ -168,7 +329,7 @@ combined_stat_can <- combined_stat_can_original %>%
 
 ## Run calculations ----
 # Find totals by CIP/Region/Age/Credential
-tmp_tbl_calc_total <- combined_stat_can %>%
+tmp_tbl_Calc_Total <- Combined_Stat_Can %>%
   select(
     LCIPPC_CD_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
@@ -180,12 +341,12 @@ tmp_tbl_calc_total <- combined_stat_can %>%
     CURRENT_REGION_PSSM_CODE_ROLLUP,
     AGE_GROUP_ROLLUP
   ) %>%
-  summarise(TOTAL = sum(COUNT, na.rm = TRUE))
+  summarise(TOTAL = sum(COUNT))
 
 # add totals to table
-combined_stat_can <- combined_stat_can %>%
+Combined_Stat_Can <- Combined_Stat_Can %>%
   inner_join(
-    tmp_tbl_calc_total %>%
+    tmp_tbl_Calc_Total %>%
       select(
         TOTAL,
         LCIPPC_CD_CRED,
@@ -200,13 +361,13 @@ combined_stat_can <- combined_stat_can %>%
   )
 
 # calculate the percents
-combined_stat_can <- combined_stat_can %>%
+Combined_Stat_Can <- Combined_Stat_Can %>%
   mutate(PERCENT = ifelse(TOTAL == 0, 0, COUNT / TOTAL))
 
 
 ## Manipulate the table ----
 # remove any with 0 counts; select desired columns
-occupation_distributions_stat_can <- combined_stat_can %>%
+Occupation_Distributions_Stat_Can <- Combined_Stat_Can %>%
   filter(COUNT > 0) %>%
   select(
     SURVEY,
@@ -215,10 +376,44 @@ occupation_distributions_stat_can <- combined_stat_can %>%
     LCP4_CD = LCIPPC_CD,
     LCIP4_CRED = LCIPPC_CD_CRED,
     CURRENT_REGION_PSSM_CODE_ROLLUP,
-    NOC = noc_5,
-    AGE_GROUP_ROLLUP = AGE_GROUP_ROLLUP,
+    NOC = NOC_5,
+    AGE_GROUP_ROLLUP,
     COUNT,
     TOTAL,
     PERCENT
-  ) |>
-  mutate(across(where(is.numeric), ~ round(.x, 2)))
+  )
+
+## Save table ----
+dbWriteTable(
+  decimal_con,
+  name = Id(schema = my_schema, table = "Occupation_Distributions_Stat_Can_r"),
+  Occupation_Distributions_Stat_Can
+)
+
+# ---- Clean Up ----
+## Drop intermediate tables ----
+dbExecute(
+  decimal_con,
+  SQL(glue::glue("DROP TABLE [{my_schema}].[qry_Northeast]"))
+)
+dbExecute(
+  decimal_con,
+  SQL(glue::glue("DROP TABLE [{my_schema}].[qry_Rest_of_Canada]"))
+)
+dbExecute(
+  decimal_con,
+  SQL(glue::glue("DROP TABLE [{my_schema}].[Stat_Can_Imputed_Data_Updated_r]"))
+)
+dbExecute(
+  decimal_con,
+  SQL(glue::glue("DROP TABLE [{my_schema}].[Stat_Can_Imputed_Data_Raw_r]"))
+)
+## Drop lookups ----
+dbExecute(
+  decimal_con,
+  SQL(glue::glue(
+    "DROP TABLE [{my_schema}].[t_current_region_pssm_rollup_codes_statcan_r]"
+  ))
+)
+## Disconnect ----
+dbDisconnect(decimal_con)

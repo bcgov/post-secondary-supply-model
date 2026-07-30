@@ -1,0 +1,117 @@
+---
+title: "Module 02a APPSO Program Matching - Technical Documentation"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid: 
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    css: styles.css
+    html-math-method: katex
+    self-contained: true
+---
+
+## Overview
+
+The script processes records from the Credential_Non_Dup table (derived in `01c-credential-analysis.R`) to ensure that every apprenticeship record has a valid 4-digit and 2-digit CIP code. It follows a hierarchical "fallback" matching strategy, where the most specific match (6-digit) is attempted first, followed by broader matches if data is missing.
+
+## Data Sources and Storage
+
+### External Data Sources
+
+### Internal/Processed Data Sources
+
+##### Table: credential_non_dup
+
+Deduplicated credential output containing final demographic, ranking, and delayed-award variables.
+
+<ul class="list-variable-names">
+<li>ID (Integer, PK, FK -> credential_r.ID): Credential record identifier.</li>
+<li>ENCRYPTED_TRUE_PEN (String): Encrypted provincial student identifier.</li>
+<li>PSI_STUDENT_NUMBER (String): Institution-assigned student number.</li>
+<li>PSI_CODE (String): Institution code.</li>
+<li>PSI_SCHOOL_YEAR (String): Credential issued in this school year.</li>
+<li>PSI_PROGRAM_CODE (String): Program code.</li>
+<li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Program description.</li>
+<li>PSI_CREDENTIAL_CATEGORY (String): Credential category.</li>
+<li>PSI_CREDENTIAL_LEVEL (String): Credential level.</li>
+<li>PSI_CREDENTIAL_CIP (String): Credential Classification of Instructional Programs (CIP) code.</li>
+<li>CREDENTIAL_AWARD_DATE_D (Date): Standardized award date.</li>
+<li>CREDENTIAL_AWARD_DATE (String): Date credential was awarded.</li>
+<li>psi_gender_cleaned (String): Final cleaned or imputed gender.</li>
+<li>PSI_BIRTHDATE_CLEANED (String): Final cleaned or imputed birthdate.</li>
+<li>PSI_BIRTHDATE_CLEANED_D (Date): Standardized final cleaned or imputed birthdate.</li>
+<li>RecordStatus (Numeric): Record-status code (0-8).</li>
+<li>AGE_AT_GRAD (Numeric): Age at graduation (observed/imputed).</li>
+<li>AGE_GROUP_AT_GRAD (Numeric): Age-group index at graduation.</li>
+<li>PSI_AWARD_SCHOOL_YEAR (String): Derived award school year.</li>
+<li>HIGHEST_CRED_BY_DATE (String): Marker for highest credential by date logic.</li>
+<li>HIGHEST_CRED_BY_RANK (String): Marker for highest credential by rank logic.</li>
+<li>PSI_VISA_STATUS (String): Recovered visa status.</li>
+<li>CONCATENATED_ID (String): Unified student identifier used for delay logic.</li>
+<li>CREDENTIAL_AWARD_DATE_D_DELAYED (Date): Delay-adjusted award date.</li>
+<li>PSI_AWARD_SCHOOL_YEAR_DELAYED (String): Delay-adjusted award school year.</li>
+<li>RESEARCH_UNIVERSITY (Boolean): Indicator for research-university institution grouping.</li>
+<li>OUTCOMES_CRED (String): Standardized outcomes credential grouping.</li>
+</ul>
+
+##### Table: INFOWARE_L_CIP_XDIGITS_CIP2016
+
+Description: The master lookup for 2, 4, and 6-digit CIP codes, including their parent associations, if applicable.
+
+<ul class="list-variable-names">
+<li>
+<li>
+<ul>
+
+## Methodology Overview
+
+### Methods
+
+APPSO records from the STP credential (credential_non_dup) table are isolated for processing.  Light pre-processing was done on the STP Credential CIP column, PSI_CREDENTIAL_CIP.  Before matching, the PSI_CREDENTIAL_CIP strings are cleaned to correct common formatting inconsistencies:
+
+- Length-6 Padding: If a CIP is 6 characters and the second character is not a period (e.g., 123456), a trailing 0 is appended.
+- Leading Zeros: If a CIP is still only 6 characters, a leading 0 is prepended to ensure a standardized length.
+
+The script attempts to populate STP_CIP_CODE_4 and STP_CIP_CODE_2 using the following priority:
+
+- Exact 6-Digit Match: Joins directly on the normalized PSI_CREDENTIAL_CIP against the Infoware 6-digit table.
+- 5-Character Fallback: For records still missing a code, the script joins on the first 5 characters of the CIP string.
+- General Program Rule: Applies a "General" designation (mapping 00 to 01) for specific program prefixes (e.g., 11.00, 14.00, 52.00).
+- 2-Digit Fallback: A final attempt to map at least the 2-digit CIP family based on the first two characters of the institutional CIP.
+
+Once codes are assigned, the script joins descriptive names for both 4-digit and 2-digit codes.  Any record that fails all matching steps and lacks a 4-digit name is explicitly labeled as "Invalid 4-digit CIP".  Administrative placeholders are removed such as (Unspecified) from the PSI_PROGRAM_CODE column.
+
+### Technical Notes
+
+The script uses `sql("CAST(NULL AS VARCHAR(255))")` to initialize columns. This is necessary because dbplyr may default a plain NA to an INT type in SQL Server, which causes type-mismatch errors during subsequent character joins or updates.
+
+## Key Output Tables
+
+The APPSO program matching process generates the following data tables.
+
+### Table: Credential_Non_Dup_APPSO_IDs
+
+The finalized dataset containing student IDs linked to their standardized CIP codes and descriptive names.
+
+<ul class="list-variable-names">
+  <li>ID (Number): Unique primary key for the student record within the STP dataset.</li>
+  <li>PSI_CODE (String): Administrative code identifying the post-secondary institution.</li>
+  <li>PSI_PROGRAM_CODE (String): Internal code assigned by the institution to the specific program of study.</li>
+  <li>PSI_CREDENTIAL_PROGRAM_DESCRIPTION (String): Descriptive name of the program as provided by the institution.</li>
+  <li>PSI_CREDENTIAL_CIP (String): The raw, unstandardized CIP code submitted by the institution.</li>
+  <li>PSI_AWARD_SCHOOL_YEAR (String): The academic school year in which the credential was awarded (e.g., "2022/2023").</li>
+  <li>OUTCOMES_CRED (String): An acronym identifying the survey cohort, specifically set to "APPSO" for apprenticeship outcomes.</li>
+  <li>FINAL_CIP_CODE_4 (String): The cleaned, standardized and matched 4-digit CIP code assigned to the record.</li>
+  <li>FINAL_CIP_CODE_4_NAME (String): The official descriptive name associated with the standardized 4-digit CIP code.</li>
+  <li>FINAL_CIP_CODE_2 (String): The cleaned, standardized and matched 2-digit CIP family code.</li>
+  <li>FINAL_CIP_CODE_2_NAME (String): The official descriptive name for the 2-digit CIP family (e.g., "Engineering").</li>
+</ul>
+
