@@ -9,7 +9,6 @@ scratch/*
 tmp
 *.html
 .github/copilot-instructions.md
-
 presentations/presentation-06-2026_files/
 .factory/
 tmp/
