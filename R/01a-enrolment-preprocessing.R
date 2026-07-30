@@ -11,13 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-pacman::p_load(
-  tidyverse,
-  odbc,
-  DBI,
-  futile.logger
-)
-
+library(tidyverse)
+library(odbc)
+library(DBI)
+library(futile.logger)
 
 ## -------------------------- Logging Setup -------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -519,6 +516,8 @@ walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
 log_info("Disconnected from SQL Server")
+
+log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
 
 log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
 
