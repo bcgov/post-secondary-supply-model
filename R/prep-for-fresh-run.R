@@ -249,7 +249,7 @@ log_info(glue::glue(
 ))
 
 if (length(copy_tables) > 0) {
-  purrr::map_dfr(copy_tables, \(t) {
+  existence_check <- purrr::map_dfr(copy_tables, \(t) {
     short <- stringr::str_remove_all(
       stringr::str_extract(t, '(?<=\\.)"[^"]+"'),
       '"'
@@ -262,8 +262,18 @@ if (length(copy_tables) > 0) {
       )
     )
   })
+  log_info(glue::glue(
+    "Step 3: Existence check in [{second_schema}] - {sum(existence_check$exists_in_dbo)}/{nrow(existence_check)} tables found"
+  ))
+  missing_tables <- existence_check$table[!existence_check$exists_in_dbo]
+  if (length(missing_tables) > 0) {
+    log_info(glue::glue(
+      "Step 3 WARNING: tables not found in [{second_schema}]: {paste(missing_tables, collapse = ', ')}"
+    ))
+  }
 
-  for (table in copy_tables) {
+  for (i in seq_along(copy_tables)) {
+    table <- copy_tables[i]
     # Extract the part after the dot
     table_short <- str_extract(table, '(?<=\\.)"[^"]+"') %>%
       str_remove_all("\"")
@@ -275,7 +285,23 @@ if (length(copy_tables) > 0) {
            INTO [{my_schema}].{table_short}
            FROM {table};'
     )
-    dbExecute(decimal_con, copy_statement)
+    log_info(glue::glue(
+      "Step 3: [{i}/{length(copy_tables)}] Copying {table} -> [{my_schema}].{table_short}"
+    ))
+    tryCatch(
+      {
+        rows_copied <- dbExecute(decimal_con, copy_statement)
+        log_info(glue::glue(
+          "Step 3: [{i}/{length(copy_tables)}] Copied {table_short} ({rows_copied} rows)"
+        ))
+      },
+      error = function(e) {
+        log_info(glue::glue(
+          "Step 3 ERROR copying {table_short}: {e$message}"
+        ))
+        stop(e)
+      }
+    )
     # }
   }
 }
