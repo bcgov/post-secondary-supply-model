@@ -144,7 +144,7 @@ write_to_decimal <- function(
 
   DBI::dbWriteTableArrow(
     con,
-    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_2024"')),
+    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_orig"')),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )
