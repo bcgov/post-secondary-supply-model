@@ -38,7 +38,7 @@ log_info <- function(msg) {
 log_info("==== load-stp-cred.R START ====")
 
 # ---- Configure LAN and file paths ----
-lan <- config::get("lan_2027")
+lan <- config::get("lan")
 my_schema <- config::get("myschema")
 raw_data <- glue::glue(
   "{lan}/Data/stp/BCSTATS_STP_ISA_PSSM_JUL13_2026/STP_CREDENTIAL_2024.dsv"
