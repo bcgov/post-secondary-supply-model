@@ -519,6 +519,5 @@ log_info("Disconnected from SQL Server")
 
 log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
 
-log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
 
 # rm(list = ls())

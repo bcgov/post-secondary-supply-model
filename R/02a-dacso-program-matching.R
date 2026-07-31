@@ -2165,7 +2165,7 @@ dbWriteTable(
 log_info(glue::glue("Wrote Credential_Non_Dup_Programs_DACSO_FinalCIPS_r: {nrow(stp_dacso_out)} rows"))
 dbWriteTable(
   con,
-  "******************************************",
+  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r",
   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out,
   overwrite = TRUE
 )

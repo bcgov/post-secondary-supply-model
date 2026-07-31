@@ -2925,7 +2925,7 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Test credential_unmatched_cips_to_review")
+log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------
