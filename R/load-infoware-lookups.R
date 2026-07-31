@@ -95,7 +95,7 @@ copy_infoware_table <- function(tbl_name,
                                 source_con = iw_con,
                                 dest_con = con,
                                 source_schema = "INFOWARE",
-                                dest_schema = my_schema,
+                                dest_schema = share_schema,
                                 sanitize = TRUE) {
   dest_id <- DBI::Id(schema = dest_schema, table = dest_name)
 
