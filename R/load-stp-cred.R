@@ -103,7 +103,7 @@ dbWriteTableArrow(
   con,
   name = SQL(glue::glue('"{my_schema}"."{tblnm}"')),
   nanoarrow::as_nanoarrow_array_stream(data),
-  append = TRUE,
+  append = TRUE
 )
 
 log_info(glue::glue(
