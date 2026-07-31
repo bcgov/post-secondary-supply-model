@@ -16,7 +16,6 @@ library(odbc)
 library(DBI)
 library(futile.logger)
 
-
 ## -------------------------- Logging Setup -------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -519,5 +518,6 @@ dbDisconnect(con)
 log_info("Disconnected from SQL Server")
 
 log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
+
 
 # rm(list = ls())
