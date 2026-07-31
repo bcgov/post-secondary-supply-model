@@ -766,7 +766,7 @@ dbWriteTable(
 # ---- Clean up ----
 dbExecute(
   con,
-  glue::glue("DROP TABLE [{my_schema}].Credential_Non_Dup_STP_NULL_Cleaning")
+  glue::glue("DROP TABLE [{my_schema}].Credential_Non_Dup_STP_NULL_Cleaning_r")
 )
 dbDisconnect(con)
 log_info("Disconnected from SQL Server")
