@@ -36,7 +36,7 @@ log_info <- function(msg) {
 log_info("==== load-stp-enrol.R START ====")
 
 # ---- Configure LAN and file paths ----
-lan <- config::get("lan_2027")
+lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 fls <- list.files(
