@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-pacman::p_load(
-  tidyverse,
-  odbc,
-  DBI,
-  futile.logger
-)
+library(tidyverse)
+library(odbc)
+library(DBI)
+library(futile.logger)
 
 
 ## -------------------------- Logging Setup -------------------------------------------------------
