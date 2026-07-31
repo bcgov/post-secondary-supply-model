@@ -1,4 +1,4 @@
-## update columns of credential non dup 
+## update columns of credential non dup
 qry_Credential_Non_Dup_Add_Columns <- "
 ALTER TABLE Credential_Non_Dup
 ADD         OUTCOMES_CIP_CODE_4 varchar(4),
@@ -84,8 +84,8 @@ WHERE OUTCOMES_CRED = 'GRAD' OR OUTCOMES_CRED = 'APPSO'
 "
 
 ## final clean up queries for non dup CIPs
-# ---- SQLQuery1 ---- 
-## not used 
+# ---- SQLQuery1 ----
+## not used
 SQLQuery1 <- "
 SELECT   Match_Inst, 
          Match_School_Year, 
@@ -111,8 +111,8 @@ ORDER BY Match_Inst DESC,
          Match_CIP_CODE_4 DESC, 
          Match_Credential DESC;"
 
-# ---- SQLQuery2 ---- 
-## not used 
+# ---- SQLQuery2 ----
+## not used
 SQLQuery2 <- "
 UPDATE    T_BGS_Data_Final
 SET       LCP2_DIGITS_NAME = INFOWARE.L_CIP_2DIGITS_CIP2016.LCP2_DIGITS_NAME
@@ -122,8 +122,8 @@ ON T_BGS_Data_Final.CIP_CODE_2 = INFOWARE.L_CIP_2DIGITS_CIP2016.LCP2_CD
 WHERE     (T_BGS_Data_Final.LCP2_DIGITS_NAME IS NULL);"
 
 
-# ---- SQLQuery3 ---- 
-## not used, should be done already 
+# ---- SQLQuery3 ----
+## not used, should be done already
 SQLQuery3 <- "
 UPDATE    Credential_Non_Dup
 SET       FINAL_CIP_CODE_2_NAME = INFOWARE_L_CIP_2DIGITS_CIP2016.LCP2_DIGITS_NAME, 
@@ -135,7 +135,7 @@ ON Credential_Non_Dup.FINAL_CIP_CODE_2 = INFOWARE_L_CIP_2DIGITS_CIP2016.LCP2_CD
 WHERE     (Credential_Non_Dup.OUTCOMES_CRED = 'BGS');"
 
 
-# ---- SQLQuery4 ---- 
+# ---- SQLQuery4 ----
 ## update some 99 codes for BGS
 SQLQuery4 <- "
 UPDATE    Credential_Non_Dup
@@ -145,7 +145,7 @@ SET       FINAL_CIP_CODE_2_NAME = 'Undeclared activity',
 WHERE     (OUTCOMES_CRED = 'BGS') AND (FINAL_CIP_CODE_2 = '99');"
 
 
-# ---- SQLQuery5 ---- 
+# ---- SQLQuery5 ----
 ## not used (not credential_non_dup)
 SQLQuery5 <- "
 UPDATE    T_BGS_Data_Final
@@ -155,8 +155,8 @@ FROM      T_BGS_Data_Final
 INNER JOIN INFOWARE.L_CIP_2DIGITS_CIP2016 
 ON T_BGS_Data_Final.CIP_CODE_2 = INFOWARE.L_CIP_2DIGITS_CIP2016.LCP2_CD;"
 
-# ---- SQLQuery6 ---- 
-## update final to be STP if final was missing 
+# ---- SQLQuery6 ----
+## update final to be STP if final was missing
 SQLQuery6 <- "
 UPDATE    Credential_Non_Dup
 SET       FINAL_CIP_CODE_4 = STP_CIP_CODE_4, 
@@ -166,8 +166,8 @@ SET       FINAL_CIP_CODE_4 = STP_CIP_CODE_4,
 WHERE     (FINAL_CIP_CODE_4 IS NULL) OR
                       (FINAL_CIP_CODE_4 = ' ');"
 
-# ---- SQLQuery7 ---- 
-## update some 99 codes to align 
+# ---- SQLQuery7 ----
+## update some 99 codes to align
 SQLQuery7 <- "
 UPDATE    Credential_Non_Dup
 SET       FINAL_CIP_CLUSTER_CODE = '99',
@@ -176,7 +176,3 @@ WHERE     (OUTCOMES_CRED = 'GRAD')
 AND (FINAL_CIP_CLUSTER_CODE IS NULL) 
 AND (FINAL_CIP_CLUSTER_NAME IS NULL) 
 AND (FINAL_CIP_CODE_2 = '99');"
-
-
-
-
