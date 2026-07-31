@@ -1154,7 +1154,6 @@ log_info("Disconnected from SQL Server")
 
 log_info("==== 01c-credential-analysis.R COMPLETE ====")
 
-log_info("==== 01c-credential-analysis.R COMPLETE ====")
 
 # rm(list = ls())
 
