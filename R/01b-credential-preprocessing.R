@@ -267,6 +267,5 @@ log_info("Disconnected from SQL Server")
 
 log_info("==== 01b-credential-preprocessing.R COMPLETE ====")
 
-log_info("==== 01b-credential-preprocessing.R COMPLETE ====")
 
 # rm(list = ls())
