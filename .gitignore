@@ -6,19 +6,19 @@
 config.yml
 scratch/*
 *_log.txt
-tmp
+tmp/
 *.html
 .github/copilot-instructions.md
-presentations/presentation-06-2026_files/
-.factory/
-tmp/
-.github/agents/*
-.github/instructions/*
-.gitignore
-.claude/
 
+/sql
+
+presentations/presentation-06-2026_files/
+.claude/
 docs/agents/
+.factory/
+AGENTS.md
 *.sh
+
 plan/
 
 scratch/
