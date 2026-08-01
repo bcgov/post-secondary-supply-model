@@ -36,7 +36,7 @@ log_info <- function(msg) {
 log_info("==== load-stp-enrol.R START ====")
 
 # ---- Configure LAN and file paths ----
-lan <- config::get("lan_2027")
+lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
 fls <- list.files(
@@ -144,7 +144,7 @@ write_to_decimal <- function(
 
   DBI::dbWriteTableArrow(
     con,
-    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_2024"')),
+    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_orig"')),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )
