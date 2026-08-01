@@ -131,17 +131,13 @@ copy_infoware_table <- function(tbl_name,
 ##
 ## All copied tables now go through UTF-8 sanitizing for consistency.
 ## Previously only the CIP-2016 lookups and the PROGRAMS backup were
-## sanitized; the BGS / CIP-2021 / PROGRAMS / XREF tables were not.
-##
+## sanitized; the CIP-2021 / PROGRAMS / XREF tables were not.
+
 ## "PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021" is written as
 ## "INFOWARE_PROGRAMS_2016" (the shorter name it was already given by the
 ## dedicated block); the redundant "INFOWARE_PROGRAMS_BKUP_..." copy is gone.
 
 # ---- Tables to copy from INFOWARE -> Decimal ----
-# BGS graduate distribution + cohort tables
-copy_infoware_table("BGS_DIST_19_23")
-copy_infoware_table("BGS_DIST_18_22")
-copy_infoware_table("BGS_COHORT_INFO")
 
 # CIP-2016 code lookups (2/4/6-digit)
 copy_infoware_table("L_CIP_2DIGITS_CIP2016")
@@ -191,7 +187,7 @@ dbDisconnect(con)
 ##
 ## 4. An older JDBC-based INFOWARE connection (RJDBC + `jdbc_config`) and
 ##    an intermediate hardcoded ODBC variant (Driver
-##    "Oracle in instantclient_19_30", DBQ "DEV01.world"), both superseded
+##    "Oracle in instantclient_19_30", DBQ "***"), both superseded
 ##    by the config-driven `odbc` connection above.
 ##
 ## 5. Glue/SQL string builders (`SQL(glue::glue('"{my_schema}"."..."'))`)
