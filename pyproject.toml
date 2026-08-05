@@ -1,0 +1,15 @@
+[project]
+name = "post-secondary-supply-model"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "jinja2>=3.1.6",
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.6",
+    "pandas>=3.0.5",
+    "pyodbc>=5.3.0",
+    "scipy>=1.17.1",
+    "sqlalchemy>=2.0.51",
+]
