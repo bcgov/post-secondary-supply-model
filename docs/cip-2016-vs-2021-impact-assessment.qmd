@@ -90,6 +90,8 @@ Two complementary approaches are used:
 
 2. **Direct code-set comparison** — Loading both the CIP 2016 and CIP 2021 lookup tables from INFOWARE and comparing them programmatically. This shows what the INFOWARE implementation looks like, which may differ slightly from the StatCan reference.
 
+The correspondence table reveals that CIP 2021 is a moderate revision rather than a wholesale restructuring: the 2-digit series framework is preserved intact, with no series added or eliminated. The most common change by volume is **VC2 (name changes)** — titles updated throughout for terminology modernization (notably the systematic replacement of "Aboriginal" with "Indigenous"), definitional clarification, and French-language corrections. The analytically significant **real changes** take two forms. **RC5 transfers** moved content between existing series in a handful of high-profile cases — veterinary sciences from Health professions (51) to Agriculture (01), audio/sound engineering from Communications technologies (10) to Engineering technologies (15), materials science from Physical sciences (40) to Engineering (14), classics and computational linguistics from Languages (16) to Multidisciplinary studies (30), autism and behavioural science from Family and consumer sciences (19) to Psychology (42), casino operations from Business (52) to Culinary and personal services (12), and game programming from Visual and performing arts (50) to Computer and information sciences (11). **RC4.2 splits** carved specialised subjects out of broad catch-all codes into new detail-level categories — a pervasive pattern of increasing granularity across nearly every series. A small number of **VC1 renumberings**, where the code number changes but the content does not (e.g., 15.0503 → 15.1701, 19.0000 → 19.1001), are rare but carry outsized risk for automated systems because legacy codes silently stop matching.
+
 ### GSIM Change Types
 
 Statistics Canada uses the Generic Statistical Information Model (GSIM) to classify changes. The most important distinction:
@@ -223,6 +225,9 @@ tibble(
 )
 ```
 
+
+#### Added 4-Digit Level (Sub-Series)
+
 ```{r}
 #| label: cip4-added
 #| tbl-cap: "New 4-digit codes in CIP 2021"
@@ -236,6 +241,9 @@ if (length(added_4) > 0) {
   cat("No new 4-digit codes.\n")
 }
 ```
+
+#### Removed 4-Digit Level (Sub-Series)
+
 
 ```{r}
 #| label: cip4-removed
@@ -775,6 +783,30 @@ The credential counts below come from `[PSSM2023].[IDIR\JDUAN].[Credential_Non_D
 :::
 
 ### Three perspectives on impact
+
+```{r}
+#| label: credential-impact-setup
+
+changed_programs <- programs |>
+  filter(!is.na(.data[[cip2016_col]])) |>
+  filter(.data[[cip2016_col]] != .data[[cip2021_col]])
+
+transitions_4 <- changed_programs |>
+  mutate(
+    CIP4_2016 = substr(.data[[cip2016_col]], 1, 4),
+    CIP4_2021 = substr(.data[[cip2021_col]], 1, 4)
+  ) |>
+  filter(CIP4_2016 != CIP4_2021) |>
+  count(CIP4_2016, CIP4_2021, name = "n_programs")
+
+transitions_2 <- changed_programs |>
+  mutate(
+    CIP2_2016 = substr(.data[[cip2016_col]], 1, 2),
+    CIP2_2021 = substr(.data[[cip2021_col]], 1, 2)
+  ) |>
+  filter(CIP2_2016 != CIP2_2021) |>
+  count(CIP2_2016, CIP2_2021, sort = TRUE, name = "Programs")
+```
 
 ```{r}
 #| label: credential-impact-summary
