@@ -1,12 +1,10 @@
-
-
 # ---- CredentialSupVars_VisaStatus_Cleaning_check ----
-CredentialSupVars_VisaStatus_Cleaning_check <-"
+CredentialSupVars_VisaStatus_Cleaning_check <- "
 SELECT PSI_VISA_STATUS, count(*) FROM CredentialSupVars GROUP BY PSI_VISA_STATUS"
 
 # ---- CredentialSupVars_VisaStatus_1 ----
 CredentialSupVars_VisaStatus_Cleaning_1 <-
-"SELECT credential_non_dup.id,
+  "SELECT credential_non_dup.id,
        credential_non_dup.encrypted_true_pen,
        credential_non_dup.psi_student_number,
        credential_non_dup.psi_school_year,
@@ -25,7 +23,7 @@ FROM   credentialsupvars
                ON credentialsupvars.id = credential_non_dup.id "
 
 # ---- CredentialSupVars_VisaStatus_2 ----
-CredentialSupVars_VisaStatus_Cleaning_2 <-"
+CredentialSupVars_VisaStatus_Cleaning_2 <- "
 UPDATE  Credential_Non_Dup_VisaStatus_Cleaning_Step1
 SET     PSI_VISA_STATUS = CredentialSupVarsFromEnrolment.PSI_VISA_STATUS
 FROM    Credential_Non_Dup_VisaStatus_Cleaning_Step1 
@@ -38,7 +36,7 @@ AND     Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_CREDENTIAL_PROGRAM_DESC
 AND     Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_SCHOOL_YEAR = CredentialSupVarsFromEnrolment.PSI_SCHOOL_YEAR"
 
 # ---- CredentialSupVars_VisaStatus_3 ----
-CredentialSupVars_VisaStatus_Cleaning_3 <-"
+CredentialSupVars_VisaStatus_Cleaning_3 <- "
 UPDATE  credential_non_dup_visastatus_cleaning_step1
 SET     psi_visa_status = credentialsupvarsfromenrolment.psi_visa_status
 FROM    credential_non_dup_visastatus_cleaning_step1
@@ -52,7 +50,7 @@ AND     credential_non_dup_visastatus_cleaning_step1.psi_school_year = credentia
 
 
 # ---- CredentialSupVars_VisaStatus_4 ----
-CredentialSupVars_VisaStatus_Cleaning_4 <-"
+CredentialSupVars_VisaStatus_Cleaning_4 <- "
 UPDATE    Credential_Non_Dup_VisaStatus_Cleaning_Step1
 SET       PSI_VISA_STATUS = CredentialSupVarsFromEnrolment.PSI_VISA_STATUS
 FROM      Credential_Non_Dup_VisaStatus_Cleaning_Step1 
@@ -64,7 +62,7 @@ ON        Credential_Non_Dup_VisaStatus_Cleaning_Step1.ENCRYPTED_TRUE_PEN = Cred
 WHERE     (Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_VISA_STATUS IS NULL)"
 
 # ---- CredentialSupVars_VisaStatus_5 ----
-CredentialSupVars_VisaStatus_Cleaning_5 <-"
+CredentialSupVars_VisaStatus_Cleaning_5 <- "
 UPDATE    CredentialSupVars
 SET       PSI_VISA_STATUS = Credential_Non_Dup_VisaStatus_Cleaning_Step1.PSI_VISA_STATUS
 FROM      CredentialSupVars 
@@ -72,32 +70,10 @@ INNER JOIN Credential_Non_Dup_VisaStatus_Cleaning_Step1 ON CredentialSupVars.ID 
 WHERE     (CredentialSupVars.PSI_VISA_STATUS IS NULL) 
 OR        (CredentialSupVars.PSI_VISA_STATUS IN ('', ' ', '(Unspecified)'))"
 
-                        
+
 # ---- CredentialSupVars_VisaStatus_6 ----
-CredentialSupVars_VisaStatus_Cleaning_6 <-"
+CredentialSupVars_VisaStatus_Cleaning_6 <- "
 UPDATE      Credential_Non_Dup
 SET         PSI_VISA_STATUS = CredentialSupVars.PSI_VISA_STATUS
 FROM        Credential_Non_Dup 
 INNER JOIN  CredentialSupVars ON Credential_Non_Dup.id = CredentialSupVars.ID"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

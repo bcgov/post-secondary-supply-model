@@ -1,4 +1,3 @@
-
 #---- qry_make_tmp_table_Age_step2 ----
 qry_make_tmp_table_Age_step2 <- "
 UPDATE tmp_tbl_Age_AppendNewYears 
@@ -52,7 +51,7 @@ INTO T_DACSO_DATA_Part_1_TempSelection
 FROM T_DACSO_DATA_Part_1;"
 
 #---- qry99_Investigate_Near_Completes_vs_Graduates_by_Year ----
-qry99_Investigate_Near_Completes_vs_Graduates_by_Year <- 
+qry99_Investigate_Near_Completes_vs_Graduates_by_Year <-
   "select COSC_GRAD_STATUS_LGDS_CD_Group, [C_Outc17],[C_Outc18],[C_Outc19],[C_Outc20],[C_Outc21],
 [C_Outc22],[C_Outc23]
 FROM
@@ -69,7 +68,7 @@ PIVOT (
   ) AS PT;"
 
 #---- qry_Find_NearCompleters_in_STP_Credential_Step1 ----
-qry_Find_NearCompleters_in_STP_Credential_Step1 <- 
+qry_Find_NearCompleters_in_STP_Credential_Step1 <-
   "SELECT t_dacso_data_part_1.coci_stqu_id,
        t_dacso_data_part_1.coci_subm_cd,
        t_dacso_data_part_1.age_at_grad,
@@ -131,7 +130,7 @@ WHERE  ( ( ( t_dacso_data_part_1.coci_subm_cd ) = 'C_Outc07'
   AND ( ( dacso_matching_stp_credential_pen.coci_stqu_id ) IS NOT NULL ));"
 
 # ---- qry_Update_STP_Credential_Awarded_Before_DACSO ----
-qry_Update_STP_Credential_Awarded_Before_DACSO <- 
+qry_Update_STP_Credential_Awarded_Before_DACSO <-
   "UPDATE NearCompleters_in_STP_Credential_Step1 
   SET NearCompleters_in_STP_Credential_Step1.STP_Credential_Awarded_Before_DACSO = 'Yes'
 WHERE (((NearCompleters_in_STP_Credential_Step1.coci_subm_cd)='C_Outc07') 
@@ -551,7 +550,7 @@ ON (tmp_MaxAwardYearCleaning.MaxOfPSI_AWARD_SCHOOL_YEAR = tmp_NearCompletersWith
 AND (tmp_MaxAwardYearCleaning.coci_STQU_ID = tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.coci_STQU_ID);"
 
 # ---- qry_NearCompleters_MultiCdtls_Cleaning_Step8 ----
-qry_NearCompleters_MultiCdtls_Cleaning_Step8 <- 
+qry_NearCompleters_MultiCdtls_Cleaning_Step8 <-
   "SELECT tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.coci_STQU_ID, 
 Max(tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.ID) AS MaxOfID, 
 tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.Dup_STQUID_UseThisRecord 
@@ -572,7 +571,7 @@ AND (NearCompleters_in_STP_Credential_Step1.coci_STQU_ID = tmp_NearCompletersWit
 WHERE (((tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.Final_Record_To_Use)='Yes'));"
 
 # ---- qry_NearCompleters_MultiCdtls_Cleaning_Step11 ----
-qry_NearCompleters_MultiCdtls_Cleaning_Step11 <- 
+qry_NearCompleters_MultiCdtls_Cleaning_Step11 <-
   "UPDATE tmp_MaxAwardYear
   SET NearCompleters_in_STP_Credential_Step1.Final_Record_to_Use = 'Yes'
 FROM tmp_MaxAwardYear
@@ -633,8 +632,8 @@ ON (NearCompleters_in_STP_Credential_Step1.ID = tmp_NearCompletersWithMultiCrede
 AND (NearCompleters_in_STP_Credential_Step1.coci_STQU_ID = tmp_NearCompletersWithMultiCredentials_MaxYearCleaning.coci_STQU_ID)"
 
 # ---- qry_NearCompleters_MultiCdtls_Cleaning_Step12 ----
-qry_NearCompleters_MultiCdtls_Cleaning_Step12 <- 
-"UPDATE NearCompleters_in_STP_Credential_Step1 
+qry_NearCompleters_MultiCdtls_Cleaning_Step12 <-
+  "UPDATE NearCompleters_in_STP_Credential_Step1 
 SET NearCompleters_in_STP_Credential_Step1.Final_Record_to_Use = 'Yes'
 WHERE (((NearCompleters_in_STP_Credential_Step1.Final_Record_to_Use) Is Null) 
 AND ((NearCompleters_in_STP_Credential_Step1.Has_Multiple_STP_Credentials) Is Null));"
@@ -672,7 +671,7 @@ WHERE (((T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_in_STP)='3')
 AND ((T_DACSO_DATA_Part_1_TempSelection.Has_STP_Credential)='Yes'));"
 
 # ---- qry99_Investigate_Near_Completes_vs_Graduates_by_Year  ----
-qry99_Investigate_Near_Completes_vs_Graduates_by_Year <- 
+qry99_Investigate_Near_Completes_vs_Graduates_by_Year <-
   "select COSC_GRAD_STATUS_LGDS_CD_Group, [C_Outc17],[C_Outc18],[C_Outc19],[C_Outc20],[C_Outc21],[C_Outc22],[C_Outc23]
 FROM
 (
@@ -730,8 +729,8 @@ PIVOT (
 ) AS PT;"
 
 # ---- qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad ----
-qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad <- 
-"select PSSM_Credential,PSSM_Credential_Name,Grad_Status_Factoring_in_STP, [C_Outc17],[C_Outc18],[C_Outc19],[C_Outc20],[C_Outc21],[C_Outc22],[C_Outc23]
+qry99_GradStatus_Factoring_in_STP_byCred_by_Year_Age_At_Grad <-
+  "select PSSM_Credential,PSSM_Credential_Name,Grad_Status_Factoring_in_STP, [C_Outc17],[C_Outc18],[C_Outc19],[C_Outc20],[C_Outc21],[C_Outc22],[C_Outc23]
 FROM(
 SELECT T_DACSO_DATA_Part_1_TempSelection.PSSM_Credential, 
 T_DACSO_DATA_Part_1_TempSelection.PSSM_Credential_Name, 
@@ -753,7 +752,7 @@ PIVOT (
 ) AS PT;"
 
 # ---- qry_details_of_STP_Credential_Matching  ----
-qry_details_of_STP_Credential_Matching <- 
+qry_details_of_STP_Credential_Matching <-
   "SELECT T_DACSO_DATA_Part_1_TempSelection.coci_SUBM_CD, 
 T_DACSO_DATA_Part_1_TempSelection.COSC_GRAD_STATUS_LGDS_CD_Group, 
 T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_in_STP, Count(*) AS Expr1
@@ -765,7 +764,7 @@ T_DACSO_DATA_Part_1_TempSelection.COSC_GRAD_STATUS_LGDS_CD_Group,
 T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_in_STP;"
 
 # ---- qry99_Near_completes_total_by_CIP4  ----
-qry99_Near_completes_total_by_CIP4 <-"
+qry99_Near_completes_total_by_CIP4 <- "
 SELECT     AgeGroupLookup.Age_Group, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, T_DACSO_DATA_Part_1.LCIP4_CRED, 
                          T_DACSO_DATA_Part_1.LCP4_CD, T_DACSO_DATA_Part_1.LCP4_CIP_4DIGITS_NAME, COUNT(*) AS Count
 INTO NearCompleters_CIP4
@@ -802,7 +801,7 @@ GROUP  BY nearcompleters_cip4.age_group,
 
 # ---- qry99_Near_completes_total_with_STP_Credential_ByCIP4 ----
 qry99_Near_completes_total_with_STP_Credential_ByCIP4 <-
-"SELECT     AgeGroupLookup.age_group, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, COUNT(*) AS Count, 
+  "SELECT     AgeGroupLookup.age_group, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, COUNT(*) AS Count, 
                       T_DACSO_DATA_Part_1_TempSelection.Has_STP_Credential, lcip4_cred,
       lcp4_cd,
      lcp4_cip_4digits_name
@@ -844,7 +843,7 @@ nearcompleters_cip4_with_stp_credential.has_stp_credential;"
 
 # ---- qry99_Completers_agg_factoring_in_STP_Credential_by_CIP4 ----
 qry99_Completers_agg_factoring_in_STP_Credential_by_CIP4 <-
-"SELECT agegrouplookup.age_group,
+  "SELECT agegrouplookup.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
        Count(*) AS Expr1,
        t_dacso_data_part_1.lcip4_cred,
@@ -894,7 +893,7 @@ GROUP  BY completersfactoringinstp_cip4.age_group,
 
 # ---- qry99_Completers_agg_by_gender ----
 qry99_Completers_agg_by_gender <-
-"SELECT     T_DACSO_DATA_Part_1.tpid_lgnd_cd, agegrouplookup.age_group, 
+  "SELECT     T_DACSO_DATA_Part_1.tpid_lgnd_cd, agegrouplookup.age_group, 
 T_DACSO_DATA_Part_1.prgm_credential_awarded_name, COUNT(*)
 AS Count
 INTO Completers_agg_by_gender
@@ -946,7 +945,7 @@ agegrouplookup.age_group,
 T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name"
 
 # ---- qry99_Near_completes_total_byGender ----
-qry99_Near_completes_total_byGender_year <-"
+qry99_Near_completes_total_byGender_year <- "
 SELECT t_dacso_data_part_1.coci_subm_cd, 
   t_dacso_data_part_1.tpid_lgnd_cd,
        agegrouplookup.age_group,
@@ -972,7 +971,7 @@ ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
           t_dacso_data_part_1.prgm_credential_awarded_name;"
 
 # ---- qry99_Near_completes_total_with_STP_Credential_by_Gender ----
-qry99_Near_completes_total_with_STP_Credential_by_Gender_year <-"
+qry99_Near_completes_total_with_STP_Credential_by_Gender_year <- "
 SELECT t_dacso_data_part_1.tpid_lgnd_cd,
 t_dacso_data_part_1.coci_subm_cd,
        agegrouplookup.age_group,
@@ -1005,7 +1004,7 @@ ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
 
 # END HISTORICAL ----
 
-# ---- qry99_Completers_agg_byCIP4---- 
+# ---- qry99_Completers_agg_byCIP4----
 qry99_Completers_agg_byCIP4 <- "
 SELECT AgeGroupLookup.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
@@ -1034,7 +1033,7 @@ ORDER  BY AgeGroupLookup.age_group,
 
 
 # ---- qry_Make_Completers_CIP4_CombinedCred ----
-qry_Make_Completers_CIP4_CombinedCred <- 
+qry_Make_Completers_CIP4_CombinedCred <-
   "SELECT completerscip4.age_group,
         combine_creds.combined_cred_name,
         completerscip4.lcip4_cred_cleaned,
@@ -1053,7 +1052,7 @@ GROUP  BY completerscip4.age_group,
         completerscip4.lcp4_cip_4digits_name;"
 
 # ---- qry_NearCompletersByCIP4CombinedCred ----
-qry_NearCompletersByCIP4CombinedCred <- 
+qry_NearCompletersByCIP4CombinedCred <-
   "SELECT NearCompleters_CIP4_CombinedCred.age_group, 
 NearCompleters_CIP4_CombinedCred.Combined_Cred_Name, 
 NearCompleters_CIP4_CombinedCred.LCIP4_CRED, 
@@ -1069,7 +1068,7 @@ NearCompleters_CIP4_CombinedCred.LCP4_CD, NearCompleters_CIP4_CombinedCred.LCP4_
 
 
 # ---- qry99_Near_completes_total_by_Gender ----
-qry99_Near_completes_total_byGender <-"
+qry99_Near_completes_total_byGender <- "
 SELECT t_dacso_data_part_1.tpid_lgnd_cd,
        agegrouplookup.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
@@ -1095,7 +1094,7 @@ ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
           t_dacso_data_part_1.prgm_credential_awarded_name;"
 
 # ---- qry99_Near_completes_total_with_STP_Credential_by_Gender ----
-qry99_Near_completes_total_with_STP_Credential_by_Gender <-"
+qry99_Near_completes_total_with_STP_Credential_by_Gender <- "
 SELECT t_dacso_data_part_1.tpid_lgnd_cd,
        agegrouplookup.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
@@ -1126,7 +1125,7 @@ ORDER  BY t_dacso_data_part_1.tpid_lgnd_cd DESC,
           t_dacso_data_part_1.prgm_credential_awarded_name;"
 
 # ---- qry99_Near_completes_factoring_in_STP_total ----
-qry99_Near_completes_factoring_in_STP_total <-"
+qry99_Near_completes_factoring_in_STP_total <- "
 SELECT agegrouplookup.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
        Count(*) AS Count
@@ -1147,7 +1146,7 @@ ORDER  BY agegrouplookup.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name;"
 
 # ---- qry99_Completers_agg_factoring_in_STP_Credential ----
-qry99_Completers_agg_factoring_in_STP_Credential <-"
+qry99_Completers_agg_factoring_in_STP_Credential <- "
 SELECT agegrouplookup_1.age_group,
        t_dacso_data_part_1.prgm_credential_awarded_name,
        Count(*) AS Expr1
@@ -1170,7 +1169,6 @@ GROUP  BY agegrouplookup_1.age_group,
           agegrouplookup_1.age_group
 ORDER  BY agegrouplookup_1.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name;"
-
 
 
 # ---- qry99_Near_completes_total_by_CIP4_TTRAIN ----
@@ -1240,8 +1238,8 @@ ORDER  BY agegrouplookup.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name"
 
 # ---- qry99_Near_completes_program_dist_count ----
-qry99_Near_completes_program_dist_count <- 
-"SELECT t_pssm_projection_cred_grp.pssm_credential,
+qry99_Near_completes_program_dist_count <-
+  "SELECT t_pssm_projection_cred_grp.pssm_credential,
        cast(near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group as nvarchar(50)) + ' - ' +
        t_pssm_projection_cred_grp.pssm_credential AS PSSM_CRED,
        near_completes_total_by_cip4_ttrain.age_group,
@@ -1346,7 +1344,7 @@ ORDER  BY agegrouplookup.age_group,
           t_dacso_data_part_1.prgm_credential_awarded_name"
 
 # ---- qry99_Near_completes_program_dist_count ----
-qry99_Near_completes_program_dist_count_history <- 
+qry99_Near_completes_program_dist_count_history <-
   "SELECT t_pssm_projection_cred_grp.pssm_credential,
        cast(near_completes_total_by_cip4_ttrain.cosc_grad_status_lgds_cd_group as nvarchar(50)) + ' - ' +
        t_pssm_projection_cred_grp.pssm_credential AS PSSM_CRED,
@@ -1391,12 +1389,11 @@ GROUP  BY near_completes_total_by_cip4_ttrain.age_group,
 
 # ----  NOT USED ----
 # ---- qry_Number_of_NearCompleters_With_STP_Credential_by_Year ----
-qry_Number_of_NearCompleters_With_STP_Credential_by_Year <- 
-"SELECT T_DACSO_NearCompleters.coci_SUBM_CD, Count(*) AS Expr1
+qry_Number_of_NearCompleters_With_STP_Credential_by_Year <-
+  "SELECT T_DACSO_NearCompleters.coci_SUBM_CD, Count(*) AS Expr1
 FROM T_DACSO_NearCompleters
 WHERE (((T_DACSO_NearCompleters.STP_Credential_Awarded_Before_DACSO)='Yes')) OR (((T_DACSO_NearCompleters.STP_Credential_Awarded_After_DACSO)='Yes'))
 GROUP BY T_DACSO_NearCompleters.coci_SUBM_CD;"
-
 
 
 # ---- qry_make_tmp_table_GradStat_step1 ----
@@ -1407,8 +1404,8 @@ FROM INFOWARE_CO_COHORT_SAMPLE_2016 INNER JOIN INFOWARE_SURV_COHORT_COLLECTION_I
 WHERE (((INFOWARE_SURV_COHORT_COLLECTION_INFO.COCI_SUBM_CD)='C_Outc16'));"
 
 # ---- qry99_GradStatus_byCred_by_Year_Age_At_Survey ----
-qry99_GradStatus_byCred_by_Year_Age_At_Survey <- 
-"TRANSFORM Count(*) AS Expr1
+qry99_GradStatus_byCred_by_Year_Age_At_Survey <-
+  "TRANSFORM Count(*) AS Expr1
 SELECT T_DACSO_DATA_Part_1_TempSelection.PSSM_Credential, T_DACSO_DATA_Part_1_TempSelection.PSSM_Credential_Name, T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_in_STP
 FROM (tbl_Age INNER JOIN agegrouplookup ON tbl_Age.Age_Group = agegrouplookup.Age_Group) INNER JOIN (T_DACSO_DATA_Part_1_TempSelection INNER JOIN tmp_tbl_Age ON T_DACSO_DATA_Part_1_TempSelection.coci_STQU_ID = tmp_tbl_Age.COSC_STQU_ID) ON tbl_Age.Age = tmp_tbl_Age.COCI_AGE_AT_SURVEY
 WHERE (((T_DACSO_DATA_Part_1_TempSelection.Grad_Status_Factoring_in_STP) Is Not Null) AND ((tmp_tbl_Age.COCI_AGE_AT_SURVEY)>=17 And (tmp_tbl_Age.COCI_AGE_AT_SURVEY)<=64))
@@ -1418,8 +1415,8 @@ PIVOT T_DACSO_DATA_Part_1_TempSelection.coci_SUBM_CD;"
 
 
 # ---- qry99_Graduates_for_QI ----
-qry99_Graduates_for_QI <- 
-"SELECT T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD, T_DACSO_DATA_Part_1.PSSM_Credential, T_DACSO_DATA_Part_1.coci_SUBM_CD, Count(*) AS Expr1
+qry99_Graduates_for_QI <-
+  "SELECT T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD, T_DACSO_DATA_Part_1.PSSM_Credential, T_DACSO_DATA_Part_1.coci_SUBM_CD, Count(*) AS Expr1
 FROM T_DACSO_DATA_Part_1
 WHERE (((T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)>=17 And (T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)<=64))
 GROUP BY T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD, T_DACSO_DATA_Part_1.PSSM_Credential, T_DACSO_DATA_Part_1.coci_SUBM_CD
@@ -1428,8 +1425,8 @@ ORDER BY T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD, T_DACSO_DATA_Part_1.PSSM_
 
 
 # ---- qry99_Near_Completes_vs_Graduates_by_Year ----
-qry99_Near_Completes_vs_Graduates_by_Year <- 
-"TRANSFORM Count(*) AS Expr1
+qry99_Near_Completes_vs_Graduates_by_Year <-
+  "TRANSFORM Count(*) AS Expr1
 SELECT agegrouplookup.Age_Group_Label, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded, T_DACSO_DATA_Part_1.PRGM_Credential_Awarded_Name, T_DACSO_DATA_Part_1.coci_SUBM_CD
 FROM (T_DACSO_DATA_Part_1 INNER JOIN tbl_Age ON T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY = tbl_Age.Age) INNER JOIN agegrouplookup ON tbl_Age.Age_Group = agegrouplookup.Age_Group
 WHERE (((T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc09' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc08' Or (T_DACSO_DATA_Part_1.coci_SUBM_CD)='C_Outc10') 
@@ -1438,8 +1435,8 @@ GROUP BY agegrouplookup.Age_Group_Label, T_DACSO_DATA_Part_1.PRGM_Credential_Awa
 PIVOT T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD_Group;"
 
 # ---- qry99_Near_Completes_vs_Graduates_by_Year_by_Age ----
-qry99_Near_Completes_vs_Graduates_by_Year_by_Age <- 
-"TRANSFORM Count(*) AS Expr1
+qry99_Near_Completes_vs_Graduates_by_Year_by_Age <-
+  "TRANSFORM Count(*) AS Expr1
 SELECT agegrouplookup.Age_Group_Label, T_DACSO_DATA_Part_1.PSSM_Credential, T_DACSO_DATA_Part_1.PSSM_Credential_Name, T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD
 FROM T_DACSO_DATA_Part_1 INNER JOIN (agegrouplookup INNER JOIN tbl_Age ON agegrouplookup.Age_Group = tbl_Age.Age_Group) ON T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY = tbl_Age.Age
 WHERE (((T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD) Is Not Null) AND ((T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)>=17 And (T_DACSO_DATA_Part_1.COCI_AGE_AT_SURVEY)<=64))
@@ -1448,10 +1445,8 @@ ORDER BY agegrouplookup.Age_Group
 PIVOT T_DACSO_DATA_Part_1.coci_SUBM_CD;"
 
 # ---- qry9999_DACSO_Q006_Occ_by_completion ----
-qry9999_DACSO_Q006_Occ_by_completion <- 
-"SELECT 'DACSO' AS Survey, T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD, tbl_NOC_Skill_Level_Aged_17_34.MINOR_GROUP_CODE, T_Year_Survey_Year.Year_Code, Count(T_DACSO_DATA_Part_1.coci_STQU_ID) AS [Count]
+qry9999_DACSO_Q006_Occ_by_completion <-
+  "SELECT 'DACSO' AS Survey, T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD, tbl_NOC_Skill_Level_Aged_17_34.MINOR_GROUP_CODE, T_Year_Survey_Year.Year_Code, Count(T_DACSO_DATA_Part_1.coci_STQU_ID) AS [Count]
 FROM tbl_NOC_Skill_Level_Aged_17_34 INNER JOIN (T_DACSO_DATA_Part_1 INNER JOIN T_Year_Survey_Year ON T_DACSO_DATA_Part_1.coci_SUBM_CD=T_Year_Survey_Year.SUBM_CD) ON tbl_NOC_Skill_Level_Aged_17_34.UNIT_GROUP_CODE=T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD
 WHERE (((T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD) Is Not Null And (T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD)<>'XXXX') AND ((T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD)='1' Or (T_DACSO_DATA_Part_1.COSC_GRAD_STATUS_LGDS_CD)='2') AND ((T_DACSO_DATA_Part_1.Weight)<>0 And (T_DACSO_DATA_Part_1.Weight) Is Not Null))
 GROUP BY 'DACSO', T_DACSO_DATA_Part_1.coci_OCCUPATION_LNOC_CD, tbl_NOC_Skill_Level_Aged_17_34.MINOR_GROUP_CODE, T_Year_Survey_Year.Year_Code;"
-
-

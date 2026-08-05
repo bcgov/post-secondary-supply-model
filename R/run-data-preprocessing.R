@@ -30,13 +30,13 @@
 #   01b  Credential preprocessing         -- loads & cleans STP credential data
 #   01c  Credential analysis              -- creates credential_non_dup, ranking,
 #                                            gender/age cleaning, deduplication
-#   01d  Enrolment analysis               -- creates enrolment analysis tables
 #   02a  APPSO program matching           -- matches APPSO programs to CIP codes
 #   02a  BGS program matching             -- matches BGS programs to CIP codes
 #   02a  DACSO program matching           -- matches DACSO programs to CIP codes
 #   02a  Update credential non dup        -- merges all four CIP sources into
 #                                            credential_non_dup (DACSO > BGS >
 #                                            GRAD > APPSO > STP fallback)
+#   01d  Enrolment analysis               -- creates enrolment analysis tables
 #   01e  STP distributions                -- creates credential & enrolment
 #                                            distribution tables for projections
 #
@@ -144,11 +144,9 @@ for (i in seq_along(preprocessing_files)) {
       stop(paste("Pipeline halted at", script_name))
     }
   )
-  gc()
 }
 
 # ---- Summary ----
-
 pipeline_end <- Sys.time()
 pipeline_elapsed <- round(
   difftime(pipeline_end, pipeline_start, units = "mins"),

@@ -536,4 +536,5 @@ log_info("Disconnected from SQL Server")
 
 log_info("==== 01d-enrolment-analysis.R COMPLETE ====")
 
+
 # rm(list = ls())

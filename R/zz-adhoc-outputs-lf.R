@@ -1,4 +1,4 @@
-## this is an ad-hoc file, meant only to fix a couple of expr1s for 5 digit NOCs that were incorrectly coded in a previous iteration 
+## this is an ad-hoc file, meant only to fix a couple of expr1s for 5 digit NOCs that were incorrectly coded in a previous iteration
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -8,14 +8,16 @@ my_schema <- config::get("myschema")
 
 # ---- Connection to decimal ----
 db_config <- config::get("decimal")
-decimal_con <- dbConnect(odbc::odbc(),
-                         Driver = db_config$driver,
-                         Server = db_config$server,
-                         Database = db_config$database,
-                         Trusted_Connection = "True")
+decimal_con <- dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "True"
+)
 
 
-# model 
+# model
 tmp_model <- tibble(dbGetQuery(
   decimal_con,
   "SELECT *
@@ -23,15 +25,18 @@ tmp_model <- tibble(dbGetQuery(
   "
 ))
 
-tmp_model_fixed <- tmp_model %>% 
+tmp_model_fixed <- tmp_model %>%
   mutate(
-    Expr1 = 
-    case_when(
+    Expr1 = case_when(
       NOC_Level == 5 ~ paste0(
-        Age_Group_Rollup_Label, '-', NOC, '-', Current_Region_PSSM_Code_Rollup
+        Age_Group_Rollup_Label,
+        '-',
+        NOC,
+        '-',
+        Current_Region_PSSM_Code_Rollup
       ),
       TRUE ~ Expr1
-      )
+    )
   )
 
 # check
@@ -43,9 +48,13 @@ tmp_model_fixed %>% count(Expr1) %>% arrange(desc(n))
 tmp_model_fixed %>% count(Expr1) %>% count()
 
 # save
-dbWriteTable(decimal_con,  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_model"'), tmp_model_fixed)
+dbWriteTable(
+  decimal_con,
+  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_model"'),
+  tmp_model_fixed
+)
 
-# QI 
+# QI
 tmp_qi <- tibble(dbGetQuery(
   decimal_con,
   "SELECT *
@@ -53,15 +62,18 @@ tmp_qi <- tibble(dbGetQuery(
   "
 ))
 
-tmp_qi_fixed <- tmp_qi %>% 
+tmp_qi_fixed <- tmp_qi %>%
   mutate(
-    Expr1 = 
-      case_when(
-        NOC_Level == 5 ~ paste0(
-          Age_Group_Rollup_Label, '-', NOC, '-', Current_Region_PSSM_Code_Rollup
-        ),
-        TRUE ~ Expr1
-      )
+    Expr1 = case_when(
+      NOC_Level == 5 ~ paste0(
+        Age_Group_Rollup_Label,
+        '-',
+        NOC,
+        '-',
+        Current_Region_PSSM_Code_Rollup
+      ),
+      TRUE ~ Expr1
+    )
   )
 
 # check
@@ -73,7 +85,11 @@ tmp_qi_fixed %>% count(Expr1) %>% arrange(desc(n))
 tmp_qi_fixed %>% count(Expr1) %>% count()
 
 # save
-dbWriteTable(decimal_con,  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_qi"'), tmp_qi_fixed)
+dbWriteTable(
+  decimal_con,
+  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_qi"'),
+  tmp_qi_fixed
+)
 
 
 # tmp_tbl_Model_Inc_Private_Inst
@@ -84,15 +100,18 @@ tmp_tbl_Model_Inc_Private_Inst <- tibble(dbGetQuery(
   "
 ))
 
-tmp_tbl_Model_Inc_Private_Inst_fixed <- tmp_tbl_Model_Inc_Private_Inst %>% 
+tmp_tbl_Model_Inc_Private_Inst_fixed <- tmp_tbl_Model_Inc_Private_Inst %>%
   mutate(
-    Expr1 = 
-      case_when(
-        NOC_Level == 5 ~ paste0(
-          Age_Group_Rollup_Label, '-', NOC, '-', Current_Region_PSSM_Code_Rollup
-        ),
-        TRUE ~ Expr1
-      )
+    Expr1 = case_when(
+      NOC_Level == 5 ~ paste0(
+        Age_Group_Rollup_Label,
+        '-',
+        NOC,
+        '-',
+        Current_Region_PSSM_Code_Rollup
+      ),
+      TRUE ~ Expr1
+    )
   )
 
 # check
@@ -104,8 +123,11 @@ tmp_tbl_Model_Inc_Private_Inst_fixed %>% count(Expr1) %>% arrange(desc(n))
 tmp_tbl_Model_Inc_Private_Inst_fixed %>% count(Expr1) %>% count()
 
 # save
-dbWriteTable(decimal_con,  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_Model_Inc_Private_Inst"'), tmp_tbl_Model_Inc_Private_Inst_fixed)
-
+dbWriteTable(
+  decimal_con,
+  name = SQL('"IDIR\\LFREDRIC"."tmp_tbl_Model_Inc_Private_Inst"'),
+  tmp_tbl_Model_Inc_Private_Inst_fixed
+)
 
 
 ## create internal table for Brett
@@ -152,4 +174,7 @@ ORDER BY  2, 4, 6
 "
 
 internal <- dbGetQuery(decimal_con, qry)
-internal %>% write_csv(glue::glue("{lan}/development/work/adhoc-outputs/internal-occs-20240926.csv"))
+internal %>%
+  write_csv(glue::glue(
+    "{lan}/development/work/adhoc-outputs/internal-occs-20240926.csv"
+  ))

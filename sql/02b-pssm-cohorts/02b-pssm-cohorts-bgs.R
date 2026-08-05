@@ -1,5 +1,3 @@
-
-
 BGS_Q001b_INST_Recode <- "
 UPDATE t_bgs_data_final
 SET    t_bgs_data_final.inst = t_bgs_inst_recode.inst_recode
@@ -31,7 +29,7 @@ SET         t_bgs_data_final.current_region_pssm_code =  bgs_current_region_data
 FROM        t_bgs_data_final
 INNER JOIN  bgs_current_region_data
     ON      t_bgs_data_final.stqu_id = bgs_current_region_data.stqu_id;"
-  
+
 BGS_Q003c_Derived_And_Weights <- "
 UPDATE t_bgs_data_final
 SET    t_bgs_data_final.BGS_New_Labour_Supply =  

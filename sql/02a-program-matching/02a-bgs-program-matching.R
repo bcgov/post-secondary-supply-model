@@ -68,7 +68,7 @@ qry_Add_PSSM_CREDENTIAL <- "
 ALTER TABLE T_BGS_Data_Final_for_OutcomesMatching
 ADD PSSM_CREDENTIAL VARCHAR(255) NOT NULL DEFAULT 'BACH'"
 # qry_Update_PSSM_CREDENTIAL <- "
-# UPDATE T_BGS_Data_Final_for_OutcomesMatching 
+# UPDATE T_BGS_Data_Final_for_OutcomesMatching
 # SET    T_BGS_Data_Final_for_OutcomesMatching.PSSM_CREDENTIAL = 'BACH'"
 
 ## qry_Check_BGS_CIP_Data ----
@@ -183,7 +183,7 @@ WHERE Credential_Non_Dup_STP_CIP4_Cleaning.STP_CIP_CODE_4_NAME is NULL"
 
 ## qry_Update_Credential_with_STP_CIP_BGS ----
 ## Update STP columns in Credential_Non_Dup and filter on BGS credentials
-qry_Update_Credential_with_STP_CIP_BGS <-"
+qry_Update_Credential_with_STP_CIP_BGS <- "
 Select Credential_Non_Dup.ID,
        Credential_Non_Dup.PSI_CODE,
        Credential_Non_Dup.PSI_PROGRAM_CODE,
@@ -203,7 +203,7 @@ WHERE  Credential_Non_Dup.OUTCOMES_CRED = 'BGS'"
 
 ## qry_Update_Credential_with_STP_CIP_Grad ----
 ## Update STP columns in Credential_Non_Dup and filter on Grad credentials
-qry_Update_Credential_with_STP_CIP_GRAD <-"
+qry_Update_Credential_with_STP_CIP_GRAD <- "
 Select Credential_Non_Dup.ID,
        Credential_Non_Dup.PSI_CODE,
        Credential_Non_Dup.PSI_PROGRAM_CODE,
@@ -301,7 +301,6 @@ ADD
 	Match_All_3_CIP2_Flag [varchar](50)NULL,
 	Final_Consider_A_Match [varchar](50) NULL,
 	Final_Probable_Match [varchar](50) NULL"
-
 
 
 ## qry_add_empty_final_CIP ----
@@ -777,7 +776,7 @@ HAVING Credential_Non_Dup_BGS_IDs.USE_BGS_CIP='No because no match'"
 
 ## qry_update_Credential_Non_DUP_BGS_IDs_unmatched ----
 ## New: update Credential_Non_Dup_BGS_IDs so unmatched programs use linked BGS CIP instead
-qry_update_Credential_Non_DUP_BGS_IDs_unmatched <-  "
+qry_update_Credential_Non_DUP_BGS_IDs_unmatched <- "
 UPDATE Credential_Non_Dup_BGS_IDs
 SET    Credential_Non_Dup_BGS_IDs.FINAL_CIP_CODE_4 = Credential_Unmatched_CIPS_to_update.FINAL_CIP_CODE_4, 
        Credential_Non_Dup_BGS_IDs.FINAL_CIP_CODE_4_NAME = NULL,
@@ -1011,7 +1010,7 @@ HAVING T_BGS_Data_Final_for_OutcomesMatching.USE_STP_CIP='No because no match'"
 
 ## qry_update_T_BGS_Data_unmatched ----
 ## New: update T_BGS_Data_Final_for_OutcomesMatching so unmatched programs use linked STP CIP instead
-qry_update_T_BGS_Data_unmatched <-  "
+qry_update_T_BGS_Data_unmatched <- "
 UPDATE T_BGS_Data_Final_for_OutcomesMatching
 SET    T_BGS_Data_Final_for_OutcomesMatching.FINAL_CIP_CODE_4 = T_BGS_Data_Unmatched_CIPS_to_update.FINAL_CIP_CODE_4, 
        T_BGS_Data_Final_for_OutcomesMatching.FINAL_CIP_CODE_4_NAME = NULL,
@@ -1044,6 +1043,3 @@ ON     FINAL_CIP_CODE_2 = LCP2_CD
 WHERE  FINAL_CIP_CODE_2_NAME is NULL"
 
 # end ----
-
-
-

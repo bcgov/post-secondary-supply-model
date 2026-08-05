@@ -1,4 +1,4 @@
-# ---- qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs ---- 
+# ---- qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs ----
 qry20a_4Credential_By_Year_Gender_AgeGroup_Domestic_Exclude_RU_DACSO_Exclude_CIPs <- "SELECT        tblCredential_HighestRank.psi_gender_cleaned, AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, 
                          tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY + AgeGroupLookup.AgeGroup + tblCredential_HighestRank.psi_gender_cleaned AS Expr1, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, COUNT(*) 
                          AS Count
@@ -18,7 +18,7 @@ GROUP BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEG
 HAVING        (tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY <> 'APPRENTICESHIP')
 ORDER BY AgeGroupLookup.AgeGroup, tblCredential_HighestRank.PSI_CREDENTIAL_CATEGORY, tblCredential_HighestRank.PSI_AWARD_SCHOOL_YEAR_DELAYED, tblCredential_HighestRank.psi_gender_cleaned DESC;"
 
-# ---- qry09c_MinEnrolment ---- 
+# ---- qry09c_MinEnrolment ----
 qry09c_MinEnrolment <- "
 SELECT     MinEnrolment.PSI_GENDER, MinEnrolment.PSI_GENDER + AgeGroupLookup.AgeGroup As Groups, MinEnrolment.PSI_SCHOOL_YEAR, COUNT(*) AS Expr1
 INTO    qry09c_MinEnrolment
@@ -28,4 +28,3 @@ ON  MinEnrolment.AGE_GROUP_ENROL_DATE = AgeGroupLookup.AgeIndex
 GROUP BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR
 HAVING      (MinEnrolment.PSI_SCHOOL_YEAR <> '2023/2024')
 ORDER BY MinEnrolment.PSI_GENDER, AgeGroupLookup.AgeGroup, MinEnrolment.PSI_SCHOOL_YEAR;"
-
