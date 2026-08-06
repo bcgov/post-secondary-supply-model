@@ -820,9 +820,15 @@ transitions_2 <- changed_programs |>
 #| label: credential-impact-summary
 #| tbl-cap: "Credential records affected at each CIP digit level"
 
+# Guard: an empty code vector would produce SQL `IN ()`, which is invalid.
+# Collapse to the `NULL` literal instead, which never matches but stays valid.
+sql_in <- function(x) {
+  if (length(x) == 0) "NULL" else paste0("'", x, collapse = ",", "'")
+}
+
 # Identify the changed 4-digit CIP2016 codes
 changed_cip4 <- transitions_4$CIP4_2016
-cip4_in <- paste0("'", changed_cip4, collapse = ",", "'")
+cip4_in <- sql_in(changed_cip4)
 
 # 4-digit level: FINAL_CIP_CODE_4 (the resolved code that feeds LCIP4_CRED)
 cred_4d <- dbGetQuery(con, glue::glue("
@@ -833,7 +839,7 @@ cred_4d <- dbGetQuery(con, glue::glue("
 
 # 2-digit level: FINAL_CIP_CODE_2 (feeds LCIP2_CRED)
 changed_cip2 <- transitions_2$CIP2_2016
-cip2_in <- paste0("'", changed_cip2, collapse = ",", "'")
+cip2_in <- sql_in(changed_cip2)
 
 cred_2d <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
@@ -842,12 +848,12 @@ cred_2d <- dbGetQuery(con, glue::glue("
 "))
 
 # Exact 6-digit level: PSI_CREDENTIAL_CIP (raw institution-reported code)
-changed_cip6 <- unique(changed_programs$LCIP_CD_CIP2016)
+changed_cip6 <- unique(na.omit(changed_programs$LCIP_CD_CIP2016))
 changed_cip6_period <- paste0(
   substr(changed_cip6, 1, 2), ".",
   substr(changed_cip6, 3, 6)
 )
-cip6_in <- paste0("'", changed_cip6_period, collapse = ",", "'")
+cip6_in <- sql_in(changed_cip6_period)
 
 cred_6d <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
