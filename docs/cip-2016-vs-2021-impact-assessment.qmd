@@ -498,6 +498,8 @@ The 51 → 01 veterinary shift (15 programs) is the single most impactful reclas
 
 BCIT is the most affected institution (20 of 59 programs), consistent with its heavy trades and technology program mix. The reclassified programs are overwhelmingly Applied (97%) and Certificate-level (71%) — vocational credentials in fields like veterinary technology, culinary arts, and energy systems.
 
+#### Changed programs by institution
+
 ```{r}
 #| label: programs-by-institution
 #| tbl-cap: "Changed programs by institution"
@@ -509,6 +511,9 @@ if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
     count(PRGM_INST_CD, sort = TRUE, name = "Programs")
 }
 ```
+
+
+#### Changed programs by credential type
 
 ```{r}
 #| label: programs-by-credential
@@ -674,10 +679,10 @@ data.frame(CIP4 = general_cip4, stringsAsFactors = FALSE) |>
   select(CIP4, `2016 Name`, `2021 Name`, `In 2021`, `Title Changed`)
 ```
 
-**Finding:** Most general CIP4 codes survive in 2021. The notable exception is `1901` — the correspondence table shows `19.0000` was renumbered to `19.1001` (VC1 virtual change), which means the 4-digit code `1901` may have been replaced. Any removal here would cause the `XX.00` → `XX.01` remapping to fail silently for series 19 (Work and family studies).
+**Finding:** Most general CIP4 codes survive in 2021. The notable exception is `1901` — the correspondence table shows `19.0000` was renumbered to `19.1001` (VC1 virtual change), which means the 4-digit code `1901` may have been replaced. Any removal here would cause the `XX.00` → `XX.01` remapping to fail silently for series 19 (Work and family studies). `1901` exists in 2021, so it is not a problem. And if `19.0000` was renumbered to `19.1001` (VC1 virtual change), there is no `1900` needs to be remapped.
 
-::: {.callout-warning}
-**Action required:** Verify whether `1901` still exists in CIP 2021 and, if not, update the remapping target to the new code.
+::: {.callout-tip}
+**Verdict: No changes needed.** All general program remapping remains valid.
 :::
 
 ### CIP cluster exclusions (09, 10)
@@ -767,7 +772,7 @@ data.frame(CIP4 = override_cip4, stringsAsFactors = FALSE) |>
 |---|---|---|---|---|
 | Developmental / skills | 01a, 01b | 21,32,33,34,35,36,37,53,89 | No | Safe — no changes |
 | General program prefixes | 02a (3 scripts) | 11–55 (13 prefixes) | No | Safe — no changes |
-| General CIP4 codes | 02a-bgs | 1101–5501 (13 codes) | `1901` may be removed | **Verify** |
+| General CIP4 codes | 02a-bgs | 1101–5501 (13 codes) | `1901` still in 2021 | Safe — no changes |
 | Cluster exclusions | 01e, load-proj | 09, 10 | No | Safe — no changes |
 | CIP code 99 | 02a-update | 99 | No | Safe — no changes |
 | BGS overrides | 02a-bgs | 2701, 2703, 1405, 1407 | `1405` scope changed | **Review** |
@@ -779,7 +784,7 @@ Two items require manual review before migration; the remaining four hardcoded s
 The PROGRAMS table shows that only 59 of 6,591 program definitions (0.9%) reclassified. But the downstream impact is substantially larger because the pipeline resolves CIP codes to 4-digit granularity (`FINAL_CIP_CODE_4`), which feeds into the `LCIP4_CRED` composite keys used throughout Modules 02b–07. This section quantifies how many actual credential records are affected, using the `Credential_Non_Dup_r` table from the PSSM2023 database.
 
 ::: {.callout-note}
-The credential counts below come from `[PSSM2023].[IDIR\JDUAN].[Credential_Non_Dup_r]` — a cross-database query on the same SQL Server instance. This is a prior-cycle pipeline output and record counts may differ from the current cycle, but the proportions are representative.
+The credential counts below come from `[PSSM2023].[IDIR\NAME].[Credential_Non_Dup_r]` — a cross-database query on the same SQL Server instance. This is a prior-cycle pipeline output and record counts may differ from the current cycle, but the proportions are representative.
 :::
 
 ### Three perspectives on impact
@@ -789,7 +794,8 @@ The credential counts below come from `[PSSM2023].[IDIR\JDUAN].[Credential_Non_D
 
 changed_programs <- programs |>
   filter(!is.na(.data[[cip2016_col]])) |>
-  filter(.data[[cip2016_col]] != .data[[cip2021_col]])
+  filter(.data[[cip2016_col]] != .data[[cip2021_col]]) |>
+  count(.data[[cip2016_col]], .data[[cip2021_col]], name = "n_programs")
 
 transitions_4 <- changed_programs |>
   mutate(
@@ -805,21 +811,23 @@ transitions_2 <- changed_programs |>
     CIP2_2021 = substr(.data[[cip2021_col]], 1, 2)
   ) |>
   filter(CIP2_2016 != CIP2_2021) |>
-  count(CIP2_2016, CIP2_2021, sort = TRUE, name = "Programs")
+  count(CIP2_2016, CIP2_2021, sort = TRUE, name = "n_programs")
 ```
+
+#### Credential records affected at each CIP digit level
 
 ```{r}
 #| label: credential-impact-summary
 #| tbl-cap: "Credential records affected at each CIP digit level"
 
 # Identify the changed 4-digit CIP2016 codes
-changed_cip4 <- unique(substr(changed_programs$LCIP_CD_CIP2016, 1, 4))
+changed_cip4 <- transitions_4$CIP4_2016
 cip4_in <- paste0("'", changed_cip4, collapse = ",", "'")
 
 # 4-digit level: FINAL_CIP_CODE_4 (the resolved code that feeds LCIP4_CRED)
 cred_4d <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
   WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
 "))
 
@@ -829,7 +837,7 @@ cip2_in <- paste0("'", changed_cip2, collapse = ",", "'")
 
 cred_2d <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
   WHERE FINAL_CIP_CODE_2 IN ({cip2_in})
 "))
 
@@ -843,14 +851,14 @@ cip6_in <- paste0("'", changed_cip6_period, collapse = ",", "'")
 
 cred_6d <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
   WHERE PSI_CREDENTIAL_CIP IN ({cip6_in})
 "))
 
-cred_total <- dbGetQuery(con, "
+cred_total <- dbGetQuery(con, glue::glue("
   SELECT COUNT(*) AS n
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
-")
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+"))
 
 tibble(
   Perspective = c(
@@ -876,7 +884,7 @@ The top two transitions — Business administration and Liberal arts — account
 
 cred_by_cip4 <- dbGetQuery(con, glue::glue("
   SELECT FINAL_CIP_CODE_4, COUNT(*) AS credentials
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
   WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
   GROUP BY FINAL_CIP_CODE_4
   ORDER BY credentials DESC
@@ -898,9 +906,9 @@ transitions_4 |>
   ) |>
   arrange(desc(Credentials)) |>
   mutate(
-    `CIP 2016` = paste0(CIP4_2016, " \u2192 ", `CIP 2021 targets`)
+    `CIP 2016 -> 21` = paste0(CIP4_2016, " \u2192 ", `CIP 2021 targets`)
   ) |>
-  select(`CIP 2016`, Credentials, `% of all records`)
+  select(`CIP 2016 -> 21`, Credentials, `% of all records`)
 ```
 
 ### Affected credentials by category
@@ -913,7 +921,7 @@ The affected records span the full range of credential types, with Diplomas, Bac
 
 dbGetQuery(con, glue::glue("
   SELECT PSI_CREDENTIAL_CATEGORY, COUNT(*) AS Credentials
-  FROM [PSSM2023].[IDIR\\JDUAN].[Credential_Non_Dup_r]
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
   WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
   GROUP BY PSI_CREDENTIAL_CATEGORY
   ORDER BY Credentials DESC
