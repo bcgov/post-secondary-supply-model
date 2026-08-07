@@ -50,101 +50,23 @@ iw_con <- dbConnect(
   PWD = iw_config$pwd
 )
 
-# ## ** NOTE **
-# ## Ideally match on all data but prioritizing the most recent 6 years - see documentation
-# ## Update which BGS_DIST tables to include.
+# # ## ** NOTE **
+# # ## Ideally match on all data but prioritizing the most recent 6 years - see documentation
+# # ## Update which BGS_DIST tables to include.
 
-# ## Run the following to get a list of all tables available
+# # ## Run the following to get a list of all tables available
 # # alltables_Infoware <- dbReadTable(iw_con,"ALL_TABLES")
+
+# # ---- BGS distribution/cohort tables ----
+# # The INFOWARE BGS distribution/cohort tables used to be loaded here
+# # (INFOWARE_BGS_DIST_19_23 / 18_22 / COHORT_INFO -> my_schema).  They are now
+# # copied by 'R/load-cohort-bgs.R' as BGS_DIST_20_24 / 21_25 / COHORT_INFO to
+# # dbo (shareschema), where 02a-bgs-program-matching.R reads them.  This script
+# # only handles the CIP taxonomy lookups and INFOWARE_PROGRAMS below.
 
 # ---- Write initial tables to Decimal ----
 ## Save static versions of the INFOWARE tables and last cycle XWALK to Decimal
 # !! UPDATE THE TABLES AND ROW NUMBERS !! - connection won't write the full datasets to decimal due to size
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_19_23")
-  )
-) {
-  INFOWARE_BGS_DIST_19_23 <- dbReadTable(
-    iw_con,
-    DBI::Id(schema = "INFOWARE", table = "BGS_DIST_19_23")
-  )
-
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_19_23"),
-    INFOWARE_BGS_DIST_19_23[1:80000, ]
-  )
-
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_19_23"),
-    INFOWARE_BGS_DIST_19_23[80001:121074, ],
-    append = TRUE
-  )
-}
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_18_22")
-  )
-) {
-  INFOWARE_BGS_DIST_18_22 <- dbReadTable(
-    iw_con,
-    DBI::SQL("INFOWARE.BGS_DIST_18_22")
-  )
-
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_18_22"),
-    INFOWARE_BGS_DIST_18_22[1:80000, ]
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_DIST_18_22"),
-    INFOWARE_BGS_DIST_18_22[80001:118632, ],
-    append = TRUE
-  )
-}
-
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_COHORT_INFO")
-  )
-) {
-  INFOWARE_BGS_COHORT_INFO <- dbReadTable(
-    iw_con,
-    DBI::SQL("INFOWARE.BGS_COHORT_INFO")
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_COHORT_INFO"),
-    INFOWARE_BGS_COHORT_INFO[1:80000, ]
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_COHORT_INFO"),
-    INFOWARE_BGS_COHORT_INFO[80001:160000, ],
-    append = TRUE
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_COHORT_INFO"),
-    INFOWARE_BGS_COHORT_INFO[160001:240000, ],
-    append = TRUE
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_BGS_COHORT_INFO"),
-    INFOWARE_BGS_COHORT_INFO[240001:290758, ],
-    append = TRUE
-  )
-}
 
 if (
   !dbExistsTable(

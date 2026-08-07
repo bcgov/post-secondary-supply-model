@@ -19,7 +19,7 @@
 # This script does two things:
 #
 # 1) Copies the INFOWARE (Oracle) BGS distribution/cohort tables into SQL
-#    Server (schema = write_schema, database = decimal/PSSM2025) as
+#    Server (schema = shareschema/dbo, database = decimal/PSSM2025) as
 #    INFOWARE_BGS_* tables.  These are the BGS survey records used by
 #    02a-bgs-program-matching.R to assign programs (CIP codes) to BGS
 #    graduates.
@@ -100,15 +100,15 @@ log_info("Connected to INFOWARE (Oracle)")
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 
-# ---- Load INFOWARE BGS tables to Decimal (dbo) ----
+# ---- Load INFOWARE BGS tables to SQL Server (dbo / shareschema) ----
 # Read BGS distribution/cohort tables from the INFOWARE (Oracle) database and write
 # them to SQL Server. Chunked writes because the full datasets are too large for
 # a single dbWriteTable call.
-# BGS_DIST_18_22 / 19_23 / 20_24 and BGS_21_25 = rolling six-year windows of
+# BGS_DIST_20_24 / 21_25 = rolling six-year windows of
 # BGS survey records; BGS_COHORT_INFO = BGS cohort information.  All are used
-# by 02a-bgs-program-matching.R to assign programs (CIP codes) to BGS
-# graduates.  Source names in INFOWARE = table name minus the INFOWARE_
-# prefix (e.g. INFOWARE_BGS_DIST_19_23 <- INFOWARE.BGS_DIST_19_23).
+# by 02a-bgs-program-matching.R (reads them from dbo) to assign programs
+# (CIP codes) to BGS graduates.  Source names in INFOWARE = table name minus
+# the INFOWARE_ prefix (e.g. INFOWARE_BGS_DIST_20_24 <- INFOWARE.BGS_DIST_20_24).
 
 # Load one INFOWARE table into SQL Server in chunks of chunk_size rows.
 # Skips (without overwriting) if the target table already exists.
@@ -162,10 +162,9 @@ load_infoware_table_by_chunk <- function(
 }
 
 # The INFOWARE BGS tables to copy over (first chunk writes the table,
-# subsequent chunks append).
+# subsequent chunks append).  Written to dbo (shareschema) because
+# 02a-bgs-program-matching.R reads them from there.
 bgs_infoware_tables <- c(
-  # "INFOWARE_BGS_DIST_18_22",
-  # "INFOWARE_BGS_DIST_19_23",
   "INFOWARE_BGS_DIST_20_24",
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
