@@ -69,6 +69,17 @@ Note: `data_dictionary_so.csv` currently has no rows for the 2021_2025 BGS file 
 
 All lookups referenced by the loading scripts exist at the same relative path on the new LAN (`development/csv/gh-source/lookups/02/`, `rollover/02/`). One case-only rename: `t_year_survey_year.csv` → `T_Year_Survey_Year.csv` (applied in `load-cohort-dacso.R`). Lookup content/schema verification deferred to a later branch.
 
+## Lookup content updates (2026-08)
+
+- `T_Year_Survey_Year.csv` extended with `C_Outc24`/`C_Outc25` rows for all four surveys: survey years 2024/2025, school years `2022/2023`/`2023/2024` (APPSO/TRD only), projection years `2023/2024`/`2024/2025`.
+- `T_Weights.csv` gained the `2024-2025` model block (groups 27-30): zeros for older cycles, then weighted cycles `C_Outc21→1,2 … C_Outc25→5,0` per survey (BGS keyed by survey year 2021-2025, same weights). Consistent with the hardcoded APPSO weights in `load-cohort-appso.R`.
+
+## Loader hardening (2026-08)
+
+- `write_table_to_db` (all four `load-cohort-*.R`) and the `_raw` write loop in `load-outcomes-data.R` now strip invalid UTF-8 byte sequences from character columns (`iconv` `sub=""`) before writing — previously `odbcDataType()`/`nchar()` failed on e.g. `PROGRAM` and `NOC_5_DIGIT_CODE_AND_NAME`.
+- `load-cohort-bgs.R` copies the INFOWARE BGS tables (`BGS_DIST_20_24`, `BGS_DIST_21_25`, `BGS_COHORT_INFO`) to dbo/shareschema via a chunked loader (`load_infoware_table_by_chunk`, 80k rows, skip-if-exists) — replaced the hardcoded row-count blocks. `02a-bgs-program-matching.R` was updated to read the new cycles from dbo (step 1: all years from 20_24; step 2: `YEAR == 2025` from 21_25, the year 20_24 lacks) and its survey-year→award-school-year flag now covers 2024/2025. The old 18_22/19_23 load blocks were removed from `load-infoware-lookups.R`.
+- All load scripts log to `./R/execution_log.txt` (`futile.logger`) with row counts per read/write.
+
 ## Verdict
 
 No unexpected column-type breaks beyond `STUDID` (BGS) and the two CIP2021 renames. All R-side type coercions remain valid; two BGS references (removed column, renamed column) were fixed in `load-cohort-bgs.R`.

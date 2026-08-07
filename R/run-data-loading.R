@@ -29,8 +29,10 @@
 #   load-stp-cred.R            -- STP credential raw data (TSV -> SQL)
 #   load-infoware-lookups.R    -- INFOWARE CIP taxonomy + outcomes reference tables
 #                                 (Oracle INFOWARE -> SQL, one-time per cycle)
-#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data (CSV from LAN -> SQL)
+#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data (CSV from LAN -> SQL,
+#                                 <name>_raw archive tables, sanitized writes)
 #   load-cohort-bgs.R          -- BGS cohort survey data (LAN CSV -> SQL, *_r tables)
+#                                 + INFOWARE BGS dist/cohort tables (Oracle -> SQL, chunked)
 #   load-cohort-trd.R          -- TRD cohort survey data (LAN CSV -> SQL, *_r tables)
 #   load-cohort-appso.R        -- APPSO cohort survey data (LAN CSV -> SQL, *_r tables)
 #   load-cohort-dacso.R        -- DACSO cohort survey data (LAN CSV -> SQL, *_r tables)
@@ -38,6 +40,8 @@
 # NOTE: the four load-cohort-*.R scripts are mode-agnostic (no regular_run / qi_run /
 # ptib_run flags); they load identical tables on every invocation. The prep-for-*.R
 # runners still invoke them at the start of each model run (overwrite is safe).
+# All load scripts write to the schema configured as shareschema (dbo by default),
+# overwrite existing tables, and log to ./R/execution_log.txt.
 #
 # NEXT STEP:
 #   After this script completes, run run-data-preprocessing.R to process the raw
@@ -80,7 +84,7 @@ my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
 
 log_info(glue::glue(
-  "Schema: {my_schema} | Database: {db_config$database}"
+  "My schema: {my_schema} | Database: {db_config$database} | Load scripts write to: {config::get('shareschema')}"
 ))
 
 # ---- Data loading scripts (in execution order) ----
