@@ -77,7 +77,7 @@ All lookups referenced by the loading scripts exist at the same relative path on
 ## Loader hardening (2026-08)
 
 - `write_table_to_db` (all four `load-cohort-*.R`) and the `_raw` write loop in `load-outcomes-data.R` now strip invalid UTF-8 byte sequences from character columns (`iconv` `sub=""`) before writing — previously `odbcDataType()`/`nchar()` failed on e.g. `PROGRAM` and `NOC_5_DIGIT_CODE_AND_NAME`.
-- `load-cohort-bgs.R` copies the INFOWARE BGS tables (`INFOWARE_BGS_DIST_20_24`, `INFOWARE_BGS_DIST_21_25`, `INFOWARE_BGS_COHORT_INFO`) to dbo/shareschema via a chunked loader (`load_infoware_table_by_chunk`, 80k rows, skip-if-exists) — replaced the hardcoded row-count blocks. `02a-bgs-program-matching.R` was updated to read the new cycles from dbo (step 1: all years from 20_24; step 2: `YEAR == 2025` from 21_25, the year 20_24 lacks) and its survey-year→award-school-year flag now covers 2024/2025. The old 18_22/19_23 load blocks were removed from `load-infoware-lookups.R`.
+- `load-cohort-bgs.R` copies the INFOWARE BGS tables (`BGS_DIST_20_24`, `BGS_DIST_21_25`, `BGS_COHORT_INFO`) to dbo/shareschema via a chunked loader (`load_infoware_table_by_chunk`, 80k rows, skip-if-exists) — replaced the hardcoded row-count blocks. `02a-bgs-program-matching.R` was updated to read the new cycles from dbo (step 1: all years from 20_24; step 2: `YEAR == 2025` from 21_25, the year 20_24 lacks) and its survey-year→award-school-year flag now covers 2024/2025. The old 18_22/19_23 load blocks were removed from `load-infoware-lookups.R`.
 - All load scripts log to `./R/execution_log.txt` (`futile.logger`) with row counts per read/write.
 
 ## Verdict

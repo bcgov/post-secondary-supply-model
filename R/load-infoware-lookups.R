@@ -59,10 +59,10 @@ iw_con <- dbConnect(
 
 # # ---- BGS distribution/cohort tables ----
 # # The INFOWARE BGS distribution/cohort tables used to be loaded here
-# # (INFOWARE_BGS_DIST_19_23 / 18_22 / COHORT_INFO -> my_schema). They are now
-# # copied by 'R/load-cohort-bgs.R' as INFOWARE_BGS_DIST_20_24 / INFOWARE_BGS_DIST_21_25 /
-# # INFOWARE_BGS_COHORT_INFO to dbo (shareschema), where 02a-bgs-program-matching.R reads them.
-# # This script only handles the CIP taxonomy lookups and INFOWARE_PROGRAMS below.
+# # (INFOWARE_BGS_DIST_19_23 / 18_22 / COHORT_INFO -> my_schema).  They are now
+# # copied by 'R/load-cohort-bgs.R' as BGS_DIST_20_24 / 21_25 / COHORT_INFO to
+# # dbo (shareschema), where 02a-bgs-program-matching.R reads them.  This script
+# # only handles the CIP taxonomy lookups and INFOWARE_PROGRAMS below.
 
 # ---- Write initial tables to Decimal ----
 ## Save static versions of the INFOWARE tables and last cycle XWALK to Decimal

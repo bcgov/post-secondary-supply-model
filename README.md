@@ -84,6 +84,11 @@ Create occupation and new labour supply weighted distributions:
 - 02b-1-pssm-cohorts.R 
 - 02b-2-pssm-cohorts-new-labour-supply.R 
 - 02b-3-pssm-cohorts-occupation-distributions.R 
+
+(The load-cohort-*.R scripts are mode-agnostic — no run flags — and are
+always invoked by run-data-loading.R at the start of each model run; see the
+data loading section above.)
+
 Calculate near completers ratio:
 
 - load-near-completers-ttrain.R
