@@ -29,8 +29,15 @@
 #   load-stp-cred.R            -- STP credential raw data (TSV -> SQL)
 #   load-infoware-lookups.R    -- INFOWARE CIP taxonomy + outcomes reference tables
 #                                 (Oracle INFOWARE -> SQL, one-time per cycle)
-#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data
-#                                 (CSV from LAN -> SQL)
+#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data (CSV from LAN -> SQL)
+#   load-cohort-bgs.R          -- BGS cohort survey data (LAN CSV -> SQL, *_r tables)
+#   load-cohort-trd.R          -- TRD cohort survey data (LAN CSV -> SQL, *_r tables)
+#   load-cohort-appso.R        -- APPSO cohort survey data (LAN CSV -> SQL, *_r tables)
+#   load-cohort-dacso.R        -- DACSO cohort survey data (LAN CSV -> SQL, *_r tables)
+#
+# NOTE: the four load-cohort-*.R scripts are mode-agnostic (no regular_run / qi_run /
+# ptib_run flags); they load identical tables on every invocation. The prep-for-*.R
+# runners still invoke them at the start of each model run (overwrite is safe).
 #
 # NEXT STEP:
 #   After this script completes, run run-data-preprocessing.R to process the raw
@@ -84,7 +91,11 @@ data_loading_files <- c(
   "./R/load-stp-enrol.R",
   "./R/load-stp-cred.R",
   "./R/load-infoware-lookups.R",
-  "./R/load-outcomes-data.R"
+  "./R/load-outcomes-data.R",
+  "./R/load-cohort-bgs.R",
+  "./R/load-cohort-trd.R",
+  "./R/load-cohort-appso.R",
+  "./R/load-cohort-dacso.R"
 )
 
 log_info(glue::glue(

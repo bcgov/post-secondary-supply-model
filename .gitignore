@@ -22,3 +22,5 @@ AGENTS.md
 plan/
 
 scratch/
+.scratch/
+main.py
