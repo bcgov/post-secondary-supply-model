@@ -38,12 +38,14 @@ con <- dbConnect(
 # only run once to get tables ready
 iw_config <- config::get("infoware")
 
-odbcListDrivers()
 
+#  ---- Connect to INFOWARE (Oracle) ----
+# Requires the "Oracle in instantclient_19c" ODBC driver to be installed.
+odbcListDrivers() # confirm available drivers / Oracle client is present
 iw_con <- dbConnect(
   odbc::odbc(),
-  Driver = "Oracle in instantclient_19_30",
-  DBQ = "DEV01.world",
+  Driver = "Oracle in instantclient_19c",
+  DBQ = iw_config$dbq,
   UID = iw_config$uid,
   PWD = iw_config$pwd
 )
