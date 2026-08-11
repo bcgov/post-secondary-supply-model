@@ -613,7 +613,7 @@ credential <- credential |>
   ) |>
   select(-cred_month, -cred_year, -cred_year_start, -cred_year_end)
 
-valid_genders <- c("Female", "Male", "Gender Diverse")
+valid_genders <- c("Woman/Girl", "Man/Boy", "Non-Binary Person")
 
 # pull more genders from the stp_enrolment table to fill in gaps
 credential <- credential |>
