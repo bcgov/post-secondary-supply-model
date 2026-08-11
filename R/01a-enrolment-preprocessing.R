@@ -116,7 +116,7 @@ convert_date <- function(vec) {
 
   century_prefix <- case_when(
     is.na(yy) ~ NA_character_,
-    yy < 24 ~ "20",
+    yy < 26 ~ "20",
     TRUE ~ "19"
   )
 
