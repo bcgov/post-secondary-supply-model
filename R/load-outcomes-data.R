@@ -55,7 +55,7 @@ decimal_con <- dbConnect(
 )
 # make sure vpn is on, and the lan is available. Or switch to safepath approach.
 use_schema <- config::get("myschema")
-lan = config::get("lan")
+lan <- config::get("lan")
 so_lan_path <- glue::glue("{lan}/data/student-outcomes/csv/so-provision/")
 
 # read csv's into objects in memory.
@@ -106,7 +106,7 @@ APPSO_Data_01_Final$APP_TIME_TO_FIND_EMPLOY_MJOB <- as.numeric(
   APPSO_Data_01_Final$APP_TIME_TO_FIND_EMPLOY_MJOB
 )
 
-BGS_Q001_BGS_Data_2019_2023$PEN = as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
+BGS_Q001_BGS_Data_2019_2023$PEN <- as.character(BGS_Q001_BGS_Data_2019_2023$PEN)
 
 DACSO_Q003_DACSO_DATA_Part_1_stepA <- DACSO_Q003_DACSO_DATA_Part_1_stepA %>%
   mutate(across(.cols = c(TPID_LGND_CD, COCI_PEN), .fns = as.character))

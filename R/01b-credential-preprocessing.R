@@ -55,7 +55,7 @@ stp_credential <- dbGetQuery(
     'SELECT
     CREDENTIAL_AWARD_DATE,
     ENCRYPTED_TRUE_PEN,
-    ID,
+    /*ID,*/
     PSI_CODE,
     PSI_CREDENTIAL_CATEGORY,
     PSI_CREDENTIAL_CIP,
@@ -67,20 +67,16 @@ stp_credential <- dbGetQuery(
     PSI_PROGRAM_EFFECTIVE_DATE,
     PSI_SCHOOL_YEAR,
     PSI_STUDENT_NUMBER
-  FROM "{my_schema}"."STP_Credential"'
+  FROM "STP_Credential_2024"'
   )
 )
-log_info(glue::glue(
-  "Loaded STP_Credential: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"
-))
+log_info(glue::glue("Loaded STP_Credential: {nrow(stp_credential)} rows, {ncol(stp_credential)} columns"))
 
 stp_enrolment_record_type <- dbReadTable(
   con,
   SQL(glue::glue('"{my_schema}"."stp_enrolment_record_type_r"'))
 )
-log_info(glue::glue(
-  "Loaded stp_enrolment_record_type_r: {nrow(stp_enrolment_record_type)} rows"
-))
+log_info(glue::glue("Loaded stp_enrolment_record_type_r: {nrow(stp_enrolment_record_type)} rows"))
 
 stp_enrolment <- dbGetQuery(
   con,
@@ -108,17 +104,15 @@ invalid_pen_count <- stp_credential |>
       is.na(ENCRYPTED_TRUE_PEN)
   ) |>
   nrow()
-log_info(glue::glue(
-  "Rows with invalid/missing ENCRYPTED_TRUE_PEN: {invalid_pen_count}"
-))
+log_info(glue::glue("Rows with invalid/missing ENCRYPTED_TRUE_PEN: {invalid_pen_count}"))
 
 distinct_pen_count <- stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
 log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
-# stp_credential <- stp_credential |>
-#   mutate(ID = row_number()) |>
-#   relocate(ID, .before = CREDENTIAL_AWARD_DATE)
+stp_credential <- stp_credential |>
+  mutate(ID = row_number()) |>
+  relocate(ID, .before = CREDENTIAL_AWARD_DATE)
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 date_cols <- c(
@@ -194,9 +188,7 @@ enrol_skills_lookup <- stp_enrolment |>
   ) |>
   mutate(is_skills_match = TRUE)
 
-log_info(glue::glue(
-  "Created enrol_skills_lookup: {nrow(enrol_skills_lookup)} distinct skill-based course combinations"
-))
+log_info(glue::glue("Created enrol_skills_lookup: {nrow(enrol_skills_lookup)} distinct skill-based course combinations"))
 
 stp_credential_record_type <- stp_credential |>
   mutate(CIP2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) |>
@@ -240,10 +232,7 @@ stp_credential_record_type <- stp_credential |>
   select(ID, ENCRYPTED_TRUE_PEN, RecordStatus)
 
 log_info("Credential RecordStatus assignment complete. Counts by status:")
-log_info(paste(
-  capture.output(print(stp_credential_record_type |> count(RecordStatus))),
-  collapse = "\n"
-))
+log_info(paste(capture.output(print(stp_credential_record_type |> count(RecordStatus))), collapse = "\n"))
 
 
 ## ------------------------------------ Clean Up --------------------------------------------------
@@ -267,19 +256,16 @@ write_table_to_db <- function(table_name, schema, con) {
     base::get(table_name, envir = .GlobalEnv),
     overwrite = TRUE
   )
-  log_info(glue::glue(
-    "Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"
-  ))
+  log_info(glue::glue("Wrote table '{schema}.{db_name}' ({nrow(base::get(table_name, envir = .GlobalEnv))} rows) to SQL Server"))
 }
 
-log_info(glue::glue(
-  "Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"
-))
+log_info(glue::glue("Writing {length(tables_to_keep)} tables to DB: {paste(tables_to_keep, collapse = ', ')}"))
 walk(tables_to_keep, write_table_to_db, schema = my_schema, con = con)
 
 dbDisconnect(con)
 log_info("Disconnected from SQL Server")
 
 log_info("==== 01b-credential-preprocessing.R COMPLETE ====")
+
 
 # rm(list = ls())

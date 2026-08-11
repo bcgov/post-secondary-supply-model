@@ -9,6 +9,10 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
+# OCCSN(NOC) = GRADUATES(cred, age)
+#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
+#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
+#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
 
 # ============================================================================
 # WHAT THIS SCRIPT PRODUCES
@@ -123,6 +127,7 @@ if (length(missing) > 0) {
   ))
 }
 
+na_vals <- c("", " ", "(Unspecified)", NA)
 
 # if table does not exist, read it from db
 for (table_name in missing) {

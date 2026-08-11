@@ -299,9 +299,7 @@ programs_table <- tbl(con, "INFOWARE_PROGRAMS_2016") %>%
   ) %>%
   collect() %>%
   refresh_programs_join_keys()
-log_info(glue::glue(
-  "Part 1: Created programs_table from INFOWARE: {nrow(programs_table)} programs"
-))
+log_info(glue::glue("Part 1: Created programs_table from INFOWARE: {nrow(programs_table)} programs"))
 DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- tbl(
   con,
   DBI::Id(schema = "dbo", table = "DACSO_STP_ProgramsCIP4_XWALK_ALL_2020")
@@ -311,9 +309,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- tbl(
     CIP_CODE_4 = str_pad(CIP_CODE_4, width = 4, side = "left", pad = "0")
   ) %>%
   refresh_xwalk_join_keys()
-log_info(glue::glue(
-  "Part 1: Loaded previous XWALK (2020): {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs"
-))
+log_info(glue::glue("Part 1: Loaded previous XWALK (2020): {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs"))
 
 ## ---- Add to XWALK: New DACSO prgms WITHOUT historical linkages ----
 ## review the HAS_HISTORICAL_PRGM_ID_LINK values
@@ -1021,9 +1017,7 @@ dbWriteTable(
   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23,
   overwrite = TRUE
 )
-log_info(glue::glue(
-  "Part 1: Wrote XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs (after all DACSO updates: historical links + new programs + updated CIPs)"
-))
+log_info(glue::glue("Part 1: Wrote XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs (after all DACSO updates: historical links + new programs + updated CIPs)"))
 
 
 # ******************************************************************************
@@ -1103,9 +1097,7 @@ stp_dacso <- credential_non_dup %>%
     COCI_INST_CD = NA_character_
   )
 
-log_info(glue::glue(
-  "Part 2: Created stp_dacso (DACSO subset of Credential_Non_Dup): {nrow(stp_dacso)} program combinations"
-))
+log_info(glue::glue("Part 2: Created stp_dacso (DACSO subset of Credential_Non_Dup): {nrow(stp_dacso)} program combinations"))
 
 
 # Create PSI_CODE to COCI_INST_CD lookup table
@@ -1263,9 +1255,7 @@ stp_dacso <- stp_dacso %>%
 
 
 ## ---- Newly matched programs ----
-log_info(glue::glue(
-  "Part 2: Already matched programs: {sum(stp_dacso$Already_Matched == 'Yes', na.rm=TRUE)} / {nrow(stp_dacso)}"
-))
+log_info(glue::glue("Part 2: Already matched programs: {sum(stp_dacso$Already_Matched == 'Yes', na.rm=TRUE)} / {nrow(stp_dacso)}"))
 # reference: to check after each query to see counts of matched
 # stp_dacso %>% count(New_Auto_Match)
 
@@ -1534,9 +1524,7 @@ rm(newly_matched_2)
 # ******************************************************************************
 # PART 3: INSTITUTION-SPECIFIC CUSTOM MATCHING
 # ******************************************************************************
-log_info(glue::glue(
-  "Part 3: Institution-specific matching. Unmatched before: {sum(is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} programs"
-))
+log_info(glue::glue("Part 3: Institution-specific matching. Unmatched before: {sum(is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} programs"))
 # WHY: Some institutions use different program code formats in STP vs DACSO.
 # BCIT includes credential suffixes, CAPU uses different code lengths, and VIU
 # wraps codes in credential-category prefixes. We extract the DACSO-compatible
@@ -1984,9 +1972,7 @@ rm(xwalk_remaining, xwalk_remaining_desc)
 # ******************************************************************************
 # PART 4: FINAL UPDATE TO STP CIPS
 # ******************************************************************************
-log_info(glue::glue(
-  "Part 4: Final CIP update. Matched so far: {sum(!is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} / {nrow(stp_dacso)} programs"
-))
+log_info(glue::glue("Part 4: Final CIP update. Matched so far: {sum(!is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} / {nrow(stp_dacso)} programs"))
 # WHY: Compute final CIP codes. Matched programs use the outcomes CIP; unmatched
 # programs use STP CIP from the INFOWARE taxonomy. Then fill 2-digit CIP and
 # cluster codes from the 4-digit code.
@@ -2149,9 +2135,7 @@ stp_dacso <- stp_dacso %>%
 # 5462
 
 # check the # of changed CIPS
-log_info(glue::glue(
-  "Part 4: Final CIP update complete. {nrow(stp_dacso)} programs, {sum(!is.na(stp_dacso$FINAL_CIP_CODE_4))} with FINAL_CIP_CODE_4 populated"
-))
+log_info(glue::glue("Part 4: Final CIP update complete. {nrow(stp_dacso)} programs, {sum(!is.na(stp_dacso$FINAL_CIP_CODE_4))} with FINAL_CIP_CODE_4 populated"))
 # ---- Review CIP changes ----
 # WHY: Diagnostic — shows programs where the final CIP differs from the original
 # STP CIP. Useful for catching incorrect matches.
@@ -2171,27 +2155,21 @@ dbWriteTable(
   stp_dacso_out,
   overwrite = TRUE
 )
-log_info(glue::glue(
-  "Wrote STP_Credential_Non_Dup_Programs_DACSO_r: {nrow(stp_dacso_out)} rows"
-))
+log_info(glue::glue("Wrote STP_Credential_Non_Dup_Programs_DACSO_r: {nrow(stp_dacso_out)} rows"))
 dbWriteTable(
   con,
   "Credential_Non_Dup_Programs_DACSO_FinalCIPS_r",
   stp_dacso_out,
   overwrite = TRUE
 )
-log_info(glue::glue(
-  "Wrote Credential_Non_Dup_Programs_DACSO_FinalCIPS_r: {nrow(stp_dacso_out)} rows"
-))
+log_info(glue::glue("Wrote Credential_Non_Dup_Programs_DACSO_FinalCIPS_r: {nrow(stp_dacso_out)} rows"))
 dbWriteTable(
   con,
   "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r",
   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out,
   overwrite = TRUE
 )
-log_info(glue::glue(
-  "Wrote updated XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out)} rows"
-))
+log_info(glue::glue("Wrote updated XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out)} rows"))
 
 dbDisconnect(con)
 log_info("Disconnected from SQL Server")
