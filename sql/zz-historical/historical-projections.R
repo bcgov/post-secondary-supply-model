@@ -1,5 +1,5 @@
 # ---- Q_1_Grad_Projections_by_Age_by_Program ----
-Q_1_Grad_Projections_by_Age_by_Program <- 
+Q_1_Grad_Projections_by_Age_by_Program <-
   "SELECT Cohort_Program_Distributions.PSSM_Credential AS PSSM_Credential, 
         Graduate_Projections.PSSM_CRED, 
         Graduate_Projections.Age_Group, 
@@ -26,7 +26,7 @@ WHERE   (((T_Exclude_from_Projections_LCP4_CD.LCIP_LCP4_CD) Is Null)
   AND   ((T_Exclude_from_Projections_LCIP4_CRED.LCIP4_CRED) Is Null));"
 
 # ---- Q_1c_Grad_Projections_by_Program ----
-Q_1c_Grad_Projections_by_Program <- 
+Q_1c_Grad_Projections_by_Program <-
   "SELECT Q_1_Grad_Projections_by_Age_by_Program.PSSM_Credential, 
         Q_1_Grad_Projections_by_Age_by_Program.PSSM_CRED, 
         tbl_Age_Groups_Rollup.Age_Group_Rollup, 
@@ -55,7 +55,7 @@ GROUP BY Q_1_Grad_Projections_by_Age_by_Program.PSSM_Credential,
 
 
 # ---- qry99_Presentations_Graduates_Appendix ----
-qry99_Presentations_Graduates_Appendix <- 
+qry99_Presentations_Graduates_Appendix <-
   "SELECT Age_Group_Rollup_Label, PSSM_Credential_Name, 
 [2023/2024], 
 [2024/2025], 

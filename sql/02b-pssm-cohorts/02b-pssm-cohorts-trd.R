@@ -1,20 +1,20 @@
-Q000_TRD_Graduates_Projection_Input <- 
-"SELECT T_TRD_Data.PSSM_Credential, T_TRD_Data.PSSM_Credential AS PSSM_CRED, tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year, Count(*) AS [Count]
+Q000_TRD_Graduates_Projection_Input <-
+  "SELECT T_TRD_Data.PSSM_Credential, T_TRD_Data.PSSM_Credential AS PSSM_CRED, tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year, Count(*) AS [Count]
 FROM (T_TRD_Data INNER JOIN T_Year_Survey_Year ON T_TRD_Data.SUBM_CD = T_Year_Survey_Year.SUBM_CD) 
 INNER JOIN (tbl_Age INNER JOIN tbl_Age_Groups ON tbl_Age.Age_Group = tbl_Age_Groups.Age_Group) ON T_TRD_Data.TRD_AGE_AT_SURVEY = tbl_Age.Age
 WHERE (((T_Year_Survey_Year.Survey)='TRD'))
 GROUP BY T_TRD_Data.PSSM_Credential, tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year, T_TRD_Data.PSSM_Credential
 ORDER BY tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year;"
 
-Q000_TRD_Program_Projection_Input <- 
-"SELECT tbl_Age_Groups.Age_Group_Label, T_TRD_Data.PSSM_Credential, [PSSM_Credential] + [Age_Group_Label] AS Expr1, T_TRD_Data.LCIP_LCP4_CD, Left([T_TRD_DATA].[LCIP_LCP4_CD],2) AS LCIP_CP2_CD, T_Year_Survey_Year.Award_School_Year, Count(*) AS [Count]
+Q000_TRD_Program_Projection_Input <-
+  "SELECT tbl_Age_Groups.Age_Group_Label, T_TRD_Data.PSSM_Credential, [PSSM_Credential] + [Age_Group_Label] AS Expr1, T_TRD_Data.LCIP_LCP4_CD, Left([T_TRD_DATA].[LCIP_LCP4_CD],2) AS LCIP_CP2_CD, T_Year_Survey_Year.Award_School_Year, Count(*) AS [Count]
 FROM (T_TRD_Data INNER JOIN (tbl_Age INNER JOIN tbl_Age_Groups ON tbl_Age.Age_Group = tbl_Age_Groups.Age_Group) ON T_TRD_Data.TRD_AGE_AT_SURVEY = tbl_Age.Age) INNER JOIN T_Year_Survey_Year ON T_TRD_Data.SUBM_CD = T_Year_Survey_Year.SUBM_CD
 WHERE (((T_Year_Survey_Year.Survey)='TRD'))
 GROUP BY tbl_Age_Groups.Age_Group_Label, T_TRD_Data.PSSM_Credential, [PSSM_Credential] + [Age_Group_Label], T_TRD_Data.LCIP_LCP4_CD, Left([T_TRD_DATA].[LCIP_LCP4_CD],2), T_Year_Survey_Year.Award_School_Year
 ORDER BY tbl_Age_Groups.Age_Group_Label, T_Year_Survey_Year.Award_School_Year;"
 
-Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM <- 
-"ALTER TABLE T_TRD_Data
+Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM <-
+  "ALTER TABLE T_TRD_Data
 ADD CURRENT_REGION_PSSM_CODE INT;"
 
 Q000_TRD_Q003b_Add_CURRENT_REGION_PSSM2 <- "
@@ -128,8 +128,8 @@ INNER JOIN t_year_survey_year
 	        ON tbl_Age.Age =  t_trd_data.TRD_AGE_AT_SURVEY
 WHERE  t_year_survey_year.survey = 'TRD';"
 
-Q000_TRD_Q99A_ENDDT <- 
-"UPDATE infoware_trades_cohort_info 
+Q000_TRD_Q99A_ENDDT <-
+  "UPDATE infoware_trades_cohort_info 
 INNER JOIN (t_cohorts_recoded 
 INNER JOIN 000_trd_q99a_stqui_id 
 ON t_cohorts_recoded.stqu_id = [000_TRD_Q99A_STQUI_ID].stqu_id) 
@@ -137,10 +137,10 @@ ON infoware_trades_cohort_info.KEY = [000_TRD_Q99A_STQUI_ID].KEY
 SET t_cohorts_recoded.enddt = LEFT([INFOWARE_TRADES_COHORT_INFO].[ENDDT],4) + '-' + RIGHT([INFOWARE_TRADES_COHORT_INFO].[ENDDT],2)
 WHERE (((t_cohorts_recoded.survey)='TRD'));"
 
-Q000_TRD_Q99A_ENDDT_IMPUTED <- 
-"UPDATE T_Cohorts_Recoded SET T_Cohorts_Recoded.ENDDT = ([Survey_year]-2) + '-12'
+Q000_TRD_Q99A_ENDDT_IMPUTED <-
+  "UPDATE T_Cohorts_Recoded SET T_Cohorts_Recoded.ENDDT = ([Survey_year]-2) + '-12'
 WHERE (((T_Cohorts_Recoded.ENDDT) Is Null) AND ((T_Cohorts_Recoded.Survey)='TRD'));"
 
-Q000_TRD_Q99A_STQUI_ID <- 
-"SELECT INFOWARE_TRADES_COHORT_INFO.KEY, 'TRD - ' + [KEY] AS STQU_ID
+Q000_TRD_Q99A_STQUI_ID <-
+  "SELECT INFOWARE_TRADES_COHORT_INFO.KEY, 'TRD - ' + [KEY] AS STQU_ID
 FROM INFOWARE_TRADES_COHORT_INFO;"
