@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who were formerly enrolled in
+# This script loads student outcomes data for students who were formerly enrolled in
 # a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
 #
 # TRD = Trades Student Outcomes.  Survey of former students of trades programs
