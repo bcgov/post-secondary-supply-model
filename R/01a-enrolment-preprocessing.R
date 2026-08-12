@@ -31,7 +31,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal2026")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -131,14 +131,14 @@ date_cols <- c(
 )
 
 # Uncomment when running new data and/or add a conditional to test the date format.
-# stp_enrolment <- stp_enrolment |>
-#   mutate(
-#     across(
-#       .cols = date_cols,
-#       .fns = convert_date,
-#       .names = "{.col}"
-#     )
-#   )
+stp_enrolment <- stp_enrolment |>
+  mutate(
+    across(
+       across(all_of(date_cols),
+      .fns = convert_date,
+      .names = "{.col}"
+    )
+  )
 
 ## --------------------------------------- Create Record Type Table -------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
@@ -518,6 +518,5 @@ dbDisconnect(con)
 log_info("Disconnected from SQL Server")
 
 log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
-
 
 # rm(list = ls())
