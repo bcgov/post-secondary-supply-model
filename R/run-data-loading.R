@@ -37,9 +37,9 @@
 #   load-cohort-appso.R        -- APPSO cohort survey data (LAN CSV -> SQL, *_r tables)
 #   load-cohort-dacso.R        -- DACSO cohort survey data (LAN CSV -> SQL, *_r tables)
 #
-# NOTE: the four load-cohort-*.R scripts are mode-agnostic (no regular_run / qi_run /
-# ptib_run flags); they load identical tables on every invocation. The prep-for-*.R
-# runners still invoke them at the start of each model run (overwrite is safe).
+# NOTE: the load-cohort-*.R scripts can be rerun safely (overwrite is safe) and are intended to be mode-agnostic.
+# Some scripts may still adjust behavior when run flags (e.g. qi_run) exist in the session (e.g. APPSO weights).
+# The prep-for-*.R runners invoke them at the start of each model run.
 # All load scripts write to the schema configured as shareschema (dbo by default),
 # overwrite existing tables, and log to ./R/execution_log.txt.
 #
