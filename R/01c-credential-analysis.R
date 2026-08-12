@@ -1171,10 +1171,7 @@ tables_to_keep <- c(
   "age_group_lookup",
   "credential",
   "credential_non_dup",
-  "credential_supvars",
-  "credential_supvars_enrolment",
-  "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect"
+  "tbl_credential_highest_rank"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
