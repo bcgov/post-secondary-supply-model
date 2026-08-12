@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who recently graduated with a
+# This script loads student outcomes data for students who recently graduated with a
 # Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 #
 # BGS = Baccalaureate Graduate Student Outcomes.  Survey of graduates with a
