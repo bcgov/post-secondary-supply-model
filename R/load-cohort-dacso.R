@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who recently graduated after
+# This script loads student outcomes data for students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
 # DACSO = Diploma / Associate Certificate Student Outcomes.  Survey of former
