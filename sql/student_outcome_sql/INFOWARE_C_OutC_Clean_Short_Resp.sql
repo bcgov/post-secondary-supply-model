@@ -1,0 +1,18 @@
+SELECT STQU_ID, 
+SUBM_CD, 
+INST_CD, 
+PRGM_ID, 
+LRST_CD, 
+TTRAIN, 
+q08,
+FINAL_DISPOSITION, 
+RESPONDENT, 
+CREDENTIAL_DERIVED, 
+STARTMONTH, 
+STARTYEAR, 
+ENDMONTH, 
+ENDYEAR, 
+pfst_furstdy_incl_still_attd,
+pfst_had_previous_cdtl
+FROM C_OUTC_CLEAN_SHORT_RESP
+WHERE subm_cd IN ('C_Outc21','C_Outc22','C_Outc23','C_Outc24','C_Outc25')

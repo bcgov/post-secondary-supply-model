@@ -157,7 +157,9 @@ pull_table <- function(db, schema, table, file, prune = NULL) {
 #   section caveat), LCP6_CD, LCIP_LCP4_CD. Used in: A, B, C, D, E, G, J, K, L.
 #
 # t_dacso_data_part_1_stepa_r -> so_dacso_new.rds (147,020 x 36)
-#   DACSO response table; RESPONDENT = 1 or NULL (NULL = NON-respondent - never 0).
+#   DACSO response table; RESPONDENT = 1 or 0 (legacy: 1 or NULL -- flipped
+#   in so-oracle-migration ticket T09 to match Oracle's natural emission;
+#   NULL/0 both behave identically under == '1' filters + sum(na.rm=TRUE)).
 #   Key cols: COCI_STQU_ID (unique), COCI_SUBM_CD (C_Outc21..25; filter
 #   C_Outc24/25), COCI_INST_CD, RESPONDENT, COCI_AGE_AT_SURVEY,
 #   LABR_IN_LABOUR_MARKET / LABR_EMPLOYED / LABR_UNEMPLOYED,
@@ -184,7 +186,7 @@ pull_table <- function(db, schema, table, file, prune = NULL) {
 #   DACSO "outcome" table with real further-education answers (stepa PFST_*
 #   columns are unpopulated). Key: STQU_ID + SUBM_CD; MULTIPLE ROWS PER KEY -
 #   report dedupes (prefer the row with non-NA PFST_FURSTDY_INCL_STILL_ATTD).
-#   Key cols: STQU_ID, SUBM_CD, RESPONDENT (1/NULL), PFST_FURSTDY_INCL_STILL_ATTD
+#   Key cols: STQU_ID, SUBM_CD, RESPONDENT (1/0; legacy 1/NULL per T09), PFST_FURSTDY_INCL_STILL_ATTD
 #   (1 = continuing, 0 = not), PFST_HAD_PREVIOUS_CDTL. Used in: H.
 #
 # t_noc_broad_categories_r -> so_noc_broad.rds (517 x 12)
@@ -242,7 +244,8 @@ pull_table <- function(db, schema, table, file, prune = NULL) {
 #   t_year_survey_year_r -> so_year_survey_bench.rds
 #
 # Benchmark respondent flag semantics identical to new (BGS SRV_Y_N == 1;
-# TRD/APPSO/DACSO RESPONDENT == 1; DACSO NULL = non-respondent).
+# TRD/APPSO/DACSO RESPONDENT == 1; DACSO legacy was NULL for non-respondents,
+# now 0 per so-oracle-migration T09 -- both behave identically downstream).
 # =============================================================================
 
 # ---------- NEW data (PSSM2025, dbo) ----------
@@ -415,7 +418,8 @@ cip6 <- readRDS(file.path(CACHE, "so_cip6_lookup.rds"))
 cip4 <- readRDS(file.path(CACHE, "so_cip4_lookup.rds"))
 
 # respondent flag semantics per survey (BGS SRV_Y_N == 1; TRD/APPSO/DACSO
-# RESPONDENT == 1; DACSO RESPONDENT is NULL for non-respondents, never 0)
+# RESPONDENT == 1; DACSO RESPONDENT is now 0 for non-respondents per
+# so-oracle-migration T09 -- legacy was NULL; both behave identically)
 resp <- function(d) !is.na(d) & d == 1
 # cycle integer from a submission code (C_Outc25 -> 25)
 cycle_of <- function(subm) as.integer(sub("C_Outc", "", subm))

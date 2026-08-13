@@ -223,9 +223,19 @@ log_info(glue::glue(
 ))
 
 # ---- APP Queries ----
-# Process APPSO data into the cohorts recoded table
+# Process APPSO data into the cohorts recoded table.
+# so-oracle-migration tickets T06 + T10: WEIGHT now joined from t_weights
+# (was hardcoded in load-cohort-appso.R); NEW_LABOUR_SUPPLY now derived here
+# (was hardcoded in load-cohort-appso.R). Both align APPSO with the
+# BGS/TRD/DACSO pattern.
 appso_data_final <- appso_data_final |>
-  select(-AGE_GROUP, -AGE_GROUP_LABEL) |>
+  select(-AGE_GROUP, -AGE_GROUP_LABEL, -WEIGHT) |>
+  inner_join(
+    t_weights |>
+      filter(MODEL == "2024-2025", SURVEY == "APPSO") |>
+      select(SUBM_CD, WEIGHT = any_of(target_weight)),
+    by = "SUBM_CD"
+  ) |>
   inner_join(
     t_year_survey_year |>
       filter(SURVEY == "APPSO") |>
@@ -235,6 +245,15 @@ appso_data_final <- appso_data_final |>
   left_join(
     tbl_age |> inner_join(tbl_age_groups, by = "AGE_GROUP"),
     by = c("APP_AGE_AT_SURVEY" = "AGE")
+  ) |>
+  mutate(
+    NEW_LABOUR_SUPPLY = case_when(
+      APP_LABR_EMPLOYED == 1 ~ 1,
+      APP_LABR_IN_LABOUR_MARKET == 1 & APP_LABR_EMPLOYED == 0 ~ 1,
+      APP_LABR_EMPLOYED == 0 ~ 0,
+      RESPONDENT == "1" ~ 0,
+      TRUE ~ 0
+    )
   ) |>
   transmute(
     PEN = PEN,
