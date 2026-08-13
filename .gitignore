@@ -10,8 +10,6 @@ tmp/
 *.html
 .github/copilot-instructions.md
 
-/sql
-
 presentations/presentation-06-2026_files/
 .claude/
 docs/agents/

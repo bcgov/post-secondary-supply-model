@@ -125,92 +125,22 @@ t_appso_data_final <-
       TRUE ~ NA
     )
   ) %>%
-  # AGE_GROUP_LABEL: reporting labels for the standard PSSM age bands.
+  # AGE_GROUP, AGE_GROUP_LABEL, NEW_LABOUR_SUPPLY, WEIGHT are placeholder 0/NA
+  # in _r and derived downstream in 02b-1-pssm-cohorts.R (so-oracle-migration
+  # tickets T06/T10/T11). Mirrors BGS/TRD/DACSO convention: PSSM numeric
+  # AGE_GROUP via tbl_age join, NEW_LABOUR_SUPPLY via APP_LABR_* case_when,
+  # WEIGHT via T_Weights.csv join. The QI variant for WEIGHT is selected by
+  # 02b-1:142 `target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"`, so the
+  # unique qi_run guard that used to live here is gone.
   mutate(
-    AGE_GROUP_LABEL = case_when(
-      APP_AGE_AT_SURVEY %in% 15:16 ~ "15 to 16",
-      APP_AGE_AT_SURVEY %in% 17:19 ~ "17 to 19",
-      APP_AGE_AT_SURVEY %in% 20:24 ~ "20 to 24",
-      APP_AGE_AT_SURVEY %in% 25:29 ~ "25 to 29",
-      APP_AGE_AT_SURVEY %in% 30:34 ~ "30 to 34",
-      APP_AGE_AT_SURVEY %in% 35:44 ~ "35 to 44",
-      APP_AGE_AT_SURVEY %in% 45:54 ~ "45 to 54",
-      APP_AGE_AT_SURVEY %in% 55:64 ~ "55 to 64",
-      APP_AGE_AT_SURVEY %in% 65:89 ~ "65 to 89",
-      TRUE ~ NA
-    )
-  ) %>%
-  # AGE_GROUP: numeric code for the same bands (2-8).  In 02b-1-pssm-cohorts.R
-  # this key is used to join TBL_AGE_GROUPS so every cohort gets a standard
-  # age grouping across survey types.
-  mutate(
-    AGE_GROUP = case_when(
-      APP_AGE_AT_SURVEY %in% 17:19 ~ 2,
-      APP_AGE_AT_SURVEY %in% 20:24 ~ 3,
-      APP_AGE_AT_SURVEY %in% 25:29 ~ 4,
-      APP_AGE_AT_SURVEY %in% 30:34 ~ 5,
-      APP_AGE_AT_SURVEY %in% 35:44 ~ 6,
-      APP_AGE_AT_SURVEY %in% 45:54 ~ 7,
-      APP_AGE_AT_SURVEY %in% 55:64 ~ 8,
-      TRUE ~ NA
-    )
-  ) %>%
-  # NEW_LABOUR_SUPPLY: 1 if the respondent is employed or in the labour
-  # market, 0 otherwise.  Used in 02b-2-pssm-cohorts-new-labour-supply.R to
-  # estimate the share of new graduates entering the labour market.
-  mutate(
-    NEW_LABOUR_SUPPLY = case_when(
-      APP_LABR_EMPLOYED == 1 ~ 1,
-      APP_LABR_IN_LABOUR_MARKET == 1 & APP_LABR_EMPLOYED == 0 ~ 1,
-      APP_LABR_EMPLOYED == 0 ~ 0,
-      RESPONDENT == '1' ~ 0,
-      TRUE ~ 0
-    )
+    AGE_GROUP_LABEL = NA_character_,
+    AGE_GROUP = NA_real_,
+    NEW_LABOUR_SUPPLY = 0,
+    WEIGHT = 0
   )
-
-# When running, make sure to update weights for the regular run.
-# Replace the weights in the appropriate area in the code (~lines 71-77):
-# Weight values for C_Outc21..C_Outc25 still require analyst sign-off.
-# WEIGHT scales each survey cycle's respondents up to population counts for
-# reporting (larger cycle number = more recent cycle).  The same weighting
-# scheme applies to the other survey types via T_Weights.
-t_appso_data_final <-
-  t_appso_data_final %>%
-  mutate(
-    WEIGHT = case_when(
-      SUBM_CD == 'C_Outc21' ~ 1,
-      SUBM_CD == 'C_Outc22' ~ 2,
-      SUBM_CD == 'C_Outc23' ~ 3,
-      SUBM_CD == 'C_Outc24' ~ 4,
-      SUBM_CD == 'C_Outc25' ~ 5,
-      TRUE ~ 0
-    )
-  )
-
-# update the weights for the QI run.
-# Quality Improvement run: re-weight excluding the most recent survey cycle
-# (C_Outc25 -> 0) so the QI run only uses the cycles shared with the
-# previous model run.
-if (exists("qi_run") && qi_run == TRUE) {
-  # check that these years are correct
-  # TODO: this moved out of query for derived weights  but means an extra step for QI - move back to query design?
-  t_appso_data_final <-
-    t_appso_data_final %>%
-    mutate(
-      WEIGHT = case_when(
-        SUBM_CD == 'C_Outc21' ~ 2,
-        SUBM_CD == 'C_Outc22' ~ 3,
-        SUBM_CD == 'C_Outc23' ~ 4,
-        SUBM_CD == 'C_Outc24' ~ 5,
-        SUBM_CD == 'C_Outc25' ~ 0,
-        TRUE ~ 0
-      )
-    )
-  log_info("QI run: QI weights applied to APPSO data")
-}
 
 log_info(glue::glue(
-  "t_appso_data_final prepared: {nrow(t_appso_data_final)} rows, weights applied"
+  "t_appso_data_final prepared: {nrow(t_appso_data_final)} rows"
 ))
 
 # prepare graduate dataset

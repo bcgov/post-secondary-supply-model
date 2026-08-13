@@ -170,7 +170,7 @@ rr_n <- pct(sum(bgs$resp & bgs$pool == pool_n), sum(bgs$pool == pool_n))
 
 - **Benchmark pool**: survey cycles 2019-2023 (`C_Outc19..23`), loaded from the PSSM2023 database.
 - **New pool**: survey cycles 2024-2025 (`C_Outc24..25`), from PSSM2025 dbo. Pools are disjoint.
-- **Respondents**: BGS `SRV_Y_N == 1`; TRD/APPSO `RESPONDENT == 1`; DACSO `RESPONDENT == 1` (NULL = non-respondent).
+- **Respondents**: BGS `SRV_Y_N == 1`; TRD/APPSO `RESPONDENT == 1`; DACSO `RESPONDENT == 1` (legacy: NULL = non-respondent; flipped to 0 in so-oracle-migration T09 -- both behave identically under `== 1` filters).
 - Response tables are complete sample frames (respondents + non-respondents); response rate = respondents / frame rows.
 - **Sentinels** `-1` (don't know) / `-2` (refused) are treated as missing. `XXXXX` = unknown occupation.
 - Unweighted throughout (EDA is a validation pass; PSSM production weighting happens in the 02b pipeline).
@@ -1863,7 +1863,8 @@ kable(
 
 ```{r dacso-b}
 # SECTION B (DACSO) - response rate, identical logic to TRD section B.
-# DACSO respondent flag is RESPONDENT == 1 with NULL for non-respondents
+# DACSO respondent flag is RESPONDENT == 1 with 0 for non-respondents
+# (legacy was NULL; flipped to 0 in so-oracle-migration T09)
 # (never 0 - handled in the load script's resp()).
 rr <- dac %>%
   group_by(cycle, pool) %>%
