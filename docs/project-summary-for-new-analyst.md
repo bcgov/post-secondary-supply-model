@@ -142,7 +142,7 @@ SQL Server (schema = `shareschema`, i.e. `dbo` by default):
   (`t_bgs_data_final_r`, `trd_data_r`, `t_appso_data_final_r`,
   `t_dacso_data_part_1_stepa_r`, …). `load-cohort-bgs.R` also copies the
   INFOWARE BGS distribution/cohort tables
-  (`BGS_DIST_20_24 / 21_25`, `BGS_COHORT_INFO`) from the
+  (`INFOWARE_BGS_DIST_20_24 / INFOWARE_BGS_DIST_21_25`, `INFOWARE_BGS_COHORT_INFO`) from the
   Oracle INFOWARE database into dbo/shareschema in 80k-row chunks (skip if
   already present) — consumed by `02a-bgs-program-matching.R`.
 - **Naming:** `<name>_raw` = unmodified archive; `<name>_r` = cleaned table
