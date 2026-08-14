@@ -18,7 +18,8 @@ docs/agents/
 .factory/
 AGENTS.md
 *.sh
+main.py
 
 plan/
-
+.scratch/
 scratch/
