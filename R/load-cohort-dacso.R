@@ -224,11 +224,29 @@ t_noc_broad_categories <-
 # submission.  In 02b-1-pssm-cohorts.R this is joined to the credential,
 # age and weight look-ups and becomes the DACSO block of T_Cohorts_Recoded.
 if (regular_run == T | ptib_run == T) {
-  t_dacso_data_part_1_stepa <- read_oracle_csv_auto(
+  t_dacso_data_part_1_stepa <- readr::read_csv(
     glue::glue(
       "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
     )
   )
+  log_info(glue::glue(
+    "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
+
+  # Recode the survey's current-region fields into the standard PSSM region
+  # codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
+  t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
+    mutate(
+      CURRENT_REGION_PSSM_CODE = case_when(
+        TPID_CURRENT_REGION1 %in%
+          c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
+        TPID_CURRENT_REGION4 == 5 ~ 9,
+        TPID_CURRENT_REGION4 == 6 ~ 10,
+        TPID_CURRENT_REGION4 == 7 ~ 11,
+        TPID_CURRENT_REGION4 == 8 ~ -1,
+        TRUE ~ NA_integer_
+      )
+    )
   log_info(glue::glue(
     "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
   ))
