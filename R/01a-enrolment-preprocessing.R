@@ -134,7 +134,7 @@ date_cols <- c(
 stp_enrolment <- stp_enrolment |>
   mutate(
     across(
-       across(all_of(date_cols),
+      all_of(date_cols),
       .fns = convert_date,
       .names = "{.col}"
     )
