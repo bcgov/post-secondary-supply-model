@@ -262,7 +262,7 @@ log_info(glue::glue(
 #  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
 #  RESPONDENT = NA_integer_,
 #)
-
+}
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
