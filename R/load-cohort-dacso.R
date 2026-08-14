@@ -224,7 +224,7 @@ t_noc_broad_categories <-
 # submission.  In 02b-1-pssm-cohorts.R this is joined to the credential,
 # age and weight look-ups and becomes the DACSO block of T_Cohorts_Recoded.
 if (regular_run == T | ptib_run == T) {
-  t_dacso_data_part_1_stepa <- readr::read_csv(
+  t_dacso_data_part_1_stepa <- read_oracle_csv_auto(
     glue::glue(
       "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
     )
