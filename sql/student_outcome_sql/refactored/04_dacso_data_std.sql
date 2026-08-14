@@ -10,6 +10,8 @@
 --            RESPONDENT derived from COCI_LRST_CD = '000' (same rule as
 --            the original). Developmental / Personal-Improvement & Leisure
 --            CIP clusters excluded (same filter as the original).
+--            GENDER sourced from CO_COHORT_SAMPLE (union 2021-2025, joined
+--            via STQU_ID — 100% coverage, no row multiplication).
 -- =====================================================================
 SELECT
     'DACSO'                                          AS SURVEY,
@@ -52,6 +54,7 @@ SELECT
     END                                              AS GRADSTAT_GROUP,
     sc.cosc_grad_status_lgds_cd                      AS GRADSTAT,
     sc.coci_lrst_cd                                  AS LRST_CD,
+    co.gender                                        AS GENDER,
     sc.cosc_international                            AS INTERNATIONAL,
     sc.cosc_prgm_id                                  AS PRGM_ID,
     sr.pfst_current_activity                         AS PFST_CURRENT_ACTIVITY,
@@ -73,6 +76,18 @@ INNER JOIN l_cip_6digits_cip2021 cip6
     ON cip6.lcp6_cd = pr.lcip_cd_cip2021
 INNER JOIN l_cip_4digits_cip2021 cip4
     ON cip4.lcp4_cd = cip6.lcip_lcp4_cd
+LEFT JOIN (
+    SELECT stqu_id, gender FROM co_cohort_sample_2021
+    UNION
+    SELECT stqu_id, gender FROM co_cohort_sample_2022
+    UNION
+    SELECT stqu_id, gender FROM co_cohort_sample_2023
+    UNION
+    SELECT stqu_id, gender FROM co_cohort_sample_2024
+    UNION
+    SELECT stqu_id, gender FROM co_cohort_sample_2025
+) co
+    ON co.stqu_id = sc.coci_stqu_id
 LEFT JOIN c_outc_clean_short_resp sr
     ON sr.stqu_id = sc.coci_stqu_id
 WHERE sc.coci_subm_cd IN ('C_Outc21','C_Outc22','C_Outc23','C_Outc24','C_Outc25')

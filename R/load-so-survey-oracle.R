@@ -73,8 +73,11 @@ log_info("==== load-so-survey-oracle.R START ====")
 # ---- Flags + config ---------------------------------------------------------
 # USE_CACHE=TRUE skips Oracle extraction and loads per-survey data from the
 # .rds cache instead (T07 dev bypass). Default FALSE = always extract fresh.
-USE_CACHE <- tolower(Sys.getenv("USE_CACHE", "FALSE")) %in% c("true", "1", "yes")
-if (USE_CACHE) log_info("USE_CACHE=TRUE: loading from .rds cache, skipping Oracle")
+USE_CACHE <- tolower(Sys.getenv("USE_CACHE", "FALSE")) %in%
+  c("true", "1", "yes")
+if (USE_CACHE) {
+  log_info("USE_CACHE=TRUE: loading from .rds cache, skipping Oracle")
+}
 
 sql_dir <- file.path("sql", "student_outcome_sql", "refactored")
 cache_dir <- file.path(".scratch", "so-oracle-migration", "cache")
@@ -178,21 +181,36 @@ trim_char_cols <- function(data) {
 # / case_on (T06/T10/T11).
 placeholders_per_survey <- list(
   bgs = list(
-    AGE_GROUP = 0, AGE_GROUP_ROLLUP = 0, NEW_LABOUR_SUPPLY = 0, WEIGHT = 0,
-    OLD_LABOUR_SUPPLY = 0, WEIGHT_CIP = 0, LCIP4_CRED = NA_character_,
+    AGE_GROUP = 0,
+    AGE_GROUP_ROLLUP = 0,
+    NEW_LABOUR_SUPPLY = 0,
+    WEIGHT = 0,
+    OLD_LABOUR_SUPPLY = 0,
+    WEIGHT_CIP = 0,
+    LCIP4_CRED = NA_character_,
     LCIP_LCIPPC_CD = NA_character_
   ),
   trd = list(
-    NEW_LABOUR_SUPPLY = 0, WEIGHT = 0, LCIP4_CRED = NA_character_
+    NEW_LABOUR_SUPPLY = 0,
+    WEIGHT = 0,
+    LCIP4_CRED = NA_character_
   ),
   appso = list(
-    AGE_GROUP = 0, AGE_GROUP_LABEL = NA_character_,
-    NEW_LABOUR_SUPPLY = 0, WEIGHT = 0, LCIP4_CRED = NA_character_
+    AGE_GROUP = 0,
+    AGE_GROUP_LABEL = NA_character_,
+    NEW_LABOUR_SUPPLY = 0,
+    WEIGHT = 0,
+    LCIP4_CRED = NA_character_
   ),
   dacso = list(
-    AGE_GROUP = 0, AGE_GROUP_ROLLUP = 0, NEW_LABOUR_SUPPLY = 0, WEIGHT = 0,
-    OLD_LABOUR_SUPPLY = 0, HAD_PREVIOUS_CREDENTIAL = 0,
-    PFST_IN_POST_SEC_BEFORE = 0, TPID_LGND_CD = NA_real_,
+    AGE_GROUP = 0,
+    AGE_GROUP_ROLLUP = 0,
+    NEW_LABOUR_SUPPLY = 0,
+    WEIGHT = 0,
+    OLD_LABOUR_SUPPLY = 0,
+    HAD_PREVIOUS_CREDENTIAL = 0,
+    PFST_IN_POST_SEC_BEFORE = 0,
+    TPID_LGND_CD = NA_real_,
     LCIP_LCIPPC_NAME = NA_character_
   )
 )
@@ -261,7 +279,10 @@ rename_maps <- list(
 # read but Oracle doesn't supply. Mirrors legacy _r schema; safe as placeholder.
 # (Folded into placeholders_per_survey above; this stub kept for compatibility.)
 legacy_placeholders <- list(
-  bgs = list(), trd = list(), appso = list(), dacso = list()
+  bgs = list(),
+  trd = list(),
+  appso = list(),
+  dacso = list()
 )
 
 rename_to_legacy <- function(data, survey) {
@@ -288,7 +309,9 @@ oracle_con <- if (!USE_CACHE) {
       PWD = iw_config$pwd
     ),
     error = function(e) {
-      log_info(paste("EZConnect failed (ORA-12154 expected); retrying with TNS descriptor"))
+      log_info(paste(
+        "EZConnect failed (ORA-12154 expected); retrying with TNS descriptor"
+      ))
       dbConnect(
         odbc::odbc(),
         Driver = "Oracle in instantclient_19c",
@@ -298,7 +321,9 @@ oracle_con <- if (!USE_CACHE) {
       )
     }
   )
-} else NULL
+} else {
+  NULL
+}
 
 if (!is.null(oracle_con)) {
   log_info(paste("Connected to INFOWARE Oracle:", dbGetInfo(oracle_con)$dbname))
@@ -344,7 +369,7 @@ surveys <- list(
 )
 
 # ---- Per-survey extract -> *_oracle + *_r + cache ---------------------------
-extracted <- list()  # holds in-memory copies for the stacked so_combined build
+extracted <- list() # holds in-memory copies for the stacked so_combined build
 
 for (srv in names(surveys)) {
   spec <- surveys[[srv]]
@@ -364,13 +389,19 @@ for (srv in names(surveys)) {
     write_parquet_safe(df, pq_path)
   }
   log_info(glue("{toupper(srv)} extraction: {nrow(df)} rows x {ncol(df)} cols"))
-  record_manifest(spec$oracle_tbl, nrow(df), ncol(df),
-    source = if (USE_CACHE) "cache-rds" else "oracle")
+  record_manifest(
+    spec$oracle_tbl,
+    nrow(df),
+    ncol(df),
+    source = if (USE_CACHE) "cache-rds" else "oracle"
+  )
 
   # 2. Write *_oracle to dbo (Layer 1 -- pure extraction).
-  dbWriteTable(mssql_con,
+  dbWriteTable(
+    mssql_con,
     name = SQL(glue('"{write_schema}"."{spec$oracle_tbl}"')),
-    value = df, overwrite = TRUE
+    value = df,
+    overwrite = TRUE
   )
   log_info(glue("Wrote {spec$oracle_tbl} to dbo"))
 
@@ -382,9 +413,11 @@ for (srv in names(surveys)) {
     add_placeholders(srv) %>%
     rename_to_legacy(srv)
 
-  dbWriteTable(mssql_con,
+  dbWriteTable(
+    mssql_con,
     name = SQL(glue('"{write_schema}"."{spec$r_tbl}"')),
-    value = r_df, overwrite = TRUE
+    value = r_df,
+    overwrite = TRUE
   )
   log_info(glue("Wrote {spec$r_tbl} to dbo"))
 
@@ -396,21 +429,37 @@ grad_path <- file.path(cache_dir, "t_graduates_oracle.rds")
 if (USE_CACHE && file.exists(grad_path)) {
   graduates <- readRDS(grad_path)
 } else {
-  log_info("Extracting graduates from Oracle (T05: no cycle filter, all cycles)")
-  graduates <- dbGetQuery(oracle_con, read_sql(file.path(sql_dir, "05_graduates_std.sql")))
+  log_info(
+    "Extracting graduates from Oracle (T05: no cycle filter, all cycles)"
+  )
+  graduates <- dbGetQuery(
+    oracle_con,
+    read_sql(file.path(sql_dir, "05_graduates_std.sql"))
+  )
   saveRDS(graduates, grad_path)
-  write_parquet_safe(graduates, file.path(cache_dir, "t_graduates_oracle.parquet"))
+  write_parquet_safe(
+    graduates,
+    file.path(cache_dir, "t_graduates_oracle.parquet")
+  )
 }
-dbWriteTable(mssql_con,
+dbWriteTable(
+  mssql_con,
   name = SQL(glue('"{write_schema}"."t_graduates_oracle"')),
-  value = graduates, overwrite = TRUE
+  value = graduates,
+  overwrite = TRUE
 )
-dbWriteTable(mssql_con,
+dbWriteTable(
+  mssql_con,
   name = SQL(glue('"{write_schema}"."t_graduates_r"')),
-  value = graduates, overwrite = TRUE
+  value = graduates,
+  overwrite = TRUE
 )
-record_manifest("t_graduates_oracle", nrow(graduates), ncol(graduates),
-  source = if (USE_CACHE) "cache-rds" else "oracle")
+record_manifest(
+  "t_graduates_oracle",
+  nrow(graduates),
+  ncol(graduates),
+  source = if (USE_CACHE) "cache-rds" else "oracle"
+)
 log_info(glue("Graduates: {nrow(graduates)} rows"))
 
 # ---- Lookups + age-step + year-cycle (T06: LAN read, dbo *_r write) --------
@@ -423,40 +472,81 @@ source_lookup <- function(csv_rel, out_tbl) {
     return(invisible(NULL))
   }
   df <- read_csv(path, show_col_types = FALSE)
-  dbWriteTable(mssql_con,
+  dbWriteTable(
+    mssql_con,
     name = SQL(glue('"{write_schema}"."{out_tbl}"')),
-    value = df, overwrite = TRUE
+    value = df,
+    overwrite = TRUE
   )
   log_info(glue("Wrote {out_tbl} ({nrow(df)} rows) from LAN"))
   record_manifest(out_tbl, nrow(df), ncol(df), source = "lan-csv")
 }
 
 # T_Weights is the critical one -- loaded by load-cohort-bgs.R today.
-source_lookup("development/csv/gh-source/lookups/02/T_Weights.csv", "t_weights_r")
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_Weights.csv",
+  "t_weights_r"
+)
 source_lookup("development/csv/gh-source/lookups/02/tbl_Age.csv", "tbl_age_r")
-source_lookup("development/csv/gh-source/lookups/02/tbl_Age_Groups.csv", "tbl_age_groups_r")
-source_lookup("development/csv/gh-source/lookups/02/T_PSSM_Credential_Grouping.csv",
-  "t_pssm_credential_grouping_r")
-source_lookup("development/csv/gh-source/lookups/02/T_Year_Survey_Year.csv",
-  "t_year_survey_year_r")
-source_lookup("development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv",
-  "t_noc_broad_categories_r")
-source_lookup("development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv",
-  "t_current_region_pssm_codes_r")
-source_lookup("development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv",
-  "t_current_region_pssm_rollup_codes_r")
-source_lookup("development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv",
-  "t_current_region_pssm_rollup_codes_bc_r")
+source_lookup(
+  "development/csv/gh-source/lookups/02/tbl_Age_Groups.csv",
+  "tbl_age_groups_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_PSSM_Credential_Grouping.csv",
+  "t_pssm_credential_grouping_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_Year_Survey_Year.csv",
+  "t_year_survey_year_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv",
+  "t_noc_broad_categories_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Codes.csv",
+  "t_current_region_pssm_codes_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes.csv",
+  "t_current_region_pssm_rollup_codes_r"
+)
+source_lookup(
+  "development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv",
+  "t_current_region_pssm_rollup_codes_bc_r"
+)
 
 # ---- Stacked so_combined (T02 -- *_r common 27 cols + per-survey extras) ----
 common_cols <- c(
-  "SURVEY", "SUBM_CD", "SURVEY_YEAR", "STUDENT_KEY", "PEN", "RESPONDENT",
-  "INST", "INST_NAME", "PSSM_CREDENTIAL", "LCP6_CD", "LCP6_DIGITS_NAME",
-  "LCP4_CD", "LCP4_DIGITS_NAME", "TTRAIN", "AGE_AT_SURVEY", "AGE_GROUP",
-  "CURRENT_REGION1", "CURRENT_REGION4", "LABR_IN_LABOUR_MARKET",
-  "LABR_EMPLOYED", "LABR_UNEMPLOYED", "LABR_JOB_SEARCH_TIME_GP",
-  "LABR_JOB_TRAINING_RELATED", "NOC_CD", "NOC_NAME", "GRADSTAT_GROUP",
-  "INTERNATIONAL"
+  "SURVEY",
+  "SUBM_CD",
+  "SURVEY_YEAR",
+  "STUDENT_KEY",
+  "PEN",
+  "RESPONDENT",
+  "INST",
+  "INST_NAME",
+  "PSSM_CREDENTIAL",
+  "LCP6_CD",
+  "LCP6_DIGITS_NAME",
+  "LCP4_CD",
+  "LCP4_DIGITS_NAME",
+  "TTRAIN",
+  "AGE_AT_SURVEY",
+  "AGE_GROUP",
+  "CURRENT_REGION1",
+  "CURRENT_REGION4",
+  "LABR_IN_LABOUR_MARKET",
+  "LABR_EMPLOYED",
+  "LABR_UNEMPLOYED",
+  "LABR_JOB_SEARCH_TIME_GP",
+  "LABR_JOB_TRAINING_RELATED",
+  "NOC_CD",
+  "NOC_NAME",
+  "GRADSTAT_GROUP",
+  "INTERNATIONAL",
+  "GENDER"
 )
 
 # bind_rows pads per-survey extras with NA automatically (T02).
@@ -497,7 +587,12 @@ so_combined <- do.call(dplyr::bind_rows, stackable)
 
 combined_path <- file.path(cache_dir, "so_combined.rds")
 saveRDS(so_combined, combined_path)
-record_manifest("so_combined", nrow(so_combined), ncol(so_combined), source = "derived")
+record_manifest(
+  "so_combined",
+  nrow(so_combined),
+  ncol(so_combined),
+  source = "derived"
+)
 log_info(glue(
   "so_combined: {nrow(so_combined)} rows x {ncol(so_combined)} cols -> {combined_path}"
 ))
@@ -522,7 +617,9 @@ bind_so_surveys <- function(cache = cache_dir, surveys = names(surveys)) {
   stackable <- lapply(surveys, function(srv) {
     spec <- surveys[[srv]]
     path <- file.path(cache, paste0(spec$oracle_tbl, ".rds"))
-    if (!file.exists(path)) stop(glue("Missing {path}; run loader first"))
+    if (!file.exists(path)) {
+      stop(glue("Missing {path}; run loader first"))
+    }
     d <- readRDS(path)
     present <- intersect(common_cols, names(d))
     d[, present, drop = FALSE]

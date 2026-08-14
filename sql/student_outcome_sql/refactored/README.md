@@ -88,7 +88,7 @@ they are omitted here and documented in
 - `0 AS New_Labour_Supply / Weight / Age_Group` placeholders dropped (R computes real values).
 - `Expr1` (Access auto-name) → `GRAD_COUNT`; `Private` → `PRIVATE_FLAG`.
 - Commented-out columns (`noc_cd`, `age_group_label`, `LCIP4_CRED`) either restored or documented.
-- Added columns that exist in Oracle but were missing (per-survey extras: `GENDER`, `LRST_CD`, `SURVEY_MODE`, `CURRENT_REGION2/3`, further-ed flags, `NOC_NAME_2021`, salaries).
+- Added columns that exist in Oracle but were missing (per-survey extras: `GENDER`, `LRST_CD`, `SURVEY_MODE`, `CURRENT_REGION2/3`, further-ed flags, `NOC_NAME_2021`, salaries). DACSO `GENDER` sourced from `CO_COHORT_SAMPLE` (union 2021-2025) joined via `STQU_ID` — not present in `SURV_COHORT_COLLECTION_INFO` or `C_OUTC_CLEAN_SHORT_RESP`.
 - Cycle filter standardized: `IN ('C_Outc21'..'C_Outc25')` for TRD/APPSO/DACSO; `YEAR` between 2021 and 2025 for BGS.
 
 ## Files
@@ -111,7 +111,7 @@ Row counts match the PSSM2025 MS SQL copies exactly (confirming data parity):
 | `01_bgs_data_std.sql` | 123,452 | 35 |
 | `02_trd_data_std.sql` | 22,066 | 41 |
 | `03_appso_data_std.sql` | 23,166 | 40 |
-| `04_dacso_data_std.sql` | 147,020 | 44 |
+| `04_dacso_data_std.sql` | 147,020 | 46 |
 | `05_graduates_std.sql` | 1,004 | 8 |
 | `06_age_step1_std.sql` | 147,020 | 7 |
 | `07_lookups_std.sql` — CIP4 | 454 | 3 |
