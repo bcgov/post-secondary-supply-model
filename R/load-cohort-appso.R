@@ -47,6 +47,7 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
+source("R/utils.R")
 # qi_run <- F
 # regular_run <- T
 # ptib_run <- F
@@ -88,13 +89,16 @@ log_info("Connected to SQL Server database (decimal)")
 # Read the APPSO survey responses from the LAN (source: query
 # APPSO_Data_01_Final in the LAN sql/ folder).  One row per respondent per
 # survey cycle; SUBM_CD gives the cycle (C_Outc21..C_Outc25).
-t_appso_data_final <- read_csv(glue::glue(
+appso_file <- glue::glue(
   "{lan}/data/student-outcomes/csv/APPSO_Data_01_Final.csv"
+)
+t_appso_data_final <- read_oracle_csv_auto(appso_file)
+log_info(glue::glue(
+  "Read APPSO_Data_01_Final.csv: {nrow(t_appso_data_final)} rows"
 ))
-log_info(glue::glue("Read APPSO_Data_01_Final.csv: {nrow(t_appso_data_final)} rows"))
 # Read the apprenticeship graduate counts (used in 04-graduate-projections
 # for the 2-year average / historical forecast of APPSO graduates).
-appso_graduates <- read_csv(glue::glue(
+appso_graduates <- read_oracle_csv_auto(glue::glue(
   "{lan}/data/student-outcomes/csv/APPSO_Graduates.csv"
 ))
 log_info(glue::glue("Read APPSO_Graduates.csv: {nrow(appso_graduates)} rows"))
@@ -242,27 +246,8 @@ tables_to_keep <- c(
   "t_appso_data_final"
 )
 
-# Write each kept table to SQL Server as <name>_r.  Downstream scripts
-# (02b-1-pssm-cohorts.R etc.) pick them up by object name from the loading
-# sequence in run-data-loading.R / run-data-preprocessing.R.
-write_table_to_db <- function(table_name, schema, con) {
-  db_name <- paste0(table_name, "_r")
-  # Some source files contain invalid UTF-8 byte sequences (e.g. PROGRAM
-  # names), which make odbcDataType()/nchar() fail when writing.  Strip
-  # invalid bytes from all character columns before writing.
-  data <- base::get(table_name, envir = .GlobalEnv) %>%
-    mutate(across(
-      where(is.character),
-      ~ iconv(.x, from = "UTF-8", to = "UTF-8", sub = "")
-    ))
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{schema}"."{db_name}"')),
-    data,
-    overwrite = TRUE
-  )
-}
-
+# Write each kept table to SQL Server as <name>_r.  write_table_to_db lives in
+# R/utils.R (sourced by run-data-loading.R / the calling runner).
 walk(tables_to_keep, write_table_to_db, schema = write_schema, con = con)
 log_info(glue::glue(
   "Written to SQL Server ({write_schema}): {paste0(tables_to_keep, '_r', collapse = ', ')}"

@@ -90,7 +90,7 @@ log_info("Connected to SQL Server database (decimal)")
 # flags (Q08 = had post-secondary training before this program;
 # PFST_HAD_PREVIOUS_CDTL, PFST_FURSTDY_INCL_STILL_ATTD) used to derive
 # HAD_PREVIOUS_CREDENTIAL / PFST_IN_POST_SEC_BEFORE for the DACSO cohort.
-infoware_c_outc_clean_short_resp <- read_csv(glue::glue(
+infoware_c_outc_clean_short_resp <- read_oracle_csv_auto(glue::glue(
   "{lan}/data/student-outcomes/csv/infoware_c_outc_clean_short_resp.csv"
 ))
 log_info(glue::glue(
@@ -200,24 +200,21 @@ t_current_region_pssm_rollup_codes <-
   ) %>%
   janitor::clean_names(case = "all_caps")
 
-t_current_region_pssm_rollup_codes_bc <-
-  readr::read_csv(
-    glue::glue(
-      "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"
-    ),
-    col_types = cols(.default = col_guess())
-  ) %>%
+t_current_region_pssm_rollup_codes_bc <- read_oracle_csv_auto(
+  glue::glue(
+    "{lan}/development/csv/gh-source/lookups/02/T_Current_Region_PSSM_Rollup_Codes_BC.csv"
+  )
+) %>%
   janitor::clean_names(case = "all_caps")
 
 # NOC (National Occupational Classification) broad-category look-up.  Used in
 # 02b-2-pssm-cohorts-new-labour-supply.R to build the labour supply
 # distribution by broad occupation group.
 t_noc_broad_categories <-
-  readr::read_csv(
+  read_oracle_csv_auto(
     glue::glue(
       "{lan}/development/csv/gh-source/lookups/02/T_NOC_Broad_Categories_Updated.csv"
-    ),
-    col_types = cols(.default = col_guess())
+    )
   ) %>%
   janitor::clean_names(case = "all_caps")
 
@@ -227,41 +224,41 @@ t_noc_broad_categories <-
 # submission.  In 02b-1-pssm-cohorts.R this is joined to the credential,
 # age and weight look-ups and becomes the DACSO block of T_Cohorts_Recoded.
 if (regular_run == T | ptib_run == T) {
-t_dacso_data_part_1_stepa <- readr::read_csv(
-  glue::glue(
-    "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
-  )
-)
-log_info(glue::glue(
-  "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
-))
-
-# Recode the survey's current-region fields into the standard PSSM region
-# codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
-t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
-  mutate(
-    CURRENT_REGION_PSSM_CODE = case_when(
-      TPID_CURRENT_REGION1 %in%
-        c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
-      TPID_CURRENT_REGION4 == 5 ~ 9,
-      TPID_CURRENT_REGION4 == 6 ~ 10,
-      TPID_CURRENT_REGION4 == 7 ~ 11,
-      TPID_CURRENT_REGION4 == 8 ~ -1,
-      TRUE ~ NA_integer_
+  t_dacso_data_part_1_stepa <- read_oracle_csv_auto(
+    glue::glue(
+      "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
     )
   )
-log_info(glue::glue(
-  "CURRENT_REGION_PSSM_CODE assigned: {nrow(t_dacso_data_part_1_stepa)} rows"
-))
-# commenting these out for now - see PR
-#|>
-#mutate(
-#  TTRAIN = NA_integer_,
-#  LABR_EMPLOYED = NA_integer_,
-#  COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
-#  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
-#  RESPONDENT = NA_integer_,
-#)
+  log_info(glue::glue(
+    "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
+
+  # Recode the survey's current-region fields into the standard PSSM region
+  # codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
+  t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
+    mutate(
+      CURRENT_REGION_PSSM_CODE = case_when(
+        TPID_CURRENT_REGION1 %in%
+          c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
+        TPID_CURRENT_REGION4 == 5 ~ 9,
+        TPID_CURRENT_REGION4 == 6 ~ 10,
+        TPID_CURRENT_REGION4 == 7 ~ 11,
+        TPID_CURRENT_REGION4 == 8 ~ -1,
+        TRUE ~ NA_integer_
+      )
+    )
+  log_info(glue::glue(
+    "CURRENT_REGION_PSSM_CODE assigned: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
+  # commenting these out for now - see PR
+  #|>
+  #mutate(
+  #  TTRAIN = NA_integer_,
+  #  LABR_EMPLOYED = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
+  #  RESPONDENT = NA_integer_,
+  #)
 }
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
@@ -286,27 +283,8 @@ tables_to_keep <- c(
   "t_noc_broad_categories"
 )
 
-# Write each kept table to SQL Server as <name>_r.  Downstream scripts
-# (02b-1-pssm-cohorts.R etc.) pick them up by object name from the loading
-# sequence in run-data-loading.R / run-data-preprocessing.R.
-write_table_to_db <- function(table_name, schema, con) {
-  db_name <- paste0(table_name, "_r")
-  # Some source files contain invalid UTF-8 byte sequences (e.g. PROGRAM
-  # names), which make odbcDataType()/nchar() fail when writing.  Strip
-  # invalid bytes from all character columns before writing.
-  data <- base::get(table_name, envir = .GlobalEnv) %>%
-    mutate(across(
-      where(is.character),
-      ~ iconv(.x, from = "UTF-8", to = "UTF-8", sub = "")
-    ))
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{schema}"."{db_name}"')),
-    data,
-    overwrite = TRUE
-  )
-}
-
+# Write each kept table to SQL Server as <name>_r.  write_table_to_db lives in
+# R/utils.R (sourced by run-data-loading.R / the calling runner).
 walk(tables_to_keep, write_table_to_db, schema = write_schema, con = con)
 log_info(glue::glue(
   "Written to SQL Server ({write_schema}): {paste0(tables_to_keep, '_r', collapse = ', ')}"
