@@ -169,7 +169,7 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
 )
-# We load six years of data for the analaysis/model run.
+# We load six years of data for the analysis/model run.
 walk(
   bgs_infoware_tables,
   load_infoware_table_by_chunk,
