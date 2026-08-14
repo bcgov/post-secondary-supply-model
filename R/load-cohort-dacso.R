@@ -226,6 +226,7 @@ t_noc_broad_categories <-
 # Sub-cycle is COCI_SUBM_CD (C_Outc..); COCI_STQU_ID identifies the survey
 # submission.  In 02b-1-pssm-cohorts.R this is joined to the credential,
 # age and weight look-ups and becomes the DACSO block of T_Cohorts_Recoded.
+if (regular_run == T | ptib_run == T) {
 t_dacso_data_part_1_stepa <- readr::read_csv(
   glue::glue(
     "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
@@ -261,7 +262,7 @@ log_info(glue::glue(
 #  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
 #  RESPONDENT = NA_integer_,
 #)
-
+}
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables
