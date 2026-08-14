@@ -52,7 +52,9 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
+# regular_run <- T
+# qi_run <- F
+# ptib_run <- F
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
