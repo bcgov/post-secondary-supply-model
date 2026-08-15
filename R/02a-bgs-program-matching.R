@@ -131,11 +131,22 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_COHORT_INFO"
 )
 
-# CIP taxonomy lookups, in the analyst's own schema
+# CIP taxonomy lookups (raw data lives in the shared dbo schema)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): lookups switched from CIP2016 to
+## CIP2021 variants and sourced from the shared dbo schema (raw-data
+## home) instead of the analyst schema. The CIP2021 4-digit lookup
+## renamed LCP4_CIP_4DIGITS_NAME to LCP4_DIGITS_NAME -- aliased back to
+## the legacy name at the table reference so all downstream selects keep
+## working unchanged. The refreshed STP/survey CIPs are CIP2021-coded
+## (886/907 vs 853/907 distinct-code coverage on the 6-digit exact-match
+## stage), so the switch also improves coverage.
 lookup_tables <- c(
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_2DIGITS_CIP2016"
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "INFOWARE_L_CIP_2DIGITS_CIP2021"
 )
 
 missing_bgs <- bgs_infoware_tables[
@@ -147,7 +158,7 @@ missing_bgs <- bgs_infoware_tables[
 missing_lookups <- lookup_tables[
   !map_lgl(
     lookup_tables,
-    ~ dbExistsTable(con, Id(schema = my_schema, table = .x))
+    ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
 
@@ -158,22 +169,32 @@ if (length(missing_bgs) > 0) {
 }
 if (length(missing_lookups) > 0) {
   stop(glue::glue(
-    "The following required CIP lookup tables are missing in schema '{my_schema}': {paste(missing_lookups, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
+    "The following required CIP lookup tables are missing in schema '{shareschema}': {paste(missing_lookups, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
   ))
 }
 log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
-infoware_bgs_20_24 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_20_24"))
-infoware_bgs_21_25 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_21_25"))
+infoware_bgs_20_24 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_20_24")
+)
+infoware_bgs_21_25 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_21_25")
+)
 infoware_cohort_info <- tbl(
   con,
   in_schema(shareschema, "INFOWARE_BGS_COHORT_INFO")
 )
 
-cip_6_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016"))
-cip_4_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_4DIGITS_CIP2016"))
-cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
+cip_6_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_6DIGITS_CIP2021"))
+cip_4_tbl <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021")
+) %>%
+  rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME)
+cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
 stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
@@ -2474,8 +2495,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
@@ -2947,7 +2968,9 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
+log_info(
+  "Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)"
+)
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------
@@ -3315,8 +3338,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
