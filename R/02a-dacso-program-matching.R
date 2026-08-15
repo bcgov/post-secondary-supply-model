@@ -14,11 +14,13 @@
 # Aligns CIP codes between DACSO and STP data
 #
 # Required Tables
-#   DACSO_STP_ProgramsCIP4_XWALK_ALL_20XX (previous PSSM XWALK)
+#   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23.csv on the LAN
+#     (lan_program_mathcing/DACSO/tmp-data/2023 -- cold-start seed;
+#      DB seed tables retired with the CIP2021 migration)
 #   INFOWARE_PROGRAMS
-#   INFOWARE_L_CIP_6DIGITS_CIP2016
-#   INFOWARE_L_CIP_4DIGITS_CIP2016
-#   INFOWARE_L_CIP_2DIGITS_CIP2016
+#   INFOWARE_L_CIP_6DIGITS_CIP2021
+#   INFOWARE_L_CIP_4DIGITS_CIP2021
+#   INFOWARE_L_CIP_2DIGITS_CIP2021
 #   INFOWARE_PROGRAMS_HIST_PRGMID_XREF
 #   Credential_Non_Dup
 #
@@ -60,8 +62,8 @@ log_info("==== 02a-dacso-program-matching.R START ====")
 # Setup ----
 
 lan <- config::get("lan")
-sch_tbl <- function(name) {
-  tbl(con, dbplyr::in_schema(my_schema, name))
+sch_tbl <- function(name, schema = my_schema) {
+  tbl(con, dbplyr::in_schema(schema, name))
 }
 
 # -----------------------------------------------------------------------------
@@ -211,6 +213,7 @@ con <- dbConnect(
   Trusted_Connection = "True"
 )
 my_schema <- config::get("myschema")
+shareschema <- config::get("shareschema")
 log_info("Connected to SQL Server database")
 
 # ## ---- Write initial tables to Decimal ----
@@ -267,15 +270,25 @@ log_info("Part 1: Building XWALK from last cycle and adding new DACSO programs")
 
 ## ---- Create programs_table from combining INFOWARE tables ----
 ## define programs_table from which to grab new programs (with and without historical linkages)
-# INFOWARE_PROGRAMS does not have LCIP_CD_CIP2016 anymore, instead, it has LCIP_CD_CIP2021
-# so we use the backup version of the PROGRAMS table which has the LCIP_CD_CIP2016 column
-programs_table <- tbl(con, "INFOWARE_PROGRAMS_2016") %>%
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): read the current INFOWARE_PROGRAMS
+## registry (CIP2021-coded, covers C_Outc24-26) instead of the retired
+## INFOWARE_PROGRAMS_2016/2021 backup. LCIP_CD_CIP2021 is no-period
+## format, so it joins the 6-digit lookup on LCP6_CD (the no-period key;
+## LCIP_CD no longer exists in the CIP2021 lookups). The renamed lookup
+## columns are aliased back to the legacy names
+## (LCIP_CD_CIP2016 / LCIP_NAME_CIP2016 / LCP4_CIP_4DIGITS_NAME) so all
+## downstream code in this script keeps working unchanged -- the values
+## carried are CIP2021.
+programs_table <- tbl(con, "INFOWARE_PROGRAMS") %>%
   inner_join(
-    tbl(con, "INFOWARE_L_CIP_6DIGITS_CIP2016"),
-    by = c("LCIP_CD_CIP2016" = "LCIP_CD")
+    tbl(con, "INFOWARE_L_CIP_6DIGITS_CIP2021"),
+    by = c("LCIP_CD_CIP2021" = "LCP6_CD")
   ) %>%
   inner_join(
-    tbl(con, "INFOWARE_L_CIP_4DIGITS_CIP2016"),
+    tbl(con, "INFOWARE_L_CIP_4DIGITS_CIP2021"),
     by = c("LCIP_LCP4_CD" = "LCP4_CD")
   ) %>%
   select(
@@ -286,8 +299,8 @@ programs_table <- tbl(con, "INFOWARE_PROGRAMS_2016") %>%
     PRGM_INST_PROGRAM_NAME_CLEANED,
     PRGM_LCPC_CD,
     PRGM_TTRAIN_FLAG,
-    LCIP_CD_CIP2016,
-    LCIP_NAME_CIP2016,
+    LCIP_CD_CIP2016 = LCIP_CD_CIP2021,
+    LCIP_NAME_CIP2016 = LCIP_NAME_CIP2021,
     PRGM_CREDENTIAL,
     NOTES,
     HAS_HISTORICAL_PRGM_ID_LINK,
@@ -295,43 +308,121 @@ programs_table <- tbl(con, "INFOWARE_PROGRAMS_2016") %>%
     DACSO_OLD_PRGM_ID_DO_NOT_USE,
     DUP_PROGRAM_USE_THIS_PRGM_ID,
     LCIP_LCP4_CD,
-    LCP4_CIP_4DIGITS_NAME
+    LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME
   ) %>%
   collect() %>%
   refresh_programs_join_keys()
-log_info(glue::glue("Part 1: Created programs_table from INFOWARE: {nrow(programs_table)} programs"))
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- tbl(
-  con,
-  DBI::Id(schema = "dbo", table = "DACSO_STP_ProgramsCIP4_XWALK_ALL_2020")
+log_info(glue::glue(
+  "Part 1: Created programs_table from INFOWARE: {nrow(programs_table)} programs"
+))
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): the previous-cycle XWALK seed table is
+## gone from both SQL Server and Oracle, so the XWALK cold-starts from the
+## last model run's XWALK CSV on the LAN (2021_23 window, CIP2016-coded).
+## The seed's STP-side columns (PSI_PROGRAM_CODE etc.) cannot be rebuilt
+## from the registry, so the CSV is the only viable seed. On load, shared
+## business keys are recoded to the current CIP2021 registry coding
+## (unambiguous keys only -- where the registry itself disagrees within a
+## key, the seed value stays). Every recoded key is logged to
+## .scratch/cip-matching/diagnostics/xwalk-seed-recode.csv for analyst
+## review (decision 2026-08-15: registry wins on shared keys).
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- read.csv(
+  file.path(
+    config::get("lan_program_mathcing"),
+    "DACSO", "tmp-data", "2023",
+    "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23.csv"
+  ),
+  colClasses = "character",
+  check.names = FALSE,
+  na.strings = c("", "NA")
 ) %>%
-  collect() %>%
+  type.convert(as.is = TRUE) %>%
   mutate(
-    CIP_CODE_4 = str_pad(CIP_CODE_4, width = 4, side = "left", pad = "0")
+    CIP_CODE_4 = str_pad(
+      as.character(CIP_CODE_4), width = 4, side = "left", pad = "0"
+    )
   ) %>%
   refresh_xwalk_join_keys()
-log_info(glue::glue("Part 1: Loaded previous XWALK (2020): {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs"))
+log_info(glue::glue(
+  "Part 1: Loaded XWALK seed (2021_23 CSV from LAN): {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25)} programs"
+))
+
+# Registry recode map: one unambiguous registry CIP4 per business key.
+reg_recode_map <- programs_table %>%
+  distinct(PRGM_INST_CD_KEY, PRGM_LCPC_CD_KEY, LCIP_LCP4_CD) %>%
+  group_by(PRGM_INST_CD_KEY, PRGM_LCPC_CD_KEY) %>%
+  filter(n_distinct(LCIP_LCP4_CD) == 1) %>%
+  ungroup()
+
+xwalk_seed_recode <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+  inner_join(
+    reg_recode_map %>% rename(REG_CIP4 = LCIP_LCP4_CD),
+    by = c(
+      "COCI_INST_CD_KEY" = "PRGM_INST_CD_KEY",
+      "PRGM_LCPC_CD_KEY" = "PRGM_LCPC_CD_KEY"
+    )
+  ) %>%
+  filter(REG_CIP4 != CIP_CODE_4)
+
+if (nrow(xwalk_seed_recode) > 0) {
+  diag_dir <- file.path(".scratch", "cip-matching", "diagnostics")
+  dir.create(diag_dir, recursive = TRUE, showWarnings = FALSE)
+  write.csv(
+    xwalk_seed_recode %>%
+      select(
+        COCI_INST_CD, PRGM_LCPC_CD, PRGM_INST_PROGRAM_NAME,
+        CIP_CODE_4, REG_CIP4
+      ),
+    file.path(diag_dir, "xwalk-seed-recode.csv"),
+    row.names = FALSE
+  )
+}
+
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+  left_join(
+    reg_recode_map %>% rename(REG_CIP4 = LCIP_LCP4_CD),
+    by = c(
+      "COCI_INST_CD_KEY" = "PRGM_INST_CD_KEY",
+      "PRGM_LCPC_CD_KEY" = "PRGM_LCPC_CD_KEY"
+    )
+  ) %>%
+  mutate(CIP_CODE_4 = ifelse(!is.na(REG_CIP4), REG_CIP4, CIP_CODE_4)) %>%
+  select(-REG_CIP4)
+log_info(glue::glue(
+  "Part 1: CIP2021 registry recode applied: {nrow(xwalk_seed_recode)} seed keys recoded (log: .scratch/cip-matching/diagnostics/xwalk-seed-recode.csv)"
+))
 
 ## ---- Add to XWALK: New DACSO prgms WITHOUT historical linkages ----
 ## review the HAS_HISTORICAL_PRGM_ID_LINK values
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): cycle window extended from
+## C_Outc21..23 to C_Outc21..25 to cover the refreshed 2024/25 data.
 programs_table %>%
-  filter(PRGM_FIRST_SEEN_SUBM_CD %in% c('C_Outc21', 'C_Outc22', 'C_Outc23')) %>%
+  filter(
+    PRGM_FIRST_SEEN_SUBM_CD %in%
+      c('C_Outc21', 'C_Outc22', 'C_Outc23', 'C_Outc24', 'C_Outc25')
+  ) %>%
   group_by(PRGM_FIRST_SEEN_SUBM_CD, HAS_HISTORICAL_PRGM_ID_LINK) %>%
   tally()
 
-new_dacso_programs_21_23 <- programs_table %>%
+new_dacso_programs_21_25 <- programs_table %>%
   filter(
     PRGM_FIRST_SEEN_SUBM_CD %in%
-      c('C_Outc21', 'C_Outc22', 'C_Outc23') &
+      c('C_Outc21', 'C_Outc22', 'C_Outc23', 'C_Outc24', 'C_Outc25') &
       (is.na(HAS_HISTORICAL_PRGM_ID_LINK) | HAS_HISTORICAL_PRGM_ID_LINK == " ")
   )
-new_dacso_programs_21_23 %>% count(PRGM_FIRST_SEEN_SUBM_CD)
+new_dacso_programs_21_25 %>% count(PRGM_FIRST_SEEN_SUBM_CD)
 
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   bind_rows(
     programs_table %>%
       filter(
         PRGM_FIRST_SEEN_SUBM_CD %in%
-          c('C_Outc21', 'C_Outc22', 'C_Outc23') &
+          c('C_Outc21', 'C_Outc22', 'C_Outc23', 'C_Outc24', 'C_Outc25') &
           (is.na(HAS_HISTORICAL_PRGM_ID_LINK) |
             HAS_HISTORICAL_PRGM_ID_LINK == " ")
       ) %>%
@@ -339,7 +430,9 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
         New_DACSO_Program2021_23 = case_when(
           PRGM_FIRST_SEEN_SUBM_CD == "C_Outc21" ~ "Yes2021",
           PRGM_FIRST_SEEN_SUBM_CD == "C_Outc22" ~ "Yes2022",
-          PRGM_FIRST_SEEN_SUBM_CD == "C_Outc23" ~ "Yes2023"
+          PRGM_FIRST_SEEN_SUBM_CD == "C_Outc23" ~ "Yes2023",
+          PRGM_FIRST_SEEN_SUBM_CD == "C_Outc24" ~ "Yes2024",
+          PRGM_FIRST_SEEN_SUBM_CD == "C_Outc25" ~ "Yes2025"
         )
       ) %>%
       select(
@@ -422,7 +515,7 @@ Updated_DACSO_Programs_in_2021_with_links <- Updated_DACSO_Programs_in_2021_with
 ## ---- 2021 Update to XWALK: Updated DACSO programs WITH historical linkages ----
 # Use generated key columns for the business-key join below.
 # This keeps the original columns unchanged and makes the SQL-like matching rule explicit.
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     Updated_DACSO_Programs_in_2021_with_links %>%
       mutate(HISTORICAL_CPC_CD = as.character(HISTORICAL_CPC_CD)) %>%
@@ -489,7 +582,7 @@ Remaining_DACSO_Updates_CPCS_2021 <- Updated_DACSO_Programs_in_2021_with_links %
     )
   ) %>%
   anti_join(
-    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
       select(PRGM_LCPC_CD_KEY, COCI_INST_CD_KEY, PRGM_INST_PROGRAM_NAME_KEY),
     by = c("PRGM_LCPC_CD_KEY", "COCI_INST_CD_KEY", "PRGM_INST_PROGRAM_NAME_KEY")
   )
@@ -504,7 +597,7 @@ programs_table %>%
 programs_table %>% filter(PRGM_ID == "3119") %>% pull(NOTES)
 
 # update based on review
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   mutate(
     CIP_CODE_4 = case_when(PRGM_ID == 3119 ~ "1907", TRUE ~ CIP_CODE_4), # ? how can we know why 1907
     LCP4_CIP_4DIGITS_NAME = case_when(
@@ -591,7 +684,7 @@ Updated_DACSO_Programs_in_2022_with_links <- Updated_DACSO_Programs_in_2022_with
 ## ---- 2022 Update to XWALK: Updated DACSO programs WITH historical linkages ----
 # Use generated key columns for the business-key join below.
 # This keeps the original columns unchanged and makes the SQL-like matching rule explicit.
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     Updated_DACSO_Programs_in_2022_with_links %>%
       mutate(HISTORICAL_CPC_CD = as.character(HISTORICAL_CPC_CD)) %>%
@@ -658,7 +751,7 @@ Remaining_DACSO_Updates_CPCS_2022 <- Updated_DACSO_Programs_in_2022_with_links %
     )
   ) %>%
   anti_join(
-    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
       select(PRGM_LCPC_CD_KEY, COCI_INST_CD_KEY, PRGM_INST_PROGRAM_NAME_KEY),
     by = c("PRGM_LCPC_CD_KEY", "COCI_INST_CD_KEY", "PRGM_INST_PROGRAM_NAME_KEY")
   )
@@ -680,7 +773,7 @@ programs_table %>%
 # 10399 -> 9861 -> 131 (update CIP and CPC to most recent)
 
 # apply necessary updates
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   mutate(
     CIP_CODE_4 = case_when(
       PRGM_ID == 115 ~ "1502",
@@ -800,7 +893,7 @@ Updated_DACSO_Programs_in_2023_with_links <- Updated_DACSO_Programs_in_2023_with
 ## ---- 2023 Update to XWALK: Updated DACSO programs WITH historical linkages ----
 # Use generated key columns for the business-key join below.
 # This keeps the original columns unchanged and makes the SQL-like matching rule explicit.
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     Updated_DACSO_Programs_in_2023_with_links %>%
       mutate(HISTORICAL_CPC_CD = as.character(HISTORICAL_CPC_CD)) %>%
@@ -867,7 +960,7 @@ Remaining_DACSO_Updates_CPCS_2023 <- Updated_DACSO_Programs_in_2023_with_links %
     )
   ) %>%
   anti_join(
-    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
       select(PRGM_LCPC_CD_KEY, COCI_INST_CD_KEY, PRGM_INST_PROGRAM_NAME_KEY),
     by = c("PRGM_LCPC_CD_KEY", "COCI_INST_CD_KEY", "PRGM_INST_PROGRAM_NAME_KEY")
   )
@@ -883,7 +976,7 @@ programs_table %>%
 # 1 has historical match not in XWALK: 10493 -> 9810 (9810 does not exist in XWALK - add 10493 info as 9810 PRGM_ID)
 
 # add missing PRGM_ID
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   bind_rows(
     Remaining_DACSO_Updates_CPCS_2023 %>%
       filter(PRGM_ID == "10493") %>%
@@ -911,7 +1004,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
   )
 
 # update necessary values
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   mutate(
     PRGM_LCPC_CD = case_when(
       PRGM_ID == 9237 ~ "BCPRPC",
@@ -931,9 +1024,290 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
     )
   )
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): the per-cycle historical-link walk is
+## extended to C_Outc24 and C_Outc25 (new cycles in the refreshed data),
+## cloned from the 2023 pattern. The 2023 block's manual PRGM_ID
+## overrides are year-specific and are NOT cloned; the Remaining/NOTES
+## printouts below surface the new cycles' cases for analyst review.
+## C_Outc26 rows exist in the registry/XREF but stay outside the model
+## window (locked C_Outc21..25).
+
+## ---- 2024 Find DACSO prgms WITH historical linkages ----
+Updated_DACSO_Programs_in_2024_with_links <- programs_table %>%
+  filter(
+    PRGM_FIRST_SEEN_SUBM_CD == 'C_Outc24' & HAS_HISTORICAL_PRGM_ID_LINK == 'Y'
+  ) %>%
+  inner_join(
+    tbl(con, "INFOWARE_PROGRAMS_HIST_PRGMID_XREF") %>%
+      filter(YEAR_LINK_CREATED == 'C_Outc24' & SURVEY_CODE == 'DACSO') %>%
+      collect(),
+    by = "PRGM_ID"
+  ) %>%
+  select(
+    PRGM_ID,
+    PRGM_FIRST_SEEN_SUBM_CD,
+    PRGM_INST_CD,
+    PRGM_LCPC_CD,
+    PRGM_INST_PROGRAM_NAME,
+    PRGM_TTRAIN_FLAG,
+    PRGM_CREDENTIAL,
+    PRGM_INST_PROGRAM_NAME_CLEANED,
+    NOTES,
+    HAS_HISTORICAL_PRGM_ID_LINK,
+    DUP_PROGRAM_USE_THIS_PRGM_ID,
+    CIP_CLUSTER_ARTS_APPLIED,
+    DACSO_OLD_PRGM_ID_DO_NOT_USE,
+    LCIP_CD_CIP2016,
+    LCIP_NAME_CIP2016,
+    LCIP_LCP4_CD,
+    LCP4_CIP_4DIGITS_NAME,
+    HISTORICAL_PRGM_ID,
+    YEAR_LINK_CREATED,
+    SURVEY_CODE
+  )
+
+## ---- 2024 Get historical linkages for DACSO prgms ----
+Updated_DACSO_Programs_in_2024_with_links <- Updated_DACSO_Programs_in_2024_with_links %>%
+  inner_join(
+    programs_table %>%
+      select(
+        PRGM_ID,
+        HISTORICAL_CPC_CD = PRGM_LCPC_CD,
+        HISTORICAL_PROGRAM_NAME = PRGM_INST_PROGRAM_NAME,
+        HISTORICAL_CIP4_CD = LCIP_LCP4_CD
+      ),
+    by = c(HISTORICAL_PRGM_ID = "PRGM_ID")
+  ) %>%
+  mutate(
+    Updated_CPC_Flag = case_when(
+      PRGM_LCPC_CD != HISTORICAL_CPC_CD ~ 'Yes',
+      TRUE ~ NA
+    ),
+    Updated_CIP_Flag = case_when(
+      LCIP_LCP4_CD != HISTORICAL_CIP4_CD ~ 'Yes',
+      TRUE ~ NA
+    )
+  )
+
+## ---- 2024 Update to XWALK: Updated DACSO programs WITH historical linkages ----
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+  left_join(
+    Updated_DACSO_Programs_in_2024_with_links %>%
+      mutate(HISTORICAL_CPC_CD = as.character(HISTORICAL_CPC_CD)) %>%
+      add_join_keys(
+        c(
+          COCI_INST_CD_KEY = "PRGM_INST_CD",
+          PRGM_LCPC_CD_KEY = "HISTORICAL_CPC_CD",
+          PRGM_INST_PROGRAM_NAME_KEY = "HISTORICAL_PROGRAM_NAME"
+        )
+      ) %>%
+      select(
+        COCI_INST_CD_KEY,
+        PRGM_LCPC_CD_KEY,
+        PRGM_INST_PROGRAM_NAME_KEY,
+        HISTORICAL_CIP4_CD,
+        PRGM_LCPC_CD_NEW = PRGM_LCPC_CD,
+        PRGM_INST_PROGRAM_NAME_NEW = PRGM_INST_PROGRAM_NAME,
+        LCIP_LCP4_CD,
+        LCP4_CIP_4DIGITS_NAME_NEW = LCP4_CIP_4DIGITS_NAME,
+        Updated_DACSO_CPC2024 = Updated_CPC_Flag,
+        Updated_DACSO_CIP2024 = Updated_CIP_Flag
+      ),
+    by = c(
+      "COCI_INST_CD_KEY",
+      "PRGM_LCPC_CD_KEY",
+      "PRGM_INST_PROGRAM_NAME_KEY",
+      "CIP_CODE_4" = "HISTORICAL_CIP4_CD"
+    )
+  ) %>%
+  mutate(
+    PRGM_LCPC_CD = ifelse(
+      !is.na(PRGM_LCPC_CD_NEW),
+      PRGM_LCPC_CD_NEW,
+      PRGM_LCPC_CD
+    ),
+    PRGM_INST_PROGRAM_NAME = ifelse(
+      !is.na(PRGM_INST_PROGRAM_NAME_NEW),
+      PRGM_INST_PROGRAM_NAME_NEW,
+      PRGM_INST_PROGRAM_NAME
+    ),
+    CIP_CODE_4 = ifelse(!is.na(LCIP_LCP4_CD), LCIP_LCP4_CD, CIP_CODE_4),
+    LCP4_CIP_4DIGITS_NAME = ifelse(
+      !is.na(LCP4_CIP_4DIGITS_NAME_NEW),
+      LCP4_CIP_4DIGITS_NAME_NEW,
+      LCP4_CIP_4DIGITS_NAME
+    )
+  ) %>%
+  select(
+    -PRGM_LCPC_CD_NEW,
+    -PRGM_INST_PROGRAM_NAME_NEW,
+    -LCIP_LCP4_CD,
+    -LCP4_CIP_4DIGITS_NAME_NEW
+  ) %>%
+  refresh_xwalk_join_keys()
+
+## ---- 2024 Find Remaining updated DACSO missing from XWALK for match to STP program ----
+Remaining_DACSO_Updates_CPCS_2024 <- Updated_DACSO_Programs_in_2024_with_links %>%
+  add_join_keys(
+    c(
+      PRGM_LCPC_CD_KEY = "PRGM_LCPC_CD",
+      COCI_INST_CD_KEY = "PRGM_INST_CD",
+      PRGM_INST_PROGRAM_NAME_KEY = "PRGM_INST_PROGRAM_NAME"
+    )
+  ) %>%
+  anti_join(
+    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+      select(PRGM_LCPC_CD_KEY, COCI_INST_CD_KEY, PRGM_INST_PROGRAM_NAME_KEY),
+    by = c("PRGM_LCPC_CD_KEY", "COCI_INST_CD_KEY", "PRGM_INST_PROGRAM_NAME_KEY")
+  )
+
+# ***** manual review pending for the 2024 cycle *****
+# review infoware notes for any remaining programs
+programs_table %>%
+  filter(PRGM_ID %in% Remaining_DACSO_Updates_CPCS_2024$PRGM_ID) %>%
+  pull(PRGM_ID, NOTES)
+
+## ---- 2025 Find DACSO prgms WITH historical linkages ----
+Updated_DACSO_Programs_in_2025_with_links <- programs_table %>%
+  filter(
+    PRGM_FIRST_SEEN_SUBM_CD == 'C_Outc25' & HAS_HISTORICAL_PRGM_ID_LINK == 'Y'
+  ) %>%
+  inner_join(
+    tbl(con, "INFOWARE_PROGRAMS_HIST_PRGMID_XREF") %>%
+      filter(YEAR_LINK_CREATED == 'C_Outc25' & SURVEY_CODE == 'DACSO') %>%
+      collect(),
+    by = "PRGM_ID"
+  ) %>%
+  select(
+    PRGM_ID,
+    PRGM_FIRST_SEEN_SUBM_CD,
+    PRGM_INST_CD,
+    PRGM_LCPC_CD,
+    PRGM_INST_PROGRAM_NAME,
+    PRGM_TTRAIN_FLAG,
+    PRGM_CREDENTIAL,
+    PRGM_INST_PROGRAM_NAME_CLEANED,
+    NOTES,
+    HAS_HISTORICAL_PRGM_ID_LINK,
+    DUP_PROGRAM_USE_THIS_PRGM_ID,
+    CIP_CLUSTER_ARTS_APPLIED,
+    DACSO_OLD_PRGM_ID_DO_NOT_USE,
+    LCIP_CD_CIP2016,
+    LCIP_NAME_CIP2016,
+    LCIP_LCP4_CD,
+    LCP4_CIP_4DIGITS_NAME,
+    HISTORICAL_PRGM_ID,
+    YEAR_LINK_CREATED,
+    SURVEY_CODE
+  )
+
+## ---- 2025 Get historical linkages for DACSO prgms ----
+Updated_DACSO_Programs_in_2025_with_links <- Updated_DACSO_Programs_in_2025_with_links %>%
+  inner_join(
+    programs_table %>%
+      select(
+        PRGM_ID,
+        HISTORICAL_CPC_CD = PRGM_LCPC_CD,
+        HISTORICAL_PROGRAM_NAME = PRGM_INST_PROGRAM_NAME,
+        HISTORICAL_CIP4_CD = LCIP_LCP4_CD
+      ),
+    by = c(HISTORICAL_PRGM_ID = "PRGM_ID")
+  ) %>%
+  mutate(
+    Updated_CPC_Flag = case_when(
+      PRGM_LCPC_CD != HISTORICAL_CPC_CD ~ 'Yes',
+      TRUE ~ NA
+    ),
+    Updated_CIP_Flag = case_when(
+      LCIP_LCP4_CD != HISTORICAL_CIP4_CD ~ 'Yes',
+      TRUE ~ NA
+    )
+  )
+
+## ---- 2025 Update to XWALK: Updated DACSO programs WITH historical linkages ----
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+  left_join(
+    Updated_DACSO_Programs_in_2025_with_links %>%
+      mutate(HISTORICAL_CPC_CD = as.character(HISTORICAL_CPC_CD)) %>%
+      add_join_keys(
+        c(
+          COCI_INST_CD_KEY = "PRGM_INST_CD",
+          PRGM_LCPC_CD_KEY = "HISTORICAL_CPC_CD",
+          PRGM_INST_PROGRAM_NAME_KEY = "HISTORICAL_PROGRAM_NAME"
+        )
+      ) %>%
+      select(
+        COCI_INST_CD_KEY,
+        PRGM_LCPC_CD_KEY,
+        PRGM_INST_PROGRAM_NAME_KEY,
+        HISTORICAL_CIP4_CD,
+        PRGM_LCPC_CD_NEW = PRGM_LCPC_CD,
+        PRGM_INST_PROGRAM_NAME_NEW = PRGM_INST_PROGRAM_NAME,
+        LCIP_LCP4_CD,
+        LCP4_CIP_4DIGITS_NAME_NEW = LCP4_CIP_4DIGITS_NAME,
+        Updated_DACSO_CPC2025 = Updated_CPC_Flag,
+        Updated_DACSO_CIP2025 = Updated_CIP_Flag
+      ),
+    by = c(
+      "COCI_INST_CD_KEY",
+      "PRGM_LCPC_CD_KEY",
+      "PRGM_INST_PROGRAM_NAME_KEY",
+      "CIP_CODE_4" = "HISTORICAL_CIP4_CD"
+    )
+  ) %>%
+  mutate(
+    PRGM_LCPC_CD = ifelse(
+      !is.na(PRGM_LCPC_CD_NEW),
+      PRGM_LCPC_CD_NEW,
+      PRGM_LCPC_CD
+    ),
+    PRGM_INST_PROGRAM_NAME = ifelse(
+      !is.na(PRGM_INST_PROGRAM_NAME_NEW),
+      PRGM_INST_PROGRAM_NAME_NEW,
+      PRGM_INST_PROGRAM_NAME
+    ),
+    CIP_CODE_4 = ifelse(!is.na(LCIP_LCP4_CD), LCIP_LCP4_CD, CIP_CODE_4),
+    LCP4_CIP_4DIGITS_NAME = ifelse(
+      !is.na(LCP4_CIP_4DIGITS_NAME_NEW),
+      LCP4_CIP_4DIGITS_NAME_NEW,
+      LCP4_CIP_4DIGITS_NAME
+    )
+  ) %>%
+  select(
+    -PRGM_LCPC_CD_NEW,
+    -PRGM_INST_PROGRAM_NAME_NEW,
+    -LCIP_LCP4_CD,
+    -LCP4_CIP_4DIGITS_NAME_NEW
+  ) %>%
+  refresh_xwalk_join_keys()
+
+## ---- 2025 Find Remaining updated DACSO missing from XWALK for match to STP program ----
+Remaining_DACSO_Updates_CPCS_2025 <- Updated_DACSO_Programs_in_2025_with_links %>%
+  add_join_keys(
+    c(
+      PRGM_LCPC_CD_KEY = "PRGM_LCPC_CD",
+      COCI_INST_CD_KEY = "PRGM_INST_CD",
+      PRGM_INST_PROGRAM_NAME_KEY = "PRGM_INST_PROGRAM_NAME"
+    )
+  ) %>%
+  anti_join(
+    DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+      select(PRGM_LCPC_CD_KEY, COCI_INST_CD_KEY, PRGM_INST_PROGRAM_NAME_KEY),
+    by = c("PRGM_LCPC_CD_KEY", "COCI_INST_CD_KEY", "PRGM_INST_PROGRAM_NAME_KEY")
+  )
+
+# ***** manual review pending for the 2025 cycle *****
+# review infoware notes for any remaining programs
+programs_table %>%
+  filter(PRGM_ID %in% Remaining_DACSO_Updates_CPCS_2025$PRGM_ID) %>%
+  pull(PRGM_ID, NOTES)
+
 ## ---- Update to XWALK: DACSO programs with updated CIPS ----
 ## find the updated CIPs
-updated_cips <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+updated_cips <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     programs_table %>%
       select(PRGM_ID, CIP_CODE_4 = LCIP_LCP4_CD, LCP4_CIP_4DIGITS_NAME, NOTES),
@@ -949,7 +1323,9 @@ updated_cips <- updated_cips %>%
   filter(
     is.na(Updated_DACSO_CIP2021) &
       is.na(Updated_DACSO_CIP2022) &
-      is.na(Updated_DACSO_CIP2023)
+      is.na(Updated_DACSO_CIP2023) &
+      is.na(Updated_DACSO_CIP2024) &
+      is.na(Updated_DACSO_CIP2025)
   )
 
 # review NOTES column where word "CIP" exists
@@ -975,7 +1351,7 @@ updated_cips <- updated_cips %>%
   filter(PRGM_ID != 9018)
 
 # update CIPS in XWALK
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     updated_cips %>%
       distinct(
@@ -1003,7 +1379,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
 
 
 # ---- Add STP matching columns to XWALK ----
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   mutate(
     New_STP_Program2021_23 = NA_character_,
     Updated_DACSO_CDTL2021_23 = NA_character_
@@ -1013,11 +1389,13 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
 # append a suffix "_r" to the table name in decmile database to indicate which is created in R.
 dbWriteTable(
   con,
-  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r",
-  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23,
+  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r",
+  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25,
   overwrite = TRUE
 )
-log_info(glue::glue("Part 1: Wrote XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23)} programs (after all DACSO updates: historical links + new programs + updated CIPs)"))
+log_info(glue::glue(
+  "Part 1: Wrote XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25)} programs (after all DACSO updates: historical links + new programs + updated CIPs)"
+))
 
 
 # ******************************************************************************
@@ -1047,18 +1425,22 @@ credential_non_dup <- sch_tbl("Credential_Non_Dup") |>
   ) %>%
   collect()
 
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   refresh_xwalk_join_keys()
-xwalk <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23
+xwalk <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25
 
 # Pull INFOWARE CIP reference tables
-cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2016") %>%
+# (CIP2021 migration 2026-08-15: CIP2021 lookups from the shared dbo
+# schema; LCP4_DIGITS_NAME aliased to the legacy LCP4_CIP_4DIGITS_NAME
+# so the downstream selects keep working unchanged.)
+cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2021", schema = shareschema) %>%
   collect() |>
   rename_with(toupper)
-cip4_ref <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2016") %>%
+cip4_ref <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2021", schema = shareschema) %>%
   collect() |>
+  rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME) |>
   rename_with(toupper)
-cip2_ref <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2016") %>%
+cip2_ref <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2021", schema = shareschema) %>%
   collect() |>
   rename_with(toupper)
 
@@ -1097,7 +1479,9 @@ stp_dacso <- credential_non_dup %>%
     COCI_INST_CD = NA_character_
   )
 
-log_info(glue::glue("Part 2: Created stp_dacso (DACSO subset of Credential_Non_Dup): {nrow(stp_dacso)} program combinations"))
+log_info(glue::glue(
+  "Part 2: Created stp_dacso (DACSO subset of Credential_Non_Dup): {nrow(stp_dacso)} program combinations"
+))
 
 
 # Create PSI_CODE to COCI_INST_CD lookup table
@@ -1255,7 +1639,9 @@ stp_dacso <- stp_dacso %>%
 
 
 ## ---- Newly matched programs ----
-log_info(glue::glue("Part 2: Already matched programs: {sum(stp_dacso$Already_Matched == 'Yes', na.rm=TRUE)} / {nrow(stp_dacso)}"))
+log_info(glue::glue(
+  "Part 2: Already matched programs: {sum(stp_dacso$Already_Matched == 'Yes', na.rm=TRUE)} / {nrow(stp_dacso)}"
+))
 # reference: to check after each query to see counts of matched
 # stp_dacso %>% count(New_Auto_Match)
 
@@ -1395,7 +1781,7 @@ newly_matched <- stp_dacso %>%
 # 3 rows
 
 # Update XWALK for PSI_CODE matches
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     newly_matched %>%
       rename(
@@ -1464,7 +1850,7 @@ newly_matched_2 <- stp_dacso %>%
 # 3 rows
 
 # Update XWALK for COCI_INST_CD matches
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   left_join(
     newly_matched_2 %>%
       rename(
@@ -1515,16 +1901,18 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
 
 
 # simplify the name
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23 %>%
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
   refresh_xwalk_join_keys()
 
-xwalk <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23
+xwalk <- DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25
 rm(newly_matched)
 rm(newly_matched_2)
 # ******************************************************************************
 # PART 3: INSTITUTION-SPECIFIC CUSTOM MATCHING
 # ******************************************************************************
-log_info(glue::glue("Part 3: Institution-specific matching. Unmatched before: {sum(is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} programs"))
+log_info(glue::glue(
+  "Part 3: Institution-specific matching. Unmatched before: {sum(is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} programs"
+))
 # WHY: Some institutions use different program code formats in STP vs DACSO.
 # BCIT includes credential suffixes, CAPU uses different code lengths, and VIU
 # wraps codes in credential-category prefixes. We extract the DACSO-compatible
@@ -1972,7 +2360,9 @@ rm(xwalk_remaining, xwalk_remaining_desc)
 # ******************************************************************************
 # PART 4: FINAL UPDATE TO STP CIPS
 # ******************************************************************************
-log_info(glue::glue("Part 4: Final CIP update. Matched so far: {sum(!is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} / {nrow(stp_dacso)} programs"))
+log_info(glue::glue(
+  "Part 4: Final CIP update. Matched so far: {sum(!is.na(stp_dacso$OUTCOMES_CIP_CODE_4))} / {nrow(stp_dacso)} programs"
+))
 # WHY: Compute final CIP codes. Matched programs use the outcomes CIP; unmatched
 # programs use STP CIP from the INFOWARE taxonomy. Then fill 2-digit CIP and
 # cluster codes from the 4-digit code.
@@ -2135,7 +2525,9 @@ stp_dacso <- stp_dacso %>%
 # 5462
 
 # check the # of changed CIPS
-log_info(glue::glue("Part 4: Final CIP update complete. {nrow(stp_dacso)} programs, {sum(!is.na(stp_dacso$FINAL_CIP_CODE_4))} with FINAL_CIP_CODE_4 populated"))
+log_info(glue::glue(
+  "Part 4: Final CIP update complete. {nrow(stp_dacso)} programs, {sum(!is.na(stp_dacso$FINAL_CIP_CODE_4))} with FINAL_CIP_CODE_4 populated"
+))
 # ---- Review CIP changes ----
 # WHY: Diagnostic — shows programs where the final CIP differs from the original
 # STP CIP. Useful for catching incorrect matches.
@@ -2145,8 +2537,8 @@ review_changed_cips <- stp_dacso %>%
 # ---- Write final output tables ----
 # Drop helper *_KEY columns before writing final outputs.
 stp_dacso_out <- drop_join_keys(stp_dacso)
-DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out <- drop_join_keys(
-  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_out <- drop_join_keys(
+  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25
 )
 
 dbWriteTable(
@@ -2155,21 +2547,27 @@ dbWriteTable(
   stp_dacso_out,
   overwrite = TRUE
 )
-log_info(glue::glue("Wrote STP_Credential_Non_Dup_Programs_DACSO_r: {nrow(stp_dacso_out)} rows"))
+log_info(glue::glue(
+  "Wrote STP_Credential_Non_Dup_Programs_DACSO_r: {nrow(stp_dacso_out)} rows"
+))
 dbWriteTable(
   con,
   "Credential_Non_Dup_Programs_DACSO_FinalCIPS_r",
   stp_dacso_out,
   overwrite = TRUE
 )
-log_info(glue::glue("Wrote Credential_Non_Dup_Programs_DACSO_FinalCIPS_r: {nrow(stp_dacso_out)} rows"))
+log_info(glue::glue(
+  "Wrote Credential_Non_Dup_Programs_DACSO_FinalCIPS_r: {nrow(stp_dacso_out)} rows"
+))
 dbWriteTable(
   con,
-  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_r",
-  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out,
+  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r",
+  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_out,
   overwrite = TRUE
 )
-log_info(glue::glue("Wrote updated XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23_out)} rows"))
+log_info(glue::glue(
+  "Wrote updated XWALK to Decimal: {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_out)} rows"
+))
 
 dbDisconnect(con)
 log_info("Disconnected from SQL Server")
