@@ -22,3 +22,8 @@ plan/
 scratch/
 .scratch/
 main.py
+
+# BGS borderline-review export/input CSVs -- generated run artifacts in the
+# repo root by R/02a-bgs-program-matching.R (Part 5); analyst curates a copy
+# seen in the code, but the export and any local crop belong on LAN, not in git.
+BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos*.csv
