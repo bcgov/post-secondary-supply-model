@@ -21,6 +21,17 @@
 
 # Uses work done during program matching
 # Pipeline context:
+#   WHERE THIS SITS IN THE MODEL: PSSM computes one formula
+#   (docs/project-summary-for-new-analyst.md §2):
+#     OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                  x P(in labour supply|CIP) x P(NOC|CIP,region)
+#   The FINAL_CIP_CODE_4 this script writes becomes the CIP4 half of the
+#   cohort key `LCIP4_CRED = paste0(CIP_CODE_4, " - ", CRED)` built in
+#   R/02b-1-pssm-cohorts.R -- i.e. it decides which P(CIP|cred,age) bucket
+#   every single graduate lands in for Module 06. A wrong CIP here silently
+#   mis-buckets that graduate for the rest of the model, which is why the
+#   priority chain below is ordered from richest evidence to weakest.
+#
 #   This script is the merge point for all four CIP code matching sources. After the
 #   program matching scripts (02a-dacso, 02a-bgs, 02a-appso, and GRAD matching) have
 #   each produced a table of matched CIP codes, this script merges them into the main
