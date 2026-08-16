@@ -196,10 +196,10 @@ cip_4_tbl <- tbl(
   rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME)
 cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 
-credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
-stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
+credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup_r"))
+stp_credential_tbl <- tbl(con, in_schema(my_schema, "stp_credential_r"))
 log_info(
-  "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential"
+  "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup_r, stp_credential_r"
 )
 
 # # id should be unique for updates to be reliable.
@@ -647,8 +647,22 @@ log_info(glue::glue(
 # Add PSI_PEN (Personal Education Number) from STP_Credential table
 # PSI_PEN is the linking key between STP credentials and BGS survey outcomes.
 # This join brings in the PEN identifier needed for Part 3 (matching BGS survey data to credentials)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## PEN normalization (ticket 12, wayfinder map .scratch/cip-matching):
+## the refreshed Oracle loads write stp_credential_r.PSI_PEN with a
+## trailing ".0" (e.g. "116346735.0") while BGS survey PENs are clean
+## integers, so the Part 3A PEN join returned 0 rows (probe 13l: raw
+## join 0, numeric-normalized 156,149). Canonicalize PSI_PEN to a clean
+## integer string at acquisition; non-numeric values become NULL.
 credential_bgs_ids <- bgs_ids_base %>%
-  left_join(stp_credential_tbl %>% select(ID, PSI_PEN), by = "ID")
+  left_join(stp_credential_tbl %>% select(ID, PSI_PEN), by = "ID") %>%
+  mutate(
+    PSI_PEN = sql(
+      "CAST(TRY_CONVERT(decimal(38,0), PSI_PEN) AS varchar(255))"
+    )
+  )
 
 
 credential_bgs_ids <- credential_bgs_ids %>%
@@ -777,7 +791,7 @@ log_info(glue::glue(
 ### Part 3A: Initial XWALK ----
 
 # Verify PSI_PEN column exists in STP credentials table (added in Part 2)
-colnames(tbl(con, "Credential_Non_Dup_BGS_IDs_r"))
+colnames(tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) )
 
 ## Create BGS_Matching_STP_Credential_PEN by performing inner join on PEN
 ## This table combines BGS survey outcomes with matched STP credentials.
@@ -884,11 +898,11 @@ bgs_matching %>%
 ## Validate: Check row count matches expected from documentation
 {
   # Expected count: inner join of BGS records with valid PEN to STP BGS credentials
-  tbl(con, "T_BGS_Data_Final_for_OutcomesMatching_r") %>%
+  tbl(con, in_schema(my_schema, "T_BGS_Data_Final_for_OutcomesMatching_r")) %>%
     select(STQU_ID, PEN) %>%
     filter(!is.na(PEN) & PEN != "" & PEN != "0") %>%
     inner_join(
-      tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>% select(ID, PSI_PEN),
+      tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>% select(ID, PSI_PEN),
       by = c("PEN" = "PSI_PEN")
     ) %>%
     tally() # Expected: 133,952 (2023 data)
@@ -1572,15 +1586,20 @@ stage_cols <- c(
 )
 
 # Copy decision table to SQL for fast joining
+# (drop first: copy_to() with an Id() target does not honour overwrite=TRUE
+#  on reruns -- same guard pattern as Credential_Non_Dup_BGS_IDs_r above)
+if (dbExistsTable(con, Id(schema = my_schema, table = "matched_2d_cips_r"))) {
+  dbRemoveTable(con, Id(schema = my_schema, table = "matched_2d_cips_r"))
+}
 copy_to(
   con,
   matched_2d_cips |> select(stage_cols),
-  name = "matched_2d_cips_r",
+  name = Id(schema = my_schema, table = "matched_2d_cips_r"),
   temporary = FALSE,
   overwrite = TRUE
 )
 
-src_tbl <- tbl(con, "matched_2d_cips_r")
+src_tbl <- tbl(con, in_schema(my_schema, "matched_2d_cips_r"))
 log_info("Part 3B+: Staged matched_2d_cips_r decision table to SQL Server")
 src_tbl |> glimpse()
 src_tbl |> tally()
@@ -1844,10 +1863,22 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_orig_group %>%
 
 # ---- Part 3C.1c: Re-import Manual Decisions ----
 # Read back the CSV with manual USE_BGS_CIP decisions from subject matter experts.
-
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021/cycle migration (2026-08-15): the old hardcoded LAN path
+## ({lan}/development/work/02a-program-matching/...) no longer exists; the
+## curated program-matching LAN root (config key lan_program_mathcing, the
+## same root the DACSO XWALK seed reads from) holds the identical
+## 2023-era decisions file (1,729 rows; USE_BGS_CIP: No 693 / x 343 /
+## Yes 693 -- same file the 2023 production run consumed). Reused as-is
+## so this run reproduces the accepted baseline behaviour; ticket 14
+## (BGS v2) re-quantifies the residual manual caseload.
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos <- read_csv(
-  glue::glue(
-    "{lan}\\development\\work\\02a-program-matching\\BGS\\prod on 2023 data\\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
+  file.path(
+    config::get("lan_program_mathcing"),
+    "BGS", "prod on 2023 data",
+    "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
   )
 )
 
@@ -3058,7 +3089,7 @@ if (nrow(dup_override_programs) > 0) {
 # Write the approved override table to SQL for database-side joins.
 dbWriteTable(
   con,
-  "Credential_Unmatched_CIPS_to_update_r",
+  Id(schema = my_schema, table = "Credential_Unmatched_CIPS_to_update_r"),
   credential_unmatched_cips_to_update,
   overwrite = TRUE
 )
@@ -3256,9 +3287,9 @@ credential_bgs_updated |> tally()
 
 ## Validation check: look for any remaining missing values in the final output.
 {
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CODE_4_NAME))
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed: no missing CIP names or cluster codes remain after the override and refill steps.
@@ -3929,7 +3960,7 @@ T_BGS_Data_Unmatched_CIPS_to_update <- tibble::tribble(
 
 dbWriteTable(
   con,
-  "T_BGS_Data_Unmatched_CIPS_to_update_r",
+  Id(schema = my_schema, table = "T_BGS_Data_Unmatched_CIPS_to_update_r"),
   T_BGS_Data_Unmatched_CIPS_to_update,
   overwrite = TRUE
 )
@@ -4147,10 +4178,18 @@ log_info(glue::glue(
 
 # ---- Clean up ----
 
-## remove backup tables
-dbRemoveTable(con, "BGS_Matching_STP_Credential_PEN_bu_r")
-dbRemoveTable(con, "Credential_Non_Dup_BGS_IDs_bu_r")
-dbRemoveTable(con, "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+## remove backup tables (qualified to the personal schema; guarded so a
+## backup that was never created this run does not error the script)
+for (bu in c(
+  "BGS_Matching_STP_Credential_PEN_bu_r",
+  "Credential_Non_Dup_BGS_IDs_bu_r",
+  "T_BGS_Data_Final_for_OutcomesMatching_bu_r"
+)) {
+  bu_id <- Id(schema = my_schema, table = bu)
+  if (dbExistsTable(con, bu_id)) {
+    dbRemoveTable(con, bu_id)
+  }
+}
 log_info("Removed backup tables")
 
 dbDisconnect(con)
