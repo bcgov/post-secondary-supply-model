@@ -22,6 +22,18 @@
 # CIP codes. This script compares records at the student level and applies
 # business rules to decide whether the final CIP should come from BGS or STP.
 #
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md §2):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                x P(in labour supply|CIP) x P(NOC|CIP,region)
+# The FINAL_CIP_CODE_4 decisions made here flow through
+# R/02a-update-cred-non-dup.R (priority step 2 of 5: DACSO > BGS > GRAD >
+# APPSO > STP fallback) into credential_non_dup_r, then into the
+# `LCIP4_CRED = paste0(CIP_CODE_4, " - ", "BACH")` cohort key in
+# R/02b-1-pssm-cohorts.R feeding P(CIP|cred,age) in Module 06. This script
+# also updates T_BGS_Data_Final_for_OutcomesMatching (the BGS survey side
+# used by 02b-1 directly), so its decisions reach the model from both the
+# credential and the survey direction.
+#
 # High-level workflow:
 # 1. Build the BGS outcomes table used for matching.
 # 2. Standardize STP CIP codes to 4-digit and 2-digit forms.

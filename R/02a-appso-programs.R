@@ -20,6 +20,17 @@
 # workflow here is a one-way normalization from raw 6-digit STP CIPs to
 # validated 4-digit and 2-digit codes using INFOWARE lookup tables.
 #
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md §2):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                x P(in labour supply|CIP) x P(NOC|CIP,region)
+# The FINAL_CIP_CODE_4/2 this script produces flow through
+# R/02a-update-cred-non-dup.R (priority step 4 of 5: DACSO > BGS > GRAD >
+# APPSO > STP fallback) into credential_non_dup_r, where 02b-1-pssm-cohorts
+# builds the `LCIP4_CRED` cohort key feeding P(CIP|cred,age) in Module 06.
+# Because APPSO is STP-direct (no survey-side CIP to disagree with), this
+# normalization IS the final CIP for these records -- errors here have no
+# later reconciliation stage to catch them.
+#
 # High-level workflow:
 # 1. Connect to the database and load source/lookup table references.
 # 2. Create a cleaning table grouped by distinct STP CIP values for APPSO records.
