@@ -175,7 +175,13 @@ programs_fix <- data.frame(
 )
 walked <- resolve_hist_links(xref_fix, programs_fix, max_depth = 5L)
 
-w <- function(pid) walked$walk[walked$PRGM_ID == pid]
+# Row-subset helper (df[logical] would be column selection -- mechanical
+# scaffold fix, not a contract change)
+w <- function(pid) {
+  r <- walked$walk[walked$walk$PRGM_ID == pid, , drop = FALSE]
+  if (nrow(r) == 0) stop("no walk row for PRGM_ID ", pid)
+  r
+}
 expect_eq(w(10355)$TERMINAL_PRGM_ID, 115,
           "walk: 10355 -> 9855 -> 115 terminates on resolved node")
 expect_eq(w(10355)$CHAIN, "10355>9855>115",
