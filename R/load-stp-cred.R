@@ -99,6 +99,33 @@ data <- readr::read_csv(
 )
 # data |> glimpse()
 
+# The refreshed STP exports (2024 cycle) write dates with TWO-DIGIT years
+# ("03-05-23" = 2023-05-23). Left as-is, as.Date()'s default parses them as
+# years 0002-0025: SQL Server rejects those on insert (datetime range starts
+# 1753 -> error 22007) and every downstream date comparison silently
+# misparses. Expand to four-digit years HERE -- single point, every consumer
+# (01b/01c/update-cred) receives clean YYYY-MM-DD. Cutoff follows the
+# convert_date convention in 01a-enrolment-preprocessing.R (yy < 26 -> 20xx;
+# bump with each data cycle). nchar == 8 guard keeps already-expanded values
+# untouched, so the fix is idempotent if applied twice.
+convert_two_digit_year <- function(x, cutoff = 26) {
+  out <- x
+  need <- !is.na(x) & x != "" & x != "(Unspecified)" & nchar(x) == 8
+  yy <- suppressWarnings(as.integer(substr(x[need], 1, 2)))
+  out[need] <- paste0(ifelse(!is.na(yy) & yy < cutoff, "20", "19"), x[need])
+  out
+}
+data <- data %>%
+  mutate(
+    across(
+      c("CREDENTIAL_AWARD_DATE", "PSI_PROGRAM_EFFECTIVE_DATE", "SNAPSHOT_DATE"),
+      convert_two_digit_year
+    )
+  )
+log_info(glue::glue(
+  "Expanded two-digit years in CREDENTIAL_AWARD_DATE / PSI_PROGRAM_EFFECTIVE_DATE / SNAPSHOT_DATE; sample award dates: {paste(head(sort(data$CREDENTIAL_AWARD_DATE[!is.na(data$CREDENTIAL_AWARD_DATE)])), 2), collapse = ', ')}"
+))
+
 dbWriteTableArrow(
   con,
   name = SQL(glue::glue('"{my_schema}"."{tblnm}"')),
