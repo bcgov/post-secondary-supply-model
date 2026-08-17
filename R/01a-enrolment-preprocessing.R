@@ -31,7 +31,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal2026")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -74,7 +74,7 @@ stp_enrolment <- dbGetQuery(
     PSI_VISA_STATUS,
     PSI_BIRTHDATE,
     LAST_SEEN_BIRTHDATE
-  FROM [STP_Enrolment_2024];"
+  FROM [{shareschema}].[STP_Enrolment_2024];"
   )
 )
 log_info(glue::glue(
@@ -518,6 +518,5 @@ dbDisconnect(con)
 log_info("Disconnected from SQL Server")
 
 log_info("==== 01a-enrolment-preprocessing.R COMPLETE ====")
-
 
 # rm(list = ls())
