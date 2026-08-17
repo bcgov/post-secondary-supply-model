@@ -458,6 +458,28 @@ log_info("Step 12: Replaced '(Unspecified)' PSI_PROGRAM_CODE values with NULL")
 # WHY:  compute() writes the lazy query result to a physical table in the
 #       database, making it available for direct querying and joins in
 #       subsequent scripts (e.g., 02a-update-cred-non-dup.R).
+# Note: compute()/copy_to() with an in_schema()/Id() target does not honour
+#       overwrite = TRUE on reruns -- the write hits an "already an object
+#       named ..." error. Drop the target first (same guard pattern the
+#       cleaning-table compute below and the other 02a scripts use).
+
+if (
+  DBI::dbExistsTable(
+    con,
+    DBI::Id(
+      schema = my_schema,
+      table = "Credential_Non_Dup_APPSO_IDs_r"
+    )
+  )
+) {
+  DBI::dbRemoveTable(
+    con,
+    DBI::Id(
+      schema = my_schema,
+      table = "Credential_Non_Dup_APPSO_IDs_r"
+    )
+  )
+}
 
 credential_non_dup_appso_ids %>%
   compute(
@@ -465,10 +487,6 @@ credential_non_dup_appso_ids %>%
     temporary = FALSE,
     overwrite = T
   )
-log_info(glue::glue(
-  "Materialized Credential_Non_Dup_APPSO_IDs_r to SQL Server"
-))
-
 log_info(glue::glue(
   "Materialized Credential_Non_Dup_APPSO_IDs_r to SQL Server"
 ))

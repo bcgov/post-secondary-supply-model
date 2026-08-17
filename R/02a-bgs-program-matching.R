@@ -2288,6 +2288,13 @@ output_name <- "BGS_Matching_STP_Credential_PEN_r"
 temp_name <- "BGS_Matching_STP_Credential_PEN_temp_r"
 
 # Compute to temporary table first to ensure success before modifying the original
+# (drop first: a prior run that died between this compute and the sp_rename
+#  below would leave the temp table behind, and compute() with an Id() target
+#  does not honour overwrite on reruns -- same guard pattern as the other
+#  materializations in this script)
+if (dbExistsTable(con, Id(schema = my_schema, table = temp_name))) {
+  dbRemoveTable(con, Id(schema = my_schema, table = temp_name))
+}
 bgs_matching_final <- bgs_matching_final |>
   compute(
     name = Id(schema = my_schema, table = temp_name),
