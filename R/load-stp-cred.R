@@ -131,15 +131,24 @@ log_info(glue::glue(
   "Expanded two-digit years in CREDENTIAL_AWARD_DATE / PSI_PROGRAM_EFFECTIVE_DATE / SNAPSHOT_DATE; sample award dates: {sample_ad}"
 ))
 
+# The landing table lives in the SHARED schema (dbo) -- raw data's home per
+# the repo schema convention, and where 01b reads STP_Credential_2024 from.
+# Drop-first: dbWriteTableArrow/append semantics do not honour overwrite,
+# and appending onto a previous load would duplicate every row.
+landing_tbl <- DBI::Id(schema = config::get("shareschema"), table = "STP_CREDENTIAL_2024")
+if (DBI::dbExistsTable(con, landing_tbl)) {
+  DBI::dbRemoveTable(con, landing_tbl)
+  log_info("Dropped existing dbo.STP_CREDENTIAL_2024 (drop-first reload)")
+}
 dbWriteTableArrow(
   con,
-  name = SQL(glue::glue('"{my_schema}"."{tblnm}"')),
+  name = landing_tbl,
   nanoarrow::as_nanoarrow_array_stream(data),
-  append = TRUE
+  append = FALSE
 )
 
 log_info(glue::glue(
-  "STP_Credential written to SQL Server (table: STP_Credential)"
+  "STP_Credential written to SQL Server (dbo.STP_CREDENTIAL_2024: {nrow(data)} rows)"
 ))
 cat(glue::glue("...completed {Sys.time()}"))
 cat("\n")

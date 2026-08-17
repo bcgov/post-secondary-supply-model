@@ -177,9 +177,16 @@ write_to_decimal <- function(
     "Expanded two-digit years in {fixed_cols}; sample birthdates: {sample_bd}"
   ))
 
+  # Landing table in the SHARED schema (dbo) -- raw data's home per the repo
+  # schema convention, and where 01a reads STP_Enrolment_2024 from. The
+  # caller drops it once before the part-file loop; part 1 creates it
+  # (append = FALSE), parts 2-5 append into it.
   DBI::dbWriteTableArrow(
     con,
-    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_orig"')),
+    name = DBI::Id(
+      schema = config::get("shareschema"),
+      table = "STP_Enrolment_2024"
+    ),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )
@@ -191,14 +198,28 @@ write_to_decimal <- function(
 
 
 log_info(glue::glue(
-  "Writing {length(fls)} file(s) to STP_Enrolment table | append = TRUE"
+  "Writing {length(fls)} file(s) to dbo.STP_Enrolment_2024 | drop-first, part 1 creates, parts append"
 ))
+# Drop the landing table once before the loop: each part APPENDS, so a
+# leftover table from a previous load would duplicate every row.
+enrolment_tbl <- DBI::Id(
+  schema = config::get("shareschema"),
+  table = "STP_Enrolment_2024"
+)
+if (DBI::dbExistsTable(con, enrolment_tbl)) {
+  DBI::dbRemoveTable(con, enrolment_tbl)
+  log_info("Dropped existing dbo.STP_Enrolment_2024 (drop-first reload)")
+}
 invisible(lapply(
-  fls,
-  write_to_decimal,
-  con = con,
-  schema = schema,
-  append = TRUE
+  seq_along(fls),
+  function(i) {
+    write_to_decimal(
+      fls[i],
+      con = con,
+      schema = schema,
+      append = i > 1
+    )
+  }
 ))
 
 
