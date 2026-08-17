@@ -33,7 +33,7 @@ log_info("==== 01b-credential-preprocessing.R START ====")
 ## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
-
+shareschema <- config::get("shareschema")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,

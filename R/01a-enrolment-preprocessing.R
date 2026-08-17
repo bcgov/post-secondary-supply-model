@@ -33,7 +33,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 ## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
-
+shareschema <- config::get("shareschema")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
