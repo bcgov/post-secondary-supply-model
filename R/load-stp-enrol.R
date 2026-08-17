@@ -166,8 +166,15 @@ write_to_decimal <- function(
     col_types = cols(.default = col_character())
   ) %>%
     mutate(across(any_of(stp_date_cols), convert_two_digit_year))
+  # sample computed outside glue -- glue parses {} contents as code and
+  # complex nested calls there have bitten us twice this cycle
+  sample_bd <- paste(
+    head(sort(data$PSI_BIRTHDATE[!is.na(data$PSI_BIRTHDATE)]), 2),
+    collapse = ", "
+  )
+  fixed_cols <- paste(intersect(stp_date_cols, names(data)), collapse = ", ")
   log_info(glue::glue(
-    "Expanded two-digit years in {paste(intersect(stp_date_cols, names(data)), collapse = ', ')}; sample birthdates: {paste(head(sort(data$PSI_BIRTHDATE[!is.na(data$PSI_BIRTHDATE)])), 2), collapse = ', ')}"
+    "Expanded two-digit years in {fixed_cols}; sample birthdates: {sample_bd}"
   ))
 
   DBI::dbWriteTableArrow(

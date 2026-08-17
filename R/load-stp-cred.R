@@ -122,8 +122,13 @@ data <- data %>%
       convert_two_digit_year
     )
   )
+# sample computed outside glue (same convention as load-stp-enrol)
+sample_ad <- paste(
+  head(sort(data$CREDENTIAL_AWARD_DATE[!is.na(data$CREDENTIAL_AWARD_DATE)]), 2),
+  collapse = ", "
+)
 log_info(glue::glue(
-  "Expanded two-digit years in CREDENTIAL_AWARD_DATE / PSI_PROGRAM_EFFECTIVE_DATE / SNAPSHOT_DATE; sample award dates: {paste(head(sort(data$CREDENTIAL_AWARD_DATE[!is.na(data$CREDENTIAL_AWARD_DATE)])), 2), collapse = ', ')}"
+  "Expanded two-digit years in CREDENTIAL_AWARD_DATE / PSI_PROGRAM_EFFECTIVE_DATE / SNAPSHOT_DATE; sample award dates: {sample_ad}"
 ))
 
 dbWriteTableArrow(
