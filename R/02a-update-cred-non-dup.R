@@ -73,6 +73,7 @@ lan <- config::get("lan")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+shareschema <- config::get("shareschema")
 
 con <- dbConnect(
   odbc(),
@@ -112,9 +113,17 @@ dbExistsTable(
 )
 
 # reference tables
+# ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): CIP lookups switched from CIP2016 to
+## CIP2021 variants and sourced from the shared dbo schema (raw-data
+## home). The CIP2021 4-digit lookup renamed LCP4_CIP_4DIGITS_NAME to
+## LCP4_DIGITS_NAME -- aliased back to the legacy name at the read so
+## downstream renames keep working unchanged.
 dbExistsTable(
   con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"'))
+  SQL(glue::glue('"{shareschema}"."INFOWARE_L_CIP_2DIGITS_CIP2021"'))
 )
 log_info("Checked all required tables exist")
 
@@ -355,7 +364,7 @@ log_info(glue::glue(
 # matching (script 07) to group CIP programs into occupational categories.
 ##--------------------------------------------------------------------------------------------------
 
-cip2_lookup <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2016") %>%
+cip2_lookup <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2021", schema = shareschema) %>%
   select(LCP2_CD, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME) %>%
   collect()
 
@@ -468,17 +477,17 @@ null_cleaning <- null_cleaning %>%
 # same strategy as 02a-appso-programs Step 3.
 # -------------------------------------------------------------------------------------------------
 
-cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2016") %>%
+cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2021", schema = shareschema) %>%
   select(LCIP_CD_WITH_PERIOD, LCIP_LCP4_CD, LCIP_LCP2_CD) %>%
   collect()
 cip6 <- cip6 |> rename_with(toupper)
 
-cip4 <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2016") %>%
-  select(LCP4_CD, LCP4_CIP_4DIGITS_NAME) %>%
+cip4 <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2021", schema = shareschema) %>%
+  select(LCP4_CD, LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME) %>%
   collect()
 cip4 <- cip4 |> rename_with(toupper)
 
-cip2 <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2016") %>%
+cip2 <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2021", schema = shareschema) %>%
   select(LCP2_CD, LCP2_DIGITS_NAME, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME) %>%
   collect()
 cip2 <- cip2 |> rename_with(toupper)
