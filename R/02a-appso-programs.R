@@ -85,6 +85,7 @@ log_info("==== 02a-appso-programs.R START ====")
 # ---- Configure database connection -------------------------------------------
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+shareschema <- config::get("shareschema")
 
 con <- dbConnect(
   odbc(),
@@ -109,17 +110,27 @@ log_info("Connected to SQL Server database")
 credential_non_dup <- tbl(con, in_schema(my_schema, "Credential_Non_Dup_r")) %>%
   rename_with(toupper)
 # the following steps need 'load-infoware-lookup.R'
-infoware_l_cip_2digits_cip2016 <- tbl(
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): lookups switched from CIP2016 to
+## CIP2021 variants and sourced from the shared dbo schema (raw-data
+## home) instead of the analyst schema. The CIP2021 4-digit lookup
+## renamed LCP4_CIP_4DIGITS_NAME to LCP4_DIGITS_NAME -- aliased back to
+## the legacy name at the table reference so the cascade selects below
+## keep working unchanged.
+infoware_l_cip_2digits_cip2021 <- tbl(
   con,
-  in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016")
+  in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021")
 )
-infoware_l_cip_4digits_cip2016 <- tbl(
+infoware_l_cip_4digits_cip2021 <- tbl(
   con,
-  in_schema(my_schema, "INFOWARE_L_CIP_4DIGITS_CIP2016")
-)
-infoware_l_cip_6digits_cip2016 <- tbl(
+  in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021")
+) %>%
+  rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME)
+infoware_l_cip_6digits_cip2021 <- tbl(
   con,
-  in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016")
+  in_schema(shareschema, "INFOWARE_L_CIP_6DIGITS_CIP2021")
 )
 log_info(
   "Loaded lazy table references: Credential_Non_Dup_r, INFOWARE CIP lookup tables (2/4/6-digit)"
@@ -199,7 +210,7 @@ log_info("Step 3: Cleaned malformed CIP values (trailing/leading zero fixes)")
 #       confidently extract the corresponding 4-digit (e.g., "0101") and
 #       2-digit (e.g., "01") codes.
 
-exact_match_6 <- infoware_l_cip_6digits_cip2016 %>%
+exact_match_6 <- infoware_l_cip_6digits_cip2021 %>%
   select(
     LCIP_CD_WITH_PERIOD,
     exact_STP_CIP_CODE_4 = LCIP_LCP4_CD,
@@ -233,7 +244,7 @@ fallback_match_5 <- credential_non_dup_stp_appso_cleaning %>%
   mutate(join_key_5 = substr(PSI_CREDENTIAL_CIP, 1, 5)) %>%
   select(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, join_key_5)
 
-infoware_join_5 <- infoware_l_cip_6digits_cip2016 %>%
+infoware_join_5 <- infoware_l_cip_6digits_cip2021 %>%
   mutate(join_key_5 = substr(LCIP_CD_WITH_PERIOD, 1, 5)) %>%
   select(
     join_key_5,
@@ -316,7 +327,7 @@ fallback_match_2 <- credential_non_dup_stp_appso_cleaning %>%
   mutate(join_key_2 = substr(PSI_CREDENTIAL_CIP, 1, 2)) %>%
   select(PSI_CREDENTIAL_CIP, OUTCOMES_CRED, join_key_2)
 
-infoware_join_2 <- infoware_l_cip_6digits_cip2016 %>%
+infoware_join_2 <- infoware_l_cip_6digits_cip2021 %>%
   mutate(join_key_2 = substr(LCIP_CD_WITH_PERIOD, 1, 2)) %>%
   select(join_key_2, fallback_STP_CIP_CODE_2 = LCIP_LCP2_CD)
 
@@ -346,7 +357,7 @@ log_info(glue::glue(
 
 credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
   left_join(
-    infoware_l_cip_4digits_cip2016 %>%
+    infoware_l_cip_4digits_cip2021 %>%
       select(
         STP_CIP_CODE_4 = LCP4_CD,
         STP_CIP_CODE_4_NAME_lookup = LCP4_CIP_4DIGITS_NAME
@@ -367,7 +378,7 @@ credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %
 
 credential_non_dup_stp_appso_cleaning <- credential_non_dup_stp_appso_cleaning %>%
   left_join(
-    infoware_l_cip_2digits_cip2016 %>%
+    infoware_l_cip_2digits_cip2021 %>%
       select(
         STP_CIP_CODE_2 = LCP2_CD,
         STP_CIP_CODE_2_NAME_lookup = LCP2_DIGITS_NAME
