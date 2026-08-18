@@ -1,0 +1,1277 @@
+---
+title: "CIP 2016 vs CIP 2021: Impact Assessment"
+subtitle: "Post-Secondary Supply Model"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    theme: cerulean
+    code-fold: true
+    grid:
+        body-width: 1800px
+        sidebar-width: 100px
+        margin-width: 300px
+    html-math-method: katex
+execute:
+  warning: false
+  message: false
+date: today
+---
+
+## Purpose
+
+This document assesses the impact of migrating from **Classification of Instructional Programs (CIP) Canada 2016** to **CIP Canada 2021 Version 1.0** on the Post-Secondary Supply Model (PSSM) codebase.
+
+It answers two questions:
+
+1. **What changed between CIP 2016 and CIP 2021?** — A taxonomic comparison at each digit level (2, 4, 6), using both a direct code-set comparison and Statistics Canada's official correspondence table.
+2. **Where would the changes land in the codebase?** — A static inventory of every R script, table reference, and hardcoded CIP logic that would need updating.
+
+::: {.callout-important}
+This is an **assessment**, not a migration. No pipeline code is changed. The goal is to understand the scope and magnitude of the transition before deciding whether and how to proceed.
+:::
+
+## Background
+
+### What CIP codes are
+
+CIP (Classification of Instructional Programs) is a standardized taxonomy that classifies academic programs by field of study. It is maintained by the U.S. National Center for Education Statistics and adapted for Canada by Statistics Canada. The codebase currently uses **CIP Canada 2016**.
+
+CIP codes are hierarchical:
+
+| Level | Format | Example | Example Name |
+|-------|--------|---------|--------------|
+| 2-digit (series) | `NN` | `01` | Agriculture |
+| 4-digit (sub-series) | `NNNN` | `0101` | Agricultural Business and Management |
+| 6-digit (detail) | `NN.NNNN` | `01.0103` | Agricultural Business and Management, General |
+
+In the PSSM codebase, these are stored as lookup tables from INFOWARE:
+
+- `INFOWARE_L_CIP_2DIGITS_CIP2016` — keyed on `LCP2_CD`
+- `INFOWARE_L_CIP_4DIGITS_CIP2016` — keyed on `LCP4_CD`
+- `INFOWARE_L_CIP_6DIGITS_CIP2016` — keyed on `LCIP_CD_WITH_PERIOD` (with period) and `LCIP_CD` (without period)
+
+The 6-digit table also carries parent references: `LCIP_LCP4_CD` (→ 4-digit) and `LCIP_LCP2_CD` (→ 2-digit), as well as cluster codes: `LCIP_LCIPPC_CD` and `LCIP_LCIPPC_NAME`.
+
+### How CIP codes are used in the pipeline
+
+CIP codes are the connective tissue of the PSSM. They appear in the core formula:
+
+$$
+\text{OCCSN}(\text{NOC}) =
+\underbrace{\text{Graduates}}_{\text{Module 04}}
+\times
+\underbrace{P(\text{CIP} \mid \text{cred, age})}_{\text{Module 06}}
+\times
+\underbrace{P(\text{labour supply} \mid \text{CIP})}_{\text{Module 02b-2}}
+\times
+\underbrace{P(\text{NOC} \mid \text{CIP, region})}_{\text{Module 02b-3}}
+$$
+
+CIP codes are also baked into **composite keys** — `LCIP4_CRED` and `LCIP2_CRED` — that serve as join keys across Modules 02b through 07. A change in any CIP code can ripple through these keys into downstream tables.
+
+### The current state of migration
+
+INFOWARE has already begun the transition:
+
+- The `INFOWARE.PROGRAMS` table now has `LCIP_CD_CIP2021` columns (the CIP 2016 columns were removed).
+- A backup table `PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021` preserves both CIP 2016 and CIP 2021 columns for comparison.
+- CIP 2021 lookup tables exist in INFOWARE: `L_CIP_6DIGITS_CIP2021`, `L_CIP_4DIGITS_CIP2021`, `L_CIP_2DIGITS_CIP2021`.
+- The PSSM codebase still uses CIP 2016 throughout, working around the PROGRAMS migration by using the backup table.
+
+## Comparison Methodology
+
+Two complementary approaches are used:
+
+1. **Official StatCan Correspondence Table** — Statistics Canada publishes a [correspondence table](https://www.statcan.gc.ca/en/subjects/standard/cip/2021/correspondence-cip2016-crdc2021-v1) mapping every CIP 2016 code to its CIP 2021 equivalent, annotated with **GSIM change types**. This is the authoritative source for understanding what changed.
+
+2. **Direct code-set comparison** — Loading both the CIP 2016 and CIP 2021 lookup tables from INFOWARE and comparing them programmatically. This shows what the INFOWARE implementation looks like, which may differ slightly from the StatCan reference.
+
+The correspondence table reveals that CIP 2021 is a moderate revision rather than a wholesale restructuring: the 2-digit series framework is preserved intact, with no series added or eliminated. The most common change by volume is **VC2 (name changes)** — titles updated throughout for terminology modernization (notably the systematic replacement of "Aboriginal" with "Indigenous"), definitional clarification, and French-language corrections. The analytically significant **real changes** take two forms. **RC5 transfers** moved content between existing series in a handful of high-profile cases — veterinary sciences from Health professions (51) to Agriculture (01), audio/sound engineering from Communications technologies (10) to Engineering technologies (15), materials science from Physical sciences (40) to Engineering (14), classics and computational linguistics from Languages (16) to Multidisciplinary studies (30), autism and behavioural science from Family and consumer sciences (19) to Psychology (42), casino operations from Business (52) to Culinary and personal services (12), and game programming from Visual and performing arts (50) to Computer and information sciences (11). **RC4.2 splits** carved specialised subjects out of broad catch-all codes into new detail-level categories — a pervasive pattern of increasing granularity across nearly every series. A small number of **VC1 renumberings**, where the code number changes but the content does not (e.g., 15.0503 → 15.1701, 19.0000 → 19.1001), are rare but carry outsized risk for automated systems because legacy codes silently stop matching.
+
+### GSIM Change Types
+
+Statistics Canada uses the Generic Statistical Information Model (GSIM) to classify changes. The most important distinction:
+
+| Type | Code | Meaning | Impact |
+|------|------|---------|--------|
+| **Real Change** | RC4.2 | Split off — part of a code's content moved to a new code | **High** — programs may reclassify |
+| **Real Change** | RC5 | Transfer — content moved between existing codes | **High** — programs may reclassify |
+| **Virtual Change** | VC1 | Code change — same content, different code number | **Medium** — join keys break |
+| **Virtual Change** | VC2 | Name change — same code, same scope, different title | **Low** — cosmetic |
+
+Real changes (RC) are the ones that matter most for analysis: they affect *which* programs fall into *which* category.
+
+## Setup
+
+::: {.callout-note}
+## Prerequisites
+
+This report requires the following tables to be present in your personal schema (`myschema` from `config.yml`) on the `decimal` database, along with a prior-cycle output table on `PSSM2023`.
+
+**INFOWARE CIP lookup tables** (loaded via `dbReadTable` in the Setup chunk):
+
+| Table | Key column(s) |
+|-------|---------------|
+| `INFOWARE_L_CIP_2DIGITS_CIP2016` | `LCP2_CD` |
+| `INFOWARE_L_CIP_4DIGITS_CIP2016` | `LCP4_CD` |
+| `INFOWARE_L_CIP_6DIGITS_CIP2016` | `LCP6_CD` (renamed from `LCIP_CD`) |
+| `INFOWARE_L_CIP_2DIGITS_CIP2021` | `LCP2_CD` |
+| `INFOWARE_L_CIP_4DIGITS_CIP2021` | `LCP4_CD` |
+| `INFOWARE_L_CIP_6DIGITS_CIP2021` | `LCP6_CD` |
+
+**PROGRAMS backup table** (loaded in the PROGRAMS Table Case Study):
+
+| Table | Key column(s) |
+|-------|---------------|
+| `INFOWARE_PROGRAMS_2016` | `LCIP_CD_CIP2016`, `LCIP_CD_CIP2021` |
+
+**Cross-database pipeline output** (queried via SQL in the Downstream Credential Impact section):
+
+| Database | Table | Key column(s) |
+|----------|-------|---------------|
+| `PSSM2023` | `Credential_Non_Dup_r` | `FINAL_CIP_CODE_4`, `FINAL_CIP_CODE_2`, `PSI_CREDENTIAL_CIP` |
+
+The INFOWARE lookup and PROGRAMS tables are copied into the personal schema by [load-infoware-lookups.R](../R/load-infoware-lookups.R). `Credential_Non_Dup_r` is a pipeline output from Module 02a ([02a-update-cred-non-dup.R](../R/02a-update-cred-non-dup.R)) and must exist on `PSSM2023` from a prior model run.
+
+**Config entries required** in `config.yml`: `decimal` (database connection) and `myschema` (personal schema name).
+:::
+
+```{r}
+#| label: setup
+pacman::p_load(tidyverse, DBI, odbc, config, glue)
+
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
+
+con <- dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "TRUE"
+)
+```
+
+Load the CIP 2016 and CIP 2021 lookup tables:
+
+```{r}
+#| label: load-cip-tables
+
+# --- CIP 2016 tables ---
+cip6_2016 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_6DIGITS_CIP2016")
+)
+cip4_2016 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_4DIGITS_CIP2016")
+)
+cip2_2016 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_2DIGITS_CIP2016")
+)
+
+# --- CIP 2021 tables ---
+cip6_2021 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_6DIGITS_CIP2021")
+)
+cip4_2021 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_4DIGITS_CIP2021")
+)
+cip2_2021 <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_2DIGITS_CIP2021")
+)
+
+# --- Normalize column names across 2016 and 2021 tables ---
+# The INFOWARE tables use different naming conventions between revisions.
+# We rename to a consistent set so downstream code treats them uniformly.
+#   6-digit code (no period):  2016 "LCIP_CD"     / 2021 "LCP6_CD"
+#   6-digit name:              2016 "LCIP_NAME"   / 2021 "LCP6_DIGITS_NAME"
+#   4-digit name:              2016 "LCP4_CIP_4DIGITS_NAME" / 2021 "LCP4_DIGITS_NAME"
+cip6_2016 <- cip6_2016 |>
+  rename(LCP6_CD = LCIP_CD, LCP6_DIGITS_NAME = LCIP_NAME)
+cip4_2016 <- cip4_2016 |> rename(LCP4_DIGITS_NAME = LCP4_CIP_4DIGITS_NAME)
+```
+
+## Taxonomic Comparison
+
+### 2-Digit Level (Series)
+
+The broadest level — 2-digit CIP codes define major fields of study.
+
+```{r}
+#| label: cip2-diff
+#| tbl-cap: "2-digit CIP code set comparison"
+
+codes_2016 <- cip2_2016 |> pull(LCP2_CD) |> sort()
+codes_2021 <- cip2_2021 |> pull(LCP2_CD) |> sort()
+
+added_2 <- setdiff(codes_2021, codes_2016)
+removed_2 <- setdiff(codes_2016, codes_2021)
+common_2 <- intersect(codes_2016, codes_2021)
+
+tibble(
+  Metric = c(
+    "CIP 2016 codes",
+    "CIP 2021 codes",
+    "Unchanged codes",
+    "New in 2021",
+    "Removed in 2021"
+  ),
+  Count = c(
+    length(codes_2016),
+    length(codes_2021),
+    length(common_2),
+    length(added_2),
+    length(removed_2)
+  )
+)
+```
+
+```{r}
+#| label: cip2-changes
+#| tbl-cap: "2-digit codes added or removed in CIP 2021"
+
+if (length(added_2) > 0) {
+  cat("New 2-digit codes in 2021:\n")
+  cip2_2021 |> filter(LCP2_CD %in% added_2) |> select(LCP2_CD, LCP2_DIGITS_NAME)
+} else {
+  cat("No new 2-digit codes.\n")
+}
+
+if (length(removed_2) > 0) {
+  cat("\nRemoved 2-digit codes:\n")
+  cip2_2016 |>
+    filter(LCP2_CD %in% removed_2) |>
+    select(LCP2_CD, LCP2_DIGITS_NAME)
+} else {
+  cat("\nNo removed 2-digit codes.\n")
+}
+```
+
+Check for title changes among codes that exist in both versions:
+
+```{r}
+#| label: cip2-title-changes
+#| tbl-cap: "2-digit codes with title changes"
+
+cip2_2016 |>
+  inner_join(cip2_2021, by = "LCP2_CD", suffix = c("_2016", "_2021")) |>
+  mutate(
+    name_changed = LCP2_DIGITS_NAME_2016 != LCP2_DIGITS_NAME_2021,
+    cluster_changed = coalesce(
+      LCP2_LCIPPC_CD_2016 != LCP2_LCIPPC_CD_2021,
+      FALSE
+    )
+  ) |>
+  filter(name_changed | cluster_changed) |>
+  select(
+    LCP2_CD,
+    LCP2_DIGITS_NAME_2016,
+    LCP2_DIGITS_NAME_2021,
+    LCP2_LCIPPC_CD_2016,
+    LCP2_LCIPPC_CD_2021
+  )
+```
+
+### 4-Digit Level (Sub-Series)
+
+```{r}
+#| label: cip4-diff
+#| tbl-cap: "4-digit CIP code set comparison"
+
+codes4_2016 <- cip4_2016 |> pull(LCP4_CD) |> sort()
+codes4_2021 <- cip4_2021 |> pull(LCP4_CD) |> sort()
+
+added_4 <- setdiff(codes4_2021, codes4_2016)
+removed_4 <- setdiff(codes4_2016, codes4_2021)
+common_4 <- intersect(codes4_2016, codes4_2021)
+
+tibble(
+  Metric = c(
+    "CIP 2016 codes",
+    "CIP 2021 codes",
+    "Unchanged codes",
+    "New in 2021",
+    "Removed in 2021"
+  ),
+  Count = c(
+    length(codes4_2016),
+    length(codes4_2021),
+    length(common_4),
+    length(added_4),
+    length(removed_4)
+  )
+)
+```
+
+
+#### Added 4-Digit Level (Sub-Series)
+
+```{r}
+#| label: cip4-added
+#| tbl-cap: "New 4-digit codes in CIP 2021"
+
+if (length(added_4) > 0) {
+  cip4_2021 |>
+    filter(LCP4_CD %in% added_4) |>
+    arrange(LCP4_CD) |>
+    select(LCP4_CD, LCP4_DIGITS_NAME)
+} else {
+  cat("No new 4-digit codes.\n")
+}
+```
+
+#### Removed 4-Digit Level (Sub-Series)
+
+
+```{r}
+#| label: cip4-removed
+#| tbl-cap: "4-digit codes removed in CIP 2021"
+
+if (length(removed_4) > 0) {
+  cip4_2016 |>
+    filter(LCP4_CD %in% removed_4) |>
+    arrange(LCP4_CD) |>
+    select(LCP4_CD, LCP4_DIGITS_NAME)
+} else {
+  cat("No removed 4-digit codes.\n")
+}
+```
+
+### 6-Digit Level (Detail)
+
+The finest granularity — this is where most changes occur.
+
+```{r}
+#| label: cip6-diff
+#| tbl-cap: "6-digit CIP code set comparison"
+
+# Normalize: use LCP6_CD (without period) as the primary key for both
+codes6_2016 <- cip6_2016 |> pull(LCP6_CD) |> sort()
+codes6_2021 <- cip6_2021 |> pull(LCP6_CD) |> sort()
+
+added_6 <- setdiff(codes6_2021, codes6_2016)
+removed_6 <- setdiff(codes6_2016, codes6_2021)
+common_6 <- intersect(codes6_2016, codes6_2021)
+
+tibble(
+  Metric = c(
+    "CIP 2016 codes",
+    "CIP 2021 codes",
+    "Unchanged codes",
+    "New in 2021",
+    "Removed in 2021"
+  ),
+  Count = c(
+    length(codes6_2016),
+    length(codes6_2021),
+    length(common_6),
+    length(added_6),
+    length(removed_6)
+  )
+)
+```
+
+### Summary of structural changes
+
+```{r}
+#| label: structural-summary
+#| tbl-cap: "Summary of code-set changes across all digit levels"
+
+bind_rows(
+  tibble(
+    Level = "2-digit",
+    `CIP 2016` = length(codes_2016),
+    `CIP 2021` = length(codes_2021),
+    `New` = length(added_2),
+    `Removed` = length(removed_2),
+    `% Changed` = round(
+      (length(added_2) + length(removed_2)) / length(codes_2016) * 100,
+      1
+    )
+  ),
+  tibble(
+    Level = "4-digit",
+    `CIP 2016` = length(codes4_2016),
+    `CIP 2021` = length(codes4_2021),
+    `New` = length(added_4),
+    `Removed` = length(removed_4),
+    `% Changed` = round(
+      (length(added_4) + length(removed_4)) / length(codes4_2016) * 100,
+      1
+    )
+  ),
+  tibble(
+    Level = "6-digit",
+    `CIP 2016` = length(codes6_2016),
+    `CIP 2021` = length(codes6_2021),
+    `New` = length(added_6),
+    `Removed` = length(removed_6),
+    `% Changed` = round(
+      (length(added_6) + length(removed_6)) / length(codes6_2016) * 100,
+      1
+    )
+  )
+)
+```
+
+## Key Structural Changes from the Official Correspondence Table
+
+The [StatCan correspondence table](https://www.statcan.gc.ca/en/subjects/standard/cip/2021/correspondence-cip2016-crdc2021-v1) identifies the most significant **real changes (RC)** — transfers and splits that reclassify programs. The following are the structural-level changes most relevant to the PSSM:
+
+::: {.callout-warning}
+The changes below are from the official correspondence table, which may not perfectly match the INFOWARE implementation. The code-set comparison above should be used to verify against the actual INFOWARE tables.
+:::
+
+### Series-level transfers (2-digit → 2-digit)
+
+| From (2016) | To (2021) | What moved |
+|-------------|-----------|------------|
+| 10. Communications technologies | 15. Engineering technologies | Audio/sound/recording engineering |
+| 12. Personal & culinary services | (stays 12, renamed) | Casino operations transferred from 52. |
+| 14. Engineering | 14. Engineering | Materials science transferred from 40. |
+| 16. Aboriginal/foreign languages | 30. Multidisciplinary studies | Classics, computational linguistics |
+| 19. Family & consumer sciences | 42. Psychology | Autism & behavioural science |
+| 51. Health professions | 01. Agriculture | Veterinary-related content transferred |
+
+### Notable code renumbering (VC1 — same content, new code)
+
+| CIP 2016 Code | CIP 2021 Code | Title |
+|---------------|---------------|-------|
+| 01.0309 | 01.1004 | Viticulture and enology |
+| 15.0503 | 15.1701 | Energy systems technology |
+| 15.0505 | 15.1703 | Solar energy technology |
+| 19.0000 | 19.1001 | Work and family studies |
+| 19.00 | 19.10 | Work and family studies (sub-series) |
+
+These are particularly important because the **code number changes but the content stays the same** — meaning any hardcoded CIP code in the PSSM would silently stop matching.
+
+## PROGRAMS Table Case Study
+
+The `PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021` table preserves both the old and new CIP assignments for every program. This is a real-world dataset showing how programs actually shifted classification.
+
+```{r}
+#| label: programs-comparison
+
+programs <- dbReadTable(
+  con,
+  DBI::Id(schema = my_schema, table = "INFOWARE_PROGRAMS_2016")
+)
+
+# Identify columns with CIP 2016 and CIP 2021 assignments
+cip2016_col <- "LCIP_CD_CIP2016"
+cip2021_col <- "LCIP_CD_CIP2021"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs_summary <- programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    mutate(
+      cip2016_4 = substr(.data[[cip2016_col]], 1, 4),
+      cip2021_4 = substr(.data[[cip2021_col]], 1, 4),
+      cip2016_2 = substr(.data[[cip2016_col]], 1, 2),
+      cip2021_2 = substr(.data[[cip2021_col]], 1, 2)
+    ) |>
+    summarise(
+      total_programs = n(),
+      changed_6digit = sum(
+        .data[[cip2016_col]] != .data[[cip2021_col]],
+        na.rm = TRUE
+      ),
+      changed_4digit = sum(cip2016_4 != cip2021_4, na.rm = TRUE),
+      changed_2digit = sum(cip2016_2 != cip2021_2, na.rm = TRUE)
+    ) |>
+    mutate(
+      pct_6 = round(changed_6digit / total_programs * 100, 1),
+      pct_4 = round(changed_4digit / total_programs * 100, 1),
+      pct_2 = round(changed_2digit / total_programs * 100, 1)
+    )
+
+  programs_summary
+} else {
+  cat("CIP 2016/2021 columns not found in PROGRAMS_2016 table.\n")
+  cat("Available columns:\n")
+  print(names(programs))
+}
+```
+
+### Programs that changed 4-digit classification
+
+```{r}
+#| label: programs-4digit-changes
+#| tbl-cap: "Programs whose 4-digit CIP changed between 2016 and 2021"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    mutate(
+      cip2016_4 = substr(.data[[cip2016_col]], 1, 4),
+      cip2021_4 = substr(.data[[cip2021_col]], 1, 4)
+    ) |>
+    filter(cip2016_4 != cip2021_4) |>
+    count(cip2016_4, cip2021_4, sort = TRUE) |>
+    head(20)
+}
+```
+
+## PROGRAMS Reclassification Detail
+
+Of the 6,591 programs in the backup table, only 59 (0.9%) actually changed their 6-digit CIP code. But 52 of those 59 (88%) also changed at the 4-digit level — meaning they would produce different composite keys (`LCIP4_CRED`) under migration. This section drills into which transitions are most common and where the highest-impact shifts occur.
+
+### Transition summary by digit level
+
+```{r}
+#| label: programs-transition-summary
+#| tbl-cap: "Programs reclassified at each CIP digit level"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    mutate(
+      cip2016_6 = .data[[cip2016_col]],
+      cip2021_6 = .data[[cip2021_col]],
+      cip2016_4 = substr(.data[[cip2016_col]], 1, 4),
+      cip2021_4 = substr(.data[[cip2021_col]], 1, 4),
+      cip2016_2 = substr(.data[[cip2016_col]], 1, 2),
+      cip2021_2 = substr(.data[[cip2021_col]], 1, 2)
+    ) |>
+    summarise(
+      `Total programs` = n(),
+      `Changed at 6-digit` = sum(cip2016_6 != cip2021_6),
+      `Changed at 4-digit` = sum(cip2016_4 != cip2021_4),
+      `Changed at 2-digit` = sum(cip2016_2 != cip2021_2)
+    )
+}
+```
+
+### Most common 6-digit transitions
+
+The 59 reclassified programs fall into 12 distinct 6-digit transitions. The top three account for 42 of 59 programs (71%).
+
+```{r}
+#| label: programs-6digit-transitions
+#| tbl-cap: "6-digit CIP transitions ranked by program count"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    filter(.data[[cip2016_col]] != .data[[cip2021_col]]) |>
+    count(
+      `CIP 2016` = .data[[cip2016_col]],
+      `CIP 2016 Name` = LCIP_NAME_CIP2016,
+      `CIP 2021` = .data[[cip2021_col]],
+      `CIP 2021 Name` = LCIP_NAME_CIP2021,
+      sort = TRUE,
+      name = "Programs"
+    )
+}
+```
+
+The largest transition — Forensic science (430106 → 430406, 19 programs) — is a pure renumbering within the same 2-digit series (43). The second largest, Veterinary/animal health technology (510808 → 018301, 15 programs), is a **cross-series move** from Health professions (51) to Agriculture (01).
+
+### 2-digit domain shifts
+
+Four transitions change the top-level field of study. These are the highest-risk changes for composite keys (`LCIP2_CRED`), since they produce entirely new 2-digit prefixes with no corresponding historical distributions.
+
+```{r}
+#| label: programs-2digit-shifts
+#| tbl-cap: "2-digit CIP domain shifts in the PROGRAMS table"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    mutate(
+      cip2016_2 = substr(.data[[cip2016_col]], 1, 2),
+      cip2021_2 = substr(.data[[cip2021_col]], 1, 2)
+    ) |>
+    filter(cip2016_2 != cip2021_2) |>
+    count(cip2016_2, cip2021_2, sort = TRUE, name = "Programs") |>
+    left_join(
+      cip2_2016 |> select(LCP2_CD, `2016 Field` = LCP2_DIGITS_NAME),
+      by = c("cip2016_2" = "LCP2_CD")
+    ) |>
+    left_join(
+      cip2_2021 |> select(LCP2_CD, `2021 Field` = LCP2_DIGITS_NAME),
+      by = c("cip2021_2" = "LCP2_CD")
+    ) |>
+    select(
+      `CIP 2016` = cip2016_2,
+      `2016 Field`,
+      `CIP 2021` = cip2021_2,
+      `2021 Field`,
+      Programs
+    )
+}
+```
+
+The 51 → 01 veterinary shift (15 programs) is the single most impactful reclassification. These programs — Veterinary/animal health technology — were moved from Health professions to Agriculture/veterinary sciences, reflecting StatCan's decision to group veterinary sciences with agriculture. Under migration, any historical `LCIP2_CRED` keys starting with "51" for these programs would have no 2021 equivalent, and the new "01" keys would have no historical probability distributions.
+
+### Affected institutions and credential types
+
+BCIT is the most affected institution (20 of 59 programs), consistent with its heavy trades and technology program mix. The reclassified programs are overwhelmingly Applied (97%) and Certificate-level (71%) — vocational credentials in fields like veterinary technology, culinary arts, and energy systems.
+
+#### Changed programs by institution
+
+```{r}
+#| label: programs-by-institution
+#| tbl-cap: "Changed programs by institution"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    filter(.data[[cip2016_col]] != .data[[cip2021_col]]) |>
+    count(PRGM_INST_CD, sort = TRUE, name = "Programs")
+}
+```
+
+
+#### Changed programs by credential type
+
+```{r}
+#| label: programs-by-credential
+#| tbl-cap: "Changed programs by credential type"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    filter(.data[[cip2016_col]] != .data[[cip2021_col]]) |>
+    count(PRGm_CREDENTIAL = PRGM_CREDENTIAL, sort = TRUE, name = "Programs")
+}
+```
+
+### 4-digit transitions affecting composite keys
+
+The chart below shows all nine distinct 4-digit transitions. The bar length indicates how many programs are affected by each transition.
+
+```{r}
+#| label: programs-4digit-chart
+#| fig-cap: "4-digit CIP transitions by program count"
+
+if (cip2016_col %in% names(programs) && cip2021_col %in% names(programs)) {
+  programs |>
+    filter(!is.na(.data[[cip2016_col]])) |>
+    mutate(
+      cip2016_4 = substr(.data[[cip2016_col]], 1, 4),
+      cip2021_4 = substr(.data[[cip2021_col]], 1, 4)
+    ) |>
+    filter(cip2016_4 != cip2021_4) |>
+    count(cip2016_4, cip2021_4, name = "n_programs") |>
+    mutate(transition = paste0(cip2016_4, " \u2192 ", cip2021_4)) |>
+    ggplot(aes(x = reorder(transition, n_programs), y = n_programs)) +
+    geom_col(fill = "#4477AA") +
+    geom_text(aes(label = n_programs), hjust = -0.2, size = 3.5) +
+    coord_flip() +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    labs(
+      x = NULL,
+      y = "Number of programs",
+      caption = "Source: PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021"
+    ) +
+    theme_minimal(base_size = 11)
+}
+```
+
+These reclassifications are low-frequency but high-impact for the composite key issue. The 4301 → 4304 forensic science transition (22 programs) and 5108 → 0183 veterinary transition (15 programs) together account for 37 of 52 4-digit-level changes (71%). Any historical join tables that store distributions at the 4-digit level would have no matching key for these programs after migration — the model would either drop them or treat them as new fields with no historical probability distributions.
+
+## Hardcoded Code Validation
+
+Several R scripts contain CIP codes or patterns hardcoded directly in source rather than sourced from lookup tables. This section cross-references every such hardcoded value against the CIP 2021 taxonomy using the INFOWARE lookup tables loaded above, flagging any that were renumbered, removed, or redefined.
+
+### Developmental / skills CIP codes
+
+Used in [01a-enrolment-preprocessing.R](../R/01a-enrolment-preprocessing.R) (line 162) and [01b-credential-preprocessing.R](../R/01b-credential-preprocessing.R) (line 180) to classify skills-based and developmental records as RecordStatus 6.
+
+```r
+c("21", "32", "33", "34", "35", "36", "37", "53", "89")
+```
+
+```{r}
+#| label: validate-dev-codes
+#| tbl-cap: "Developmental/skills CIP codes cross-referenced against CIP 2016 and 2021"
+
+dev_codes <- c("21", "32", "33", "34", "35", "36", "37", "53", "89")
+
+data.frame(CIP2 = dev_codes, stringsAsFactors = FALSE) |>
+  left_join(
+    cip2_2016 |>
+      select(
+        LCP2_CD,
+        `2016 Name` = LCP2_DIGITS_NAME,
+        `2016 Cluster` = LCP2_LCIPPC_CD
+      ),
+    by = c("CIP2" = "LCP2_CD")
+  ) |>
+  left_join(
+    cip2_2021 |>
+      select(
+        LCP2_CD,
+        `2021 Name` = LCP2_DIGITS_NAME,
+        `2021 Cluster` = LCP2_LCIPPC_CD
+      ),
+    by = c("CIP2" = "LCP2_CD")
+  ) |>
+  mutate(
+    `In 2021` = ifelse(!is.na(`2021 Name`), "Yes", "No"),
+    `Renumbered` = FALSE,
+    `Title Changed` = !is.na(`2016 Name`) &
+      !is.na(`2021 Name`) &
+      `2016 Name` != `2021 Name`,
+    `Cluster Changed` = !is.na(`2016 Cluster`) &
+      !is.na(`2021 Cluster`) &
+      `2016 Cluster` != `2021 Cluster`
+  ) |>
+  select(
+    CIP2,
+    `2016 Name`,
+    `2021 Name`,
+    `In 2021`,
+    `Renumbered`,
+    `Title Changed`,
+    `Cluster Changed`
+  )
+```
+
+**Finding:** All 8 standard codes survive in CIP 2021 with the same code numbers. No renumbering, no cluster reassignments. Three codes (21, 32, 36) have expanded titles but the code numbers are unchanged — since the pipeline filters on the first 2 characters only, the title changes have zero effect.
+
+Code 89 does not exist at any digit level in either CIP 2016 or CIP 2021 — not in the 2-digit, 4-digit, or 6-digit INFOWARE tables. It is likely a BC-internal or legacy code. It will not break under migration since it was never part of the CIP standard, but it is worth confirming with the data team whether any live records actually carry an "89" prefix.
+
+::: {.callout-tip}
+**Verdict: No changes needed.** The developmental/skills filter is safe under CIP 2021 migration.
+:::
+
+### General program 2-digit prefixes
+
+Used in [02a-appso-programs.R](../R/02a-appso-programs.R), [02a-bgs-program-matching.R](../R/02a-bgs-program-matching.R), and [02a-update-cred-non-dup.R](../R/02a-update-cred-non-dup.R) to handle "general" CIP codes (`XX.00`) that don't exist in INFOWARE. These are remapped to `XX.01`.
+
+```r
+c("11.00","13.00","14.00","19.00","23.00","24.00","26.00",
+  "40.00","42.00","45.00","50.00","52.00","55.00")
+```
+
+```{r}
+#| label: validate-general-prefixes
+#| tbl-cap: "General program 2-digit prefixes checked against CIP 2021"
+
+general_prefixes <- c(
+  "11",
+  "13",
+  "14",
+  "19",
+  "23",
+  "24",
+  "26",
+  "40",
+  "42",
+  "45",
+  "50",
+  "52",
+  "55"
+)
+
+data.frame(CIP2 = general_prefixes, stringsAsFactors = FALSE) |>
+  left_join(
+    cip2_2016 |> select(LCP2_CD, `2016 Name` = LCP2_DIGITS_NAME),
+    by = c("CIP2" = "LCP2_CD")
+  ) |>
+  left_join(
+    cip2_2021 |> select(LCP2_CD, `2021 Name` = LCP2_DIGITS_NAME),
+    by = c("CIP2" = "LCP2_CD")
+  ) |>
+  mutate(
+    `In 2021` = ifelse(!is.na(`2021 Name`), "Yes", "REMOVED"),
+    `Title Changed` = !is.na(`2016 Name`) &
+      !is.na(`2021 Name`) &
+      `2016 Name` != `2021 Name`
+  ) |>
+  select(CIP2, `2016 Name`, `2021 Name`, `In 2021`, `Title Changed`)
+```
+
+**Finding:** All 13 series exist in CIP 2021. No series were removed. The `19.00` → `19.10` sub-series renumbering (from the correspondence table) does not affect this logic because the hardcoded values are 2-digit prefixes, not 4-digit codes.
+
+::: {.callout-tip}
+**Verdict: No changes needed.** All general program prefixes remain valid.
+:::
+
+### General program CIP4 codes
+
+Used in [02a-bgs-program-matching.R](../R/02a-bgs-program-matching.R) as the target for `XX.00` → `XX.01` remapping.
+
+```r
+c("1101","1301","1401","1901","2301","2401","2601",
+  "4001","4201","4501","5001","5201","5501")
+```
+
+```{r}
+#| label: validate-general-cip4
+#| tbl-cap: "General CIP4 codes checked against CIP 2021"
+
+general_cip4 <- c(
+  "1101",
+  "1301",
+  "1401",
+  "1901",
+  "2301",
+  "2401",
+  "2601",
+  "4001",
+  "4201",
+  "4501",
+  "5001",
+  "5201",
+  "5501"
+)
+
+data.frame(CIP4 = general_cip4, stringsAsFactors = FALSE) |>
+  left_join(
+    cip4_2016 |> select(LCP4_CD, `2016 Name` = LCP4_DIGITS_NAME),
+    by = c("CIP4" = "LCP4_CD")
+  ) |>
+  left_join(
+    cip4_2021 |> select(LCP4_CD, `2021 Name` = LCP4_DIGITS_NAME),
+    by = c("CIP4" = "LCP4_CD")
+  ) |>
+  mutate(
+    `In 2021` = ifelse(!is.na(`2021 Name`), "Yes", "REMOVED"),
+    `Title Changed` = !is.na(`2016 Name`) &
+      !is.na(`2021 Name`) &
+      `2016 Name` != `2021 Name`
+  ) |>
+  select(CIP4, `2016 Name`, `2021 Name`, `In 2021`, `Title Changed`)
+```
+
+**Finding:** Most general CIP4 codes survive in 2021. The notable exception is `1901` — the correspondence table shows `19.0000` was renumbered to `19.1001` (VC1 virtual change), which means the 4-digit code `1901` may have been replaced. Any removal here would cause the `XX.00` → `XX.01` remapping to fail silently for series 19 (Work and family studies). `1901` exists in 2021, so it is not a problem. And if `19.0000` was renumbered to `19.1001` (VC1 virtual change), there is no `1900` needs to be remapped.
+
+::: {.callout-tip}
+**Verdict: No changes needed.** All general program remapping remains valid.
+:::
+
+### CIP cluster exclusions (09, 10)
+
+CIP clusters `09` (Developmental) and `10` (Personal Improvement and Leisure) are excluded from distributions and projections in [01e-stp-distributions.R](../R/01e-stp-distributions.R) and [load-program-projections.R](../R/load-program-projections.R).
+
+```{r}
+#| label: validate-cluster-exclusions
+#| tbl-cap: "CIP clusters 09 and 10 — member codes in CIP 2021"
+
+cip2_2021 |>
+  filter(LCP2_LCIPPC_CD %in% c("09", "10")) |>
+  select(
+    CIP2 = LCP2_CD,
+    `Series Name` = LCP2_DIGITS_NAME,
+    Cluster = LCP2_LCIPPC_CD,
+    `Cluster Name` = LCP2_LCIPPC_NAME
+  ) |>
+  arrange(Cluster, CIP2)
+```
+
+**Finding:** Clusters 09 and 10 still exist in CIP 2021 with the same member codes as 2016. The developmental codes validated above (21, 32, 53 in cluster 09; 33–37 in cluster 10) all retain their cluster assignments.
+
+::: {.callout-tip}
+**Verdict: No changes needed.** Cluster exclusions remain valid.
+:::
+
+### CIP code "99" — Undeclared activity
+
+Used in [02a-update-cred-non-dup.R](../R/02a-update-cred-non-dup.R) to label records with CIP2 = "99".
+
+```{r}
+#| label: validate-cip99
+#| tbl-cap: "CIP code 99 in 2016 and 2021"
+
+bind_rows(
+  cip2_2016 |>
+    filter(LCP2_CD == "99") |>
+    mutate(Version = "2016") |>
+    select(Version, LCP2_CD, LCP2_DIGITS_NAME),
+  cip2_2021 |>
+    filter(LCP2_CD == "99") |>
+    mutate(Version = "2021") |>
+    select(Version, LCP2_CD, LCP2_DIGITS_NAME)
+)
+```
+
+::: {.callout-tip}
+**Verdict: No changes needed.** Code 99 exists in both versions with the same meaning.
+:::
+
+### Custom CIP4 mapping overrides (BGS)
+
+Used in [02a-bgs-program-matching.R](../R/02a-bgs-program-matching.R) to resolve discrepancies between BGS and STP CIP assignments for Math/Applied Math and Chemical Engineering.
+
+```r
+BGS_FINAL_CIP_CODE_4 == "2701" & STP_FINAL_CIP_CODE_4 == "2703"  # Math/Applied Math
+BGS_FINAL_CIP_CODE_4 == "1405" & STP_FINAL_CIP_CODE_4 == "1407"  # Chemical Engineering
+```
+
+```{r}
+#| label: validate-bgs-overrides
+#| tbl-cap: "Custom BGS CIP4 overrides checked against CIP 2016 and 2021"
+
+override_cip4 <- c("2701", "2703", "1405", "1407")
+
+data.frame(CIP4 = override_cip4, stringsAsFactors = FALSE) |>
+  left_join(
+    cip4_2016 |> select(LCP4_CD, `2016 Name` = LCP4_DIGITS_NAME),
+    by = c("CIP4" = "LCP4_CD")
+  ) |>
+  left_join(
+    cip4_2021 |> select(LCP4_CD, `2021 Name` = LCP4_DIGITS_NAME),
+    by = c("CIP4" = "LCP4_CD")
+  ) |>
+  mutate(
+    `In 2021` = ifelse(!is.na(`2021 Name`), "Yes", "REMOVED"),
+    `Title Changed` = !is.na(`2016 Name`) &
+      !is.na(`2021 Name`) &
+      `2016 Name` != `2021 Name`
+  ) |>
+  select(CIP4, `2016 Name`, `2021 Name`, `In 2021`, `Title Changed`)
+```
+
+**Finding:** Code `1405` (Engineering, general) was renamed to "Biomedical/medical engineering" in CIP 2021 with a significant scope change — bioengineering content was transferred out to `14.4501`. The code still exists but its meaning has shifted. Codes `2701` and `2703` (Mathematics) remain stable. Code `1407` (Chemical engineering) should be verified.
+
+::: {.callout-warning}
+**Action required:** Review the `1405` override — its meaning changed substantially in CIP 2021. Confirm whether the BGS/STP discrepancy resolution logic still applies.
+:::
+
+### Validation summary
+
+| Hardcoded set | Location | Codes | Renumbered? | Verdict |
+|---|---|---|---|---|
+| Developmental / skills | 01a, 01b | 21,32,33,34,35,36,37,53,89 | No | Safe — no changes |
+| General program prefixes | 02a (3 scripts) | 11–55 (13 prefixes) | No | Safe — no changes |
+| General CIP4 codes | 02a-bgs | 1101–5501 (13 codes) | `1901` still in 2021 | Safe — no changes |
+| Cluster exclusions | 01e, load-proj | 09, 10 | No | Safe — no changes |
+| CIP code 99 | 02a-update | 99 | No | Safe — no changes |
+| BGS overrides | 02a-bgs | 2701, 2703, 1405, 1407 | `1405` scope changed | **Review** |
+
+Two items require manual review before migration; the remaining four hardcoded sets are confirmed safe.
+
+## Downstream Credential Impact
+
+The PROGRAMS table shows that only 59 of 6,591 program definitions (0.9%) reclassified. But the downstream impact is substantially larger because the pipeline resolves CIP codes to 4-digit granularity (`FINAL_CIP_CODE_4`), which feeds into the `LCIP4_CRED` composite keys used throughout Modules 02b–07. This section quantifies how many actual credential records are affected, using the `Credential_Non_Dup_r` table from the PSSM2023 database.
+
+::: {.callout-note}
+The credential counts below come from `[PSSM2023].[IDIR\NAME].[Credential_Non_Dup_r]` — a cross-database query on the same SQL Server instance. This is a prior-cycle pipeline output and record counts may differ from the current cycle, but the proportions are representative.
+:::
+
+### Three perspectives on impact
+
+```{r}
+#| label: credential-impact-setup
+
+changed_programs <- programs |>
+  filter(!is.na(.data[[cip2016_col]])) |>
+  filter(.data[[cip2016_col]] != .data[[cip2021_col]]) |>
+  count(.data[[cip2016_col]], .data[[cip2021_col]], name = "n_programs")
+
+transitions_4 <- changed_programs |>
+  mutate(
+    CIP4_2016 = substr(.data[[cip2016_col]], 1, 4),
+    CIP4_2021 = substr(.data[[cip2021_col]], 1, 4)
+  ) |>
+  filter(CIP4_2016 != CIP4_2021) |>
+  count(CIP4_2016, CIP4_2021, name = "n_programs")
+
+transitions_2 <- changed_programs |>
+  mutate(
+    CIP2_2016 = substr(.data[[cip2016_col]], 1, 2),
+    CIP2_2021 = substr(.data[[cip2021_col]], 1, 2)
+  ) |>
+  filter(CIP2_2016 != CIP2_2021) |>
+  count(CIP2_2016, CIP2_2021, sort = TRUE, name = "n_programs")
+```
+
+#### Credential records affected at each CIP digit level
+
+```{r}
+#| label: credential-impact-summary
+#| tbl-cap: "Credential records affected at each CIP digit level"
+
+# Guard: an empty code vector would produce SQL `IN ()`, which is invalid.
+# Collapse to the `NULL` literal instead, which never matches but stays valid.
+sql_in <- function(x) {
+  if (length(x) == 0) "NULL" else paste0("'", x, collapse = ",", "'")
+}
+
+# Identify the changed 4-digit CIP2016 codes
+changed_cip4 <- transitions_4$CIP4_2016
+cip4_in <- sql_in(changed_cip4)
+
+# 4-digit level: FINAL_CIP_CODE_4 (the resolved code that feeds LCIP4_CRED)
+cred_4d <- dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT COUNT(*) AS n
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+  WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
+"
+  )
+)
+
+# 2-digit level: FINAL_CIP_CODE_2 (feeds LCIP2_CRED)
+changed_cip2 <- transitions_2$CIP2_2016
+cip2_in <- sql_in(changed_cip2)
+
+cred_2d <- dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT COUNT(*) AS n
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+  WHERE FINAL_CIP_CODE_2 IN ({cip2_in})
+"
+  )
+)
+
+# Exact 6-digit level: PSI_CREDENTIAL_CIP (raw institution-reported code)
+changed_cip6 <- unique(na.omit(changed_programs$LCIP_CD_CIP2016))
+changed_cip6_period <- paste0(
+  substr(changed_cip6, 1, 2),
+  ".",
+  substr(changed_cip6, 3, 6)
+)
+cip6_in <- sql_in(changed_cip6_period)
+
+cred_6d <- dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT COUNT(*) AS n
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+  WHERE PSI_CREDENTIAL_CIP IN ({cip6_in})
+"
+  )
+)
+
+cred_total <- dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT COUNT(*) AS n
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+"
+  )
+)
+
+tibble(
+  Perspective = c(
+    "4-digit composite key (FINAL_CIP_CODE_4)",
+    "2-digit series level (FINAL_CIP_CODE_2)",
+    "Exact 6-digit raw code (PSI_CREDENTIAL_CIP)"
+  ),
+  `Affected credentials` = c(cred_4d$n, cred_2d$n, cred_6d$n),
+  `Total credentials` = cred_total$n,
+  `% affected` = round(
+    c(cred_4d$n, cred_2d$n, cred_6d$n) / cred_total$n * 100,
+    1
+  )
+)
+```
+
+The 4-digit figure (composite key level) is the most operationally relevant — those are the resolved codes that feed directly into `LCIP4_CRED` and drive the occupation projection formula. The 6-digit raw-code count is closer to the true reclassification rate, but uses the institution-reported CIP rather than the pipeline-resolved one.
+
+### Largest 4-digit transitions by credential volume
+
+The top two transitions — Business administration and Liberal arts — account for 73% of the 4-digit impact. These are high-volume fields, which explains why the credential impact is an order of magnitude larger than the 0.9% program reclassification rate.
+
+```{r}
+#| label: credential-impact-by-cip4
+#| tbl-cap: "Credentials affected by each 4-digit CIP transition"
+
+cred_by_cip4 <- dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT FINAL_CIP_CODE_4, COUNT(*) AS credentials
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+  WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
+  GROUP BY FINAL_CIP_CODE_4
+  ORDER BY credentials DESC
+"
+  )
+)
+
+transitions_4 |>
+  group_by(CIP4_2016) |>
+  summarise(
+    `CIP 2021 targets` = paste(CIP4_2021, collapse = ", "),
+    .groups = "drop"
+  ) |>
+  left_join(
+    cred_by_cip4 |>
+      rename(CIP4_2016 = FINAL_CIP_CODE_4, `Credentials` = credentials),
+    by = "CIP4_2016"
+  ) |>
+  mutate(
+    Credentials = coalesce(Credentials, 0),
+    `% of all records` = round(Credentials / cred_total$n * 100, 1)
+  ) |>
+  arrange(desc(Credentials)) |>
+  mutate(
+    `CIP 2016 -> 21` = paste0(CIP4_2016, " \u2192 ", `CIP 2021 targets`)
+  ) |>
+  select(`CIP 2016 -> 21`, Credentials, `% of all records`)
+```
+
+### Affected credentials by category
+
+The affected records span the full range of credential types, with Diplomas, Bachelors, and Certificates as the largest categories.
+
+```{r}
+#| label: credential-impact-by-category
+#| tbl-cap: "Affected credentials by credential category"
+
+dbGetQuery(
+  con,
+  glue::glue(
+    "
+  SELECT PSI_CREDENTIAL_CATEGORY, COUNT(*) AS Credentials
+  FROM [PSSM2023].[{my_schema}].[Credential_Non_Dup_r]
+  WHERE FINAL_CIP_CODE_4 IN ({cip4_in})
+  GROUP BY PSI_CREDENTIAL_CATEGORY
+  ORDER BY Credentials DESC
+"
+  )
+)
+```
+
+### Interpretation
+
+The 4-digit level overstates the true reclassification because it catches every credential in a series, not just the specific programs that changed. For example, only 1 program definition changed in Business administration (5202 → 5210), but all 84,528 credentials with `FINAL_CIP_CODE_4 = "5202"` would get a new composite key. Conversely, the 6-digit raw-code count (9.2%) understates the pipeline impact because the resolved `FINAL_CIP_CODE_4` may differ from the raw `PSI_CREDENTIAL_CIP` for many records.
+
+The practical implication: under migration, roughly 200K credential records would land in new composite key buckets. Historical distribution tables built with CIP 2016 keys would have no matching entries for these, and the Module 07 proxy waterfall would either drop them or send them to the NOC 99999 fallback bucket.
+
+## Codebase Impact Inventory
+
+This section maps every CIP 2016 touchpoint in the `R/` scripts. It is organized by category of change required.
+
+### Category 1: Lookup table references
+
+Every script that references the CIP 2016 lookup tables by name would need its table references updated.
+
+| Script | Tables Referenced | Role |
+|--------|-------------------|------|
+| [load-infoware-lookups.R](../R/load-infoware-lookups.R) | All 3 (6/4/2-digit) + PROGRAMS | Loads tables from Oracle → SQL Server |
+| [02a-appso-programs.R](../R/02a-appso-programs.R) | All 3 | Apprenticeship CIP cleaning |
+| [02a-bgs-program-matching.R](../R/02a-bgs-program-matching.R) | All 3 | BGS/STP CIP alignment |
+| [02a-dacso-program-matching.R](../R/02a-dacso-program-matching.R) | All 3 + PROGRAMS | DACSO/STP CIP alignment + XWALK |
+| [02a-update-cred-non-dup.R](../R/02a-update-cred-non-dup.R) | All 3 | Final merge of all CIP sources |
+| [06-program-projections.R](../R/06-program-projections.R) | 4-digit, 6-digit | Program mix distributions |
+| [05-ptib-analysis.R](../R/05-ptib-analysis.R) | 6-digit | Private institution CIP validation |
+| [load-program-projections.R](../R/load-program-projections.R) | 4-digit, 6-digit (via CSV) | Loads CIP lookups from LAN CSV files |
+
+**Change required:** Replace all `INFOWARE_L_CIP_*DIGITS_CIP2016` references with `INFOWARE_L_CIP_*DIGITS_CIP2021`, and update the column names that carry the `CIP2016` suffix (e.g., `LCIP_NAME_CIP2016` → `LCIP_NAME_CIP2021`).
+
+### Category 2: Hardcoded CIP logic
+
+These are CIP codes or patterns hardcoded directly in R scripts, not sourced from lookup tables. Each set was cross-referenced against the CIP 2021 taxonomy in the **[Hardcoded Code Validation](#hardcoded-code-validation)** section above. The code snippets below serve as a quick inventory; see that section for the full validation results.
+
+| Hardcoded set | Location | Codes | Verdict |
+|---|---|---|---|
+| Developmental / skills | 01a line 162, 01b line 180 | `21, 32, 33, 34, 35, 36, 37, 53, 89` | Safe — no changes |
+| General program prefixes (2-digit) | 02a (3 scripts) | `11.00–55.00` (13 prefixes) | Safe — no changes |
+| General program CIP4 codes | 02a-bgs | `1101–5501` (13 codes) | **Verify `1901`** |
+| Cluster exclusions | 01e, load-proj | `09, 10` | Safe — no changes |
+| CIP code 99 | 02a-update | `99` | Safe — no changes |
+| BGS overrides | 02a-bgs | `2701, 2703, 1405, 1407` | **Review `1405`** |
+| Manual PRGM_ID overrides (DACSO) | 02a-dacso | `1907, 1502, ...` | **Individual review** |
+
+### Category 3: CIP-derived column names
+
+The `Credential_Non_Dup` table (the central credential table) has 12 CIP columns added via `ALTER TABLE` in [02a-update-cred-non-dup.R](../R/02a-update-cred-non-dup.R):
+
+| Column | Type | Source |
+|--------|------|--------|
+| `OUTCOMES_CIP_CODE_4` | varchar(4) | DACSO matching |
+| `OUTCOMES_CIP_CODE_4_NAME` | varchar(255) | DACSO matching |
+| `FINAL_CIP_CODE_4` | varchar(4) | Priority merge (DACSO→BGS→GRAD→APPSO→STP) |
+| `FINAL_CIP_CODE_4_NAME` | varchar(255) | From lookup table |
+| `FINAL_CIP_CODE_2` | varchar(2) | From lookup table |
+| `FINAL_CIP_CODE_2_NAME` | varchar(255) | From lookup table |
+| `FINAL_CIP_CLUSTER_CODE` | varchar(10) | From 2-digit lookup |
+| `FINAL_CIP_CLUSTER_NAME` | varchar(255) | From 2-digit lookup |
+| `STP_CIP_CODE_4` | varchar(4) | STP fallback cleaning |
+| `STP_CIP_CODE_4_NAME` | varchar(255) | From lookup table |
+| `STP_CIP_CODE_2` | varchar(2) | From lookup table |
+| `STP_CIP_CODE_2_NAME` | varchar(255) | From lookup table |
+
+These columns carry CIP 2016 values. A migration would require re-running the full Module 02a pipeline against CIP 2021 tables to repopulate them. The column *names* themselves don't need changing (they don't carry a "2016" suffix), but the *values* they contain would change.
+
+### Category 4: Composite keys (LCIP4_CRED, LCIP2_CRED)
+
+These composite keys are constructed in Modules 02b-1, 06, and used throughout 02b-2, 02b-3, 03, and 07. They embed CIP codes:
+
+```r
+# 02b-1-pssm-cohorts.R (line ~309)
+LCIP4_CRED = paste0(CIP_CODE_4, " - ", "BACH")
+
+# 06-program-projections.R (line ~394)
+LCIP4_CRED = paste(GRADSTAT_GROUP, LCP4_CD, ...)
+LCIP2_CRED = paste(GRADSTAT_GROUP, substr(LCP4_CD, 1, 2), ...)
+```
+
+Any 4-digit CIP code that changes between 2016 and 2021 would produce a different composite key, breaking joins with historical distribution tables that use the old keys. This is the **highest-impact** area: it affects the occupation projection formula itself.
+
+### Category 5: Scripts with no direct CIP table references (downstream consumers)
+
+These scripts don't reference lookup tables directly but consume CIP-derived columns:
+
+| Script | How CIP is used |
+|--------|-----------------|
+| [01c-credential-analysis.R](../R/01c-credential-analysis.R) | Carries `PSI_CREDENTIAL_CIP` through grouping |
+| [01e-stp-distributions.R](../R/01e-stp-distributions.R) | Aggregates by `FINAL_CIP_CLUSTER_CODE`, `FINAL_CIP_CODE_4` |
+| [02b-1-pssm-cohorts.R](../R/02b-1-pssm-cohorts.R) | Constructs `LCIP4_CRED`, `LCIP2_CRED` keys |
+| [02b-2-pssm-cohorts-new-labour-supply.R](../R/02b-2-pssm-cohorts-new-labour-supply.R) | Groups by composite CIP keys |
+| [02b-3-pssm-cohorts-occupation-distributions.R](../R/02b-3-pssm-cohorts-occupation-distributions.R) | Groups by composite CIP keys |
+| [03-near-completers-ttrain.R](../R/03-near-completers-ttrain.R) | Matches on `FINAL_CIP_CODE_4` |
+| [06-historic-cohort-program-distribution.R](../R/06-historic-cohort-program-distribution.R) | Groups by `LCP4_CD`, `LCIP4_CRED` |
+| [07-occupation-projections.R](../R/07-occupation-projections.R) | Joins on composite CIP keys in proxy waterfall |
+
+## Risk Assessment
+
+### Highest risk: Composite key breakage
+
+The composite keys `LCIP4_CRED` and `LCIP2_CRED` embed CIP codes. If any 4-digit code changes (renumbering like `15.0503` → `15.1701`), all historical distribution tables using that key become orphaned. The proxy waterfall in Module 07 would fail to match these records, sending them to the NOC 99999 fallback bucket.
+
+**Affected modules:** 02b-1, 02b-2, 02b-3, 03, 06, 07
+
+### High risk: Hardcoded CIP logic
+
+The hardcoded developmental CIP codes, general program prefixes, and custom overrides must be manually verified against CIP 2021. A code that was renumbered would silently fail.
+
+**Affected modules:** 01a, 01b, 02a (appso, bgs, dacso, update-cred-non-dup)
+
+### Medium risk: PROGRAMS table join
+
+The DACSO matching joins `INFOWARE_PROGRAMS` (now CIP 2021) to the 6-digit lookup. The code currently works around this by using the backup table `PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021`. A full migration would switch this to use CIP 2021 columns directly.
+
+**Affected module:** 02a-dacso
+
+### Low risk: Name-only changes
+
+Many changes in the correspondence table are VC2 (name changes) — the code stays the same but the title text changes. These affect display columns (`*_NAME`) but not join logic or classification.
+
+## Recommendations for Next Steps
+
+1. **Run this report** against the actual INFOWARE tables to get the precise code-set diff. The placeholders above will be populated with real counts.
+
+2. **Cross-reference the hardcoded CIP logic** (developmental codes, general programs, cluster exclusions) against the CIP 2021 taxonomy. Each hardcoded value needs a go/no-go decision.
+
+3. **Assess the composite key migration strategy.** The key question: when historical data uses CIP 2016 keys and new data uses CIP 2021 keys, how do you bridge them? Options include a crosswalk mapping, running the full pipeline retroactively with CIP 2021, or a dual-key period.
+
+4. **Validate the PROGRAMS case study.** The `PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021` table shows exactly which programs shifted. Use this to quantify the real-world impact on graduate counts.
+
+5. **Consult the official correspondence table.** The [StatCan CSV](https://www.statcan.gc.ca/en/subjects/standard/cip/2021/correspondence-cip2016-crdc2021-v1) (1.41 MB) provides the authoritative mapping with GSIM change types. Download it and use it as the migration reference.
+
+```{r}
+#| label: cleanup
+dbDisconnect(con)
+```
