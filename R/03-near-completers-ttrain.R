@@ -49,45 +49,6 @@ na_vals <- c("", " ", "(Unspecified)", NA)
 # Notes: re. the output at line 116 is a "Check" used to pick representitive years
 # from which to calculate the completers to near-completers ratio.
 
-# combine all age data from previous and new years
-tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
-  select(
-    cosc_stqu_id = coci_stqu_id,
-    cosc_subm_cd = coci_subm_cd,
-    tpid_date_of_birth = bthdt,
-    cosc_enrl_end_date = enddt,
-    coci_age_at_survey = coci_age_at_survey
-  ) |>
-  mutate(
-    tpid_date_of_birth = lubridate::ym(tpid_date_of_birth, quiet = TRUE), # implicitly convert "bad" dates to NA
-    cosc_enrl_end_date = lubridate::ym(cosc_enrl_end_date, quiet = TRUE), # implicitly convert "bad" dates to NA
-    cosc_grad_credential_date = NA_character_,
-    age_at_grad = NA_real_
-  )
-
-tmp_tbl_age <- tmp_tbl_age |>
-  rbind(tmp_tbl_age_append_new_years) |>
-  select(-age_at_grad) |>
-  distinct() # just in case
-
-# derive age at grad variable
-tmp_tbl_age <- tmp_tbl_age |>
-  mutate(
-    ref_date = coalesce(cosc_grad_credential_date, cosc_enrl_end_date),
-    year_diff = year(ref_date) - year(tpid_date_of_birth),
-    birthday_ref_year = make_date(
-      year(ref_date),
-      month(tpid_date_of_birth),
-      day(tpid_date_of_birth)
-    ),
-    age_at_grad = if_else(
-      ref_date < birthday_ref_year,
-      year_diff - 1,
-      year_diff
-    )
-  ) |>
-  select(-ref_date, -year_diff, -birthday_ref_year)
-
 # bring age at grad into t_dacso dataset
 t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   inner_join(

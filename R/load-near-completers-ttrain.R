@@ -39,7 +39,7 @@ lan <- config::get("lan")
 my_schema <- config::get("myschema")
 db_schema <- config::get("dbschema")
 
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 con <- dbConnect(
   odbc::odbc(),
   Driver = db_config$driver,
@@ -210,46 +210,79 @@ tmp_tbl_age <- read_csv(
   ),
   col_types = "dccccdd"
 ) |>
-  mutate(
-    TPID_DATE_OF_BIRTH = as.Date(TPID_DATE_OF_BIRTH),
-    COSC_ENRL_END_DATE = as.Date(COSC_ENRL_END_DATE),
-    COSC_GRAD_CREDENTIAL_DATE = as.Date(COSC_GRAD_CREDENTIAL_DATE)
-  ) |>
-  distinct() # no duplicates in this data, but just in case.
+  rename_with(tolower) |>
+  mutate(across(
+    c(tpid_date_of_birth, cosc_enrl_end_date, cosc_grad_credential_date),
+    as.Date
+  )) |>
+  distinct()
 
-names(tmp_tbl_age) <- tolower(names(tmp_tbl_age))
-years <- 2018:2023
-
-tmp_tbl_age_append_new_years <- years |>
+tmp_tbl_age_append_2018_2020 <- 2018:2020 |>
   purrr::map_dfr(
     ~ {
       file_path <- glue::glue(
-        "{lan}/data/student-outcomes/csv/so-provision/qry_make_tmp_table_Age_step1_{.x}.csv"
+        "{lan}/data/student-outcomes/csv/qry_make_tmp_table_Age_step1_{.x}.csv"
       )
       read_csv(file_path, col_types = "dcdcd")
     }
   ) |>
+  rename_with(tolower) |>
   distinct() # duplicates in this data
 
-names(tmp_tbl_age_append_new_years) <- tolower(names(
-  tmp_tbl_age_append_new_years
-))
+tmp_tbl_age_append_2021_2025 <-
+  read_csv(
+    glue::glue(
+      "{lan}/data/student-outcomes/csv/qry_make_tmp_table_Age_step1.csv"
+    ),
+    col_types = "dcdcd"
+  ) |>
+  rename_with(tolower) |>
+  distinct()
 
+tmp_tbl_age_append_new_years <- rbind(
+  tmp_tbl_age_append_2018_2020,
+  tmp_tbl_age_append_2021_2025
+)
 
-# ---- Read Required Data from decimal ----
-# running 03 script adds extra columns so I need to drop them each time I test.
-# dbExecute(
-#   con,
-#   SQL(glue::glue(
-#     'ALTER TABLE "{my_schema}"."t_dacso_data_part_1" DROP COLUMN Age_At_Grad, Has_STP_Credential, Grad_Status_Factoring_in_STP;'
-#   ))
-# )
-# dbExecute(
-#   con,
-#   SQL(glue::glue(
-#     'ALTER TABLE "{my_schema}"."Credential_Non_Dup" DROP COLUMN PSI_PEN;'
-#   ))
-# )
+# combine all age data from previous and new years
+tmp_tbl_age_append_new_years <- tmp_tbl_age_append_new_years |>
+  rename_with(tolower) |>
+  select(
+    cosc_stqu_id = coci_stqu_id,
+    cosc_subm_cd = coci_subm_cd,
+    tpid_date_of_birth = bthdt,
+    cosc_enrl_end_date = enddt,
+    coci_age_at_survey = coci_age_at_survey
+  ) |>
+  mutate(
+    tpid_date_of_birth = lubridate::ym(tpid_date_of_birth, quiet = TRUE), # implicitly convert "bad" dates to NA
+    cosc_enrl_end_date = lubridate::ym(cosc_enrl_end_date, quiet = TRUE), # implicitly convert "bad" dates to NA
+    cosc_grad_credential_date = NA_character_,
+    age_at_grad = NA_real_
+  )
+
+tmp_tbl_age <- tmp_tbl_age |>
+  rbind(tmp_tbl_age_append_new_years) |>
+  select(-age_at_grad) |>
+  distinct() # just in case
+
+# derive age at grad variable
+tmp_tbl_age <- tmp_tbl_age |>
+  mutate(
+    ref_date = coalesce(cosc_grad_credential_date, cosc_enrl_end_date),
+    year_diff = year(ref_date) - year(tpid_date_of_birth),
+    birthday_ref_year = make_date(
+      year(ref_date),
+      month(tpid_date_of_birth),
+      day(tpid_date_of_birth)
+    ),
+    age_at_grad = if_else(
+      ref_date < birthday_ref_year,
+      year_diff - 1,
+      year_diff
+    )
+  ) |>
+  select(-ref_date, -year_diff, -birthday_ref_year)
 
 t_dacso_data_part_1 <- dbReadTable(
   con,
@@ -260,13 +293,14 @@ t_dacso_data_part_1 <- dbReadTable(
 
 credential_non_dup <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup"'))
+  SQL(glue::glue('"{my_schema}"."Credential_Non_Dup_r"'))
 ) |>
   rename_with(tolower)
 
-stp_credential <- dbReadTable(
+# read columns id and psi_pen from STP_Credential_r table in decimal schema
+stp_credential <- dbGetQuery(
   con,
-  SQL(glue::glue('"{my_schema}"."STP_Credential_r"'))
+  SQL(glue::glue(' SELECT ID, PSI_PEN FROM "{my_schema}"."STP_Credential_r"'))
 )
 
 # ---- Clean up and disconnect ----
