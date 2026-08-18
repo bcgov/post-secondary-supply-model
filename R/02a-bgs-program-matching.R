@@ -125,17 +125,17 @@ log_info("Connected to SQL Server database")
 # existence and proceed.
 
 # BGS survey records, in the shared (dbo) schema
-bgs_infoware_tables <- c(
+required_bgs_tables <- c(
   "INFOWARE_BGS_DIST_20_24",
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
 )
 
 # CIP taxonomy lookups, in the analyst's own schema
-lookup_tables <- c(
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_2DIGITS_CIP2016"
+required_lookups_tables <- c(
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "INFOWARE_L_CIP_2DIGITS_CIP2021"
 )
 
 missing_bgs <- bgs_infoware_tables[
@@ -164,8 +164,14 @@ if (length(missing_lookups) > 0) {
 log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
-infoware_bgs_20_24 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_20_24"))
-infoware_bgs_21_25 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_21_25"))
+infoware_bgs_20_24 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_20_24")
+)
+infoware_bgs_21_25 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_21_25")
+)
 infoware_cohort_info <- tbl(
   con,
   in_schema(shareschema, "INFOWARE_BGS_COHORT_INFO")
@@ -2947,7 +2953,9 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
+log_info(
+  "Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)"
+)
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------

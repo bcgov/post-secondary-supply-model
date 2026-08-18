@@ -31,7 +31,7 @@ log_info("==== 01d-enrolment-analysis.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -268,7 +268,14 @@ log_info(glue::glue(
 # Simulataneously performs a historical imputation, where the first seen record is carried forward.
 ## -----------------------------------------------------------------------------------------------
 
-na_vals <- c("U", "Unknown", "(Unspecified)", "", NA)
+na_vals <- c(
+  "U",
+  "Unknown",
+  "(Unspecified)",
+  "",
+  NA,
+  "Prefer Not To Answer/Unknown"
+)
 
 # first-time "unknowns"
 extract_no_gender_first <- min_enrolment |>
@@ -535,6 +542,5 @@ dbDisconnect(con)
 log_info("Disconnected from SQL Server")
 
 log_info("==== 01d-enrolment-analysis.R COMPLETE ====")
-
 
 # rm(list = ls())

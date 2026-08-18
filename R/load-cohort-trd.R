@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who were formerly enrolled in
+# This script loads student outcomes data for students who were formerly enrolled in
 # a trades program (i.e. an apprenticeship, trades foundation program or trades-related vocational program)
 #
 # TRD = Trades Student Outcomes.  Survey of former students of trades programs
@@ -40,7 +40,9 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
+# qi_run <- F
+# regular_run <- T
+# ptib_run <- F
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -78,16 +80,18 @@ log_info("Connected to SQL Server database (decimal)")
 # Trades survey responses, one row per respondent per survey cycle.  KEY
 # identifies the respondent within a cycle (used to build STQU_ID in
 # 02b-1-pssm-cohorts.R); SUBM_CD gives the survey cycle (C_Outc..).
-q000_trd_data_01 <- read_csv(glue::glue(
+q000_trd_data_01 <- read_oracle_csv_auto(glue::glue(
   "{lan}/data/student-outcomes/csv/Q000_TRD_DATA_01.csv"
 ))
 log_info(glue::glue("Read Q000_TRD_DATA_01.csv: {nrow(q000_trd_data_01)} rows"))
 
 # Trades graduate counts by credential type, age and survey year.
-q000_trd_graduates <- read_csv(glue::glue(
+q000_trd_graduates <- read_oracle_csv_auto(glue::glue(
   "{lan}/data/student-outcomes/csv/Q000_TRD_Graduates.csv"
 ))
-log_info(glue::glue("Read Q000_TRD_Graduates.csv: {nrow(q000_trd_graduates)} rows"))
+log_info(glue::glue(
+  "Read Q000_TRD_Graduates.csv: {nrow(q000_trd_graduates)} rows"
+))
 
 # Convert some variables that should be numeric
 # GRADSTAT = graduation status, KEY = respondent key, TTRAIN = total months
@@ -167,27 +171,8 @@ tables_to_keep <- c(
   "trd_graduates"
 )
 
-# Write each kept table to SQL Server as <name>_r.  Downstream scripts
-# (02b-1-pssm-cohorts.R etc.) pick them up by object name from the loading
-# sequence in run-data-loading.R / run-data-preprocessing.R.
-write_table_to_db <- function(table_name, schema, con) {
-  db_name <- paste0(table_name, "_r")
-  # Some source files contain invalid UTF-8 byte sequences (e.g. PROGRAM
-  # names), which make odbcDataType()/nchar() fail when writing.  Strip
-  # invalid bytes from all character columns before writing.
-  data <- base::get(table_name, envir = .GlobalEnv) %>%
-    mutate(across(
-      where(is.character),
-      ~ iconv(.x, from = "UTF-8", to = "UTF-8", sub = "")
-    ))
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{schema}"."{db_name}"')),
-    data,
-    overwrite = TRUE
-  )
-}
-
+# Write each kept table to SQL Server as <name>_r.  write_table_to_db lives in
+# R/utils.R (sourced by run-data-loading.R / the calling runner).
 walk(tables_to_keep, write_table_to_db, schema = write_schema, con = con)
 log_info(glue::glue(
   "Written to SQL Server ({write_schema}): {paste0(tables_to_keep, '_r', collapse = ', ')}"

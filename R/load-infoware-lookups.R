@@ -6,24 +6,54 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and limitations under the License.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-library(tidyverse)
-library(RODBC)
-library(odbc)
-library(DBI)
-library(glue)
-library(RJDBC)
-library(dbplyr)
+# ----------------------------------------------------------
+# Script: load-infoware-lookups.R
+#
+# Copies INFOWARE lookup/cohort tables from the Oracle
+# INFOWARE database into the analyst's schema on Decimal
+# (SQL Server), prefixing each destination with "INFOWARE_".
+# Tables that already exist are skipped, so this script is
+# safe to re-run.
+# ----------------------------------------------------------
 
-# ---- Configure LAN Paths and DB Connection -----
-lan <- config::get("lan")
-db_config <- config::get("decimal")
-my_schema <- config::get("myschema")
+# ---- Packages ----
+pacman::p_load(
+  tidyverse, # data wrangling: mutate/across/filter/str_detect/pull/...
+  odbc, # ODBC driver interface (Decimal + Oracle connections)
+  DBI # database interface: dbConnect/dbReadTable/dbWriteTable/...
+)
 
-# Connect to Decimal
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## Packages removed because they were no longer used in this script:
+##   RODBC, RJDBC - earlier ODBC/JDBC connection approaches, now replaced
+##                  by the `odbc` driver used below.
+##   glue         - only referenced in removed exploratory/verification code.
+##   dbplyr       - only referenced in the removed `tbl(con, ...)` checks.
+
+# ---- Configuration (see config.yml) ----
+db_config <- config::get("decimal") # Decimal (SQL Server) connection
+my_schema <- config::get("myschema") # analyst's working schema on Decimal
+share_schema <- config::get("shareschema") # shared schema on Decimal (not used here)
+iw_config <- config::get("infoware") # Oracle INFOWARE connection
+
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## `config::get("lan")` and `share_schema` were read here in earlier
+## versions but are not needed for loading INFOWARE lookups, so they have
+## been removed. Note: the previous `share_schema <-` line was an
+## incomplete assignment that silently captured the Decimal DBI
+## connection object; it has been deleted.
+
+# ---- Connect to Decimal (SQL Server) ----
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
@@ -42,6 +72,9 @@ iw_config <- config::get("infoware")
 #  ---- Connect to INFOWARE (Oracle) ----
 # Requires the "Oracle in instantclient_19c" ODBC driver to be installed.
 odbcListDrivers() # confirm available drivers / Oracle client is present
+# ---- Connect to INFOWARE (Oracle) ----
+# Requires the "Oracle in instantclient_19c" ODBC driver to be installed.
+odbcListDrivers() # confirm available drivers / Oracle client is present
 iw_con <- dbConnect(
   odbc::odbc(),
   Driver = "Oracle in instantclient_19c",
@@ -50,182 +83,131 @@ iw_con <- dbConnect(
   PWD = iw_config$pwd
 )
 
-# # ## ** NOTE **
-# # ## Ideally match on all data but prioritizing the most recent 6 years - see documentation
-# # ## Update which BGS_DIST tables to include.
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## Removed: a one-off discovery block that read ALL_TABLES from INFOWARE
+## and listed the L_CIP_* table names. It was diagnostic only and its
+## result was never used. To list available CIP lookups on demand, run:
+##   dbReadTable(iw_con, "ALL_TABLES") |>
+##     filter(str_detect(TABLE_NAME, "^L_CIP_")) |>
+##     pull(TABLE_NAME)
 
-# # ## Run the following to get a list of all tables available
-# # alltables_Infoware <- dbReadTable(iw_con,"ALL_TABLES")
-
-# # ---- BGS distribution/cohort tables ----
-# # The INFOWARE BGS distribution/cohort tables used to be loaded here
-# # (INFOWARE_BGS_DIST_19_23 / 18_22 / COHORT_INFO -> my_schema).  They are now
-# # copied by 'R/load-cohort-bgs.R' as BGS_DIST_20_24 / 21_25 / COHORT_INFO to
-# # dbo (shareschema), where 02a-bgs-program-matching.R reads them.  This script
-# # only handles the CIP taxonomy lookups and INFOWARE_PROGRAMS below.
-
-# ---- Write initial tables to Decimal ----
-## Save static versions of the INFOWARE tables and last cycle XWALK to Decimal
-# !! UPDATE THE TABLES AND ROW NUMBERS !! - connection won't write the full datasets to decimal due to size
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_6DIGITS_CIP2016")
-  )
+# ----------------------------------------------------------
+# Helper: copy one INFOWARE table into Decimal
+# ----------------------------------------------------------
+# - Destination is named "INFOWARE_<source>" (overridable via dest_name).
+# - Skips the copy if the destination already exists (idempotent re-runs).
+# - Coerces character columns to UTF-8 to fix encoding artefacts that
+#   come back from Oracle (e.g. accented program/institution names).
+copy_infoware_table <- function(
+  tbl_name,
+  dest_name = paste0("INFOWARE_", tbl_name),
+  source_con = iw_con,
+  dest_con = con,
+  source_schema = "INFOWARE",
+  dest_schema = share_schema,
+  sanitize = TRUE
 ) {
-  INFOWARE_L_CIP_6DIGITS_CIP2016 <- dbReadTable(
-    iw_con,
-    DBI::Id(schema = "INFOWARE", table = "L_CIP_6DIGITS_CIP2016")
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_6DIGITS_CIP2016"),
-    INFOWARE_L_CIP_6DIGITS_CIP2016
-  )
-}
+  dest_id <- DBI::Id(schema = dest_schema, table = dest_name)
 
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_4DIGITS_CIP2016")
-  )
-) {
-  INFOWARE_L_CIP_4DIGITS_CIP2016 <- dbReadTable(
-    iw_con,
-    DBI::Id(schema = "INFOWARE", table = "L_CIP_4DIGITS_CIP2016")
-  )
-  dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_4DIGITS_CIP2016"),
-    INFOWARE_L_CIP_4DIGITS_CIP2016
-  )
-}
+  if (dbExistsTable(dest_con, dest_id)) {
+    cat("Skipping", dest_name, "- already exists\n")
+    return(invisible(FALSE))
+  }
 
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_2DIGITS_CIP2016")
+  cat("Copying", tbl_name, "->", dest_name, "...\n")
+  data <- dbReadTable(
+    source_con,
+    DBI::Id(schema = source_schema, table = tbl_name)
   )
-) {
-  INFOWARE_L_CIP_2DIGITS_CIP2016 <- dbReadTable(
-    iw_con,
-    DBI::Id(schema = "INFOWARE", table = "L_CIP_2DIGITS_CIP2016")
-  )
+
+  if (sanitize) {
+    data <- data |>
+      mutate(across(
+        where(is.character),
+        ~ iconv(., from = "", to = "UTF-8", sub = "")
+      ))
+  }
 
   dbWriteTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_L_CIP_2DIGITS_CIP2016"),
-    INFOWARE_L_CIP_2DIGITS_CIP2016
+    dest_con,
+    dest_id,
+    data
   )
+  cat("  Copied", nrow(data), "rows\n")
+  invisible(TRUE)
 }
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## The copy logic used to be duplicated: a generic loop over `table_names`
+## AND separate, hand-written blocks for each CIP/PROGRAMS table (some of
+## which would error because the loop had already created the destination).
+## Both paths are replaced by the single `copy_infoware_table` helper above.
+##
+## All copied tables now go through UTF-8 sanitizing for consistency.
+## Previously only the CIP-2016 lookups and the PROGRAMS backup were
+## sanitized; the CIP-2021 / PROGRAMS / XREF tables were not.
 
-# ---- Read in INFOWARE tables ----
-# iw_config <- config::get("infoware")
-# jdbc_config <- config::get("jdbc")
+## "PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021" is written as
+## "INFOWARE_PROGRAMS_2016" (the shorter name it was already given by the
+## dedicated block); the redundant "INFOWARE_PROGRAMS_BKUP_..." copy is gone.
 
-# jdbcDriver <- JDBC(jdbc_config$class, classPath = jdbc_config$path)
+# ---- Tables to copy from INFOWARE -> Decimal ----
 
-# iw_con <- dbConnect(
-#   jdbcDriver,
-#   iw_config$database,
-#   iw_config$uid,
-#   iw_config$pwd
-# )
-# new way to load data from infoware
-# iw_config <- config::get("infoware")
+# CIP-2016 code lookups (2/4/6-digit)
+copy_infoware_table("L_CIP_2DIGITS_CIP2016")
+copy_infoware_table("L_CIP_4DIGITS_CIP2016")
+copy_infoware_table("L_CIP_6DIGITS_CIP2016")
 
-# odbcListDrivers()
+# CIP-2021 code lookups (2/4/6-digit)
+copy_infoware_table("L_CIP_2DIGITS_CIP2021")
+copy_infoware_table("L_CIP_4DIGITS_CIP2021")
+copy_infoware_table("L_CIP_6DIGITS_CIP2021")
 
-# iw_con <- dbConnect(
-#   odbc::odbc(),
-#   Driver = "Oracle in instantclient_19_30",
-#   DBQ = "DEV01.world",
-#   UID = iw_config$uid,
-#   PWD = iw_config$pwd
-# )
-# all the comment-outed data steps are only running for once.
-# now infoware has INFOWARE.L_CIP_6DIGITS_CIP2021 table. We may need to update soon.
+# Program tables (note the custom destination names)
+copy_infoware_table("PROGRAMS", dest_name = "INFOWARE_PROGRAMS")
+copy_infoware_table(
+  "PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021",
+  dest_name = "INFOWARE_PROGRAMS_2016"
+)
+copy_infoware_table(
+  "PROGRAMS_HIST_PRGMID_XREF",
+  dest_name = "INFOWARE_PROGRAMS_HIST_PRGMID_XREF"
+)
 
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_PROGRAMS")
-  )
-) {
-  INFOWARE_PROGRAMS <- dbReadTable(iw_con, DBI::SQL("INFOWARE.PROGRAMS"))
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_PROGRAMS"')),
-    INFOWARE_PROGRAMS
-  )
-}
-
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_PROGRAMS_2016")
-  )
-) {
-  INFOWARE_PROGRAMS_2016 <- dbReadTable(
-    iw_con,
-    DBI::SQL("INFOWARE.PROGRAMS_BKUP_NOV_2024_CIP2016_CIP2021")
-  )
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_PROGRAMS_2016"')),
-    INFOWARE_PROGRAMS_2016
-  )
-}
-
-
-if (
-  !dbExistsTable(
-    con,
-    DBI::Id(schema = my_schema, table = "INFOWARE_PROGRAMS_HIST_PRGMID_XREF")
-  )
-) {
-  INFOWARE_PROGRAMS_HIST_PRGMID_XREF <- dbReadTable(
-    iw_con,
-    DBI::SQL("INFOWARE.PROGRAMS_HIST_PRGMID_XREF")
-  )
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{my_schema}"."INFOWARE_PROGRAMS_HIST_PRGMID_XREF"')),
-    INFOWARE_PROGRAMS_HIST_PRGMID_XREF
-  )
-}
-
-
+# ---- Disconnect ----
 dbDisconnect(iw_con)
-
 dbDisconnect(con)
 
-# ## check tables loaded correctly
-# {
-#   nrow <- tbl(con, "INFOWARE_BGS_DIST_19_23") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_DIST_19_23") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   nrow <- tbl(con, "INFOWARE_BGS_DIST_18_22") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_DIST_18_22") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   nrow <- tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% tally()
-#   nrow ## how many rows?
-#   tbl(con, "INFOWARE_BGS_COHORT_INFO") %>% distinct(STQU_ID) %>% tally() ## are all IDs unique?
-
-#   rm(nrow)
-# }
-
-# ## remove tables and use decimal versions for remainder of code
-# rm(
-#   INFOWARE_BGS_DIST_19_23,
-#   INFOWARE_BGS_DIST_18_22,
-#   INFOWARE_BGS_COHORT_INFO,
-#   INFOWARE_L_CIP_6DIGITS_CIP2016,
-#   INFOWARE_L_CIP_4DIGITS_CIP2016,
-#   INFOWARE_L_CIP_2DIGITS_CIP2016
-# )
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## The following commented-out blocks have been removed. They are kept
+## here as notes for context/history:
+##
+## 1. Verification queries using dbplyr (`tbl(con, "INFOWARE_BGS_*") |>
+##    tally()` / `distinct(STQU_ID)`) to check row counts and ID
+##    uniqueness. Removed because ad hoc verification in the console is
+##    simpler; keeping it dragged in a dbplyr dependency for nothing.
+##
+## 2. An `rm(INFOWARE_BGS_DIST_*, ...)` block deleting in-memory copies of
+##    tables that this script never creates in memory anyway (data is
+##    streamed straight from source to destination), so the `rm()` did
+##    nothing.
+##
+## 3. An older "write to Decimal" path that split large tables (BGS_DIST,
+##    BGS_COHORT_INFO) into ~80k-row chunks and appended them, as a
+##    workaround for connection size limits. The current `dbWriteTable`
+##    path no longer needs chunking.
+##
+## 4. An older JDBC-based INFOWARE connection (RJDBC + `jdbc_config`) and
+##    an intermediate hardcoded ODBC variant (Driver
+##    "Oracle in instantclient_19_30", DBQ "***"), both superseded
+##    by the config-driven `odbc` connection above.
+##
+## 5. Glue/SQL string builders (`SQL(glue::glue('"{my_schema}"."..."'))`)
+##    used by the old per-table write blocks; the `DBI::Id(schema, table)`
+##    form used now handles schema/table quoting correctly without glue.

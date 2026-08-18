@@ -79,10 +79,14 @@ rm(supvars_enrol_more_than_1)
 # ------------------------------------------------------------------------------------
 # qry03f 15, 17, 18, 19
 gender_recovery_lookup <- credential_supvars_gender |>
-  filter(psi_gender_cleaned %in% c("U", "Unknown")) |>
+  filter(
+    psi_gender_cleaned %in% c("U", "Unknown", "Prefer Not To Answer/Unknown")
+  ) |>
   inner_join(
     credential_supvars_enrolment |>
-      filter(!PSI_GENDER %in% c("U", "Unknown")) |>
+      filter(
+        !PSI_GENDER %in% c("U", "Unknown", "Prefer Not To Answer/Unknown")
+      ) |>
       select(ENCRYPTED_TRUE_PEN, ResolvedGender = PSI_GENDER),
     by = "ENCRYPTED_TRUE_PEN",
     relationship = "many-to-many" # each student can have multiple credentials. Downstream slice_max handles this later.
@@ -102,7 +106,7 @@ credential_supvars_gender <- credential_supvars_gender |>
   left_join(gender_recovery_lookup, by = "ENCRYPTED_TRUE_PEN") |>
   mutate(
     psi_gender_cleaned = if_else(
-      psi_gender_cleaned %in% c("U", "Unknown"),
+      psi_gender_cleaned %in% c("U", "Unknown", "Prefer Not To Answer/Unknown"),
       psi_gender_cleaned_NEW,
       psi_gender_cleaned
     )
@@ -194,7 +198,8 @@ credential_supvars_missing_recovered <- credential_supvars_missing_recovered |>
   ) |>
   mutate(
     PSI_GENDER_CLEANED_FLAG = if_else(
-      PSI_GENDER %in% c("U", "Unknown", "(Unspecified)"),
+      PSI_GENDER %in%
+        c("U", "Unknown", "(Unspecified)", "Prefer Not To Answer/Unknown"),
       "Yes",
       NA_character_
     ),

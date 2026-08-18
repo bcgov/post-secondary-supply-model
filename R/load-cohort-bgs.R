@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who recently graduated with a
+# This script loads student outcomes data for students who recently graduated with a
 # Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 #
 # BGS = Baccalaureate Graduate Student Outcomes.  Survey of graduates with a
@@ -52,7 +52,9 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
+# regular_run <- T
+# qi_run <- F
+# ptib_run <- F
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -169,7 +171,7 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
 )
-# We load six years of data for the analaysis/model run.
+# We load six years of data for the analysis/model run.
 walk(
   bgs_infoware_tables,
   load_infoware_table_by_chunk,
@@ -230,7 +232,7 @@ t_bgs_inst_recode <-
 # BGS survey responses, one row per person per survey year (2021-2025
 # cycles).  STQU_ID identifies the survey submission; SURVEY_YEAR dates the
 # cycle.
-bgs_data_update <- read_csv(glue::glue(
+bgs_data_update <- read_oracle_csv_auto(glue::glue(
   "{lan}/data/student-outcomes/csv/BGS_Q001_BGS_Data_2021_2025.csv"
 ))
 log_info(glue::glue(
@@ -312,28 +314,8 @@ tables_to_keep <- c(
   #"tmp_bgs_inst_cds"
 )
 
-# Write each kept table to SQL Server as <name>_r.  Downstream scripts
-# (02b-1-pssm-cohorts.R etc.) pick them up by object name from the loading
-# sequence in run-data-loading.R / run-data-preprocessing.R.  tmp_bgs_inst_cds
-# is used only here (region fallback), so it is not written out.
-write_table_to_db <- function(table_name, schema, con) {
-  db_name <- paste0(table_name, "_r")
-  # Some source files contain invalid UTF-8 byte sequences (e.g. PROGRAM
-  # names), which make odbcDataType()/nchar() fail when writing.  Strip
-  # invalid bytes from all character columns before writing.
-  data <- base::get(table_name, envir = .GlobalEnv) %>%
-    mutate(across(
-      where(is.character),
-      ~ iconv(.x, from = "UTF-8", to = "UTF-8", sub = "")
-    ))
-  dbWriteTable(
-    con,
-    SQL(glue::glue('"{schema}"."{db_name}"')),
-    data,
-    overwrite = TRUE
-  )
-}
-
+# Write each kept table to SQL Server as <name>_r.  write_table_to_db lives in
+# R/utils.R (sourced by run-data-loading.R / the calling runner).
 walk(tables_to_keep, write_table_to_db, schema = write_schema, con = con)
 log_info(glue::glue(
   "Written to SQL Server ({write_schema}): {paste0(tables_to_keep, '_r', collapse = ', ')}"

@@ -273,9 +273,19 @@ pull_table("PSSM2025", "dbo", "t_noc_broad_categories_r", "so_noc_broad")
 pull_table("PSSM2025", "dbo", "INFOWARE_PROGRAMS", "so_programs")
 # CIP2021 6-digit classification: LCP6_CD -> LCP6_DIGITS_NAME English name
 # (section L program-level tables display the CIP name beside the code)
-pull_table("PSSM2025", "dbo", "INFOWARE_L_CIP_6DIGITS_CIP2021", "so_cip6_lookup")
+pull_table(
+  "PSSM2025",
+  "dbo",
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "so_cip6_lookup"
+)
 # CIP2021 4-digit classification: LCP4_CD -> LCP4_DIGITS_NAME (BGS section L)
-pull_table("PSSM2025", "dbo", "INFOWARE_L_CIP_4DIGITS_CIP2021", "so_cip4_lookup")
+pull_table(
+  "PSSM2025",
+  "dbo",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "so_cip4_lookup"
+)
 # cycle -> calendar-year mapping (reference only; not used by report logic)
 pull_table("PSSM2025", "dbo", "t_year_survey_year_r", "so_year_survey_new")
 # BGS institution merger recodes (reference; report K uses raw INST)
@@ -283,10 +293,14 @@ pull_table("PSSM2025", "dbo", "t_bgs_inst_recode_r", "so_bgs_inst_recode")
 
 # COHORT_INFO is PII-heavy: prune contact/address/tel/email/indicator columns.
 # Prune list computed from the live column inventory (robust to schema drift).
-cohort_cols <- DBI::dbGetQuery(
-  conn("PSSM2025"),
-  "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'INFOWARE_BGS_COHORT_INFO'"
-)$COLUMN_NAME
+{
+  con_cols <- conn("PSSM2025")
+  on.exit(DBI::dbDisconnect(con_cols), add = TRUE)
+  cohort_cols <- DBI::dbGetQuery(
+    con_cols,
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'INFOWARE_BGS_COHORT_INFO'"
+  )$COLUMN_NAME
+}
 cohort_prune <- c(
   "STUDID",
   "PEN",
@@ -454,7 +468,10 @@ bgs <- combine(bgs_b, bgs_n)
 bgs$resp <- resp(bgs$SRV_Y_N) # respondent flag
 bgs$cycle <- bgs$SURVEY_YEAR # cycle = survey year (BGS only)
 # CIP4 English name for the BGS program-level rows (BGS has no CIP6)
-bgs$LCP4_DIGITS_NAME <- cip4$LCP4_DIGITS_NAME[match(bgs$CIP_CODE_4, cip4$LCP4_CD)]
+bgs$LCP4_DIGITS_NAME <- cip4$LCP4_DIGITS_NAME[match(
+  bgs$CIP_CODE_4,
+  cip4$LCP4_CD
+)]
 save_combined("so_bgs_combined", bgs)
 
 # TRD: new pool = SUBM_CD C_Outc24/25 (table holds C_Outc21..25)

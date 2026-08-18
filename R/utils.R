@@ -1,11 +1,11 @@
 # Copyright 2026 Province of British Columbia
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 # http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
@@ -18,22 +18,23 @@ library(futile.logger)
 # Keep utils free of runtime side effects like reading config files or opening DB connections on source.
 # Create DB connections in the calling script and pass them into helper functions.
 
-library(tidyverse)
-library(RODBC)
-library(DBI)
+library(readr)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tibble)
 
-# ---- Connect to SQL Server and read StatCan Tables ----
-lan <- config::get("lan")
-my_schema <- config::get("myschema")
-db_config <- config::get("decimal")
-con <- dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "True"
-)
-
+# # ---- Connect to SQL Server and read StatCan Tables ----
+# lan <- config::get("lan")
+# my_schema <- config::get("myschema")
+# db_config <- config::get("decimal")
+# con <- dbConnect(
+#   odbc::odbc(),
+#   Driver = db_config$driver,
+#   Server = db_config$server,
+#   Database = db_config$database,
+#   Trusted_Connection = "True"
+# )
 
 # time_execution: source an R script with timing, console + file logging, and
 # fail-fast error handling. Wraps each pipeline module so every step is timed,
@@ -124,13 +125,52 @@ time_execution <- function(file_path) {
         paste("Error in file:", file_path, "-", e$message),
         name = "file_logger"
       )
-      futile.logger::flog.error(paste(capture.output(traceback()), collapse = "\n"), name = "file_logger")
+      futile.logger::flog.error(
+        paste(capture.output(traceback()), collapse = "\n"),
+        name = "file_logger"
+      )
 
       # Re-raise the original condition so callers see the real error message,
       # class, and call site. A bare stop() would throw an empty error and
       # discard everything we just logged about.
       stop(e)
     }
+  )
+}
+
+# write_table_to_db: write a global data frame to SQL Server as <name>_r.
+#
+# Counterpart to read_table_from_db.  Fetches the data frame named `table_name`
+# from .GlobalEnv, strips invalid UTF-8 from character columns (which would
+# otherwise make odbcDataType()/nchar() fail), and writes it to
+# schema."table_name_r" with overwrite = TRUE.  Intended to be called over a
+# vector of names with purrr::walk, e.g.:
+#
+#   walk(tables_to_keep, write_table_to_db, schema = write_schema, con = con)
+#
+# Args:
+#   table_name: name of a data frame in .GlobalEnv; the SQL table is named
+#               "<table_name>_r".
+#   schema:     SQL schema, typically config::get("shareschema").
+#   con:        an open DBI connection (Trusted_Connection = "True").
+#
+# Side effect: creates/overwrites the table in the database.
+# Returns: invisible(NULL).
+write_table_to_db <- function(table_name, schema, con) {
+  db_name <- paste0(table_name, "_r")
+  # Some source files contain invalid UTF-8 byte sequences (e.g. PROGRAM
+  # names), which make odbcDataType()/nchar() fail when writing.  Strip
+  # invalid bytes from all character columns before writing.
+  data <- base::get(table_name, envir = .GlobalEnv) %>%
+    mutate(across(
+      where(is.character),
+      ~ iconv(.x, from = "UTF-8", to = "UTF-8", sub = "")
+    ))
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{schema}"."{db_name}"')),
+    data,
+    overwrite = TRUE
   )
 }
 
@@ -175,3 +215,114 @@ lower_col_names_global <- function(table_name) {
     rename_with(tolower)
   invisible(table_name)
 }
+
+
+# Detect the character encoding of a CSV file using readr::guess_encoding.
+# Preference is given to common encodings (UTF-8, Windows-1252, ISO-8859-1,
+# UTF-16) and the best guess must meet min_confidence; otherwise fallback is used.
+detect_csv_encoding <- function(
+  path,
+  n_max = 10000,
+  min_confidence = 0.50,
+  fallback = "Windows-1252"
+) {
+  guesses <- readr::guess_encoding(
+    file = path,
+    n_max = n_max,
+    threshold = 0.20
+  )
+
+  if (nrow(guesses) == 0) {
+    return(fallback)
+  }
+
+  preferred <- c(
+    "UTF-8",
+    "windows-1252",
+    "Windows-1252",
+    "ISO-8859-1",
+    "UTF-16LE",
+    "UTF-16BE"
+  )
+
+  guesses_preferred <- guesses %>%
+    filter(encoding %in% preferred) %>%
+    arrange(desc(confidence))
+
+  if (
+    nrow(guesses_preferred) > 0 &&
+      guesses_preferred$confidence[1] >= min_confidence
+  ) {
+    return(guesses_preferred$encoding[1])
+  }
+
+  fallback
+}
+
+# Build a readr col_types spec that forces ID-like columns (matched by name
+# patterns such as *_ID, *NUMBER, *CODE, PEN) to character, so leading zeros
+# and large ID values are preserved rather than parsed as integers/doubles.
+make_id_col_types <- function(path, encoding) {
+  header <- names(read_csv(
+    path,
+    locale = locale(encoding = encoding),
+    n_max = 0,
+    show_col_types = FALSE
+  ))
+
+  id_cols <- header[
+    str_detect(
+      toupper(header),
+      "(^ID$|_ID$|ID$|^ID_ |KEY$|NUMBER$|NO$|CODE$ |CIP|NOC|PEN$|^PEN$|^PEN_|^STUDENT_NUMBER$|^STUDENT_NO$|^STUDENT_ID$|^STUDENT_CODE$)"
+    )
+  ]
+
+  id_specs <- rep(list(col_character()), length(id_cols))
+  names(id_specs) <- id_cols
+
+  do.call(cols, id_specs)
+}
+
+# Remove bytes that are invalid UTF-8 by round-tripping through iconv with
+# sub = "", which silently drops unconvertible sequences.
+strip_invalid_utf8 <- function(x) {
+  iconv(x, from = "UTF-8", to = "UTF-8", sub = "")
+}
+
+# End-to-end reader for CSV exports (typically from Oracle) that may not be UTF-8.
+# Detects the encoding, forces ID-like columns to character, reads the file, then
+# strips any residual invalid UTF-8 from character columns.
+# The detected encoding and the list of ID columns treated as character are
+# attached as data-frame attributes ("detected_encoding", "id_columns_as_character").
+read_oracle_csv_auto <- function(
+  path,
+  fallback_encoding = "Windows-1252",
+  min_confidence = 0.50
+) {
+  detected_encoding <- detect_csv_encoding(
+    path = path,
+    min_confidence = min_confidence,
+    fallback = fallback_encoding
+  )
+
+  id_col_spec <- make_id_col_types(
+    path = path,
+    encoding = detected_encoding
+  )
+
+  df <- read_csv(
+    path,
+    locale = locale(encoding = detected_encoding),
+    col_types = id_col_spec,
+    show_col_types = FALSE
+  ) %>%
+    mutate(across(where(is.character), strip_invalid_utf8))
+
+  attr(df, "detected_encoding") <- detected_encoding
+  attr(df, "id_columns_as_character") <- names(id_col_spec$cols)
+
+  df
+}
+
+# example usage:
+# df <- read_oracle_csv_auto(appso_file )
