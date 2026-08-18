@@ -120,9 +120,9 @@ log_info("Connected to SQL Server database")
 
 # ---- Read in INFOWARE tables ----
 # The BGS distribution/cohort tables are copied to SQL Server (dbo) by
-# 'R/load-cohort-bgs.R' (or 'R/run-data-loading.R'); the CIP taxonomy tables
-# are copied by 'R/load-infoware-lookups.R' (my_schema).  We check for their
-# existence and proceed.
+# 'R/load-cohort-bgs.R' (or 'R/run-data-loading.R'); the CIP2021 taxonomy
+# lookups live in the shared schema alongside the other raw lookup tables.
+# We check for their existence and proceed.
 
 # BGS survey records, in the shared (dbo) schema
 bgs_infoware_tables <- c(
@@ -131,11 +131,11 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_COHORT_INFO"
 )
 
-# CIP taxonomy lookups, in the analyst's own schema
+# CIP2021 taxonomy lookups, in the shared schema
 lookup_tables <- c(
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_2DIGITS_CIP2016"
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "INFOWARE_L_CIP_2DIGITS_CIP2021"
 )
 
 missing_bgs <- bgs_infoware_tables[
@@ -147,7 +147,7 @@ missing_bgs <- bgs_infoware_tables[
 missing_lookups <- lookup_tables[
   !map_lgl(
     lookup_tables,
-    ~ dbExistsTable(con, Id(schema = my_schema, table = .x))
+    ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
 
@@ -158,7 +158,7 @@ if (length(missing_bgs) > 0) {
 }
 if (length(missing_lookups) > 0) {
   stop(glue::glue(
-    "The following required CIP lookup tables are missing in schema '{my_schema}': {paste(missing_lookups, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
+    "The following required CIP2021 lookup tables are missing in schema '{shareschema}': {paste(missing_lookups, collapse = ', ')}."
   ))
 }
 log_info("All required INFOWARE tables present in database")
@@ -185,7 +185,7 @@ cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup_r"))
 stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential_r"))
 log_info(
-  "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential"
+  "Loaded lazy table references: INFOWARE BGS/CIP2021 tables, credential_non_dup_r, STP_Credential_r"
 )
 
 # # id should be unique for updates to be reliable.
@@ -2488,8 +2488,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
@@ -3331,8 +3331,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
