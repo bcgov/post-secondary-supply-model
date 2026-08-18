@@ -99,6 +99,24 @@ log_info <- function(msg) {
   print(paste(Sys.time(), "|", msg))
 }
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## compute() with an in_schema()/Id() target does not honour
+## overwrite = TRUE, so a rerun after a completed (or partially
+## completed) run fails with "There is already an object named ...".
+## This helper centralizes the drop-first guard the
+## materializations in this script use: pre-check that the target
+## exists, drop it if it does, then compute.
+compute_overwrite <- function(data, con, schema, table) {
+  target <- Id(schema = schema, table = table)
+  if (dbExistsTable(con, target)) {
+    dbRemoveTable(con, target)
+    log_info(glue::glue("Dropped existing {schema}.{table} before compute"))
+  }
+  compute(data, name = target, temporary = FALSE)
+}
+
 log_info("==== 02a-bgs-program-matching.R START ====")
 
 # ---- Configure LAN Paths and DB Connection -----
@@ -380,34 +398,12 @@ t_bgs_final <- union_all(t_bgs_step1, t_bgs_step2) %>%
   mutate(PSSM_CREDENTIAL = "BACH")
 
 
-t_bgs_final <- t_bgs_final %>%
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(
-          schema = my_schema,
-          table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-        )
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(
-          schema = my_schema,
-          table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-        )
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(
-      schema = my_schema,
-      table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-    ),
-    temporary = FALSE
-  )
+t_bgs_final <- compute_overwrite(
+  t_bgs_final,
+  con = con,
+  schema = my_schema,
+  table = "T_BGS_Data_Final_for_OutcomesMatching_r"
+)
 
 # id should be unique for updates to be reliable.
 t_bgs_final |> tally()
@@ -535,28 +531,12 @@ stp_cip_cleaning <- stp_cip_cleaning %>%
     STP_CIP_CODE_4_NAME = coalesce(STP_CIP_CODE_4_NAME, "Invalid 4-digit CIP")
   )
 
-stp_cip_cleaning <- stp_cip_cleaning %>%
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_STP_CIP4_Cleaning_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_STP_CIP4_Cleaning_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_STP_CIP4_Cleaning_r"
-    ),
-    temporary = FALSE
-  )
+stp_cip_cleaning <- compute_overwrite(
+  stp_cip_cleaning,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_STP_CIP4_Cleaning_r"
+)
 
 
 stp_cip_cleaning |> tally()
@@ -648,24 +628,12 @@ credential_bgs_ids <- bgs_ids_base %>%
   left_join(stp_credential_tbl %>% select(ID, PSI_PEN), by = "ID")
 
 
-if (
-  dbExistsTable(
-    con,
-    Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-  )
-) {
-  dbRemoveTable(
-    con,
-    Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-  )
-}
-
-
 # Materialize as persistent table for use in later steps (Part 3: matching to BGS outcomes)
-credential_bgs_ids <- compute(
+credential_bgs_ids <- compute_overwrite(
   credential_bgs_ids,
-  name = Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r"),
-  temporary = FALSE
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_BGS_IDs_r"
 )
 log_info("Part 2: Materialized Credential_Non_Dup_BGS_IDs_r to SQL Server")
 
@@ -697,24 +665,12 @@ credential_grad_ids <- stp_cip_ids %>%
   )
 
 
-if (
-  dbExistsTable(
-    con,
-    Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-  )
-) {
-  dbRemoveTable(
-    con,
-    Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-  )
-}
-
-
 # Materialize as persistent table for use in later supply modeling steps
-credential_grad_ids <- compute(
+credential_grad_ids <- compute_overwrite(
   credential_grad_ids,
-  name = Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r"),
-  temporary = FALSE
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_GRAD_IDs_r"
 )
 
 credential_grad_ids |> tally() # verify count matches expected from documentation
@@ -736,7 +692,7 @@ log_info(glue::glue(
 #   #            WHERE PSI_PROGRAM_CODE = '(Unspecified)'"
 #   # )
 
-#   tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+#   tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
 #     filter(is.na(PSI_PROGRAM_CODE)) %>%
 #     tally()
 #   # still 364449 rows with null PSI_PROGRAM_CODE which are converted from '(Unspecified)'?
@@ -772,7 +728,7 @@ log_info(glue::glue(
 ### Part 3A: Initial XWALK ----
 
 # Verify PSI_PEN column exists in STP credentials table (added in Part 2)
-colnames(tbl(con, "Credential_Non_Dup_BGS_IDs_r"))
+colnames(tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")))
 
 ## Create BGS_Matching_STP_Credential_PEN by performing inner join on PEN
 ## This table combines BGS survey outcomes with matched STP credentials.
@@ -879,11 +835,11 @@ bgs_matching %>%
 ## Validate: Check row count matches expected from documentation
 {
   # Expected count: inner join of BGS records with valid PEN to STP BGS credentials
-  tbl(con, "T_BGS_Data_Final_for_OutcomesMatching_r") %>%
+  tbl(con, in_schema(my_schema, "T_BGS_Data_Final_for_OutcomesMatching_r")) %>%
     select(STQU_ID, PEN) %>%
     filter(!is.na(PEN) & PEN != "" & PEN != "0") %>%
     inner_join(
-      tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>% select(ID, PSI_PEN),
+      tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>% select(ID, PSI_PEN),
       by = c("PEN" = "PSI_PEN")
     ) %>%
     tally() # Expected: 133,952 (2023 data)
@@ -1085,25 +1041,12 @@ bgs_matching_flagged |> tally() # Verify row count: 133,952 (2023)
 bgs_matching_flagged |> glimpse() # Review structure
 
 ## Materialize as persistent SQL table for use in Parts 3B extended/3C
-{
-  if (
-    dbExistsTable(
-      con,
-      Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r")
-    )
-  ) {
-    dbRemoveTable(
-      con,
-      Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r")
-    )
-  }
-}
-
-bgs_matching_flagged <- bgs_matching_flagged |>
-  compute(
-    name = Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r"),
-    temporary = FALSE
-  )
+bgs_matching_flagged <- compute_overwrite(
+  bgs_matching_flagged,
+  con = con,
+  schema = my_schema,
+  table = "BGS_Matching_STP_Credential_PEN_r"
+)
 log_info(glue::glue(
   "Part 3B: Materialized BGS_Matching_STP_Credential_PEN_r with match flags: {bgs_matching_flagged %>% tally() %>% pull()} rows"
 ))
@@ -2283,18 +2226,14 @@ output_name <- "BGS_Matching_STP_Credential_PEN_r"
 temp_name <- "BGS_Matching_STP_Credential_PEN_temp_r"
 
 # Compute to temporary table first to ensure success before modifying the original
-# (drop first: a prior run that died between this compute and the sp_rename
-#  below would leave the temp table behind, and compute() with an Id() target
-#  does not honour overwrite on reruns -- same guard pattern as the other
-#  materializations in this script)
-if (dbExistsTable(con, Id(schema = my_schema, table = temp_name))) {
-  dbRemoveTable(con, Id(schema = my_schema, table = temp_name))
-}
-bgs_matching_final <- bgs_matching_final |>
-  compute(
-    name = Id(schema = my_schema, table = temp_name),
-    temporary = FALSE
-  )
+# (compute_overwrite drops a leftover temp table from a prior run that died
+#  between this compute and the sp_rename below)
+bgs_matching_final <- compute_overwrite(
+  bgs_matching_final,
+  con = con,
+  schema = my_schema,
+  table = temp_name
+)
 
 if (
   dbExistsTable(
@@ -3251,9 +3190,9 @@ credential_bgs_updated |> tally()
 
 ## Validation check: look for any remaining missing values in the final output.
 {
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CODE_4_NAME))
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed: no missing CIP names or cluster codes remain after the override and refill steps.
@@ -4108,15 +4047,12 @@ list(
 target_name <- "T_BGS_Data_Final_for_OutcomesMatching_r"
 temp_name <- "T_BGS_Data_Final_for_OutcomesMatching_temp"
 
-if (dbExistsTable(con, Id(schema = my_schema, table = temp_name))) {
-  dbRemoveTable(con, Id(schema = my_schema, table = temp_name))
-}
-
-t_bgs_updated <- t_bgs_updated %>%
-  compute(
-    name = Id(schema = my_schema, table = temp_name),
-    temporary = FALSE
-  )
+t_bgs_updated <- compute_overwrite(
+  t_bgs_updated,
+  con = con,
+  schema = my_schema,
+  table = temp_name
+)
 
 if (dbExistsTable(con, Id(schema = my_schema, table = target_name))) {
   dbRemoveTable(con, Id(schema = my_schema, table = target_name))
@@ -4143,9 +4079,9 @@ log_info(glue::glue(
 # ---- Clean up ----
 
 ## remove backup tables
-dbRemoveTable(con, "BGS_Matching_STP_Credential_PEN_bu_r")
-dbRemoveTable(con, "Credential_Non_Dup_BGS_IDs_bu_r")
-dbRemoveTable(con, "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+dbRemoveTable(con, Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_bu_r"))
+dbRemoveTable(con, Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_bu_r"))
+dbRemoveTable(con, Id(schema = my_schema, table = "T_BGS_Data_Final_for_OutcomesMatching_bu_r"))
 log_info("Removed backup tables")
 
 dbDisconnect(con)

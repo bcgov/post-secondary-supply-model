@@ -62,6 +62,24 @@ log_info <- function(msg) {
   print(paste(Sys.time(), "|", msg))
 }
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## compute() with an in_schema()/Id() target does not honour
+## overwrite = TRUE, so a rerun after a completed (or partially
+## completed) run fails with "There is already an object named ...".
+## This helper centralizes the drop-first guard the
+## materializations in this script use: pre-check that the target
+## exists, drop it if it does, then compute.
+compute_overwrite <- function(data, con, schema, table) {
+  target <- Id(schema = schema, table = table)
+  if (dbExistsTable(con, target)) {
+    dbRemoveTable(con, target)
+    log_info(glue::glue("Dropped existing {schema}.{table} before compute"))
+  }
+  compute(data, name = target, temporary = FALSE)
+}
+
 log_info("==== 02a-appso-programs.R START ====")
 
 # ---- Configure database connection -------------------------------------------
@@ -447,65 +465,27 @@ log_info("Step 12: Replaced '(Unspecified)' PSI_PROGRAM_CODE values with NULL")
 # WHY:  compute() writes the lazy query result to a physical table in the
 #       database, making it available for direct querying and joins in
 #       subsequent scripts (e.g., 02a-update-cred-non-dup.R).
-# Note: compute()/copy_to() with an in_schema()/Id() target does not honour
-#       overwrite = TRUE on reruns -- the write hits an "already an object
-#       named ..." error. Drop the target first (same guard pattern the
-#       cleaning-table compute below and the other 02a scripts use).
+# Note: compute_overwrite() pre-checks the target and drops it before
+#       computing -- compute()/copy_to() with an in_schema()/Id() target
+#       does not honour overwrite = TRUE on reruns.
 
-if (
-  DBI::dbExistsTable(
-    con,
-    DBI::Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_APPSO_IDs_r"
-    )
-  )
-) {
-  DBI::dbRemoveTable(
-    con,
-    DBI::Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_APPSO_IDs_r"
-    )
-  )
-}
-
-credential_non_dup_appso_ids %>%
-  compute(
-    name = in_schema(my_schema, "Credential_Non_Dup_APPSO_IDs_r"),
-    temporary = FALSE,
-    overwrite = T
-  )
+credential_non_dup_appso_ids <- compute_overwrite(
+  credential_non_dup_appso_ids,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_APPSO_IDs_r"
+)
 log_info(glue::glue(
   "Materialized Credential_Non_Dup_APPSO_IDs_r to SQL Server"
 ))
 
 
-if (
-  DBI::dbExistsTable(
-    con,
-    DBI::Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_STP_APPSO_Cleaning_r"
-    )
-  )
-) {
-  DBI::dbRemoveTable(
-    con,
-    DBI::Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_STP_APPSO_Cleaning_r"
-    )
-  )
-}
-
-
-credential_non_dup_stp_appso_cleaning %>%
-  compute(
-    name = in_schema(my_schema, "Credential_Non_Dup_STP_APPSO_Cleaning_r"),
-    temporary = FALSE,
-    overwrite = T
-  )
+credential_non_dup_stp_appso_cleaning <- compute_overwrite(
+  credential_non_dup_stp_appso_cleaning,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_STP_APPSO_Cleaning_r"
+)
 log_info(glue::glue(
   "Materialized Credential_Non_Dup_STP_APPSO_Cleaning_r to SQL Server"
 ))
