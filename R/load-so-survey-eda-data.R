@@ -283,10 +283,14 @@ pull_table("PSSM2025", "dbo", "t_bgs_inst_recode_r", "so_bgs_inst_recode")
 
 # COHORT_INFO is PII-heavy: prune contact/address/tel/email/indicator columns.
 # Prune list computed from the live column inventory (robust to schema drift).
-cohort_cols <- DBI::dbGetQuery(
-  conn("PSSM2025"),
-  "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'INFOWARE_BGS_COHORT_INFO'"
-)$COLUMN_NAME
+{
+  con_cols <- conn("PSSM2025")
+  on.exit(DBI::dbDisconnect(con_cols), add = TRUE)
+  cohort_cols <- DBI::dbGetQuery(
+    con_cols,
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'INFOWARE_BGS_COHORT_INFO'"
+  )$COLUMN_NAME
+}
 cohort_prune <- c(
   "STUDID",
   "PEN",
