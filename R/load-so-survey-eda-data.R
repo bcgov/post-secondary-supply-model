@@ -395,6 +395,13 @@ pull_table(
 pull_table(
   "PSSM2023",
   myschema,
+  "INFOWARE_C_OutC_Clean_Short_Resp_raw",
+  "so_dacso_outc_bench"
+)
+
+pull_table(
+  "PSSM2023",
+  myschema,
   "t_year_survey_year_r",
   "so_year_survey_bench"
 )
