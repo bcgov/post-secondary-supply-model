@@ -339,6 +339,9 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- read.csv(
   na.strings = c("", "NA")
 ) %>%
   type.convert(as.is = TRUE) %>%
+  # tibble to match the old DB-read collect() behaviour -- downstream
+  # print(n = ...) calls and tibble-specific methods expect it
+  tibble::as_tibble() %>%
   mutate(
     CIP_CODE_4 = str_pad(
       as.character(CIP_CODE_4), width = 4, side = "left", pad = "0"
@@ -347,6 +350,26 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- read.csv(
   refresh_xwalk_join_keys()
 log_info(glue::glue(
   "Part 1: Loaded XWALK seed (2021_23 CSV from LAN): {nrow(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25)} programs"
+))
+
+# The 2021_23 seed carries the per-cycle Updated_DACSO_* flag columns the
+# 2023 run created; the per-cycle walk blocks below re-introduce those same
+# columns fresh from the current XREF links, and a name collision would
+# suffix them .x/.y and break the blocks' references. Drop the seed copies --
+# the walk re-derives current-state flags.
+seed_flag_cols <- intersect(
+  c(
+    "Updated_DACSO_CPC2021", "Updated_DACSO_CIP2021",
+    "Updated_DACSO_CPC2022", "Updated_DACSO_CIP2022",
+    "Updated_DACSO_CPC2023", "Updated_DACSO_CIP2023"
+  ),
+  names(DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25)
+)
+DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <-
+  DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 %>%
+  select(-all_of(seed_flag_cols))
+log_info(glue::glue(
+  "Part 1: Dropped {length(seed_flag_cols)} historical Updated_DACSO_* flag columns from seed (re-derived by the walk blocks)"
 ))
 
 # Registry recode map: one unambiguous registry CIP4 per business key.
@@ -1389,7 +1412,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
 # append a suffix "_r" to the table name in decmile database to indicate which is created in R.
 dbWriteTable(
   con,
-  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r",
+  Id(schema = my_schema, table = "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r"),
   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25,
   overwrite = TRUE
 )
@@ -1412,7 +1435,7 @@ log_info(glue::glue(
 dbExistsTable(con, SQL(glue::glue('"{my_schema}"."credential_non_dup"')))
 log_info("Part 2: Updating XWALK with new STP credential data")
 
-credential_non_dup <- sch_tbl("Credential_Non_Dup") |>
+credential_non_dup <- sch_tbl("credential_non_dup_r") |>
   rename_with(toupper) %>%
   select(
     PSI_CODE,
@@ -2543,7 +2566,7 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_out <- drop_join_keys(
 
 dbWriteTable(
   con,
-  "STP_Credential_Non_Dup_Programs_DACSO_r",
+  Id(schema = my_schema, table = "STP_Credential_Non_Dup_Programs_DACSO_r"),
   stp_dacso_out,
   overwrite = TRUE
 )
@@ -2552,7 +2575,7 @@ log_info(glue::glue(
 ))
 dbWriteTable(
   con,
-  "Credential_Non_Dup_Programs_DACSO_FinalCIPS_r",
+  Id(schema = my_schema, table = "Credential_Non_Dup_Programs_DACSO_FinalCIPS_r"),
   stp_dacso_out,
   overwrite = TRUE
 )
@@ -2561,7 +2584,7 @@ log_info(glue::glue(
 ))
 dbWriteTable(
   con,
-  "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r",
+  Id(schema = my_schema, table = "DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_r"),
   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25_out,
   overwrite = TRUE
 )
