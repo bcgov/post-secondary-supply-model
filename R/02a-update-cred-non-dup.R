@@ -134,9 +134,19 @@ log_info("Checked all required tables exist")
 # KEPT AS SQL: ALTER TABLE is DDL — no dplyr equivalent
 ## ------------------------------------------------------------------------------------------------
 
-dbExecute(
+# Idempotent: skip the ALTER if the CIP columns already exist (e.g. a
+# previous partial run added them before failing further down).
+cip_cols_check <- dbGetQuery(
   con,
-  "ALTER TABLE Credential_Non_Dup_r
+  glue::glue(
+    "SELECT COL_LENGTH('[{my_schema}].[Credential_Non_Dup_r]',
+      'OUTCOMES_CIP_CODE_4') AS cid"
+  )
+)
+if (is.na(cip_cols_check$cid)) {
+  dbExecute(
+    con,
+    glue::glue('ALTER TABLE [{my_schema}].[Credential_Non_Dup_r]
 ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             OUTCOMES_CIP_CODE_4_NAME varchar(255),
             FINAL_CIP_CODE_4 varchar(4),
@@ -148,8 +158,11 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4_NAME varchar(255),
             STP_CIP_CODE_2 varchar(2),
-            STP_CIP_CODE_2_NAME varchar(255);"
-)
+            STP_CIP_CODE_2_NAME varchar(255);')
+  )
+} else {
+  log_info("CIP columns already present on Credential_Non_Dup_r; skipping ALTER TABLE")
+}
 log_info("Added 12 CIP columns to Credential_Non_Dup_r via ALTER TABLE")
 
 ## -------------- Update CIP codes from DACSO (primary source)------------------------------------
@@ -431,14 +444,14 @@ dbWriteTable(
 # add extra cols
 dbExecute(
   con,
-  "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning_r
+  glue::glue('ALTER TABLE [{my_schema}].[Credential_Non_Dup_STP_NULL_Cleaning_r]
 ADD STP_CIP_CODE_4 varchar (255),
 STP_CIP_CODE_4_NAME varchar (255),
 STP_CIP_CODE_2 varchar (255),
 STP_CIP_CODE_2_NAME varchar (255),
 STP_CIP_CLUSTER_CODE varchar(10),
 STP_CIP_CLUSTER_NAME varchar(255),
-PSI_CREDENTIAL_CIP_orig varchar (255)"
+PSI_CREDENTIAL_CIP_orig varchar (255)')
 )
 
 # ---- Step 8: Save original CIP before cleaning ----
