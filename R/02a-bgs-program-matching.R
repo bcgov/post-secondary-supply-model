@@ -99,6 +99,38 @@ log_info <- function(msg) {
   print(paste(Sys.time(), "|", msg))
 }
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## compute() with an in_schema()/Id() target does not honour
+## overwrite = TRUE, so a rerun after a completed (or partially
+## completed) run fails with "There is already an object named ...".
+## This helper centralizes the drop-first guard the
+## materializations in this script use: pre-check that the target
+## exists, drop it if it does, then compute.
+compute_overwrite <- function(data, con, schema, table) {
+  target <- Id(schema = schema, table = table)
+  if (dbExistsTable(con, target)) {
+    dbRemoveTable(con, target)
+    log_info(glue::glue("Dropped existing {schema}.{table} before compute"))
+  }
+  compute(data, name = target, temporary = FALSE)
+}
+
+## copy_to() analogue of compute_overwrite(), for uploading local
+## (in-memory) frames: same drop-first guard. Bare-name copy_to() with
+## overwrite = TRUE issues an unconditional DROP TABLE against the
+## connection's default schema, which errors when the table does not
+## exist there or the analyst lacks drop rights in that schema.
+copy_to_overwrite <- function(data, con, schema, table) {
+  target <- Id(schema = schema, table = table)
+  if (dbExistsTable(con, target)) {
+    dbRemoveTable(con, target)
+    log_info(glue::glue("Dropped existing {schema}.{table} before copy_to"))
+  }
+  copy_to(con, data, name = target, temporary = FALSE)
+}
+
 log_info("==== 02a-bgs-program-matching.R START ====")
 
 # ---- Configure LAN Paths and DB Connection -----
@@ -120,9 +152,9 @@ log_info("Connected to SQL Server database")
 
 # ---- Read in INFOWARE tables ----
 # The BGS distribution/cohort tables are copied to SQL Server (dbo) by
-# 'R/load-cohort-bgs.R' (or 'R/run-data-loading.R'); the CIP taxonomy tables
-# are copied by 'R/load-infoware-lookups.R' (my_schema).  We check for their
-# existence and proceed.
+# 'R/load-cohort-bgs.R' (or 'R/run-data-loading.R'); the CIP2021 taxonomy
+# lookups live in the shared schema alongside the other raw lookup tables.
+# We check for their existence and proceed.
 
 # BGS survey records, in the shared (dbo) schema
 bgs_infoware_tables <- c(
@@ -131,11 +163,11 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_COHORT_INFO"
 )
 
-# CIP taxonomy lookups, in the analyst's own schema
+# CIP2021 taxonomy lookups, in the shared schema
 lookup_tables <- c(
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_2DIGITS_CIP2016"
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "INFOWARE_L_CIP_2DIGITS_CIP2021"
 )
 
 missing_bgs <- bgs_infoware_tables[
@@ -147,7 +179,7 @@ missing_bgs <- bgs_infoware_tables[
 missing_lookups <- lookup_tables[
   !map_lgl(
     lookup_tables,
-    ~ dbExistsTable(con, Id(schema = my_schema, table = .x))
+    ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
 
@@ -158,27 +190,45 @@ if (length(missing_bgs) > 0) {
 }
 if (length(missing_lookups) > 0) {
   stop(glue::glue(
-    "The following required CIP lookup tables are missing in schema '{my_schema}': {paste(missing_lookups, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
+    "The following required CIP2021 lookup tables are missing in schema '{shareschema}': {paste(missing_lookups, collapse = ', ')}."
   ))
 }
 log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
-infoware_bgs_20_24 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_20_24"))
-infoware_bgs_21_25 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_21_25"))
+infoware_bgs_20_24 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_20_24")
+)
+infoware_bgs_21_25 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_21_25")
+)
 infoware_cohort_info <- tbl(
   con,
   in_schema(shareschema, "INFOWARE_BGS_COHORT_INFO")
 )
 
-cip_6_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016"))
-cip_4_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_4DIGITS_CIP2016"))
-cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
+# switch to 2021 CIP tables for 2021 matching cycle
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## The CIP2021 4-digit lookup renamed LCP4_CIP_4DIGITS_NAME to
+## LCP4_DIGITS_NAME; alias it back to the legacy name here so the
+## downstream selects keep working unchanged (same as the migration
+## on 02_program_matching_a, commit 8a30ef1).
+cip_6_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_6DIGITS_CIP2021"))
+cip_4_tbl <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021")
+) %>%
+  rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME)
+cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 
-credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
-stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
+credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup_r"))
+stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential_r"))
 log_info(
-  "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential"
+  "Loaded lazy table references: INFOWARE BGS/CIP2021 tables, credential_non_dup_r, STP_Credential_r"
 )
 
 # # id should be unique for updates to be reliable.
@@ -362,34 +412,12 @@ t_bgs_final <- union_all(t_bgs_step1, t_bgs_step2) %>%
   mutate(PSSM_CREDENTIAL = "BACH")
 
 
-t_bgs_final <- t_bgs_final %>%
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(
-          schema = my_schema,
-          table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-        )
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(
-          schema = my_schema,
-          table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-        )
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(
-      schema = my_schema,
-      table = "T_BGS_Data_Final_for_OutcomesMatching_r"
-    ),
-    temporary = FALSE
-  )
+t_bgs_final <- compute_overwrite(
+  t_bgs_final,
+  con = con,
+  schema = my_schema,
+  table = "T_BGS_Data_Final_for_OutcomesMatching_r"
+)
 
 # id should be unique for updates to be reliable.
 t_bgs_final |> tally()
@@ -517,28 +545,12 @@ stp_cip_cleaning <- stp_cip_cleaning %>%
     STP_CIP_CODE_4_NAME = coalesce(STP_CIP_CODE_4_NAME, "Invalid 4-digit CIP")
   )
 
-stp_cip_cleaning <- stp_cip_cleaning %>%
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_STP_CIP4_Cleaning_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_STP_CIP4_Cleaning_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(
-      schema = my_schema,
-      table = "Credential_Non_Dup_STP_CIP4_Cleaning_r"
-    ),
-    temporary = FALSE
-  )
+stp_cip_cleaning <- compute_overwrite(
+  stp_cip_cleaning,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_STP_CIP4_Cleaning_r"
+)
 
 
 stp_cip_cleaning |> tally()
@@ -630,26 +642,13 @@ credential_bgs_ids <- bgs_ids_base %>%
   left_join(stp_credential_tbl %>% select(ID, PSI_PEN), by = "ID")
 
 
-credential_bgs_ids <- credential_bgs_ids %>%
-  # Materialize as persistent table for use in later steps (Part 3: matching to BGS outcomes)
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r"),
-    temporary = FALSE
-  )
+# Materialize as persistent table for use in later steps (Part 3: matching to BGS outcomes)
+credential_bgs_ids <- compute_overwrite(
+  credential_bgs_ids,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_BGS_IDs_r"
+)
 log_info("Part 2: Materialized Credential_Non_Dup_BGS_IDs_r to SQL Server")
 
 
@@ -680,26 +679,13 @@ credential_grad_ids <- stp_cip_ids %>%
   )
 
 
-credential_grad_ids <- credential_grad_ids %>%
-  # Materialize as persistent table for use in later supply modeling steps
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r"),
-    temporary = FALSE
-  )
+# Materialize as persistent table for use in later supply modeling steps
+credential_grad_ids <- compute_overwrite(
+  credential_grad_ids,
+  con = con,
+  schema = my_schema,
+  table = "Credential_Non_Dup_GRAD_IDs_r"
+)
 
 credential_grad_ids |> tally() # verify count matches expected from documentation
 # 133844 matching the number of records in 2023 according to the documentation
@@ -720,7 +706,7 @@ log_info(glue::glue(
 #   #            WHERE PSI_PROGRAM_CODE = '(Unspecified)'"
 #   # )
 
-#   tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+#   tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
 #     filter(is.na(PSI_PROGRAM_CODE)) %>%
 #     tally()
 #   # still 364449 rows with null PSI_PROGRAM_CODE which are converted from '(Unspecified)'?
@@ -756,7 +742,7 @@ log_info(glue::glue(
 ### Part 3A: Initial XWALK ----
 
 # Verify PSI_PEN column exists in STP credentials table (added in Part 2)
-colnames(tbl(con, "Credential_Non_Dup_BGS_IDs_r"))
+colnames(tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")))
 
 ## Create BGS_Matching_STP_Credential_PEN by performing inner join on PEN
 ## This table combines BGS survey outcomes with matched STP credentials.
@@ -863,11 +849,12 @@ bgs_matching %>%
 ## Validate: Check row count matches expected from documentation
 {
   # Expected count: inner join of BGS records with valid PEN to STP BGS credentials
-  tbl(con, "T_BGS_Data_Final_for_OutcomesMatching_r") %>%
+  tbl(con, in_schema(my_schema, "T_BGS_Data_Final_for_OutcomesMatching_r")) %>%
     select(STQU_ID, PEN) %>%
     filter(!is.na(PEN) & PEN != "" & PEN != "0") %>%
     inner_join(
-      tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>% select(ID, PSI_PEN),
+      tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
+        select(ID, PSI_PEN),
       by = c("PEN" = "PSI_PEN")
     ) %>%
     tally() # Expected: 133,952 (2023 data)
@@ -1069,25 +1056,12 @@ bgs_matching_flagged |> tally() # Verify row count: 133,952 (2023)
 bgs_matching_flagged |> glimpse() # Review structure
 
 ## Materialize as persistent SQL table for use in Parts 3B extended/3C
-{
-  if (
-    dbExistsTable(
-      con,
-      Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r")
-    )
-  ) {
-    dbRemoveTable(
-      con,
-      Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r")
-    )
-  }
-}
-
-bgs_matching_flagged <- bgs_matching_flagged |>
-  compute(
-    name = Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_r"),
-    temporary = FALSE
-  )
+bgs_matching_flagged <- compute_overwrite(
+  bgs_matching_flagged,
+  con = con,
+  schema = my_schema,
+  table = "BGS_Matching_STP_Credential_PEN_r"
+)
 log_info(glue::glue(
   "Part 3B: Materialized BGS_Matching_STP_Credential_PEN_r with match flags: {bgs_matching_flagged %>% tally() %>% pull()} rows"
 ))
@@ -1551,15 +1525,14 @@ stage_cols <- c(
 )
 
 # Copy decision table to SQL for fast joining
-copy_to(
-  con,
+copy_to_overwrite(
   matched_2d_cips |> select(stage_cols),
-  name = "matched_2d_cips_r",
-  temporary = FALSE,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "matched_2d_cips_r"
 )
 
-src_tbl <- tbl(con, "matched_2d_cips_r")
+src_tbl <- tbl(con, in_schema(my_schema, "matched_2d_cips_r"))
 log_info("Part 3B+: Staged matched_2d_cips_r decision table to SQL Server")
 src_tbl |> glimpse()
 src_tbl |> tally()
@@ -1710,7 +1683,7 @@ bgs_matching_tbl %>%
 # "lan\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
 # "lan\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
 # "lan\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
-lan
+
 # Important:
 # This section requires a manual step outside R. The script expects the reviewed
 # CSV to be returned with a populated USE_BGS_CIP field. If the file is missing,
@@ -1985,14 +1958,11 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
 if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
   # Stage manual updates to temporary SQL table for efficient database joining
 
-  dbWriteTable(
-    con,
-    Id(
-      schema = my_schema,
-      table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_r"
-    ),
+  copy_to_overwrite(
     BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
-    overwrite = TRUE
+    con = con,
+    schema = my_schema,
+    table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_r"
   )
 
   # Join manual decisions back to main matching table
@@ -2267,11 +2237,14 @@ output_name <- "BGS_Matching_STP_Credential_PEN_r"
 temp_name <- "BGS_Matching_STP_Credential_PEN_temp_r"
 
 # Compute to temporary table first to ensure success before modifying the original
-bgs_matching_final <- bgs_matching_final |>
-  compute(
-    name = Id(schema = my_schema, table = temp_name),
-    temporary = FALSE
-  )
+# (compute_overwrite drops a leftover temp table from a prior run that died
+#  between this compute and the sp_rename below)
+bgs_matching_final <- compute_overwrite(
+  bgs_matching_final,
+  con = con,
+  schema = my_schema,
+  table = temp_name
+)
 
 if (
   dbExistsTable(
@@ -2474,8 +2447,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
@@ -2947,7 +2920,9 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
+log_info(
+  "Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)"
+)
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------
@@ -3026,11 +3001,11 @@ if (nrow(dup_override_programs) > 0) {
 }
 
 # Write the approved override table to SQL for database-side joins.
-dbWriteTable(
-  con,
-  "Credential_Unmatched_CIPS_to_update_r",
+copy_to_overwrite(
   credential_unmatched_cips_to_update,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "Credential_Unmatched_CIPS_to_update_r"
 )
 
 # Reload as a dbplyr table reference.
@@ -3226,9 +3201,9 @@ credential_bgs_updated |> tally()
 
 ## Validation check: look for any remaining missing values in the final output.
 {
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CODE_4_NAME))
-  tbl(con, "Credential_Non_Dup_BGS_IDs_r") %>%
+  tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
     filter(is.na(FINAL_CIP_CLUSTER_CODE))
 }
 # passed: no missing CIP names or cluster codes remain after the override and refill steps.
@@ -3315,8 +3290,8 @@ new_cols <- c(
   "FINAL_CIP_CODE_4_NAME", # Final 4-digit CIP name
   "FINAL_CIP_CODE_2", # Final 2-digit CIP code (aligned with 4-digit choice)
   "FINAL_CIP_CODE_2_NAME", # Final 2-digit CIP name
-  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2016 taxonomy)
-  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2016 taxonomy)
+  "FINAL_CIP_CLUSTER_CODE", # Final CIP cluster code (from CIP2021 taxonomy)
+  "FINAL_CIP_CLUSTER_NAME" # Final CIP cluster name (from CIP2021 taxonomy)
 )
 
 # Add new columns to the table
@@ -3896,12 +3871,11 @@ T_BGS_Data_Unmatched_CIPS_to_update <- tibble::tribble(
 )
 
 # Write the update table to SQL for efficient joining
-
-dbWriteTable(
-  con,
-  "T_BGS_Data_Unmatched_CIPS_to_update_r",
+copy_to_overwrite(
   T_BGS_Data_Unmatched_CIPS_to_update,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "T_BGS_Data_Unmatched_CIPS_to_update_r"
 )
 
 T_BGS_Data_Unmatched_CIPS_to_update <- tbl(
@@ -4083,15 +4057,12 @@ list(
 target_name <- "T_BGS_Data_Final_for_OutcomesMatching_r"
 temp_name <- "T_BGS_Data_Final_for_OutcomesMatching_temp"
 
-if (dbExistsTable(con, Id(schema = my_schema, table = temp_name))) {
-  dbRemoveTable(con, Id(schema = my_schema, table = temp_name))
-}
-
-t_bgs_updated <- t_bgs_updated %>%
-  compute(
-    name = Id(schema = my_schema, table = temp_name),
-    temporary = FALSE
-  )
+t_bgs_updated <- compute_overwrite(
+  t_bgs_updated,
+  con = con,
+  schema = my_schema,
+  table = temp_name
+)
 
 if (dbExistsTable(con, Id(schema = my_schema, table = target_name))) {
   dbRemoveTable(con, Id(schema = my_schema, table = target_name))
@@ -4118,9 +4089,18 @@ log_info(glue::glue(
 # ---- Clean up ----
 
 ## remove backup tables
-dbRemoveTable(con, "BGS_Matching_STP_Credential_PEN_bu_r")
-dbRemoveTable(con, "Credential_Non_Dup_BGS_IDs_bu_r")
-dbRemoveTable(con, "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_bu_r")
+)
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_bu_r")
+)
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+)
 log_info("Removed backup tables")
 
 dbDisconnect(con)
