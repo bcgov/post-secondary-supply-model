@@ -117,6 +117,20 @@ compute_overwrite <- function(data, con, schema, table) {
   compute(data, name = target, temporary = FALSE)
 }
 
+## copy_to() analogue of compute_overwrite(), for uploading local
+## (in-memory) frames: same drop-first guard. Bare-name copy_to() with
+## overwrite = TRUE issues an unconditional DROP TABLE against the
+## connection's default schema, which errors when the table does not
+## exist there or the analyst lacks drop rights in that schema.
+copy_to_overwrite <- function(data, con, schema, table) {
+  target <- Id(schema = schema, table = table)
+  if (dbExistsTable(con, target)) {
+    dbRemoveTable(con, target)
+    log_info(glue::glue("Dropped existing {schema}.{table} before copy_to"))
+  }
+  copy_to(con, data, name = target, temporary = FALSE)
+}
+
 log_info("==== 02a-bgs-program-matching.R START ====")
 
 # ---- Configure LAN Paths and DB Connection -----
@@ -1510,15 +1524,14 @@ stage_cols <- c(
 )
 
 # Copy decision table to SQL for fast joining
-copy_to(
-  con,
+copy_to_overwrite(
   matched_2d_cips |> select(stage_cols),
-  name = "matched_2d_cips_r",
-  temporary = FALSE,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "matched_2d_cips_r"
 )
 
-src_tbl <- tbl(con, "matched_2d_cips_r")
+src_tbl <- tbl(con, in_schema(my_schema, "matched_2d_cips_r"))
 log_info("Part 3B+: Staged matched_2d_cips_r decision table to SQL Server")
 src_tbl |> glimpse()
 src_tbl |> tally()
