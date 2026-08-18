@@ -648,26 +648,25 @@ credential_bgs_ids <- bgs_ids_base %>%
   left_join(stp_credential_tbl %>% select(ID, PSI_PEN), by = "ID")
 
 
-credential_bgs_ids <- credential_bgs_ids %>%
-  # Materialize as persistent table for use in later steps (Part 3: matching to BGS outcomes)
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r"),
-    temporary = FALSE
+if (
+  dbExistsTable(
+    con,
+    Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
   )
+) {
+  dbRemoveTable(
+    con,
+    Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r")
+  )
+}
+
+
+# Materialize as persistent table for use in later steps (Part 3: matching to BGS outcomes)
+credential_bgs_ids <- compute(
+  credential_bgs_ids,
+  name = Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_r"),
+  temporary = FALSE
+)
 log_info("Part 2: Materialized Credential_Non_Dup_BGS_IDs_r to SQL Server")
 
 
@@ -698,26 +697,25 @@ credential_grad_ids <- stp_cip_ids %>%
   )
 
 
-credential_grad_ids <- credential_grad_ids %>%
-  # Materialize as persistent table for use in later supply modeling steps
-  {
-    if (
-      dbExistsTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-      )
-    ) {
-      dbRemoveTable(
-        con,
-        Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
-      )
-    }
-    .
-  } %>%
-  compute(
-    name = Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r"),
-    temporary = FALSE
+if (
+  dbExistsTable(
+    con,
+    Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
   )
+) {
+  dbRemoveTable(
+    con,
+    Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r")
+  )
+}
+
+
+# Materialize as persistent table for use in later supply modeling steps
+credential_grad_ids <- compute(
+  credential_grad_ids,
+  name = Id(schema = my_schema, table = "Credential_Non_Dup_GRAD_IDs_r"),
+  temporary = FALSE
+)
 
 credential_grad_ids |> tally() # verify count matches expected from documentation
 # 133844 matching the number of records in 2023 according to the documentation
