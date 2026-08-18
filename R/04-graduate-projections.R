@@ -68,29 +68,6 @@ if (length(missing) > 0) {
 na_vals <- c("", " ", "(Unspecified)", NA)
 
 # ---- Tidy data for calculations  ----
-# population_projections arrives WIDE: one column per age band, named like
-# "X20_TO_24". Reshape to long, keep only F/M (drops "Gender Diverse"), relabel
-# gender to words, and strip the "X" / "_TO_" so AGE_GROUP matches the other
-# tables (e.g. "20 to 24").
-population_projections <- population_projections %>%
-  select(-c(REGION, LOCAL_HEALTH_AREA, TOTAL)) %>%
-  pivot_longer(
-    cols = starts_with("X"),
-    names_to = "AGE_GROUP",
-    values_to = "POP"
-  ) %>%
-  filter(GENDER %in% c("F", "M")) %>%
-  mutate(
-    GENDER = case_when(
-      GENDER == 'F' ~ 'Female',
-      GENDER == 'M' ~ 'Male',
-      TRUE ~ NA
-    )
-  ) %>%
-  mutate(AGE_GROUP = gsub("X", "", AGE_GROUP)) %>%
-  mutate(AGE_GROUP = gsub("_TO_", " to ", AGE_GROUP)) %>%
-  select(-TYPE)
-
 # min_enrolments: standardise column names and strip gender words out of the
 # age-group label; take the first 4 chars of the school year ("2018/19" -> 2018).
 min_enrolments <- min_enrolments %>%
@@ -101,8 +78,9 @@ min_enrolments <- min_enrolments %>%
     "YEAR" = "PSI_SCHOOL_YEAR"
   ) %>%
   mutate(
-    AGE_GROUP = gsub("Female|Male|Gender Diverse Gender Diverse", "", AGE_GROUP)
+    AGE_GROUP = gsub(".*([0-9]{2} to [0-9]{2}).*", "\\1", AGE_GROUP)
   ) %>%
+  filter(GENDER %in% c("Woman/Girl", "Man/Boy")) %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4))) %>%
   arrange(GENDER, AGE_GROUP, YEAR)
 
@@ -116,8 +94,9 @@ credentials <- credentials %>%
     "YEAR" = "PSI_AWARD_SCHOOL_YEAR_DELAYED"
   ) %>%
   mutate(YEAR = as.numeric(stringr::str_sub(YEAR, 1, 4))) %>%
+  filter(GENDER %in% c("Woman/Girl", "Man/Boy")) %>%
   # select(-Expr1) %>%
-  filter(YEAR >= 2006, YEAR <= 2022)
+  filter(YEAR >= 2006, YEAR <= 2024)
 
 # ---- Forecasted Enrolments ----
 ## Enrolment Rate ----
@@ -209,7 +188,11 @@ f_graduates_t <- f_graduates_t %>%
 # (2021/22 pooled). complete() fills 0 for credential categories not observed in
 # a given age x gender, so every combination has a proportion P.
 avg_2_yr_credentials <- credentials %>%
-  filter(YEAR %in% 2021:2022, GENDER != 'Gender Diverse') %>%
+  filter(
+    YEAR %in% 2021:2022,
+    GENDER != 'Gender Diverse',
+    GENDER != "Non-Binary Person"
+  ) %>%
   summarise(
     YR_2_N = sum(N),
     .by = c(GENDER, AGE_GROUP, PSI_CREDENTIAL_CATEGORY)
@@ -246,7 +229,7 @@ T_DACSO_Near_Completers_RatioByGender <- dbReadTable(
   janitor::clean_names("all_caps") %>%
   mutate(PSI_CREDENTIAL_CATEGORY = PRGM_CREDENTIAL_AWARDED_NAME) %>%
   select(PSI_CREDENTIAL_CATEGORY, AGE_GROUP, GENDER, RATIO) %>%
-  mutate(GENDER = if_else(GENDER == 1, 'Male', 'Female'))
+  mutate(GENDER = if_else(GENDER == 1, 'Man/Boy', 'Woman/Girl'))
 
 # recode age groups 35-44, 45-54, 55-64  => 35 to 64
 # NC ratios only exist for a broad "35 to 64" band. Expand them to the model's

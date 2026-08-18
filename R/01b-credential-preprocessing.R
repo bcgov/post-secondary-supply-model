@@ -31,7 +31,7 @@ log_info("==== 01b-credential-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -55,7 +55,7 @@ stp_credential <- dbGetQuery(
     'SELECT
     CREDENTIAL_AWARD_DATE,
     ENCRYPTED_TRUE_PEN,
-    ID,
+    /*ID,*/
     PSI_CODE,
     PSI_CREDENTIAL_CATEGORY,
     PSI_CREDENTIAL_CIP,
@@ -67,7 +67,7 @@ stp_credential <- dbGetQuery(
     PSI_PROGRAM_EFFECTIVE_DATE,
     PSI_SCHOOL_YEAR,
     PSI_STUDENT_NUMBER
-  FROM "{my_schema}"."STP_Credential"'
+  FROM "STP_CREDENTIAL_2024"'
   )
 )
 log_info(glue::glue(
@@ -116,9 +116,9 @@ distinct_pen_count <- stp_credential |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
 log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
-# stp_credential <- stp_credential |>
-#   mutate(ID = row_number()) |>
-#   relocate(ID, .before = CREDENTIAL_AWARD_DATE)
+stp_credential <- stp_credential |>
+  mutate(ID = row_number()) |>
+  relocate(ID, .before = CREDENTIAL_AWARD_DATE)
 
 # ---- Reformat yy-mm-dd to yyyy-mm-dd ----
 date_cols <- c(
@@ -139,7 +139,7 @@ convert_date <- function(vec) {
 
   century_prefix <- case_when(
     is.na(yy) ~ NA_character_,
-    yy < 24 ~ "20",
+    yy < 26 ~ "20",
     TRUE ~ "19"
   )
 
@@ -147,10 +147,10 @@ convert_date <- function(vec) {
 }
 
 # Uncomment when running new data and/or add a conditional to test the date format.
-# stp_credential <- stp_credential |>
-#   mutate(
-#     across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
-#   )
+stp_credential <- stp_credential |>
+  mutate(
+    across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
+  )
 
 ## --------------------------------------- Create Record Type Table -------------------------------
 # reference: source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")

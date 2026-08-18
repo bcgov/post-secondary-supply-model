@@ -44,9 +44,47 @@ population_projections <- readr::read_csv(
 ) %>%
   janitor::clean_names(case = "all_caps")
 
+# population_projections arrives WIDE: one column per age band, named like
+# "X20_TO_24". Reshape to long, keep only F/M (drops "Gender Diverse"), relabel
+# gender to words, and strip the "X" / "_TO_" so AGE_GROUP matches the other
+# tables (e.g. "20 to 24").
+population_projections <- population_projections |>
+  select(-c(REGION, LOCAL_HEALTH_AREA, TOTAL, TYPE)) %>%
+  group_by(YEAR, GENDER) |>
+  # age groups are in single year increments, one year per column.  We need to pivot longer to get a single column for age group and a single column for population count.
+  pivot_longer(
+    cols = starts_with("X"),
+    names_to = "AGES",
+    values_to = "POP"
+  ) |>
+  mutate(AGE_GROUP = as.numeric(str_remove(AGES, "X"))) |>
+  filter(AGE_GROUP >= 15 & AGE_GROUP <= 89) |>
+  mutate(
+    AGE_GROUP = case_when(
+      AGE_GROUP >= 15 & AGE_GROUP <= 16 ~ "15 to 16",
+      AGE_GROUP >= 17 & AGE_GROUP <= 19 ~ "17 to 19",
+      AGE_GROUP >= 20 & AGE_GROUP <= 24 ~ "20 to 24",
+      AGE_GROUP >= 25 & AGE_GROUP <= 29 ~ "25 to 29",
+      AGE_GROUP >= 30 & AGE_GROUP <= 34 ~ "30 to 34",
+      AGE_GROUP >= 35 & AGE_GROUP <= 44 ~ "35 to 44",
+      AGE_GROUP >= 45 & AGE_GROUP <= 54 ~ "45 to 54",
+      AGE_GROUP >= 55 & AGE_GROUP <= 64 ~ "55 to 64",
+      AGE_GROUP >= 65 & AGE_GROUP <= 89 ~ "65 to 89"
+    )
+  ) |>
+  mutate(
+    GENDER = case_when(
+      GENDER == "F" ~ "Woman/Girl",
+      GENDER == "M" ~ "Man/Boy"
+    )
+  ) |>
+  group_by(YEAR, GENDER, AGE_GROUP) |>
+  summarise(POP = sum(POP, na.rm = TRUE)) |>
+  ungroup()
+
 min_enrolments <- dbReadTable(
   con,
-  SQL(glue::glue('"{my_schema}"."qry09c_MinEnrolment_r"'))
+  SQL(glue::glue('"{my_schema}"."qry09c_minenrolment_r"'))
 )
 
 credentials <- dbReadTable(
