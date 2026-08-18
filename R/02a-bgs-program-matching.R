@@ -853,7 +853,8 @@ bgs_matching %>%
     select(STQU_ID, PEN) %>%
     filter(!is.na(PEN) & PEN != "" & PEN != "0") %>%
     inner_join(
-      tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>% select(ID, PSI_PEN),
+      tbl(con, in_schema(my_schema, "Credential_Non_Dup_BGS_IDs_r")) %>%
+        select(ID, PSI_PEN),
       by = c("PEN" = "PSI_PEN")
     ) %>%
     tally() # Expected: 133,952 (2023 data)
@@ -1682,7 +1683,7 @@ bgs_matching_tbl %>%
 # "lan\reports-final\internal_use_PSSM_2023-24_to_2034-35_20241220.xlsx"
 # "lan\development\work\02a-program-matching\BGS\prod on 2023 data/BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv"
 # "lan\development\work\02a-program-matching\BGS\prod on 2023 data\BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos.csv"
-lan
+
 # Important:
 # This section requires a manual step outside R. The script expects the reviewed
 # CSV to be returned with a populated USE_BGS_CIP field. If the file is missing,
@@ -4088,9 +4089,18 @@ log_info(glue::glue(
 # ---- Clean up ----
 
 ## remove backup tables
-dbRemoveTable(con, Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_bu_r"))
-dbRemoveTable(con, Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_bu_r"))
-dbRemoveTable(con, Id(schema = my_schema, table = "T_BGS_Data_Final_for_OutcomesMatching_bu_r"))
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "BGS_Matching_STP_Credential_PEN_bu_r")
+)
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "Credential_Non_Dup_BGS_IDs_bu_r")
+)
+dbRemoveTable(
+  con,
+  Id(schema = my_schema, table = "T_BGS_Data_Final_for_OutcomesMatching_bu_r")
+)
 log_info("Removed backup tables")
 
 dbDisconnect(con)
