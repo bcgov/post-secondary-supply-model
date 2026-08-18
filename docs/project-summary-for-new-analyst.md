@@ -128,13 +128,41 @@ Scripts are numbered `01a → 08` and are meant to run **in that order** (with t
 notable exception of `01e`, which is run later). Each "analysis" script has a
 companion `load-*.R` script that pulls its inputs.
 
+**Data loading — the first thing that runs.** Before any numbered module runs,
+the loading pipeline (`R/run-data-loading.R`) refreshes all raw inputs into
+SQL Server (schema = `shareschema`, i.e. `dbo` by default):
+
+- `load-outcomes-data.R` — bulk loader: reads every CSV in the
+  student-outcomes folder on the LAN and writes each to SQL Server as
+  `<name>_raw` (raw archive copies, overwrite). Recasts keys (`PEN`, etc.)
+  and strips invalid UTF-8 bytes so the write cannot fail.
+- `load-cohort-bgs/trd/appso/dacso.R` — build the cleaned cohort tables:
+  survey responses + look-ups from the LAN, with region recodes, age groups,
+  weights and labour-supply flags, written as `<name>_r`
+  (`t_bgs_data_final_r`, `trd_data_r`, `t_appso_data_final_r`,
+  `t_dacso_data_part_1_stepa_r`, …). `load-cohort-bgs.R` also copies the
+  INFOWARE BGS distribution/cohort tables
+  (`INFOWARE_BGS_DIST_20_24 / INFOWARE_BGS_DIST_21_25`, `INFOWARE_BGS_COHORT_INFO`) from the
+  Oracle INFOWARE database into dbo/shareschema in 80k-row chunks (skip if
+  already present) — consumed by `02a-bgs-program-matching.R`.
+- **Naming:** `<name>_raw` = unmodified archive; `<name>_r` = cleaned table
+  consumed by the numbered modules (02b-1 → `T_Cohorts_Recoded`). Every write
+  is `overwrite = TRUE`, so rerunning any load script never duplicates data.
+- **Logging:** all load scripts log to `R/execution_log.txt` via
+  `futile.logger` (row counts per read/write).
+- **Weights:** `T_Weights.csv` on the LAN carries one block per model run;
+  the 2027 run uses the `2024-2025` block (cycles `C_Outc21`–`C_Outc25`,
+  latest cycle = 5, QI run re-weights). `T_Year_Survey_Year.csv` was extended
+  to `C_Outc25` (2025).
+
 ---
 
 ## 4. End-to-end run order
 
 ```mermaid
 flowchart TD
-    Start([Start: set run flags]) --> S01a[01a enrolment preprocessing]
+    Start([Start: set run flags]) --> LD[run-data-loading.R<br/>STP + INFOWARE + survey data<br/>load-outcomes-data.R → *_raw<br/>load-cohort-* → *_r]
+    LD --> S01a[01a enrolment preprocessing]
     S01a --> S01b[01b credential preprocessing]
     S01b --> S01c[01c credential analysis]
     S01c --> S01d[01d enrolment analysis]
@@ -385,6 +413,7 @@ outputs in the first place.
 | **NEW_LABOUR_SUPPLY (NLS)** | Derived flag: did this graduate actually enter the workforce? `0/1/2/3` (see §11). The basis of Term 3. |
 | **Composite keys** | Concatenations like `PSSM_CRED` = "1 - DIPL", `LCIP4_CRED` = "1 - 0100 - BACH" — used to match grads to jobs across terms. |
 | **APPSO / TRD / BGS / DACSO** | The four Student Outcomes survey streams: Apprenticeship, Trades, Baccalaureate Graduates, Diploma/Assoc/Certificate. |
+| **`_r` vs `_raw` tables** | `_raw` = unmodified archive of a survey CSV (written by `load-outcomes-data.R`); `_r` = cleaned cohort table (`load-cohort-*.R`) consumed by the numbered modules. |
 | **PTIB** | Private Training Institutions Branch data (private, non-public colleges) — feeds Term 1/2. |
 | **PEOPLE** | BC Stats population projections used to drive enrolment forecasts in Term 1. |
 | **Delayed Award** | A secondary credential earned shortly after the primary one; exit date is reconciled forward by category-specific windows. |

@@ -25,8 +25,8 @@
 # ---- Packages ----
 pacman::p_load(
   tidyverse, # data wrangling: mutate/across/filter/str_detect/pull/...
-  odbc,      # ODBC driver interface (Decimal + Oracle connections)
-  DBI        # database interface: dbConnect/dbReadTable/dbWriteTable/...
+  odbc, # ODBC driver interface (Decimal + Oracle connections)
+  DBI # database interface: dbConnect/dbReadTable/dbWriteTable/...
 )
 
 ## ----------------------------------------------------------
@@ -39,7 +39,7 @@ pacman::p_load(
 ##   dbplyr       - only referenced in the removed `tbl(con, ...)` checks.
 
 # ---- Configuration (see config.yml) ----
-db_config <- config::get("decimal")  # Decimal (SQL Server) connection
+db_config <- config::get("decimal") # Decimal (SQL Server) connection
 my_schema <- config::get("myschema") # analyst's working schema on Decimal
 share_schema <- config::get("shareschema") # shared schema on Decimal (not used here)
 iw_config <- config::get("infoware") # Oracle INFOWARE connection
@@ -56,21 +56,31 @@ iw_config <- config::get("infoware") # Oracle INFOWARE connection
 # ---- Connect to Decimal (SQL Server) ----
 con <- dbConnect(
   odbc(),
-  Driver             = db_config$driver,
-  Server             = db_config$server,
-  Database           = db_config$database,
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
   Trusted_Connection = "TRUE"
 )
 
+# only if those table are not in the analyst's schema, we load those tables
+
+# ---- Read in INFOWARE tables ----
+# only run once to get tables ready
+iw_config <- config::get("infoware")
+
+
+#  ---- Connect to INFOWARE (Oracle) ----
+# Requires the "Oracle in instantclient_19c" ODBC driver to be installed.
+odbcListDrivers() # confirm available drivers / Oracle client is present
 # ---- Connect to INFOWARE (Oracle) ----
 # Requires the "Oracle in instantclient_19c" ODBC driver to be installed.
 odbcListDrivers() # confirm available drivers / Oracle client is present
 iw_con <- dbConnect(
   odbc::odbc(),
   Driver = "Oracle in instantclient_19c",
-  DBQ    = iw_config$dbq,
-  UID    = iw_config$uid,
-  PWD    = iw_config$pwd
+  DBQ = iw_config$dbq,
+  UID = iw_config$uid,
+  PWD = iw_config$pwd
 )
 
 ## ----------------------------------------------------------
@@ -90,13 +100,15 @@ iw_con <- dbConnect(
 # - Skips the copy if the destination already exists (idempotent re-runs).
 # - Coerces character columns to UTF-8 to fix encoding artefacts that
 #   come back from Oracle (e.g. accented program/institution names).
-copy_infoware_table <- function(tbl_name,
-                                dest_name = paste0("INFOWARE_", tbl_name),
-                                source_con = iw_con,
-                                dest_con = con,
-                                source_schema = "INFOWARE",
-                                dest_schema = share_schema,
-                                sanitize = TRUE) {
+copy_infoware_table <- function(
+  tbl_name,
+  dest_name = paste0("INFOWARE_", tbl_name),
+  source_con = iw_con,
+  dest_con = con,
+  source_schema = "INFOWARE",
+  dest_schema = share_schema,
+  sanitize = TRUE
+) {
   dest_id <- DBI::Id(schema = dest_schema, table = dest_name)
 
   if (dbExistsTable(dest_con, dest_id)) {
@@ -105,18 +117,24 @@ copy_infoware_table <- function(tbl_name,
   }
 
   cat("Copying", tbl_name, "->", dest_name, "...\n")
-  data <- dbReadTable(source_con, DBI::Id(schema = source_schema, table = tbl_name))
+  data <- dbReadTable(
+    source_con,
+    DBI::Id(schema = source_schema, table = tbl_name)
+  )
 
   if (sanitize) {
     data <- data |>
-      mutate(across(where(is.character),
-                    ~ iconv(., from = "", to = "UTF-8", sub = "")))
+      mutate(across(
+        where(is.character),
+        ~ iconv(., from = "", to = "UTF-8", sub = "")
+      ))
   }
 
   dbWriteTable(
-    dest_con, 
-    dest_id, 
-    data)
+    dest_con,
+    dest_id,
+    data
+  )
   cat("  Copied", nrow(data), "rows\n")
   invisible(TRUE)
 }

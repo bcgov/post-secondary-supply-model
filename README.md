@@ -40,6 +40,21 @@ df
 Scripts are labeled sequentially and generally run in that order with the exception of 01e-stp-distributions.R.  Most analysis scripts have a corresponding script that 
 handles loading of the data required for analysis. The run order is:
 
+Data loading (refresh once per data cycle, e.g. new survey year):
+
+- run-data-loading.R — pipeline entry point that runs all load scripts in order:
+
+  - load-stp-enrol.R / load-stp-cred.R — STP enrolment/credential raw data (TSV -> SQL)
+  - load-infoware-lookups.R — INFOWARE CIP taxonomy + outcomes reference tables (Oracle -> SQL)
+  - load-outcomes-data.R — bulk loads every student-outcomes CSV from the LAN into SQL Server as `<name>_raw` (raw archive copies)
+  - load-cohort-bgs.R / load-cohort-trd.R / load-cohort-appso.R / load-cohort-dacso.R — read survey responses + lookups from the LAN, build the cleaned cohort tables and write them as `<name>_r` (`t_bgs_data_final_r`, `trd_data_r`, `t_appso_data_final_r`, `t_dacso_data_part_1_stepa_r`, ...). load-cohort-bgs.R also copies the INFOWARE BGS distribution/cohort tables (BGS_DIST_20_24/21_25, BGS_COHORT_INFO) from Oracle to dbo/shareschema in 80k-row chunks (skip if already present) — consumed by 02a-bgs-program-matching.R.
+
+  All load scripts write to the schema configured as `shareschema` (dbo by
+  default) in config.yml, overwrite by default (safe to rerun — no
+  duplication between the `_raw` archives and the cleaned `_r` tables), and
+  log progress to ./R/execution_log.txt. They require VPN/LAN access and
+  the Oracle Instant Client (for INFOWARE tables).
+
 Initial data pre-processing and post-secondary analysis:
 
 - 01a-enrolment-preprocessing.R 
@@ -69,7 +84,6 @@ Create occupation and new labour supply weighted distributions:
 - 02b-1-pssm-cohorts.R 
 - 02b-2-pssm-cohorts-new-labour-supply.R 
 - 02b-3-pssm-cohorts-occupation-distributions.R 
-
 Calculate near completers ratio:
 
 - load-near-completers-ttrain.R

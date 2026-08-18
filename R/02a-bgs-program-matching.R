@@ -105,6 +105,7 @@ log_info("==== 02a-bgs-program-matching.R START ====")
 lan <- config::get("lan")
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+shareschema <- config::get("shareschema")
 
 # Connect to Decimal
 con <- dbConnect(
@@ -118,39 +119,62 @@ log_info("Connected to SQL Server database")
 
 
 # ---- Read in INFOWARE tables ----
-# Note: These tables should be loaded by 'R/load-infoware-lookups.R'
-# source("R/load-infoware-lookups.R")
-# We check for their existence and proceed.
+# The BGS distribution/cohort tables are copied to SQL Server (dbo) by
+# 'R/load-cohort-bgs.R' (or 'R/run-data-loading.R'); the CIP taxonomy tables
+# are copied by 'R/load-infoware-lookups.R' (my_schema).  We check for their
+# existence and proceed.
 
-required_tables <- c(
-  "INFOWARE_BGS_DIST_19_23",
-  "INFOWARE_BGS_DIST_18_22",
-  "INFOWARE_BGS_COHORT_INFO",
-  "INFOWARE_L_CIP_6DIGITS_CIP2016",
-  "INFOWARE_L_CIP_4DIGITS_CIP2016",
-  "INFOWARE_L_CIP_2DIGITS_CIP2016"
+# BGS survey records, in the shared (dbo) schema
+required_bgs_tables <- c(
+  "INFOWARE_BGS_DIST_20_24",
+  "INFOWARE_BGS_DIST_21_25",
+  "INFOWARE_BGS_COHORT_INFO"
 )
 
-missing_tables <- required_tables[
+# CIP taxonomy lookups, in the analyst's own schema
+required_lookups_tables <- c(
+  "INFOWARE_L_CIP_6DIGITS_CIP2021",
+  "INFOWARE_L_CIP_4DIGITS_CIP2021",
+  "INFOWARE_L_CIP_2DIGITS_CIP2021"
+)
+
+missing_bgs <- bgs_infoware_tables[
   !map_lgl(
-    required_tables,
+    bgs_infoware_tables,
+    ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
+  )
+]
+missing_lookups <- lookup_tables[
+  !map_lgl(
+    lookup_tables,
     ~ dbExistsTable(con, Id(schema = my_schema, table = .x))
   )
 ]
 
-if (length(missing_tables) > 0) {
+if (length(missing_bgs) > 0) {
   stop(glue::glue(
-    "The following required tables are missing in schema '{my_schema}': {paste(missing_tables, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
+    "The following required INFOWARE BGS tables are missing in schema '{shareschema}': {paste(missing_bgs, collapse = ', ')}. Please run 'R/load-cohort-bgs.R' first."
+  ))
+}
+if (length(missing_lookups) > 0) {
+  stop(glue::glue(
+    "The following required CIP lookup tables are missing in schema '{my_schema}': {paste(missing_lookups, collapse = ', ')}. Please run 'R/load-infoware-lookups.R' first."
   ))
 }
 log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
-infoware_bgs_19_23 <- tbl(con, in_schema(my_schema, "INFOWARE_BGS_DIST_19_23"))
-infoware_bgs_18_22 <- tbl(con, in_schema(my_schema, "INFOWARE_BGS_DIST_18_22"))
+infoware_bgs_20_24 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_20_24")
+)
+infoware_bgs_21_25 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_21_25")
+)
 infoware_cohort_info <- tbl(
   con,
-  in_schema(my_schema, "INFOWARE_BGS_COHORT_INFO")
+  in_schema(shareschema, "INFOWARE_BGS_COHORT_INFO")
 )
 
 cip_6_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016"))
@@ -216,21 +240,21 @@ log_info(
 # We need one consistent table with common field names before matching to STP.
 #
 # Inputs:
-# - INFOWARE_BGS_DIST_19_23
-# - INFOWARE_BGS_DIST_18_22
+# - INFOWARE_BGS_DIST_20_24
+# - INFOWARE_BGS_DIST_21_25
 # - INFOWARE_BGS_COHORT_INFO
 #
 # Output:
 # - T_BGS_Data_Final_for_OutcomesMatching
 #
 # Notes:
-# - The current script takes all years from the 2019–2023 table and only 2018
-#   from the 2018–2022 table.
+# - The current script takes all years from the 2020–2024 table and only 2025
+#   from the 2021–2025 table (2025 is the only year the 20_24 table lacks).
 # - STQU_ID is the safest row-level key for later updates in this table.
 # ------------------------------------------------------------------------------
 
-# Step 1: 2020 Outcomes (from 19_23 table)
-t_bgs_step1 <- infoware_bgs_19_23 %>%
+# Step 1: 2020–2024 Outcomes (from 20_24 table)
+t_bgs_step1 <- infoware_bgs_20_24 %>%
   select(
     STQU_ID,
     RESPONDENT,
@@ -283,9 +307,9 @@ t_bgs_step1 <- infoware_bgs_19_23 %>%
     CPC
   )
 
-# Step 2: 2018 Outcomes (from 18_22 table, filtered for Year 2018)
-t_bgs_step2 <- infoware_bgs_18_22 %>%
-  filter(YEAR == 2018) %>%
+# Step 2: 2025 Outcomes (from 21_25 table, filtered for Year 2025)
+t_bgs_step2 <- infoware_bgs_21_25 %>%
+  filter(YEAR == 2025) %>%
   select(
     STQU_ID,
     RESPONDENT,
@@ -948,7 +972,11 @@ bgs_matching_flagged <- bgs_matching_flagged |>
         (YEAR == 2022 &
           PSI_AWARD_SCHOOL_YEAR %in% c("2019/2020", "2020/2021")) |
         (YEAR == 2023 &
-          PSI_AWARD_SCHOOL_YEAR %in% c("2020/2021", "2021/2022")) ~
+          PSI_AWARD_SCHOOL_YEAR %in% c("2020/2021", "2021/2022")) |
+        (YEAR == 2024 &
+          PSI_AWARD_SCHOOL_YEAR %in% c("2021/2022", "2022/2023")) |
+        (YEAR == 2025 &
+          PSI_AWARD_SCHOOL_YEAR %in% c("2022/2023", "2023/2024")) ~
         "Yes",
       TRUE ~ NA_character_
     )
@@ -2925,7 +2953,9 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
+log_info(
+  "Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)"
+)
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------

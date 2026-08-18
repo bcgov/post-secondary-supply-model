@@ -150,7 +150,7 @@ trd_data <- trd_data |>
   select(-WEIGHT) |>
   inner_join(
     t_weights |>
-      filter(MODEL == "2022-2023", SURVEY == "TRD") |>
+      filter(MODEL == "2024-2025", SURVEY == "TRD") |>
       select(SUBM_CD, WEIGHT = any_of(target_weight)),
     by = "SUBM_CD"
   ) |>
@@ -314,7 +314,7 @@ t_bgs_data_final <- t_bgs_data_final |>
   select(-WEIGHT, -AGE_GROUP, -AGE_GROUP_ROLLUP) |>
   inner_join(
     t_weights |>
-      filter(MODEL == "2022-2023", SURVEY == "BGS") |>
+      filter(MODEL == "2024-2025", SURVEY == "BGS") |>
       mutate(SURVEY_YEAR = as.double(SURVEY_YEAR)) |>
       select(SURVEY_YEAR, WEIGHT = any_of(target_weight)),
     by = "SURVEY_YEAR"
@@ -460,7 +460,7 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
   select(-WEIGHT) |>
   inner_join(
     t_weights |>
-      filter(MODEL == "2022-2023", SURVEY == "DACSO") |>
+      filter(MODEL == "2024-2025", SURVEY == "DACSO") |>
       select(SUBM_CD, WEIGHT = any_of(target_weight)),
     by = c("COCI_SUBM_CD" = "SUBM_CD")
   ) |>

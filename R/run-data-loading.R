@@ -29,8 +29,22 @@
 #   load-stp-cred.R            -- STP credential raw data (TSV -> SQL)
 #   load-infoware-lookups.R    -- INFOWARE CIP taxonomy + outcomes reference tables
 #                                 (Oracle INFOWARE -> SQL, one-time per cycle)
-#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data
-#                                 (CSV from LAN -> SQL)
+#   load-outcomes-data.R       -- BGS, DACSO, APPSO, TRD survey data (CSV from LAN -> SQL,
+#                                 <name>_raw archive tables, sanitized writes)
+#   load-cohort-bgs.R          -- BGS cohort survey data (LAN CSV -> SQL, *_r tables)
+#                                 + INFOWARE BGS dist/cohort tables (Oracle -> SQL, chunked)
+#   load-cohort-trd.R          -- TRD cohort survey data (LAN CSV -> SQL, *_r tables)
+#   load-cohort-appso.R        -- APPSO cohort survey data (LAN CSV -> SQL, *_r tables)
+#   load-cohort-dacso.R        -- DACSO cohort survey data (LAN CSV -> SQL, *_r tables)
+#
+# NOTE: the load-cohort-*.R scripts can be rerun safely (overwrite is safe) and are intended to be mode-agnostic.
+# Some scripts may still adjust behavior when run flags (e.g. qi_run) exist in the session (e.g. APPSO weights).
+# Quality Improvement run: re-weight excluding the most recent survey cycle
+# (C_Outc25 -> 0) so the QI run only uses the cycles shared with the
+# previous model run.
+# The prep-for-*.R runners invoke them at the start of each model run.
+# All load scripts write to the schema configured as shareschema (dbo by default),
+# overwrite existing tables, and log to ./R/execution_log.txt.
 #
 # NEXT STEP:
 #   After this script completes, run run-data-preprocessing.R to process the raw
@@ -73,7 +87,7 @@ my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
 
 log_info(glue::glue(
-  "Schema: {my_schema} | Database: {db_config$database}"
+  "My schema: {my_schema} | Database: {db_config$database} | Load scripts write to: {config::get('shareschema')}"
 ))
 
 # ---- Data loading scripts (in execution order) ----
@@ -84,7 +98,11 @@ data_loading_files <- c(
   "./R/load-stp-enrol.R",
   "./R/load-stp-cred.R",
   "./R/load-infoware-lookups.R",
-  "./R/load-outcomes-data.R"
+  "./R/load-outcomes-data.R",
+  "./R/load-cohort-bgs.R",
+  "./R/load-cohort-trd.R",
+  "./R/load-cohort-appso.R",
+  "./R/load-cohort-dacso.R"
 )
 
 log_info(glue::glue(
