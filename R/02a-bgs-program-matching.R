@@ -1957,14 +1957,11 @@ BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly <- BGS_Matching_STP_Cdtl_Chec
 if (nrow(BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly) > 0) {
   # Stage manual updates to temporary SQL table for efficient database joining
 
-  dbWriteTable(
-    con,
-    Id(
-      schema = my_schema,
-      table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_r"
-    ),
+  copy_to_overwrite(
     BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly,
-    overwrite = TRUE
+    con = con,
+    schema = my_schema,
+    table = "BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_r"
   )
 
   # Join manual decisions back to main matching table
@@ -3003,11 +3000,11 @@ if (nrow(dup_override_programs) > 0) {
 }
 
 # Write the approved override table to SQL for database-side joins.
-dbWriteTable(
-  con,
-  "Credential_Unmatched_CIPS_to_update_r",
+copy_to_overwrite(
   credential_unmatched_cips_to_update,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "Credential_Unmatched_CIPS_to_update_r"
 )
 
 # Reload as a dbplyr table reference.
@@ -3873,12 +3870,11 @@ T_BGS_Data_Unmatched_CIPS_to_update <- tibble::tribble(
 )
 
 # Write the update table to SQL for efficient joining
-
-dbWriteTable(
-  con,
-  "T_BGS_Data_Unmatched_CIPS_to_update_r",
+copy_to_overwrite(
   T_BGS_Data_Unmatched_CIPS_to_update,
-  overwrite = TRUE
+  con = con,
+  schema = my_schema,
+  table = "T_BGS_Data_Unmatched_CIPS_to_update_r"
 )
 
 T_BGS_Data_Unmatched_CIPS_to_update <- tbl(
