@@ -178,8 +178,19 @@ infoware_cohort_info <- tbl(
 )
 
 # switch to 2021 CIP tables for 2021 matching cycle
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## The CIP2021 4-digit lookup renamed LCP4_CIP_4DIGITS_NAME to
+## LCP4_DIGITS_NAME; alias it back to the legacy name here so the
+## downstream selects keep working unchanged (same as the migration
+## on 02_program_matching_a, commit 8a30ef1).
 cip_6_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_6DIGITS_CIP2021"))
-cip_4_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021"))
+cip_4_tbl <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021")
+) %>%
+  rename(LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME)
 cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 
 credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup_r"))
