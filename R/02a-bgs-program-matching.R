@@ -164,19 +164,26 @@ if (length(missing_lookups) > 0) {
 log_info("All required INFOWARE tables present in database")
 
 # ---- Table References ----
-infoware_bgs_20_24 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_20_24"))
-infoware_bgs_21_25 <- tbl(con, in_schema(shareschema, "INFOWARE_BGS_DIST_21_25"))
+infoware_bgs_20_24 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_20_24")
+)
+infoware_bgs_21_25 <- tbl(
+  con,
+  in_schema(shareschema, "INFOWARE_BGS_DIST_21_25")
+)
 infoware_cohort_info <- tbl(
   con,
   in_schema(shareschema, "INFOWARE_BGS_COHORT_INFO")
 )
 
-cip_6_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_6DIGITS_CIP2016"))
-cip_4_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_4DIGITS_CIP2016"))
-cip_2_tbl <- tbl(con, in_schema(my_schema, "INFOWARE_L_CIP_2DIGITS_CIP2016"))
+# switch to 2021 CIP tables for 2021 matching cycle
+cip_6_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_6DIGITS_CIP2021"))
+cip_4_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_4DIGITS_CIP2021"))
+cip_2_tbl <- tbl(con, in_schema(shareschema, "INFOWARE_L_CIP_2DIGITS_CIP2021"))
 
-credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup"))
-stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential"))
+credential_non_dup_tbl <- tbl(con, in_schema(my_schema, "credential_non_dup_r"))
+stp_credential_tbl <- tbl(con, in_schema(my_schema, "STP_Credential_r"))
 log_info(
   "Loaded lazy table references: INFOWARE BGS/CIP tables, credential_non_dup, STP_Credential"
 )
@@ -2954,7 +2961,9 @@ credential_unmatched_cips_to_review <- credential_unmatched_cips %>%
 
 credential_unmatched_cips_to_review %>% glimpse()
 
-log_info("Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)")
+log_info(
+  "Previewing credential_unmatched_cips_to_review (unmatched programs where BGS CIP differs from STP)"
+)
 credential_unmatched_cips_to_review %>% tally()
 
 # ------------------------------------------------------------------------------
