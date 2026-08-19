@@ -34,7 +34,7 @@ The census benchmark table was absent from PSSM2025 entirely. The current-cycle 
 pipeline) over carrying PSSM2023's table forward. Staging (`.scratch/02b-2-2025-refresh/census-prep-run.R`):
 copied `dbo.tbl_age_groups_rollup_r` into my_schema (the standalone path never ran the loaders, so
 the table the prep script joins was missing) and dropped two temp-table leftovers from an earlier
-partial attempt. Result: `IDIR\JDUAN.Labour_Supply_Distribution_Stat_Can_r` — **864 rows,
+partial attempt. Result: `my_schema.Labour_Supply_Distribution_Stat_Can_r` — **864 rows,
 identical to `PSSM2023.dbo.Labour_Supply_Distribution_Stat_Can` on every column (max abs diff 0)**,
 as the identical input predicts.
 
@@ -49,7 +49,7 @@ for 194,052/313,036 records. Written to `my_schema`: `labour_supply_distribution
 
 ## Verification vs PSSM2023
 
-Baseline: `IDIR\JDUAN.*_r` tables on PSSM2023 (last cycle's R-run write-backs). **Unlike 02b-1,
+Baseline: `my_schema.*_r` tables on PSSM2023 (last cycle's R-run write-backs). **Unlike 02b-1,
 exact cell matches are not expected for Student Outcomes rows**: the 5-year window slid
 2019–2023 → 2021–2025, so weighted TOTALs and New_Labour_Supply proportions legitimately shift.
 Verification scripts: `.scratch/02b-2-2025-refresh/verify-vs-pssm2023.R`, `verify-refine.R`.
@@ -80,7 +80,7 @@ projections. **Breadcrumb for the 06/07 verification effort**, not an 02b-2 brea
 ## Known downstream impacts on 02b-3 (breadcrumbs for the next effort)
 
 - **Occupation-side StatCan table missing on PSSM2025** — `Occupation_Distributions_Stat_Can`(_r)
-  absent from `IDIR\JDUAN`, `dbo` (live-checked). 02b-3 will need its own prep re-run
+  absent from `my_schema`, `dbo` (live-checked). 02b-3 will need its own prep re-run
   (`R/occ-dists-census-data.R`, line ~299 hardcodes the same `2021 Census PSSM 2022-2023` label);
   the LAN lookups + `tbl_age_groups_rollup_r` staging pattern from #150 applies directly.
 - **Census label contract** — 02b-2 now emits `2021 Census PSSM 2024-2025`. 02b-3's duplicated
