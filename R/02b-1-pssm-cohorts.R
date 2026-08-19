@@ -403,9 +403,20 @@ t_bgs_data_final <- t_bgs_data_final |>
   select(-INST_RECODE)
 
 # update cips after program matching
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: the two STQU_ID join keys read back with different
+## types from the DB -- t_bgs_data_final.STQU_ID is <character>,
+## t_bgs_data_final_for_outcomesmatching.STQU_ID is <numeric> --
+## so the join errored on incompatible types. Coerce the
+## outcomesmatching key to character (via integer, to avoid any
+## float formatting) to match the BGS side, which is what the BGS
+## output STQU_ID is built from downstream.
+## ----------------------------------------------------------
 t_bgs_data_final <- t_bgs_data_final |>
   left_join(
     t_bgs_data_final_for_outcomesmatching |>
+      mutate(STQU_ID = as.character(as.integer(STQU_ID))) |>
       select(
         STQU_ID,
         FINAL_CIP_CODE_4,
