@@ -52,7 +52,7 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
+source("R/utils.R")
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"

@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # This script processes cohort data from student outcomes and creates new labour supply distributions.
-# Outcomes data has been standardized so all cohorts/surveys are combined in a single dataset.
+# Outcomes data has been standardized so all cohorts/surveys are combined in a single dataset
+# (T_Cohorts_Recoded, built by 02b-1-pssm-cohorts.R).
 #
 # At a high level, the script:
 #   Searches and updates invalid NOC codes in bgs and dacso tables
@@ -23,20 +24,53 @@
 # Includes records with a labour force status for those aged 17 to 64,
 # Includes those with an invalid NOC where 100% of CIP is invalid, as the cohort number.
 
-#  participation term P(in labour supply | CIP) is the New_Labour_Supply column from 02b-2's labour_supply_distribution
-
-# OCCSN(NOC) = GRADUATES(cred, age)
-#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
-#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
-#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
-
-# Notes:  create Weight_Age is used to calculate the age for the private institution credentials
-# and needed if the data set doesn’t have age. Some invalid NOC codes (see documentation)
-#         PDEG included at the end of occupation_distribution scripts.
-
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md section 2;
+# weighting detail in docs/weights-explained-02b-2-and-02b-3.md section 3):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)      <- Module 06
+#                x P(in labour supply|CIP)                   <- THIS SCRIPT (02b-2)
+#                x P(NOC|CIP,region)                         <- 02b-3
+# This script produces the participation term: the New_Labour_Supply column of
+# the labour_supply_distribution tables is P(in labour supply | CIP, age,
+# region), estimated from the survey cohorts and benchmarked at the margins by
+# the 2021-Census StatCan distributions appended near the end.
+# The WEIGHT_NLS column it adds to t_cohorts_recoded is the respondent weight
+# 02b-3 re-uses when it computes P(NOC|CIP,region) over the labour-supply
+# population (NLS 1-3) -- the two scripts share the same 4-stage weighting
+# template but calibrate to different anchors (raw cohort count here,
+# NLS-weighted labour-supply base there; see the weights doc).
 #
-# FIXME Labour_Supply_Distribution_LCP2/LCP_No_TT have LCP2_CRED not LCIP2_CRED
-# FIXME Missing Non-Student Outcomes and PDEG at this point.  To be brought in after
+# INPUT PROVENANCE (where each required table comes from):
+#   - t_cohorts_recoded: in-session from 02b-1 when chained by
+#     prep-for-fresh-run.R, or my_schema.t_cohorts_recoded_r standalone. The
+#     master respondent-level table; carries the NLS codes, the
+#     LCIP4_CRED / LCIP2_CRED stratum keys and the model-year WEIGHT.
+#   - t_current_region_pssm_codes / t_current_region_pssm_rollup_codes /
+#     t_noc_broad_categories: stable dbo lookups, loaded into the session by
+#     load-cohort-dacso.R ahead of this script in the runner chain.
+#   - labour_supply_distribution_stat_can: the 2021-Census benchmark, built by
+#     R/labour-supply-dists-census-data.R from the StatCan export
+#     (LAN data/statcan/stat-can-data-export-for-labour-supply-distributions.xlsx)
+#     into my_schema -- the only required table no cohort loader materializes,
+#     so this script reads it from the database directly.
+#
+# OUTPUTS (written to the PERSONAL schema, my_schema, as <name>_r):
+#   - labour_supply_distribution / _no_tt / _lcp2 / _lcp2_no_tt: the four
+#     distribution tables Module 07 joins. The _lcp2 variants carry the 2-digit
+#     key column LCP2_CRED -- deliberately NOT LCIP2_CRED, matching the SQL
+#     originals and the PSSM2023 baseline tables.
+#   - t_cohorts_recoded: re-written with the WEIGHT_NLS column added (02b-1's
+#     write lacks it; this overwrite is the correct sequencing).
+#   - tmp_tbl_weights_nls: the per-stratum/year weight table 02b-3 requires
+#     in-session.
+# Census rows inside the outputs carry 2-digit LCP4_CD-based keys and coexist
+# with the SO rows' 4-digit composite keys; consumers tell them apart by the
+# Survey column ("Student Outcomes" vs "2021 Census ...") and always
+# prefix-match the census label downstream, never full-label equality.
+#
+# Notes:  some invalid NOC codes are recoded below (see Initial Data Checks);
+#         PDEG (law) is included at the end via the BACH legal-professions
+#         proxy block -- the earlier "missing PDEG / Non-Student Outcomes"
+#         FIXME is resolved by the StatCan append + that block.
 
 # -------------------------- Libraries and Global Variables  ---------------------
 
@@ -46,16 +80,35 @@ library(glue)
 library(assertthat)
 
 
-years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
+# Model data window: the survey years feeding this run. The window is
+# enforced upstream -- 02b-1's t_year_survey_year joins already restrict
+# t_cohorts_recoded to these years -- so this vector documents the window
+# for the run and scopes the invalid-NOC diagnostic below. Keep it in sync
+# with the window when the model refreshes.
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: window slid 2019-2023 -> 2021-2025 (02b-1's
+## output now spans the new years). The vector is now actually
+## referenced -- the invalid-NOC diagnostic below filters on it,
+## replacing the old quoted-string list that never matched the
+## numeric SURVEY_YEAR column and silently returned nothing.
+## ----------------------------------------------------------
+years <- c(2021:2025) # years of data used this model run
 
-# -------------------------- DEVELOPMENT ONLY -------------------------------------
-# use this section for development and checking against the SQL versions
-# remove whatever we don't use when done, depending on final design decisions
-
-library(RODBC)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: this section is production code, not development
+## scaffolding -- the connection feeds the StatCan read here and
+## the write-backs at the end of the script. Banner renamed and
+## the unused library(RODBC) dropped (the script connects via
+## DBI/odbc; RODBC was never called).
+## ----------------------------------------------------------
+# ---- DB Connection and StatCan Read ----
 library(DBI)
 
 # ---- Connect to SQL Server and read StatCan Tables ----
+# Production input, despite the section banner above: the connection serves
+# the StatCan read here AND the write-backs at the end of the script.
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 db_config <- config::get("decimal")
@@ -68,18 +121,45 @@ con <- dbConnect(
 )
 
 
-labour_supply_distribution_stat_can <- tibble(dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-)) |>
-  # not sure which one this should be but this matches what is in the SQL table
-  mutate(
-    SURVEY = if_else(
-      SURVEY == "2021 Census PSSM 2022-2023",
-      "2021 Census PSSM 2023-2024",
-      SURVEY
+# 2021-Census benchmark distributions (see header INPUT PROVENANCE): built
+# into my_schema by R/labour-supply-dists-census-data.R. The label remap
+# below normalizes the census script's export-vintage label ("2022-2023",
+# the cycle the export was mapped in) to the current model-year label at
+# read time -- this remap is the per-refresh mechanism for relabeling.
+# Downstream consumers only prefix-match "2021 Census", never the full label.
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: guarded per the 02b-1 pattern (commit 1449ce3)
+## so standalone runs and double-sourcing don't re-read. The read
+## prefers the _r table written by R/labour-supply-dists-census-
+## data.R (this cycle's sourcing decision, ticket #150) and falls
+## back to the no-suffix name prep-for-fresh-run copies from the
+## second schema. Remap target updated to the current model year
+## (2021 Census PSSM 2024-2025); the census script's own label
+## stays as the export vintage, remapped here each refresh.
+## ----------------------------------------------------------
+if (!exists("labour_supply_distribution_stat_can")) {
+  stat_can_name <- if (dbExistsTable(
+    con,
+    Id(schema = my_schema, table = "Labour_Supply_Distribution_Stat_Can_r")
+  )) {
+    "Labour_Supply_Distribution_Stat_Can_r"
+  } else {
+    "Labour_Supply_Distribution_Stat_Can"
+  }
+  labour_supply_distribution_stat_can <- tibble(dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."{stat_can_name}"'))
+  )) |>
+    # not sure which one this should be but this matches what is in the SQL table
+    mutate(
+      SURVEY = if_else(
+        SURVEY == "2021 Census PSSM 2022-2023",
+        "2021 Census PSSM 2024-2025",
+        SURVEY
+      )
     )
-  )
+}
 
 # -------------------------- Required Tables -----------------------------------------
 
@@ -105,6 +185,10 @@ assert_that(
 )
 
 # --------------------------  Standardize Names -----------------------------
+# Defensive case normalization: 02b-1's output is already upper-case, but the
+# dbo lookups and (especially) tables read back from SQL Server can arrive
+# with mixed-case column names depending on how they were written. Everything
+# downstream keys on the upper-case contract.
 t_cohorts_recoded <- t_cohorts_recoded |>
   rename_with(toupper)
 t_current_region_pssm_codes <- t_current_region_pssm_codes |>
@@ -118,15 +202,26 @@ labour_supply_distribution_stat_can <- labour_supply_distribution_stat_can |>
 
 
 # -------------------------- Initial Data Checks ---------------------
+# Diagnostics only -- both blocks print to the console and are not assigned.
+# They surface weight coverage and stray NOC codes before the weighting runs.
+
 # ---- base weights
+# one row per distinct (survey, survey year, base WEIGHT) combination --
+# eyeballs that every survey/year stratum carries exactly one year weight.
 # DACSO_Q005_DACSO_DATA_Part_1b3_Check_Weights
 t_cohorts_recoded |>
   count(SURVEY, SURVEY_YEAR, WEIGHT) |>
   select(-n)
 
 # ---- invalid noc codes
+# Lists NOC_CD values present in the cohort data but absent from
+# t_noc_broad_categories (UNIT_GROUP_CODE is NA after the left join).
+# SURVEY_YEAR is numeric in 02b-1's output -- compare against the numeric
+# `years` vector, not quoted strings, or the filter silently empties.
 # in 2019 there were some invalid nocs: 403X were set to 4031, 4032, or 9999
 # in 2021 there were some invalid nocs: 4122X were set to 99999
+# (2025 refresh check: 4122X is the only pattern remaining, 465 rows across
+#  BGS/DACSO 2021-2025 -- see the recode below)
 # DACSO_Q99A_STQUI_ID
 # DACSO_Q005_DACSO_DATA_Part_1b4_Check_NOC_Valid
 t_cohorts_recoded |>
@@ -142,7 +237,7 @@ t_cohorts_recoded |>
   filter(
     !is.na(AGE_GROUP_ROLLUP),
     CURRENT_REGION_PSSM_CODE != -1,
-    SURVEY_YEAR %in% c('2019', '2020', '2021', '2022', '2023'),
+    as.numeric(SURVEY_YEAR) %in% years, # numeric `years` vector -- quoted strings never match the numeric column
     !is.na(NOC_CD),
     NOC_CD != "",
     is.na(UNIT_GROUP_CODE)
@@ -160,6 +255,13 @@ t_cohorts_recoded <- t_cohorts_recoded |>
   mutate(NOC_CD = if_else(NOC_CD == "4122X", "99999", NOC_CD))
 
 # -------------------------- Recode New Labour Supply ----------------------
+# NLS 2 -> 3 recode. NLS-2 = in the labour supply while still studying (DACSO
+# and BGS only); NLS-1 = in the supply proper. When a stratum's NLS-2 records
+# have NO NLS-1 records anywhere in the same (survey, region rollup, age,
+# institution, LCIP4_CRED) cell, the studying-while-working signal is all the
+# stratum has -- recode those respondents to 3 so they still count toward the
+# labour-supply numerator here, while staying distinguishable from NLS-1
+# downstream (02b-3 excludes NLS-2 from its NOC denominator but keeps 3).
 # for records with an NLS-2 record and no NLS1, set to 3
 # DACSO_Q005_DACSO_DATA_Part_1c_NLS1
 # DACSO_Q005_DACSO_DATA_Part_1c_NLS2
@@ -259,6 +361,11 @@ t_cohorts_recoded %>%
   arrange(SURVEY, SURVEY_YEAR, CURRENT_REGION_PSSM_CODE)
 
 # -------------------------- Create Base Weights --------------------------
+# The full-cohort base: respondent-level record counts per stratum (+STQU_ID),
+# over ALL valid NLS values (0-3). This is the anchor the WEIGHT_NLS
+# adjustment factor calibrates to -- the calibration identity is
+#   sum(resp * WEIGHT_NLS) == BASE_TOTAL  per stratum
+# (checked by the z09 blocks below; derivation in the weights doc section 3).
 # this is for the full cohort
 # DACSO_Q005_Z01_Base_NLS
 z01_base_nls <- t_cohorts_recoded %>%
@@ -287,6 +394,19 @@ z01_base_nls <- t_cohorts_recoded %>%
 #DACSO_Q005_Z02b_Respondents_Union
 
 # -------------------------- Create NLS Weights --------------------------
+# The 4-stage weighting template (docs/weights-explained-02b-2-and-02b-3.md
+# section 3 -- same template as 02b-3, different anchor):
+#   WEIGHT_NLS = (COUNT / RESPONDENTS)     <- inverse response rate: each
+#                                            region-valid respondent stands
+#                                            for the stratum's non-response
+#                  * WEIGHT_YEAR           <- recency weight 1-5 from 02b-1
+#                  * ADJ_FAC               <- BASE_TOTAL / WEIGHTED_TOTAL:
+#                                            divides out the average year
+#                                            weight so the stratum total
+#                                            anchors to the RAW cohort count
+# The SQL intermediates Z02c/Z03/Z04/Z05 are collapsed into the single
+# tmp_tbl_weights_nls pipeline below (strata drop SURVEY_YEAR at the
+# adjustment stage, pooling the 5-year window).
 # DACSO_Q005_Z02c_Weight_tmp
 # DACSO_Q005_Z02c_Weight
 # DACSO_Q005_Z03_Weight_Total
@@ -356,6 +476,10 @@ tmp_tbl_weights_nls <- tmp_tbl_weights_nls |>
   ungroup()
 
 # ---- null Weight_NLS field and update
+# Initialize then join WEIGHT_NLS back onto the respondent table, keyed on
+# everything but region (the weight is region-blind by design -- 02b-3
+# introduces region fresh; weights doc section 8.1): rows with no valid
+# region (-1) or no matching stratum keep NA.
 # Mainly if working in SQL but maybe needed for QI run depending on how we handle the QI weights.
 # Todo: check documentation and consider how/if to implement.
 # DACSO_Q005_Z08_Weight_NLS_Update
@@ -394,6 +518,10 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
   select(-NEW_VAL)
 
 # ----- check weights
+# z09 verification blocks: the first recomputes RESPONDENTS * WEIGHT_NLS per
+# stratum -- summed over a stratum it must reproduce BASE (the calibration
+# identity of the weighting above); the second lists strata whose weight
+# ended up 0/NA so those cohorts are visible rather than silently dropped.
 # DACSO_Q005_Z09_Check_Weights
 # DACSO_Q005_Z09_Check_Weights_No_Weight_CIP
 z09_check_weights3 <- t_cohorts_recoded %>%
@@ -439,13 +567,15 @@ z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
   select(SURVEY, INST_CD, AGE_GROUP_ROLLUP, TTRAIN, LCIP4_CRED, BASE)
 
 # ---- clear environment
-rm(
-  z01_base_nls,
-  z02c_weight_tmp,
-  z02c_weight,
-  z03_weight_total,
-  z04_weight_adj_fac
-)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: rm() named four SQL-only intermediates
+## (z02c_weight_tmp, z02c_weight, z03_weight_total,
+## z04_weight_adj_fac) that never exist in R -- the pipeline
+## collapsed them into tmp_tbl_weights_nls -- so the call errored
+## every run at this point. Trimmed to the one real object.
+## ----------------------------------------------------------
+rm(z01_base_nls)
 
 # -------------------------- Weighted New Labour Supply --------------------------
 # apply nls weights to group totals and filter to observations of interest
@@ -511,6 +641,15 @@ weight_new_labour_supply <- t_cohorts_recoded %>%
 
 # -------------------------- Weighted Counts - NLS Distributions --------------------------
 # calculate weighted counts of new labor supply - various distributions.  There are 12 of these
+# Naming scheme for the 12 count tables (and the 8 proportion tables built on
+# them below):
+#   (base) ..... NLS 1-3 counts (the labour-supply numerator)
+#   _0 ......... NLS 0 counts (the out-of-supply complement)
+#   _total ..... NLS 0-3 counts (the denominator; drops the region dimension)
+#   _2d ........ 2-digit CIP keys (LCP2_CD) instead of 4-digit
+#   _no_tt ..... TTRAIN collapsed out of the stratum
+# Only the pairs feeding the final four labour_supply_distribution* outputs
+# matter downstream; the rest are the SQL lineage kept for traceability.
 # DACSO_Q006b_Weighted_New_Labour_Supply
 # DACSO_Q006b_Weighted_New_Labour_Supply_0
 # DACSO_Q006b_Weighted_New_Labour_Supply_0_2D
@@ -790,6 +929,14 @@ dacso_q006b_weighted_new_labour_supply_total_no_tt <- weight_new_labour_supply %
 # -------------------------- Weighted Proportions - NLS Distributions --------------------------
 # calculate weighted proportions/percentages of new labor supply - 8 various distributions.  Each
 # query/code chunk below is a combination of one of the 12 weighted counts tables above.
+# Semantics (weights doc section 3): PERC = region's weighted NLS 1-3 count /
+# all-region weighted NLS 0-3 total, i.e. P(in labour supply | CIP, age,
+# region). The join keys are (AGE_GROUP_ROLLUP, LCIP4_CRED) -- the total
+# table carries no region, so the join fans each total out across the
+# regions present in the numerator table.
+# The _0 complement tables append explicit New_Labour_Supply = 0 rows: PERC
+# = 1 - COUNT/TOTAL with filter(COUNT > 0, PERC == 0) keeps exactly the
+# strata that are ENTIRELY out of supply (NLS-0 count == total).
 
 # DACSO_Q007a_Weighted_New_Labour_Supply
 # DACSO_Q007a_Weighted_New_Labour_Supply_0
@@ -1076,6 +1223,11 @@ labour_supply_distribution_lcp2_no_tt <- bind_rows(
 
 
 # -------------------------   Include StatCan Data -------------------------
+# Append the 2021-Census benchmark rows to the main distribution (only the
+# 4-digit table gets them -- matches the SQL originals). bind_rows NA-pads
+# the columns absent at source: the census table has no TTRAIN and no
+# LCIP2_CRED, so census rows carry NA in both. Census rows also use 2-digit
+# LCP4_CD values; consumers distinguish them via the Survey prefix (header).
 # there'e no TTRAIN variable in the statcan data, this should coerce NA in that column, though.
 labour_supply_distribution <- labour_supply_distribution %>%
   bind_rows(
@@ -1097,13 +1249,20 @@ labour_supply_distribution <- labour_supply_distribution %>%
 
 
 # ------  create distribution for pdeg/law distribution ------
-# These queries calculate New Labour Supply Distribution for Law/PDEG
+# These queries calculate New Labour Supply Distribution for Law/PDEG.
+# The census PSSM_CREDENTIAL == PDEG / LCP4 "07" (law) rows are removed
+# first, then a replacement distribution is derived from the Student
+# Outcomes side: BGS respondents with a legal-professions baccalaureate
+# (BACH, LCP4 starting "22" -- the pre-law population) supply the proxy
+# signal, relabeled as PDEG / LCP4 "07". The juris-doctor completers
+# themselves are never surveyed, so their participation term rides on the
+# pre-law cohort's (same rationale as Module 07's proxy for GRAD).
 labour_supply_distribution <- labour_supply_distribution |>
   filter(
     !(str_starts(Survey, '2021 Census') & # upper case SURVEY
       PSSM_CREDENTIAL == "PDEG" &
       str_starts(LCP4_CD, "07"))
-  ) #6459 records kept
+  )
 
 labour_supply_distribution_pdeg <- labour_supply_distribution |>
   filter(
@@ -1160,20 +1319,32 @@ labour_supply_distribution <- labour_supply_distribution |>
 #  - Close DB connections
 #  - Remove all other objects at the end of each script.
 ## ------------------------------------------------------------------------------------------------
+# Write-back contract: each kept table lands in the PERSONAL schema
+# (my_schema) as <name>_r, overwrite. Downstream consumers:
+#   - 07-occupation-projections reads the four labour_supply_distribution*
+#     tables back from my_schema (required-tables section there);
+#   - 02b-3 consumes t_cohorts_recoded (with WEIGHT_NLS) and
+#     tmp_tbl_weights_nls in-session when chained by the runner;
+#   - 06 uses none of these.
+# t_cohorts_recoded is intentionally re-written here even though 02b-1 also
+# wrote it -- this write adds the WEIGHT_NLS column.
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: the list named six objects this script never
+## creates (appso_graduates, t_dacso_data_part_1, trd_graduates
+## and the three dbo lookups) -- standalone runs errored inside
+## base::get, and chained runs rewrote stale loader copies to
+## my_schema. Trimmed to what 02b-2 itself creates or modifies;
+## 02b-3 gets the lookups from load-cohort-dacso in-session.
+## ----------------------------------------------------------
 tables_to_keep <- c(
   "labour_supply_distribution",
   "labour_supply_distribution_no_tt",
   "labour_supply_distribution_lcp2",
   "labour_supply_distribution_lcp2_no_tt",
-  "t_cohorts_recoded",
-  "t_current_region_pssm_codes",
-  "t_current_region_pssm_rollup_codes",
-  "tmp_tbl_weights_nls",
-  "t_noc_broad_categories",
-  "appso_graduates",
-  "t_dacso_data_part_1",
-  "trd_graduates"
+  "t_cohorts_recoded",   # modified here: WEIGHT_NLS column added
+  "tmp_tbl_weights_nls"  # created here
 )
 
 write_table_to_db <- function(table_name, schema, con) {

@@ -23,3 +23,7 @@ _Avoid_: survey year (calendar year of data collection — a different axis)
 **New Labour Supply (NLS)**:
 A respondent's labour-supply code: 1 = in the supply, 2 = in the supply while studying (kept in the cohort but excluded from 02b-3's NOC denominator), 3 = an NLS-2 record whose stratum has no NLS-1 records (recoded by 02b-2), 0 = not in the supply.
 _Avoid_: labour supply (the aggregate distribution)
+
+**StatCan census benchmark**:
+The 2021-Census labour-supply distributions built by `R/labour-supply-dists-census-data.R` into the personal schema (`Labour_Supply_Distribution_Stat_Can_r`). Its SURVEY label carries the export vintage ("2021 Census PSSM 2022-2023"); 02b-2 remaps it to the current model year at read time. Downstream code always prefix-matches `2021 Census` on the label — never full-label equality. Census rows key on 2-digit LCP4_CD values and lack TTRAIN/LCIP2_CRED (NA-padded on append).
+_Avoid_: StatCan table (ambiguous — same export feeds the occupation benchmark), census label (say export vintage or model-year label)
