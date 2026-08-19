@@ -47,6 +47,39 @@
 #     Update T-Year_Survey_Year and T_weights (for all cohorts)
 #     2006 dacso all NULL lcip-4-creds (remove 2006)
 #
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md section 2;
+# weighting detail in docs/weights-explained-02b-2-and-02b-3.md):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)      <- Module 06
+#                x P(in labour supply|CIP)                   <- 02b-2
+#                x P(NOC|CIP,region)                         <- 02b-3
+# This script standardizes the four student-outcome surveys into T_Cohorts_Recoded,
+# the master respondent-level table those probabilities are computed from:
+#   - the LCIP4_CRED / LCIP2_CRED cohort keys built here are the stratum keys
+#     02b-2 and 02b-3 weight by, and the key Module 06 distributes
+#     P(CIP|cred,age) over (with 01c- credential analysis and the 04-/06-
+#     projections downstream of that);
+#   - the NEW_LABOUR_SUPPLY (NLS) codes assigned here are the outcome 02b-2
+#     turns into P(in labour supply|CIP).
+#
+# INPUT PROVENANCE (where each required table comes from):
+#   - Survey tables and most lookups are loaded into the session by the four
+#     load-cohort-*.R scripts (chained ahead of this one by prep-for-fresh-run.R)
+#     and written to the SHARED schema dbo as <name>_r tables.
+#   - t_bgs_data_final_for_outcomesmatching is the ONLY required table outside
+#     dbo: it is written to the personal schema (my_schema) by
+#     02a-bgs-program-matching.R.
+#   - t_weights (a new model-year block each refresh) and t_year_survey_year
+#     (new SUBM_CD cycles each refresh) are refreshed WITH the data; the other
+#     lookups (region codes, tbl_age, tbl_age_groups, t_pssm_credential_grouping,
+#     t_bgs_inst_recode) are stable reference tables.
+#
+# THE RBIND CONTRACT: T_Cohorts_Recoded starts as an EMPTY SKELETON -- the column
+# template built in load-cohort-dacso.R, emptied below with filter(FALSE). Each
+# survey branch transmutes its records to a SUBSET of the skeleton's columns;
+# missing columns are NA-padded before rbind. The BGS and DACSO branches also
+# carry delete-then-insert filters (filter(SURVEY != ...)) inherited from the
+# original SQL, where the table persisted between runs -- harmless here, since
+# the skeleton is emptied at the top of every run.
 
 library(tidyverse)
 library(config)
@@ -69,9 +102,21 @@ log_info <- function(msg) {
 
 log_info("==== 02b-1-pssm-cohorts.R START ====")
 
-# regular_run <- T
-# qi_run <- F
-# ptib_run <- F
+# Run-mode flags: when this script runs inside a runner (prep-for-fresh-run.R,
+# prep-for-qi-run.R, prep-for-ptib-run.R) these are set in .GlobalEnv BEFORE the
+# file is sourced. The guarded defaults below cover standalone runs without
+# touching runner-set values; target_weight (required-tables section) reads
+# qi_run.
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: qi_run is read at target_weight but was never
+## defined in-script (the assignments were commented out), so any
+## standalone run errored immediately. Guarded defaults make the
+## script standalone-safe; runners still override.
+## ----------------------------------------------------------
+if (!exists("regular_run")) regular_run <- TRUE
+if (!exists("qi_run")) qi_run <- FALSE
+if (!exists("ptib_run")) ptib_run <- FALSE
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -95,12 +140,25 @@ log_info("Connected to SQL Server database")
 ## --------------------------------------Required Tables------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 
-# List of required tables with categories
-# these to be renamed in load scripts
+# Required tables, by provenance (see header for the full picture):
+#   dbo -- survey data ... trd_graduates, trd_data, appso_data_final,
+#                         appso_graduates, bgs_data_final, bgs_inst_recode,
+#                         t_dacso_data_part_1_stepa,
+#                         infoware_c_outc_clean_short_resp
+#   dbo -- refreshed ..... t_weights, t_year_survey_year
+#   dbo -- stable ........ t_current_region_pssm_codes,
+#                         t_current_region_pssm_rollup_codes(_bc),
+#                         tbl_age, tbl_age_groups, t_pssm_credential_grouping
+#   my_schema ............ t_bgs_data_final_for_outcomesmatching
+#                         (final CIPs from BGS program matching; only table
+#                         outside dbo)
+# Local renames used by the survey branches below:
 appso_data_final <- t_appso_data_final
 bgs_data_final <- t_bgs_data_final
 bgs_inst_recode <- t_bgs_inst_recode
 
+# Empty column template for T_Cohorts_Recoded: keeps the skeleton's columns
+# (from load-cohort-dacso.R), drops all rows -- each branch rbinds into it.
 t_cohorts_recoded <- t_cohorts_recoded |> filter(FALSE)
 
 required_tables <- c(
@@ -123,6 +181,25 @@ required_tables <- c(
   "t_year_survey_year"
 )
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: t_bgs_data_final_for_outcomesmatching is the one
+## required table no loader materializes into the session --
+## 02a-bgs-program-matching writes it to my_schema only -- so the
+## exists() check below halted the run. Guarded read pulls it from
+## the personal schema when absent.
+## ----------------------------------------------------------
+if (!exists("t_bgs_data_final_for_outcomesmatching")) {
+  t_bgs_data_final_for_outcomesmatching <- dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."t_bgs_data_final_for_outcomesmatching_r"'))
+  )
+  log_info(glue::glue(
+    "Read t_bgs_data_final_for_outcomesmatching_r from my_schema: ",
+    "{nrow(t_bgs_data_final_for_outcomesmatching)} rows"
+  ))
+}
+
 # Check for required data tables in the database
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
 
@@ -138,12 +215,16 @@ if (length(missing) > 0) {
 }
 
 
-# Set weight for model year
+# Weight column for this run: QI runs take the QI weight column from t_weights,
+# regular runs take WEIGHT. (qi_run is set by the runner -- see run-mode flags.)
 target_weight <- if (qi_run) "WEIGHT_QI" else "WEIGHT"
 
 tbl_age <- tbl_age |> janitor::clean_names("all_caps") |> select(AGE, AGE_GROUP)
 
 # ---- TRD Queries ----
+# TRD pipeline: join model-year weights by SUBM_CD (survey cycle) -> age bands
+# (tbl_age / tbl_age_groups) -> derive NEW_LABOUR_SUPPLY -> join survey years
+# (t_year_survey_year) -> standardize columns into the skeleton.
 log_info("Processing TRD cohort: applying weights, age groups, labour supply")
 # Applies weight for model year and derives New Labour Supply
 trd_data <- trd_data |>
@@ -162,6 +243,9 @@ trd_data <- trd_data |>
     tbl_age_groups |> select(AGE_GROUP, AGE_GROUP_ROLLUP),
     by = "AGE_GROUP"
   ) |>
+  # NLS: TRD has only two outcomes -- 1 = employed or looking for work (in the
+  # labour market); 0 = everyone else, incl. non-respondents. There is no
+  # "in supply while studying" (NLS-2) category for TRD.
   mutate(
     NEW_LABOUR_SUPPLY = case_when(
       TRD_LABR_EMPLOYED == 1 ~ 1,
@@ -182,13 +266,25 @@ trd_data <-
   ) |>
   transmute(
     PEN = PEN,
+    # STQU_ID: survey-prefixed respondent ID ("<SURVEY> - <key>"), unique across
+    # the combined table. All four branches follow this pattern.
     STQU_ID = paste0("TRD - ", as.character(KEY)),
     SURVEY = SURVEY,
     SURVEY_YEAR = SURVEY_YEAR,
     INST_CD = INST,
-    LCIP_CD = LCIP_CD,
+    ## ----------------------------------------------------------
+    ## Reasons for change, other notes
+    ## 2025 refresh: the TRD source column was renamed LCIP_CD ->
+    ## LCP6_CD (CIP2021 taxonomy). Canonical output name LCIP_CD is
+    ## kept (see CONTEXT.md) so the skeleton contract holds.
+    ## ----------------------------------------------------------
+    LCIP_CD = LCP6_CD,
     LCP4_CD = LCIP_LCP4_CD,
+    # TTRAIN 2 is recoded to 1 so the credential keys below match the keys the
+    # other cohorts build (same recode appears in every LCIP4_CRED construction).
     TTRAIN = if_else(TTRAIN == 2, 1, as.numeric(TTRAIN)),
+    # "XXXXX" is the survey's invalid-NOC sentinel -> 99999 (unknown NOC); the
+    # invalid-NOC checks in 02b-2 look for stray codes here.
     NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD),
     AGE_AT_SURVEY = TRD_AGE_AT_SURVEY,
     AGE_GROUP = AGE_GROUP,
@@ -197,6 +293,10 @@ trd_data <-
     RESPONDENT = RESPONDENT,
     NEW_LABOUR_SUPPLY = NEW_LABOUR_SUPPLY,
     WEIGHT = WEIGHT,
+    # Credential keys -- the stratum keys 02b-2/02b-3 weight by and Module 06
+    # distributes P(CIP|cred,age) over:
+    #   LCIP4_CRED = grad-status - CIP4 - ttrain - credential
+    #   LCIP2_CRED = grad-status - CIP2 - ttrain - credential
     PSSM_CREDENTIAL = PSSM_CREDENTIAL,
     PSSM_CRED = paste0(GRADSTAT_GROUP, " - ", PSSM_CREDENTIAL),
     LCIP4_CRED = paste(
@@ -216,6 +316,8 @@ trd_data <-
     CURRENT_REGION_PSSM_CODE = CURRENT_REGION_PSSM_CODE
   )
 
+# rbind contract: NA-pad skeleton columns this branch didn't produce, then
+# append (see header). Same pattern in the APPSO/BGS/DACSO branches.
 trd_data[setdiff(names(t_cohorts_recoded), names(trd_data))] <- NA
 t_cohorts_recoded <- t_cohorts_recoded |> rbind(trd_data)
 log_info(glue::glue(
@@ -223,6 +325,11 @@ log_info(glue::glue(
 ))
 
 # ---- APP Queries ----
+# APPSO pipeline: survey years joined from t_year_survey_year -> age bands ->
+# standardize into the skeleton. Weights are NOT joined here -- APPSO weights
+# are hardcoded in load-cohort-appso.R (the loader writes WEIGHT directly), and
+# the LCIP4_CRED key is prebuilt there too; this branch only builds LCIP2_CRED.
+# All APPSO records are graduates (GRAD_STATUS fixed to "1").
 # Process APPSO data into the cohorts recoded table
 appso_data_final <- appso_data_final |>
   select(-AGE_GROUP, -AGE_GROUP_LABEL) |>
@@ -242,7 +349,13 @@ appso_data_final <- appso_data_final |>
     SURVEY = SURVEY,
     SURVEY_YEAR = SURVEY_YEAR,
     INST_CD = INST,
-    LCIP_CD = LCIP_CD,
+    ## ----------------------------------------------------------
+    ## Reasons for change, other notes
+    ## 2025 refresh: the APPSO source column was renamed LCIP_CD ->
+    ## LCP6_CD (CIP2021 taxonomy). Canonical output name LCIP_CD is
+    ## kept (see CONTEXT.md) so the skeleton contract holds.
+    ## ----------------------------------------------------------
+    LCIP_CD = LCP6_CD,
     LCP4_CD = LCIP_LCP4_CD,
     NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD),
     AGE_AT_SURVEY = APP_AGE_AT_SURVEY,
@@ -269,6 +382,13 @@ log_info(glue::glue(
 ))
 
 # ---- BGS Queries ----
+# BGS pipeline: recode old institution codes to current ones (so per-program
+# weight adjustments line up across years) -> override CIP codes with the
+# FINAL_* codes from program matching (t_bgs_data_final_for_outcomesmatching,
+# the only required table from my_schema) -> assign the BACH credential ->
+# join model-year weights BY SURVEY_YEAR (BGS keys on year, not SUBM_CD) ->
+# age bands -> derive BGS_NEW_LABOUR_SUPPLY -> refresh this survey's rows in
+# the skeleton.
 log_info(
   "Processing BGS cohort: institution recode, CIP update, weights, labour supply"
 )
@@ -283,9 +403,20 @@ t_bgs_data_final <- t_bgs_data_final |>
   select(-INST_RECODE)
 
 # update cips after program matching
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: the two STQU_ID join keys read back with different
+## types from the DB -- t_bgs_data_final.STQU_ID is <character>,
+## t_bgs_data_final_for_outcomesmatching.STQU_ID is <numeric> --
+## so the join errored on incompatible types. Coerce the
+## outcomesmatching key to character (via integer, to avoid any
+## float formatting) to match the BGS side, which is what the BGS
+## output STQU_ID is built from downstream.
+## ----------------------------------------------------------
 t_bgs_data_final <- t_bgs_data_final |>
   left_join(
     t_bgs_data_final_for_outcomesmatching |>
+      mutate(STQU_ID = as.character(as.integer(STQU_ID))) |>
       select(
         STQU_ID,
         FINAL_CIP_CODE_4,
@@ -315,6 +446,7 @@ t_bgs_data_final <- t_bgs_data_final |>
   inner_join(
     t_weights |>
       filter(MODEL == "2024-2025", SURVEY == "BGS") |>
+      # t_weights types SURVEY_YEAR as double; shim the BGS side to match.
       mutate(SURVEY_YEAR = as.double(SURVEY_YEAR)) |>
       select(SURVEY_YEAR, WEIGHT = any_of(target_weight)),
     by = "SURVEY_YEAR"
@@ -327,6 +459,10 @@ t_bgs_data_final <- t_bgs_data_final |>
     tbl_age_groups |> select(-AGE_GROUP_LABEL),
     by = "AGE_GROUP"
   ) |>
+  # BGS NLS: 1 = in the supply (working, or in the labour market); 2 = working
+  # while studying -- the category 02b-3 excludes from its NOC denominator
+  # (docs/weights-explained-02b-2-and-02b-3.md section 8.2); 0 = everyone else,
+  # incl. non-respondents (SRV_Y_N == 0).
   mutate(
     BGS_NEW_LABOUR_SUPPLY = case_when(
       CURRENT_ACTIVITY == 1 ~ 1,
@@ -379,6 +515,13 @@ log_info(glue::glue(
 ))
 
 # ----DACSO Queries ----
+# DACSO pipeline: join t_pssm_credential_grouping (maps PRGM_CREDENTIAL ->
+# PSSM_CREDENTIAL; the anti_join below then removes credentials that are not
+# part of the PSSM -- other/none/invalid) -> age bands -> build the LCIP4_CRED
+# key -> pull prior-post-secondary flags from the infoware short-response table
+# (Q08 gates which PFST_* flag applies) -> join model-year weights by survey
+# cycle (COCI_SUBM_CD) -> derive NEW_LABOUR_SUPPLY -> refresh this survey's
+# rows in the skeleton.
 log_info(
   "Processing DACSO cohort: credential grouping, age, CIP update, weights, labour supply"
 )
@@ -464,6 +607,9 @@ t_dacso_data_part_1 <- t_dacso_data_part_1 |>
       select(SUBM_CD, WEIGHT = any_of(target_weight)),
     by = c("COCI_SUBM_CD" = "SUBM_CD")
   ) |>
+  # DACSO NLS: 1 = in the supply; 2 = working while studying (excluded from
+  # 02b-3's NOC denominator downstream); 0 = everyone else, incl. respondents
+  # with no labour-market signal.
   mutate(
     NEW_LABOUR_SUPPLY = case_when(
       PFST_CURRENT_ACTIVITY == 3 ~ 1,
@@ -536,6 +682,10 @@ t_cohorts_recoded <- t_cohorts_recoded |>
 #  - Remove all other objects at the end of each script.
 ## ------------------------------------------------------------------------------------------------
 
+# Write-back: each kept table lands in the PERSONAL schema (my_schema) as
+# <name>_r, overwrite. Downstream: 02b-2 and 02b-3 consume t_cohorts_recoded
+# (in-session when chained by the runner, or as my_schema.t_cohorts_recoded_r
+# when reloaded); t_dacso_data_part_1 feeds the same modules' DACSO checks.
 tables_to_keep <- c(
   "t_dacso_data_part_1",
   "t_cohorts_recoded"
