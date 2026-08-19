@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who recently graduated after
+# This script loads student outcomes data for students who recently graduated after
 # completing programs at public colleges, institutes, and teaching-intensive universities (~18 months prior)
 #
 # DACSO = Diploma / Associate Certificate Student Outcomes.  Survey of former
@@ -223,42 +223,61 @@ t_noc_broad_categories <-
 # Sub-cycle is COCI_SUBM_CD (C_Outc..); COCI_STQU_ID identifies the survey
 # submission.  In 02b-1-pssm-cohorts.R this is joined to the credential,
 # age and weight look-ups and becomes the DACSO block of T_Cohorts_Recoded.
-t_dacso_data_part_1_stepa <- read_oracle_csv_auto(
-  glue::glue(
-    "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
-  )
-)
-log_info(glue::glue(
-  "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
-))
-
-# Recode the survey's current-region fields into the standard PSSM region
-# codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
-t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
-  mutate(
-    CURRENT_REGION_PSSM_CODE = case_when(
-      TPID_CURRENT_REGION1 %in%
-        c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
-      TPID_CURRENT_REGION4 == 5 ~ 9,
-      TPID_CURRENT_REGION4 == 6 ~ 10,
-      TPID_CURRENT_REGION4 == 7 ~ 11,
-      TPID_CURRENT_REGION4 == 8 ~ -1,
-      TRUE ~ NA_integer_
+if (regular_run == T | ptib_run == T) {
+  t_dacso_data_part_1_stepa <- read_oracle_csv_auto(
+    glue::glue(
+      "{lan}/data/student-outcomes/csv/DACSO_Q003_DACSO_DATA_Part_1_stepA.csv"
     )
   )
-log_info(glue::glue(
-  "CURRENT_REGION_PSSM_CODE assigned: {nrow(t_dacso_data_part_1_stepa)} rows"
-))
-# commenting these out for now - see PR
-#|>
-#mutate(
-#  TTRAIN = NA_integer_,
-#  LABR_EMPLOYED = NA_integer_,
-#  COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
-#  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
-#  RESPONDENT = NA_integer_,
-#)
+  log_info(glue::glue(
+    "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
 
+  # Recode the survey's current-region fields into the standard PSSM region
+  # codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
+  t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
+    mutate(
+      CURRENT_REGION_PSSM_CODE = case_when(
+        TPID_CURRENT_REGION1 %in%
+          c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
+        TPID_CURRENT_REGION4 == 5 ~ 9,
+        TPID_CURRENT_REGION4 == 6 ~ 10,
+        TPID_CURRENT_REGION4 == 7 ~ 11,
+        TPID_CURRENT_REGION4 == 8 ~ -1,
+        TRUE ~ NA_integer_
+      )
+    )
+  log_info(glue::glue(
+    "Read DACSO_Q003_DACSO_DATA_Part_1_stepA.csv: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
+
+  # Recode the survey's current-region fields into the standard PSSM region
+  # codes (same scheme as APPSO/BGS so regions are comparable across cohorts).
+  t_dacso_data_part_1_stepa <- t_dacso_data_part_1_stepa |>
+    mutate(
+      CURRENT_REGION_PSSM_CODE = case_when(
+        TPID_CURRENT_REGION1 %in%
+          c(1, 2, 3, 4, 5, 6, 7, 8) ~ TPID_CURRENT_REGION1,
+        TPID_CURRENT_REGION4 == 5 ~ 9,
+        TPID_CURRENT_REGION4 == 6 ~ 10,
+        TPID_CURRENT_REGION4 == 7 ~ 11,
+        TPID_CURRENT_REGION4 == 8 ~ -1,
+        TRUE ~ NA_integer_
+      )
+    )
+  log_info(glue::glue(
+    "CURRENT_REGION_PSSM_CODE assigned: {nrow(t_dacso_data_part_1_stepa)} rows"
+  ))
+  # commenting these out for now - see PR
+  #|>
+  #mutate(
+  #  TTRAIN = NA_integer_,
+  #  LABR_EMPLOYED = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD = NA_integer_,
+  #  COSC_GRAD_STATUS_LGDS_CD_GROUP = NA_integer_,
+  #  RESPONDENT = NA_integer_,
+  #)
+}
 ## ------------------------------------ Clean Up --------------------------------------------------
 # Current workflow:
 #  - Write key tables back to sql server.  These are tables needed for downstream work, or tables

@@ -47,7 +47,6 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
 source("R/utils.R")
 # qi_run <- F
 # regular_run <- T

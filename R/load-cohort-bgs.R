@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script loads student outcomes data for students who students who recently graduated with a
+# This script loads student outcomes data for students who recently graduated with a
 # Baccalaureate degree (Baccalaureate students are surveyed two years after graduation)
 #
 # BGS = Baccalaureate Graduate Student Outcomes.  Survey of graduates with a
@@ -52,7 +52,9 @@ library(config)
 library(DBI)
 library(odbc)
 library(futile.logger)
-
+# regular_run <- T
+# qi_run <- F
+# ptib_run <- F
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -169,7 +171,7 @@ bgs_infoware_tables <- c(
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
 )
-# We load six years of data for the analaysis/model run.
+# We load six years of data for the analysis/model run.
 walk(
   bgs_infoware_tables,
   load_infoware_table_by_chunk,

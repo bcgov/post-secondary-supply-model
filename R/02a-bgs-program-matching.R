@@ -157,14 +157,14 @@ log_info("Connected to SQL Server database")
 # We check for their existence and proceed.
 
 # BGS survey records, in the shared (dbo) schema
-bgs_infoware_tables <- c(
+required_bgs_tables <- c(
   "INFOWARE_BGS_DIST_20_24",
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"
 )
 
-# CIP2021 taxonomy lookups, in the shared schema
-lookup_tables <- c(
+# CIP taxonomy lookups, in the analyst's own schema
+required_lookups_tables <- c(
   "INFOWARE_L_CIP_6DIGITS_CIP2021",
   "INFOWARE_L_CIP_4DIGITS_CIP2021",
   "INFOWARE_L_CIP_2DIGITS_CIP2021"

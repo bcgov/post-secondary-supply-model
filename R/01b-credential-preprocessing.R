@@ -31,7 +31,7 @@ log_info("==== 01b-credential-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 shareschema <- config::get("shareschema")
 con <- dbConnect(
@@ -147,10 +147,10 @@ convert_date <- function(vec) {
 }
 
 # Uncomment when running new data and/or add a conditional to test the date format.
-# stp_credential <- stp_credential |>
-#   mutate(
-#     across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
-#   )
+stp_credential <- stp_credential |>
+  mutate(
+    across(all_of(date_cols), .fns = convert_date, .names = "{.col}")
+  )
 
 ## --------------------------------------- Create Record Type Table -------------------------------
 # reference: source("./sql/01-credential-preprocessing/01a-credential-preprocessing.R")
