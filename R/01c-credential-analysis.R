@@ -370,14 +370,20 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
   )
 
 # slight correction needed to align with SQL
-credential_supvars_enrolment <- credential_supvars_enrolment |>
-  mutate(
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned == "",
-      NA_character_,
-      psi_birthdate_cleaned
-    )
-  )
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## 2026-08-19: made type-safe. With convert_date() now typed
+## (lubridate::ymd), psi_birthdate_cleaned arrives from 01a as
+## Date, where "" cannot occur — the character-era empty-string
+## cleanup errored (if_else cannot mix NA_character_ with Date).
+## The cleanup now applies only when the column is character
+## (older table lineages); Date columns pass through unchanged.
+## ----------------------------------------------------------
+if (is.character(credential_supvars_enrolment$psi_birthdate_cleaned)) {
+  credential_supvars_enrolment <- credential_supvars_enrolment |>
+    mutate(psi_birthdate_cleaned = na_if(psi_birthdate_cleaned, ""))
+}
 
 
 ## ----------------------------02 Developmental Records-------------------------------------------
