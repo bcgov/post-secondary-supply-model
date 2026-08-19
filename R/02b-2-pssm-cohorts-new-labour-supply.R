@@ -85,13 +85,25 @@ library(assertthat)
 # t_cohorts_recoded to these years -- so this vector documents the window
 # for the run and scopes the invalid-NOC diagnostic below. Keep it in sync
 # with the window when the model refreshes.
-years <- c(2019, 2020, 2021, 2022, 2023) # years of data used this model run
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: window slid 2019-2023 -> 2021-2025 (02b-1's
+## output now spans the new years). The vector is now actually
+## referenced -- the invalid-NOC diagnostic below filters on it,
+## replacing the old quoted-string list that never matched the
+## numeric SURVEY_YEAR column and silently returned nothing.
+## ----------------------------------------------------------
+years <- c(2021:2025) # years of data used this model run
 
-# -------------------------- DEVELOPMENT ONLY -------------------------------------
-# use this section for development and checking against the SQL versions
-# remove whatever we don't use when done, depending on final design decisions
-
-library(RODBC)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: this section is production code, not development
+## scaffolding -- the connection feeds the StatCan read here and
+## the write-backs at the end of the script. Banner renamed and
+## the unused library(RODBC) dropped (the script connects via
+## DBI/odbc; RODBC was never called).
+## ----------------------------------------------------------
+# ---- DB Connection and StatCan Read ----
 library(DBI)
 
 # ---- Connect to SQL Server and read StatCan Tables ----
@@ -115,18 +127,39 @@ con <- dbConnect(
 # the cycle the export was mapped in) to the current model-year label at
 # read time -- this remap is the per-refresh mechanism for relabeling.
 # Downstream consumers only prefix-match "2021 Census", never the full label.
-labour_supply_distribution_stat_can <- tibble(dbReadTable(
-  con,
-  SQL(glue::glue('"{my_schema}"."Labour_Supply_Distribution_Stat_Can"'))
-)) |>
-  # not sure which one this should be but this matches what is in the SQL table
-  mutate(
-    SURVEY = if_else(
-      SURVEY == "2021 Census PSSM 2022-2023",
-      "2021 Census PSSM 2023-2024",
-      SURVEY
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: guarded per the 02b-1 pattern (commit 1449ce3)
+## so standalone runs and double-sourcing don't re-read. The read
+## prefers the _r table written by R/labour-supply-dists-census-
+## data.R (this cycle's sourcing decision, ticket #150) and falls
+## back to the no-suffix name prep-for-fresh-run copies from the
+## second schema. Remap target updated to the current model year
+## (2021 Census PSSM 2024-2025); the census script's own label
+## stays as the export vintage, remapped here each refresh.
+## ----------------------------------------------------------
+if (!exists("labour_supply_distribution_stat_can")) {
+  stat_can_name <- if (dbExistsTable(
+    con,
+    Id(schema = my_schema, table = "Labour_Supply_Distribution_Stat_Can_r")
+  )) {
+    "Labour_Supply_Distribution_Stat_Can_r"
+  } else {
+    "Labour_Supply_Distribution_Stat_Can"
+  }
+  labour_supply_distribution_stat_can <- tibble(dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."{stat_can_name}"'))
+  )) |>
+    # not sure which one this should be but this matches what is in the SQL table
+    mutate(
+      SURVEY = if_else(
+        SURVEY == "2021 Census PSSM 2022-2023",
+        "2021 Census PSSM 2024-2025",
+        SURVEY
+      )
     )
-  )
+}
 
 # -------------------------- Required Tables -----------------------------------------
 
@@ -204,7 +237,7 @@ t_cohorts_recoded |>
   filter(
     !is.na(AGE_GROUP_ROLLUP),
     CURRENT_REGION_PSSM_CODE != -1,
-    SURVEY_YEAR %in% c('2019', '2020', '2021', '2022', '2023'),
+    as.numeric(SURVEY_YEAR) %in% years, # numeric `years` vector -- quoted strings never match the numeric column
     !is.na(NOC_CD),
     NOC_CD != "",
     is.na(UNIT_GROUP_CODE)
@@ -534,15 +567,15 @@ z09_check_weights_no_weight_cip <- t_cohorts_recoded %>%
   select(SURVEY, INST_CD, AGE_GROUP_ROLLUP, TTRAIN, LCIP4_CRED, BASE)
 
 # ---- clear environment
-# z02c/z03/z04 are SQL-only intermediates -- in R they live inside the
-# tmp_tbl_weights_nls pipeline above and were never separate objects.
-rm(
-  z01_base_nls,
-  z02c_weight_tmp,
-  z02c_weight,
-  z03_weight_total,
-  z04_weight_adj_fac
-)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: rm() named four SQL-only intermediates
+## (z02c_weight_tmp, z02c_weight, z03_weight_total,
+## z04_weight_adj_fac) that never exist in R -- the pipeline
+## collapsed them into tmp_tbl_weights_nls -- so the call errored
+## every run at this point. Trimmed to the one real object.
+## ----------------------------------------------------------
+rm(z01_base_nls)
 
 # -------------------------- Weighted New Labour Supply --------------------------
 # apply nls weights to group totals and filter to observations of interest
@@ -1296,19 +1329,22 @@ labour_supply_distribution <- labour_supply_distribution |>
 # t_cohorts_recoded is intentionally re-written here even though 02b-1 also
 # wrote it -- this write adds the WEIGHT_NLS column.
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: the list named six objects this script never
+## creates (appso_graduates, t_dacso_data_part_1, trd_graduates
+## and the three dbo lookups) -- standalone runs errored inside
+## base::get, and chained runs rewrote stale loader copies to
+## my_schema. Trimmed to what 02b-2 itself creates or modifies;
+## 02b-3 gets the lookups from load-cohort-dacso in-session.
+## ----------------------------------------------------------
 tables_to_keep <- c(
   "labour_supply_distribution",
   "labour_supply_distribution_no_tt",
   "labour_supply_distribution_lcp2",
   "labour_supply_distribution_lcp2_no_tt",
-  "t_cohorts_recoded",
-  "t_current_region_pssm_codes",
-  "t_current_region_pssm_rollup_codes",
-  "tmp_tbl_weights_nls",
-  "t_noc_broad_categories",
-  "appso_graduates",
-  "t_dacso_data_part_1",
-  "trd_graduates"
+  "t_cohorts_recoded",   # modified here: WEIGHT_NLS column added
+  "tmp_tbl_weights_nls"  # created here
 )
 
 write_table_to_db <- function(table_name, schema, con) {
