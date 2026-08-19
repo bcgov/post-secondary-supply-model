@@ -21,6 +21,17 @@
 
 # Uses work done during program matching
 # Pipeline context:
+#   WHERE THIS SITS IN THE MODEL: PSSM computes one formula
+#   (docs/project-summary-for-new-analyst.md §2):
+#     OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                  x P(in labour supply|CIP) x P(NOC|CIP,region)
+#   The FINAL_CIP_CODE_4 this script writes becomes the CIP4 half of the
+#   cohort key `LCIP4_CRED = paste0(CIP_CODE_4, " - ", CRED)` built in
+#   R/02b-1-pssm-cohorts.R -- i.e. it decides which P(CIP|cred,age) bucket
+#   every single graduate lands in for Module 06. A wrong CIP here silently
+#   mis-buckets that graduate for the rest of the model, which is why the
+#   priority chain below is ordered from richest evidence to weakest.
+#
 #   This script is the merge point for all four CIP code matching sources. After the
 #   program matching scripts (02a-dacso, 02a-bgs, 02a-appso, and GRAD matching) have
 #   each produced a table of matched CIP codes, this script merges them into the main
@@ -73,6 +84,7 @@ lan <- config::get("lan")
 
 db_config <- config::get("decimal")
 my_schema <- config::get("myschema")
+shareschema <- config::get("shareschema")
 
 con <- dbConnect(
   odbc(),
@@ -112,9 +124,17 @@ dbExistsTable(
 )
 
 # reference tables
+# ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## CIP2021 migration (2026-08-15): CIP lookups switched from CIP2016 to
+## CIP2021 variants and sourced from the shared dbo schema (raw-data
+## home). The CIP2021 4-digit lookup renamed LCP4_CIP_4DIGITS_NAME to
+## LCP4_DIGITS_NAME -- aliased back to the legacy name at the read so
+## downstream renames keep working unchanged.
 dbExistsTable(
   con,
-  SQL(glue::glue('"{my_schema}"."INFOWARE_L_CIP_2DIGITS_CIP2016"'))
+  SQL(glue::glue('"{shareschema}"."INFOWARE_L_CIP_2DIGITS_CIP2021"'))
 )
 log_info("Checked all required tables exist")
 
@@ -125,9 +145,19 @@ log_info("Checked all required tables exist")
 # KEPT AS SQL: ALTER TABLE is DDL — no dplyr equivalent
 ## ------------------------------------------------------------------------------------------------
 
-dbExecute(
+# Idempotent: skip the ALTER if the CIP columns already exist (e.g. a
+# previous partial run added them before failing further down).
+cip_cols_check <- dbGetQuery(
   con,
-  "ALTER TABLE Credential_Non_Dup_r
+  glue::glue(
+    "SELECT COL_LENGTH('[{my_schema}].[Credential_Non_Dup_r]',
+      'OUTCOMES_CIP_CODE_4') AS cid"
+  )
+)
+if (is.na(cip_cols_check$cid)) {
+  dbExecute(
+    con,
+    glue::glue('ALTER TABLE [{my_schema}].[Credential_Non_Dup_r]
 ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             OUTCOMES_CIP_CODE_4_NAME varchar(255),
             FINAL_CIP_CODE_4 varchar(4),
@@ -139,8 +169,11 @@ ADD         OUTCOMES_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4 varchar(4),
             STP_CIP_CODE_4_NAME varchar(255),
             STP_CIP_CODE_2 varchar(2),
-            STP_CIP_CODE_2_NAME varchar(255);"
-)
+            STP_CIP_CODE_2_NAME varchar(255);')
+  )
+} else {
+  log_info("CIP columns already present on Credential_Non_Dup_r; skipping ALTER TABLE")
+}
 log_info("Added 12 CIP columns to Credential_Non_Dup_r via ALTER TABLE")
 
 ## -------------- Update CIP codes from DACSO (primary source)------------------------------------
@@ -355,7 +388,7 @@ log_info(glue::glue(
 # matching (script 07) to group CIP programs into occupational categories.
 ##--------------------------------------------------------------------------------------------------
 
-cip2_lookup <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2016") %>%
+cip2_lookup <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2021", schema = shareschema) %>%
   select(LCP2_CD, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME) %>%
   collect()
 
@@ -422,14 +455,14 @@ dbWriteTable(
 # add extra cols
 dbExecute(
   con,
-  "ALTER TABLE Credential_Non_Dup_STP_NULL_Cleaning_r
+  glue::glue('ALTER TABLE [{my_schema}].[Credential_Non_Dup_STP_NULL_Cleaning_r]
 ADD STP_CIP_CODE_4 varchar (255),
 STP_CIP_CODE_4_NAME varchar (255),
 STP_CIP_CODE_2 varchar (255),
 STP_CIP_CODE_2_NAME varchar (255),
 STP_CIP_CLUSTER_CODE varchar(10),
 STP_CIP_CLUSTER_NAME varchar(255),
-PSI_CREDENTIAL_CIP_orig varchar (255)"
+PSI_CREDENTIAL_CIP_orig varchar (255)')
 )
 
 # ---- Step 8: Save original CIP before cleaning ----
@@ -468,17 +501,17 @@ null_cleaning <- null_cleaning %>%
 # same strategy as 02a-appso-programs Step 3.
 # -------------------------------------------------------------------------------------------------
 
-cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2016") %>%
+cip6 <- sch_tbl("INFOWARE_L_CIP_6DIGITS_CIP2021", schema = shareschema) %>%
   select(LCIP_CD_WITH_PERIOD, LCIP_LCP4_CD, LCIP_LCP2_CD) %>%
   collect()
 cip6 <- cip6 |> rename_with(toupper)
 
-cip4 <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2016") %>%
-  select(LCP4_CD, LCP4_CIP_4DIGITS_NAME) %>%
+cip4 <- sch_tbl("INFOWARE_L_CIP_4DIGITS_CIP2021", schema = shareschema) %>%
+  select(LCP4_CD, LCP4_CIP_4DIGITS_NAME = LCP4_DIGITS_NAME) %>%
   collect()
 cip4 <- cip4 |> rename_with(toupper)
 
-cip2 <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2016") %>%
+cip2 <- sch_tbl("INFOWARE_L_CIP_2DIGITS_CIP2021", schema = shareschema) %>%
   select(LCP2_CD, LCP2_DIGITS_NAME, LCP2_LCIPPC_CD, LCP2_LCIPPC_NAME) %>%
   collect()
 cip2 <- cip2 |> rename_with(toupper)

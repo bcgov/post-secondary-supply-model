@@ -13,6 +13,24 @@
 # ******************************************************************************
 # Aligns CIP codes between DACSO and STP data
 #
+# Purpose:
+# The DACSO survey (Diploma, Associate Degree, Certificate & Other) and STP
+# credential records often describe the same program with different CIP codes.
+# This script builds and maintains the program-level XWALK that assigns each
+# STP program a CIP4, using the DACSO survey's program coding as the evidence
+# base: last cycle's XWALK is extended with new registry programs, new STP
+# credentials, historical program links, and per-cycle survey cohorts.
+#
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md §2):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                x P(in labour supply|CIP) x P(NOC|CIP,region)
+# The Credential_Non_Dup_Programs_DACSO_FinalCIPS output is the FIRST and
+# richest source in R/02a-update-cred-non-dup.R's priority chain (DACSO >
+# BGS > GRAD > APPSO > STP fallback -- a 7-column business-key join), so
+# its CIP decisions reach credential_non_dup_r and then the `LCIP4_CRED`
+# cohort key in R/02b-1-pssm-cohorts.R (P(CIP|cred,age), Module 06) ahead
+# of every other matching source.
+#
 # Required Tables
 #   DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_23.csv on the LAN
 #     (lan_program_mathcing/DACSO/tmp-data/2023 -- cold-start seed;
@@ -470,7 +488,20 @@ DACSO_STP_ProgramsCIP4_XWALK_ALL_2021_25 <- DACSO_STP_ProgramsCIP4_XWALK_ALL_202
       )
   )
 
-# The following steps are repeated for each year since last PSSM:
+# The following steps are repeated for each year since last PSSM (one block
+# per survey cycle C_Outc21..25; the 2024/2025 blocks are clones of the 2021
+# template without the manual PRGM_ID overrides):
+#
+# WHY A "WALK": institutions retire and re-code programs. A program new to this
+# cycle (e.g. PRGM_ID 10355) may carry no CIP of its own, but the registry's
+# INFOWARE_PROGRAMS_HIST_PRGMID_XREF records that it descended from an earlier
+# program (HISTORICAL_PRGM_ID) which the XWALK already carries a CIP for. The
+# per-cycle blocks below chase that lineage -- take programs first seen in the
+# cycle WITH a historical link, join their XREF links, and inherit the
+# predecessor's XWALK CIP. Programs whose lineage dead-ends fall through to the
+# "Remaining" match against STP program codes in Part 2.
+#
+# Per cycle:
 ##  Find DACSO prgms WITH historical linkages
 ##  Get historical linkages for DACSO prgms
 ##  Update to XWALK: Updated DACSO programs WITH historical linkages
