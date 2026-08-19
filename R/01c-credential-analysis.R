@@ -31,7 +31,7 @@ log_info("==== 01c-credential-analysis.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -435,7 +435,7 @@ log_info(glue::glue(
 ## -----------------------------------------------------------------------------------------------
 stp_credential_record_type <-
   credential_supvars |>
-  filter(CREDENTIAL_AWARD_DATE >= "2023-09-01") |>
+  filter(CREDENTIAL_AWARD_DATE >= "2025-09-01") |>
   select(ID) |>
   mutate(DropPartialYear = "Yes") |>
   right_join(stp_credential_record_type, by = "ID")
@@ -613,7 +613,7 @@ credential <- credential |>
   ) |>
   select(-cred_month, -cred_year, -cred_year_start, -cred_year_end)
 
-valid_genders <- c("Female", "Male", "Gender Diverse")
+valid_genders <- c("Woman/Girl", "Man/Boy", "Non-Binary Person")
 
 # pull more genders from the stp_enrolment table to fill in gaps
 credential <- credential |>
@@ -1171,10 +1171,7 @@ tables_to_keep <- c(
   "age_group_lookup",
   "credential",
   "credential_non_dup",
-  "credential_supvars",
-  "credential_supvars_enrolment",
-  "tbl_credential_highest_rank",
-  "tbl_credential_delay_effect"
+  "tbl_credential_highest_rank"
 )
 
 write_table_to_db <- function(table_name, schema, con) {

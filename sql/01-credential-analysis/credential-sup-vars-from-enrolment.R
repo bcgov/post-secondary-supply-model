@@ -33,8 +33,8 @@ INTO    tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3
 FROM    tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step2 
 INNER JOIN STP_Enrolment_Valid 
   ON tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step2.ID = STP_Enrolment_Valid.ID"
-                         
-# ---- qry05_CredentialSupVars_From_Enrolment ----                    
+
+# ---- qry05_CredentialSupVars_From_Enrolment ----
 qry05_CredentialSupVars_From_Enrolment <- "                         
 ALTER TABLE tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3
 ADD CONSTRAINT tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3_PK_ID
@@ -64,9 +64,9 @@ GROUP BY      tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.ID,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_CODE,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_STUDENT_NUMBER,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_ENROLMENT_SEQUENCE"
-                    
 
-# ---- qry07_CredentialSupVars_From_Enrolment ----    
+
+# ---- qry07_CredentialSupVars_From_Enrolment ----
 qry07_CredentialSupVars_From_Enrolment <- "    
 SELECT          tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.ID, 
                 tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_STUDENT_NUMBER, 
@@ -81,9 +81,9 @@ FROM            tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3
 INNER JOIN      RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE 
   ON            tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_STUDENT_NUMBER = RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE.PSI_STUDENT_NUMBER 
   AND           tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_CODE = RW_TEST_CRED_EPENS_NOT_MATCHED_ID_PSICODE.PSI_CODE"
-                         
-                         
-# ---- qry08_CredentialSupVars_From_Enrolment ----                         
+
+
+# ---- qry08_CredentialSupVars_From_Enrolment ----
 qry08_CredentialSupVars_From_Enrolment <- "
 SELECT        tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.ID AS EnrolmentID, 
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_STUDENT_NUMBER, 
@@ -99,8 +99,8 @@ FROM          tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3
 INNER JOIN    RW_TEST_CRED_NULLEPENS_TO_MATCH 
   ON          tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_STUDENT_NUMBER = RW_TEST_CRED_NULLEPENS_TO_MATCH.PSI_STUDENT_NUMBER 
   AND         tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step3.PSI_CODE = RW_TEST_CRED_NULLEPENS_TO_MATCH.PSI_CODE"
-    
-# ---- qry09_CredentialSupVars_From_Enrolment ----                     
+
+# ---- qry09_CredentialSupVars_From_Enrolment ----
 qry09_CredentialSupVars_From_Enrolment <- "
 SELECT     ENCRYPTED_TRUE_PEN, PSI_STUDENT_NUMBER, PSI_CODE, MAX(PSI_SCHOOL_YEAR) AS MaxSchoolYear
 INTO       tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step4
@@ -178,4 +178,3 @@ GROUP BY      tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6.ID,
 						  tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6.PSI_CODE,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6.PSI_STUDENT_NUMBER,
               tmp_tbl_Enrol_ID_EPEN_For_Cred_Join_step6.PSI_ENROLMENT_SEQUENCE"
-                         

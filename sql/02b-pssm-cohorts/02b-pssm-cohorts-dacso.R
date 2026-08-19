@@ -1,5 +1,5 @@
 # ---- Q003 - Q005 Pull DACSO Records ----
-DACSO_Q003_DACSO_Data_Part_1_stepB <- 
+DACSO_Q003_DACSO_Data_Part_1_stepB <-
   "SELECT t_dacso_data_part_1_stepa.coci_pen,
        t_dacso_data_part_1_stepa.coci_stqu_id,
        t_dacso_data_part_1_stepa.coci_subm_cd,
@@ -48,7 +48,7 @@ FROM   ((t_dacso_data_part_1_stepa
        LEFT JOIN tbl_age_groups
               ON tbl_age.age_group = tbl_age_groups.age_group;"
 
-# in 2023 I removed the inner join on c_out_c_clean2 as it seemed to do nothing. 
+# in 2023 I removed the inner join on c_out_c_clean2 as it seemed to do nothing.
 DACSO_Q003b_DACSO_DATA_Part_1_Further_Ed <- "
 UPDATE t_dacso_data_part_1
 SET    t_dacso_data_part_1.had_previous_credential =

@@ -30,7 +30,7 @@ log_info("==== 01e-stp-distributions.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(

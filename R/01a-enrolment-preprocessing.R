@@ -31,7 +31,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
-db_config <- config::get("decimal")
+db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
 
 con <- dbConnect(
@@ -53,7 +53,7 @@ stp_enrolment <- dbGetQuery(
   con,
   glue::glue(
     "SELECT
-    ID,
+    /*ID,*/
     ENCRYPTED_TRUE_PEN,
     ATTENDING_PSI_OUTSIDE_BC,
     PSI_CIP_CODE,
@@ -74,7 +74,7 @@ stp_enrolment <- dbGetQuery(
     PSI_VISA_STATUS,
     PSI_BIRTHDATE,
     LAST_SEEN_BIRTHDATE
-  FROM [{my_schema}].[STP_Enrolment];"
+  FROM [STP_Enrolment_2024];"
   )
 )
 log_info(glue::glue(
@@ -102,7 +102,7 @@ distinct_pen_count <- stp_enrolment |> distinct(ENCRYPTED_TRUE_PEN) |> nrow()
 log_info(glue::glue("Distinct ENCRYPTED_TRUE_PEN values: {distinct_pen_count}"))
 
 # Untoggle when running new data and/or add a conditional to test for the presence of the ID field.
-# stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
+stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
 
 ## --------------------------------------Reformat yy-mm-dd to yyyy-mm-dd---------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/convert-date-scripts.R")
@@ -116,7 +116,7 @@ convert_date <- function(vec) {
 
   century_prefix <- case_when(
     is.na(yy) ~ NA_character_,
-    yy < 24 ~ "20",
+    yy < 26 ~ "20",
     TRUE ~ "19"
   )
 
@@ -131,14 +131,14 @@ date_cols <- c(
 )
 
 # Uncomment when running new data and/or add a conditional to test the date format.
-# stp_enrolment <- stp_enrolment |>
-#   mutate(
-#     across(
-#       .cols = date_cols,
-#       .fns = convert_date,
-#       .names = "{.col}"
-#     )
-#   )
+stp_enrolment <- stp_enrolment |>
+  mutate(
+    across(
+      all_of(date_cols),
+      .fns = convert_date,
+      .names = "{.col}"
+    )
+  )
 
 ## --------------------------------------- Create Record Type Table -------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
