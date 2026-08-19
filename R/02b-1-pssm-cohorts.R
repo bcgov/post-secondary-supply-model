@@ -104,11 +104,19 @@ log_info("==== 02b-1-pssm-cohorts.R START ====")
 
 # Run-mode flags: when this script runs inside a runner (prep-for-fresh-run.R,
 # prep-for-qi-run.R, prep-for-ptib-run.R) these are set in .GlobalEnv BEFORE the
-# file is sourced. For a standalone run, define them interactively --
-# target_weight (required-tables section) reads qi_run.
-# regular_run <- T
-# qi_run <- F
-# ptib_run <- F
+# file is sourced. The guarded defaults below cover standalone runs without
+# touching runner-set values; target_weight (required-tables section) reads
+# qi_run.
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: qi_run is read at target_weight but was never
+## defined in-script (the assignments were commented out), so any
+## standalone run errored immediately. Guarded defaults make the
+## script standalone-safe; runners still override.
+## ----------------------------------------------------------
+if (!exists("regular_run")) regular_run <- TRUE
+if (!exists("qi_run")) qi_run <- FALSE
+if (!exists("ptib_run")) ptib_run <- FALSE
 
 ## -------------------------- Configure LAN Paths and DB Connection ------------------------------
 ## -----------------------------------------------------------------------------------------------
@@ -172,6 +180,25 @@ required_tables <- c(
   "t_pssm_credential_grouping",
   "t_year_survey_year"
 )
+
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: t_bgs_data_final_for_outcomesmatching is the one
+## required table no loader materializes into the session --
+## 02a-bgs-program-matching writes it to my_schema only -- so the
+## exists() check below halted the run. Guarded read pulls it from
+## the personal schema when absent.
+## ----------------------------------------------------------
+if (!exists("t_bgs_data_final_for_outcomesmatching")) {
+  t_bgs_data_final_for_outcomesmatching <- dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."t_bgs_data_final_for_outcomesmatching_r"'))
+  )
+  log_info(glue::glue(
+    "Read t_bgs_data_final_for_outcomesmatching_r from my_schema: ",
+    "{nrow(t_bgs_data_final_for_outcomesmatching)} rows"
+  ))
+}
 
 # Check for required data tables in the database
 missing <- required_tables[!sapply(required_tables, exists, where = .GlobalEnv)]
@@ -245,7 +272,13 @@ trd_data <-
     SURVEY = SURVEY,
     SURVEY_YEAR = SURVEY_YEAR,
     INST_CD = INST,
-    LCIP_CD = LCIP_CD,
+    ## ----------------------------------------------------------
+    ## Reasons for change, other notes
+    ## 2025 refresh: the TRD source column was renamed LCIP_CD ->
+    ## LCP6_CD (CIP2021 taxonomy). Canonical output name LCIP_CD is
+    ## kept (see CONTEXT.md) so the skeleton contract holds.
+    ## ----------------------------------------------------------
+    LCIP_CD = LCP6_CD,
     LCP4_CD = LCIP_LCP4_CD,
     # TTRAIN 2 is recoded to 1 so the credential keys below match the keys the
     # other cohorts build (same recode appears in every LCIP4_CRED construction).
@@ -316,7 +349,13 @@ appso_data_final <- appso_data_final |>
     SURVEY = SURVEY,
     SURVEY_YEAR = SURVEY_YEAR,
     INST_CD = INST,
-    LCIP_CD = LCIP_CD,
+    ## ----------------------------------------------------------
+    ## Reasons for change, other notes
+    ## 2025 refresh: the APPSO source column was renamed LCIP_CD ->
+    ## LCP6_CD (CIP2021 taxonomy). Canonical output name LCIP_CD is
+    ## kept (see CONTEXT.md) so the skeleton contract holds.
+    ## ----------------------------------------------------------
+    LCIP_CD = LCP6_CD,
     LCP4_CD = LCIP_LCP4_CD,
     NOC_CD = if_else(NOC_CD == "XXXXX", "99999", NOC_CD),
     AGE_AT_SURVEY = APP_AGE_AT_SURVEY,
