@@ -157,7 +157,7 @@ log_info("Connected to SQL Server database")
 # We check for their existence and proceed.
 
 # BGS survey records, in the shared (dbo) schema
-bgs_infoware_tables <- c(
+required_bgs_tables <- c(
   "INFOWARE_BGS_DIST_20_24",
   "INFOWARE_BGS_DIST_21_25",
   "INFOWARE_BGS_COHORT_INFO"

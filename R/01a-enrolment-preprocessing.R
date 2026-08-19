@@ -131,14 +131,14 @@ date_cols <- c(
 )
 
 # Uncomment when running new data and/or add a conditional to test the date format.
-# stp_enrolment <- stp_enrolment |>
-#   mutate(
-#     across(
-#       .cols = date_cols,
-#       .fns = convert_date,
-#       .names = "{.col}"
-#     )
-#   )
+stp_enrolment <- stp_enrolment |>
+  mutate(
+    across(
+      all_of(date_cols),
+      .fns = convert_date,
+      .names = "{.col}"
+    )
+  )
 
 ## --------------------------------------- Create Record Type Table -------------------------------
 ## reference: source("./sql/01-enrolment-preprocessing/01-enrolment-preprocessing.R")
