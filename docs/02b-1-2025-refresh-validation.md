@@ -20,7 +20,7 @@ Sourced after a read-only bootstrap of the fresh `dbo` `*_r` tables (`.scratch/0
 
 ## Row-count verification vs PSSM2023
 
-Baseline: `IDIR\JDUAN.t_cohorts_recoded_r` on PSSM2023 (last cycle's 02b-1 output). Counts by SURVEY × SURVEY_YEAR. Overlap years 2021–2023 are the test — they should be unchanged.
+Baseline: the personal-schema (`my_schema`) `t_cohorts_recoded_r` on PSSM2023 (last cycle's 02b-1 output). Counts by SURVEY × SURVEY_YEAR. Overlap years 2021–2023 are the test — they should be unchanged.
 
 | Survey | 2021 | 2022 | 2023 | 2024 | 2025 |
 |---|---|---|---|---|---|
