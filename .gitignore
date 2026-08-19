@@ -25,3 +25,7 @@ scratch/
 .scratch/
 main.py
 .vscode/launch.json
+
+# analyst-local EDA artifacts, not for the repo
+R/load-so-survey-eda-data.R
+docs/eda-student-outcomes-2027.qmd
