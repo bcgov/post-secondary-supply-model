@@ -74,7 +74,7 @@ is_draft <- TRUE
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal") # DB connection settings (never hardcoded)
 lan <- config::get("lan") # network path for templates + output workbooks
-my_schema <- config::get("myschema") # this analyst's IDIR schema, e.g. IDIR\JDUAN
+my_schema <- config::get("myschema") # this analyst's personal IDIR schema (value lives in config.yml, never in code)
 
 # ---- Connection to decimal ----
 # db_config <- config::get("decimal")   # REMOVED: duplicate of the line above.
