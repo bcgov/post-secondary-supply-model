@@ -474,6 +474,21 @@ log_info("03 Gender Cleaning: complete")
 
 na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## 2026-08-19: type-safe sentinel cleanup (same class as the
+## 01c:373 fix, commit c4c9ab3). psi_birthdate_cleaned can
+## arrive as Date (convert_date now typed via lubridate::ymd)
+## or as character (older table lineages / string-casting
+## reads). The sentinels only exist in the character case;
+## Date columns pass through untouched.
+## ----------------------------------------------------------
+clean_psi_birthdate <- function(x) {
+  if (!is.character(x)) return(x)
+  replace(x, x %in% c("", " ", "(Unspecified)"), NA_character_)
+}
+
 credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   select(
     ENCRYPTED_TRUE_PEN,
@@ -484,11 +499,7 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   distinct() |>
   mutate(
     # we should handle NA transformation when loading into R.
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned %in% na_vals,
-      NA_character_,
-      psi_birthdate_cleaned
-    )
+    psi_birthdate_cleaned = clean_psi_birthdate(psi_birthdate_cleaned)
   ) |>
   mutate(
     psi_birthdate_cleaned_D = as.Date(psi_birthdate_cleaned) # we should be able to just cast this in the beginnning
