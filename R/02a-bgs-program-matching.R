@@ -170,15 +170,15 @@ required_lookups_tables <- c(
   "INFOWARE_L_CIP_2DIGITS_CIP2021"
 )
 
-missing_bgs <- bgs_infoware_tables[
+missing_bgs <- required_bgs_tables[
   !map_lgl(
-    bgs_infoware_tables,
+    required_bgs_tables,
     ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
-missing_lookups <- lookup_tables[
+missing_lookups <- required_lookups_tables[
   !map_lgl(
-    lookup_tables,
+    required_lookups_tables,
     ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
