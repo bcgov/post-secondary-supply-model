@@ -9,10 +9,59 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
-# OCCSN(NOC) = GRADUATES(cred, age)
-#            × P(CIP | cred, age)        ← cohort_program_distributions  (06)
-#            × P(in labour supply | CIP) ← labour_supply_distribution    (02b-2)
-#            × P(NOC | CIP, region)      ← occupation_distributions       (02b-3)
+# WHERE THIS SITS IN THE MODEL (docs/project-summary-for-new-analyst.md;
+# weighting detail in docs/weights-explained-02b-2-and-02b-3.md section 4):
+#   OCCSN(NOC) = GRADUATES(cred, age)
+#              x P(CIP | cred, age)        <- cohort_program_distributions  (06)
+#              x P(in labour supply | CIP) <- labour_supply_distribution    (02b-2)
+#              x P(NOC | CIP, region)      <- occupation_distributions      (THIS SCRIPT)
+# This script produces the occupation term: the Percent column of the
+# occupation_distributions* tables is P(NOC | CIP, region, age), computed
+# over the labour-supply population (NLS 1-3) using WEIGHT_OCC.
+#
+# THE OCC WEIGHT (weights doc section 4 -- same 4-stage template as 02b-2's
+# WEIGHT_NLS, but anchored to the NLS-weighted labour-supply base instead of
+# the raw cohort):
+#   BASE        = NLS 1-3 respondents x WEIGHT_NLS (year weight is already
+#                 inside WEIGHT_NLS and is NOT re-applied here)
+#   RESPONDENTS = NLS 1/3 with a valid NOC, plus groups that are 100%
+#                 unknown-NOC (99999); NLS=2 (in supply while studying)
+#                 stays in the BASE but is excluded from the NOC respondents
+#                 -- NOC-respondents stand in for their occupations
+#   WEIGHT_OCC  = (BASE / RESPONDENTS) x ADJ2, where ADJ2 patches years with
+#                 no NOC respondents (02b-2's ADJ1 cancels inside its ratio)
+#   Calibration identity: a stratum's NOC-respondent weighted total
+#   reconstructs its NLS-weighted base (checked by the z05b blocks).
+#
+# INPUT PROVENANCE (where each required table comes from):
+#   - t_cohorts_recoded + tmp_tbl_weights_nls: in-session from 02b-2 when
+#     chained by prep-for-fresh-run.R, or the personal-schema *_r tables
+#     standalone. t_cohorts_recoded arrives with the WEIGHT_NLS column
+#     (02b-2 added it); this script adds WEIGHT_OCC in-session.
+#   - t_current_region_pssm_codes / t_current_region_pssm_rollup_codes /
+#     t_noc_broad_categories: stable dbo lookups, loaded into the session
+#     by load-cohort-dacso.R ahead of this script in the runner chain.
+#   - occupation_distributions_stat_can: the 2021-Census occupation
+#     benchmark -- MANUAL PER-CYCLE PREREQUISITE built only by
+#     R/occ-dists-census-data.R (itself dependent on the graduate
+#     NOC-imputation outputs), which is NOT in the runner chain. When the
+#     table is absent, run that script BY HAND first; nothing else
+#     produces it. Read here from the personal schema, `_r`-preferring;
+#     the census rows' SURVEY label is the export vintage and is remapped
+#     to the current model year at read time (downstream consumers
+#     prefix-match "2021 Census", never the full label).
+#
+# OUTPUTS (written to the PERSONAL schema as <name>_r):
+#   - occupation_distributions (Student Outcomes rows + the appended census
+#     benchmark + the PDEG/law proxy rows), _no_tt, _lcp2, _lcp2_no_tt,
+#     _lcp2_bc, _lcp2_bc_no_tt: Module 07 reads these back from the
+#     personal schema. The _lcp2 variants key on LCP2_CD / LCIP2_CRED;
+#     the _bc variants are BC-only (region-rollup codes starting 59); the
+#     _no_tt variants collapse TTRAIN out and shim TTRAIN = NA to keep the
+#     SQL-table column contract.
+#   - t_suppression_public_release_noc (regular runs only): age x NOC
+#     cells with fewer than 5 records -- the small-cell suppression list
+#     for public release.
 
 library(tidyverse)
 library(glue)
@@ -57,6 +106,9 @@ con <- dbConnect(
 )
 
 # -------------------------- Required Tables -----------------------------------------
+# See the header for full provenance. The census benchmark table is the one
+# input no runner produces -- the guarded, personal-schema `_r`-preferring
+# read below (2025-refresh fix) replaces an unqualified default-schema read.
 # move this into load scripts?
 occupation_distributions_stat_can <- dbReadTable(
   con,
@@ -92,6 +144,10 @@ if (length(missing) > 0) {
 }
 
 # --------------------------  Standardize Names -----------------------------
+# Defensive case normalization: 02b-2's in-session output is already
+# upper-case, but tables read back from SQL Server can arrive with
+# mixed-case column names. Everything downstream keys on the upper-case
+# contract.
 t_cohorts_recoded <- t_cohorts_recoded |>
   rename_with(toupper)
 t_current_region_pssm_codes <- t_current_region_pssm_codes |>
@@ -106,6 +162,14 @@ occupation_distributions_stat_can <- occupation_distributions_stat_can |>
   rename_with(toupper)
 
 # --------------------------  Calculate Weights --------------------------
+# The 4-stage OCC weighting (header + weights doc section 4). Existing
+# per-stage comments below are kept; the cross-reference map is:
+#   z01 base occ ... respondent-level universe    (BASE anchor input)
+#   z02a base ..... NLS-weighted BASE per stratum/year
+#   z02b union .... the NOC-respondent denominator (valid NOC or 100%-unknown)
+#   z02c weight ... BASE/RESPONDENTS x (year weight already inside WEIGHT_NLS)
+#   z03/z04 ....... year-collapsed totals + ADJ2
+#   tmp_tbl_weights_occ = WEIGHT_NLS_BASE x ADJ2 = WEIGHT_OCC
 
 # Identify the "Universe" of graduates, grouping by key demographics.
 # BASE represents the number of valid respondents and can be verified by summing
@@ -496,6 +560,18 @@ t_cohorts_recoded <- t_cohorts_recoded %>%
 # dbGetQuery(decimal_con, DACSO_Q008_Z09_Check_Weights)
 
 # ----- Create Occupation Distributions -----
+# Naming scheme for the six distribution tables below (Module 07 joins all
+# of them back from the personal schema):
+#   (base) ........ 4-digit CIP keys, all regions, TTRAIN kept
+#   _no_tt ........ TTRAIN collapsed out of the stratum (keys rebuilt
+#                   grad - CIP - credential via make_lcip_cred; TTRAIN
+#                   shimmed to NA to match the SQL tables)
+#   _lcp2 ......... 2-digit CIP keys (LCP2_CD), all regions
+#   _lcp2_no_tt ... 2-digit keys, TTRAIN collapsed (keys via remove_ttrain)
+#   _lcp2_bc ...... 2-digit keys, BC rows only (IN_BC, rollup codes ^59)
+#   _lcp2_bc_no_tt  2-digit keys, BC only, TTRAIN collapsed
+# Each is numerator COUNT (weighted, per NOC) / denominator TOTAL (weighted,
+# per CIP-credential-region-age cell) = P(NOC | CIP, region, age).
 #dbExecute(decimal_con, DACSO_Q009_Weight_Occs)
 # this is the main table that feeds into the occupation distributions tables.
 # filter join to remove unknown regions
@@ -1038,6 +1114,11 @@ if (regular_run == TRUE) {
 }
 
 # ---- include post-bach degrees from stats can data
+# Append the census benchmark (graduate credentials only -- see header).
+# NA-shims match the census table's absent columns (TTRAIN, LCIP2_CRED);
+# the SURVEY label below is set to the census rows' label so they are
+# distinguishable downstream by prefix-match. (Label updated by the
+# 2025-refresh fixes to the current model year.)
 # this was included here in the original SQL but means the stats can data isn't included
 # in the Public Release above?
 # Definitely a TODO to check that it makes sense to include here
@@ -1071,6 +1152,11 @@ occupation_distributions <- occupation_distributions |>
 #  - Close DB connections
 #  - Remove all other objects at the end of each script.
 ## ------------------------------------------------------------------------------------------------
+# Write-back contract: each kept table lands in the PERSONAL schema
+# (my_schema) as <name>_r, overwrite. Downstream: Module 07 reads the six
+# occupation_distributions* tables back from the personal schema (its
+# required-tables section); 03/06 do not use them. The suppression table
+# is regular-run only (see its block above).
 
 tables_to_keep <- c(
   "labour_supply_distribution",
