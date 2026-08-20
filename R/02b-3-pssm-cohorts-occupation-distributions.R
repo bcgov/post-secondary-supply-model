@@ -66,9 +66,21 @@
 library(tidyverse)
 library(glue)
 library(assertthat)
-library(RODBC)
 library(DBI)
 library(config)
+
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: run-mode flags. regular_run is read at the
+## suppression block below but was never defined in-script, so any
+## standalone run errored there. Guarded defaults follow the 02b-1
+## pattern (commit 1449ce3): standalone runs take the regular-run
+## path; runners (prep-for-fresh-run / -qi / -ptib) still set the
+## flags in .GlobalEnv before sourcing, overriding these defaults.
+## Also dropped the unused library(RODBC) (the script connects via
+## DBI/odbc) and the duplicate db_config assignment.
+## ----------------------------------------------------------
+if (!exists("regular_run")) regular_run <- TRUE
 
 # ---- Helper Functions ----
 remove_ttrain <- function(x) {
@@ -91,7 +103,6 @@ make_lcip_cred <- function(grad_status, lcp_cd, pssm_credential) {
 }
 
 # ---- Configure LAN and file paths ----
-db_config <- config::get("decimal")
 lan <- config::get("lan")
 my_schema <- config::get("myschema")
 
@@ -110,18 +121,41 @@ con <- dbConnect(
 # input no runner produces -- the guarded, personal-schema `_r`-preferring
 # read below (2025-refresh fix) replaces an unqualified default-schema read.
 # move this into load scripts?
-occupation_distributions_stat_can <- dbReadTable(
-  con,
-  SQL(glue::glue('"Occupation_Distributions_Stat_Can"'))
-) |>
-  # not sure which one this should be but this matches what is in the SQL table
-  mutate(
-    SURVEY = if_else(
-      SURVEY == "2021 Census PSSM 2022-2023",
-      "2021 Census PSSM 2023-2024",
-      SURVEY
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: the occ-StatCan read was unqualified, so SQL Server
+## resolved it against the connection's DEFAULT schema (dbo) -- a
+## hard failure on PSSM2025 (no dbo copy exists) and, per the
+## provenance probe (#154), never the intended personal-schema table
+## even where a dbo copy existed. Guarded per the 02b-1/02b-2
+## pattern: prefer the _r table the census prep script writes, fall
+## back to the no-suffix name. Remap target updated to the current
+## model year (2021 Census PSSM 2024-2025), matching 02b-2's
+## contract; the census script's own label stays as the export
+## vintage, remapped here each refresh.
+## ----------------------------------------------------------
+if (!exists("occupation_distributions_stat_can")) {
+  stat_can_name <- if (dbExistsTable(
+    con,
+    Id(schema = my_schema, table = "Occupation_Distributions_Stat_Can_r")
+  )) {
+    "Occupation_Distributions_Stat_Can_r"
+  } else {
+    "Occupation_Distributions_Stat_Can"
+  }
+  occupation_distributions_stat_can <- dbReadTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."{stat_can_name}"'))
+  ) |>
+    # not sure which one this should be but this matches what is in the SQL table
+    mutate(
+      SURVEY = if_else(
+        SURVEY == "2021 Census PSSM 2022-2023",
+        "2021 Census PSSM 2024-2025",
+        SURVEY
+      )
     )
-  )
+}
 
 # List of required tables
 required_tables <- c(
@@ -1111,6 +1145,22 @@ if (regular_run == TRUE) {
       )
     ) |>
     arrange(Expr1)
+
+  ## ----------------------------------------------------------
+  ## Reasons for change, other notes
+  ## 2025 refresh: the suppression write moved inside the
+  ## regular_run block. The object only exists on regular runs,
+  ## so the unconditional write-back walk below errored on
+  ## QI/PTIB runs (and its tables_to_keep entry errored standalone
+  ## runs); the table is also only meaningful for the regular /
+  ## public-release path.
+  ## ----------------------------------------------------------
+  dbWriteTable(
+    con,
+    SQL(glue::glue('"{my_schema}"."t_suppression_public_release_noc_r"')),
+    t_suppression_public_release_noc,
+    overwrite = TRUE
+  )
 }
 
 # ---- include post-bach degrees from stats can data
@@ -1129,7 +1179,13 @@ occupation_distributions <- occupation_distributions |>
   rbind(
     occupation_distributions_stat_can |>
       transmute(
-        SURVEY = "2021 Census PSSM 2023-2024",
+        ## ----------------------------------------------------------
+        ## Reasons for change, other notes
+        ## 2025 refresh: label follows the read-time remap above
+        ## (02b-2 contract): current model year, set once here so
+        ## census rows land distinguishable and consistent.
+        ## ----------------------------------------------------------
+        SURVEY = "2021 Census PSSM 2024-2025",
         PSSM_CREDENTIAL = PSSM_CREDENTIAL,
         PSSM_CRED,
         LCP4_CD,
@@ -1158,15 +1214,21 @@ occupation_distributions <- occupation_distributions |>
 # required-tables section); 03/06 do not use them. The suppression table
 # is regular-run only (see its block above).
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: trimmed to the tables this script itself creates.
+## labour_supply_distribution is 02b-2's output (never built here --
+## standalone runs errored in base::get, chained runs rewrote a
+## stale copy); t_suppression_public_release_noc is now written in
+## the regular_run block above.
+## ----------------------------------------------------------
 tables_to_keep <- c(
-  "labour_supply_distribution",
   "occupation_distributions",
   "occupation_distributions_no_tt",
   "occupation_distributions_lcp2",
   "occupation_distributions_lcp2_no_tt",
   "occupation_distributions_lcp2_bc",
-  "occupation_distributions_lcp2_bc_no_tt",
-  "t_suppression_public_release_noc"
+  "occupation_distributions_lcp2_bc_no_tt"
 )
 
 write_table_to_db <- function(table_name, schema, con) {
