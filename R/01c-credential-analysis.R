@@ -484,7 +484,14 @@ na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 ## reads). The sentinels only exist in the character case;
 ## Date columns pass through untouched.
 ## ----------------------------------------------------------
-tidy_replace <- function(x, values = c("", " ", "(Unspecified)"), replacement = NA) {
+tidy_replace <- function(
+  x,
+  values = c("", " ", "(Unspecified)"),
+  replacement = NA
+) {
+  if (!is.character(x)) {
+    return(x)
+  }
   replace(x, x %in% values, replacement)
 }
 
