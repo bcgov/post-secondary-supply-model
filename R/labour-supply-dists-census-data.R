@@ -55,7 +55,13 @@ library(openxlsx)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: library(RJDBC) dropped -- loaded but never used
+## (the script connects via DBI/odbc), and it pulls in rJava/Oracle
+## dependencies for nothing. Both census prep scripts ran clean
+## with it removed.
+## ----------------------------------------------------------
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
