@@ -10,23 +10,58 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# This script prepares census data for the Labour_Supply_Distribution table
+# This script prepares census data for the Labour_Supply_Distribution table.
 #
-# Required tables
-#   filtered and unfiltered stat can exports
-#   tbl_age_groups_rollup
-#   t_current_region_pssm_rollup_codes_statcan
-#   t_region_statcan_xwalk
+# WHERE THIS SITS IN THE MODEL (companion: R/02b-2-pssm-cohorts-new-labour-
+# supply.R; weighting context: docs/weights-explained-02b-2-and-02b-3.md):
+#   OCCSN(NOC) = GRADUATES(cred,age) x P(CIP|cred,age)
+#                x P(in labour supply|CIP)   <- 02b-2, benchmarked by THIS TABLE
+#                x P(NOC|CIP,region)         <- 02b-3
+# The four student-outcomes surveys cover trades/certificate/diploma/bachelor
+# credentials, but graduate credentials (GRCT or GRDP, PDEG, MAST, DOCT) have
+# no (or thin) survey coverage -- their labour-supply participation is
+# benchmarked from the 2021 Census instead. 02b-2 appends this table's rows
+# to labour_supply_distribution as the census benchmark (Survey label
+# "2021 Census ..."; downstream consumers prefix-match that label, never
+# full-label equality).
 #
-# Resulting tables
-#   Labour_Supply_Distribution_Stat_Can
+# MANUAL PER-CYCLE PREREQUISITE -- this script is NOT in the
+# prep-for-fresh-run.R chain. When the output table below is absent on the
+# model database (as it was in the 2025 refresh), run this script BY HAND
+# before 02b-2; nothing else produces the table.
+#
+# Inputs (all must exist before running):
+#   - the StatCan census export workbook (LAN data/statcan/...xlsx; sheets
+#     "filtered_data" + "unfiltered_data"; the census content is stable
+#     across model cycles -- the 2025-cycle export is byte-identical to the
+#     previous cycle's, so re-running reproduces the same table)
+#   - LAN lookup CSVs: T_Current_Region_PSSM_Rollup_Codes_StatCan.csv and
+#     T_Region_StatCan_XWALK.csv (census geography spelling -> PSSM region
+#     names)
+#   - tbl_age_groups_rollup_r already present in the personal schema
+#     (normally written by the loader chain; stage it from dbo if running
+#     standalone)
+#
+# Output (personal schema):
+#   - Labour_Supply_Distribution_Stat_Can_r -- what 02b-2's guarded,
+#     `_r`-preferring read expects. Intermediates (Combined_..._Original_r
+#     and the statcan rollup lookup `_r`) are dropped again in the cleanup.
+#     The hardcoded SURVEY label below deliberately keeps the export VINTAGE
+#     ("2021 Census PSSM 2022-2023") -- 02b-2 relabels to the current model
+#     year at read time. Do not "fix" the year here.
 
 library(tidyverse)
 library(openxlsx)
 library(RODBC)
 library(config)
 library(DBI)
-library(RJDBC)
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## 2025 refresh: library(RJDBC) dropped -- loaded but never used
+## (the script connects via DBI/odbc), and it pulls in rJava/Oracle
+## dependencies for nothing. Both census prep scripts ran clean
+## with it removed.
+## ----------------------------------------------------------
 
 # ---- Configure LAN and file paths ----
 db_config <- config::get("decimal")
@@ -43,7 +78,17 @@ decimal_con <- dbConnect(
 )
 
 # ---- Import stat can data ----
-options(scipen = 999)
+# Both sheets carry decorative header rows, so data starts at row 5 and the
+# 12 count columns are renamed below. They form a cross-tab of
+# labour-force status x school attendance:
+#   TOT_ / LF_ / LF_E_ / LF_U_  = total / in labour force / employed / unemployed
+#   _tot_sa / _dnas / _as       = total school attendance / did not attend / attended
+# The labour-supply numerator used later is LF_U_dnas + LF_E_tot_sa:
+# unemployed-and-not-in-school + employed -- i.e. people in the labour
+# force who are NOT still studying.
+# GRCT/GRDP and PDEG are built from the FILTERED sheet; MAST and DOCT from
+# the UNFILTERED one (a distinction inherited from the source workbook).
+options(scipen = 999) # census counts in fixed notation, not scientific
 stat_can_export <- glue::glue(
   "{lan}/data/statcan/stat-can-data-export-for-labour-supply-distributions.xlsx"
 )
@@ -101,6 +146,13 @@ sc_export_unfilt_orig <- sc_export_unfilt_orig %>%
   )
 
 # ---- Import required lookups ----
+# The xwalk translates StatCan's raw geography spellings (including a
+# \x96-encoded en-dash) into the fixed region names the derivations below
+# key on. The rollup lookup maps those names to PSSM region-rollup codes;
+# it is written to the personal schema here because the final lookup join
+# happens database-side (see "Prepare a Stat_Can version..." below). NOTE:
+# occ-dists-census-data.R writes and drops the same `_r` lookup table --
+# never run the two census scripts concurrently.
 t_current_region_pssm_rollup_codes_statcan <-
   readr::read_csv(
     glue::glue(
@@ -130,6 +182,9 @@ dbWriteTable(
 )
 
 # ---- Check for required data tables ----
+# The age lookup is NOT created here -- it must already exist in the
+# personal schema (loader chain output; stage from dbo when standalone).
+# dbExistsTable below only PRINTS the check; the join later fails if false.
 # lookups
 dbExistsTable(
   decimal_con,
@@ -137,6 +192,13 @@ dbExistsTable(
 )
 
 # ---- Create required Region counts ----
+# The census export nests some geographies; PSSM needs them split. Two
+# derivations, each done by reshaping wide (pivot to one column per
+# region), subtracting, and reshaping back -- repeated for the filtered
+# and unfiltered sheets:
+#   Northeast      = "North Coast - Nechako and Northeast" minus
+#                    "North Coast and Nechako"
+#   Rest of Canada = "Canada" minus "British Columbia"
 ## use xwalk to get "clean" names
 sc_export_filt <- sc_export_filt_orig %>%
   left_join(
@@ -230,6 +292,17 @@ Rest_of_Canada_unfilt <- sc_export_unfilt %>%
 sc_export_unfilt <- sc_export_unfilt %>% bind_rows(Rest_of_Canada_unfilt)
 
 # ---- Update data for each designation separately ----
+# Shared recipe per credential (GRCT/GRDP, PDEG, MAST; DOCT varies, see its
+# section): for each age x CIP cell,
+#   LABOUR_SUPPLY      = min(unemployed-not-in-school + employed, total
+#                            not-in-school) -- the census count of people
+#                            in the labour force and NOT still studying
+#   NEW_LABOUR_SUPPLY  = LABOUR_SUPPLY / the CANADA-WIDE total for the cell
+#                        -- participation is expressed against the national
+#                        pool (the anchor 02b-2's benchmark rows use), not
+#                        the regional one
+#   TOTAL              = the Canada-wide total (0 when supply is 0)
+# The Canada totals are joined on from the "Canada" rows of the same data.
 
 ## GRCT or GRDP (uses filtered data) ----
 grct_grdp_data <- sc_export_filt %>%
@@ -321,6 +394,19 @@ mast_data <- mast_data %>%
   mutate(PSSM_CREDENTIAL = "MAST", PSSM_CRED = PSSM_CREDENTIAL)
 
 ## DOCT (uses unfiltered data) ----
+# Doctorates deviate from the shared recipe. Census suppression/rounding on
+# small cells can saturate BC's own ratio at exactly 1 on a tiny base
+# (BC_LABOUR_SUPPLY <= 30 -- cells this small are unreliable), so:
+#   - where that happens (or the supply is 0), BC falls back to the
+#     ALL-CIP total ratio for that age group (TOT_BC_NEW_LS);
+#   - BC's per-CIP labour supply is then redistributed across programs via
+#     LS_Program_Dist_BC (the CIP's share of the age group's not-in-school
+#     BC population);
+#   - Rest of Canada takes the nested product of its own two ratios (its
+#     labour-supply share x its share of the Canada pool);
+#   - every other region gets TOT_tot_sa_reg * LS_Program_Dist_BC -- the
+#     region's not-in-school count scaled by BC's program distribution
+#     (BC's mix used as the proxy, inherited from the original design).
 doct_data <- sc_export_unfilt %>%
   filter(HCDD == "Earned doctorate")
 
@@ -458,6 +544,9 @@ doct_data_final <- doct_data %>%
 
 # ---- Prepare a Stat_Can version of Labour_Supply_Distribution table ----
 ## Combine all datasets ----
+# One credential-labelled dataset (GRCT/GRDP + PDEG + MAST + DOCT), then a
+# round-trip through the personal schema so the lookup joins below can run
+# database-side (tbl() + left_join, translated to SQL by dbplyr).
 Combined_Stat_Can_Original <- grct_grdp_data %>%
   rbind(pdeg_data) %>%
   rbind(mast_data) %>%
@@ -471,6 +560,9 @@ dbWriteTable(
 )
 
 ## Add in lookups ----
+# Map region names -> PSSM region-rollup codes and age labels -> age-rollup
+# codes; rows that match neither lookup (geographies/ages the PSSM does not
+# model) are dropped by the two !is.na filters.
 # filter out unused regions and ages based on lookup tables
 Combined_Stat_Can <- tbl(
   decimal_con,
@@ -489,6 +581,11 @@ Combined_Stat_Can <- tbl(
   collect()
 
 ## Prepare final columns ----
+# Drop the workbook's "Total" CIP rows; the PSSM keys on the 2-digit CIP
+# prefix. NOTE: the column is named LCP4_CD for contract compatibility with
+# 02b-2's output table, but it holds the TWO-digit prefix (census rows use
+# 2-digit keys; consumers distinguish census rows by the Survey label).
+# LCIP4_CRED follows the census row format "XX - CREDENTIAL".
 Combined_Stat_Can <- Combined_Stat_Can %>%
   filter(!grepl("Total", major_field_cip)) %>%
   mutate(LCP4_CD = substr(major_field_cip, 1, 2)) %>%
@@ -497,6 +594,8 @@ Combined_Stat_Can <- Combined_Stat_Can %>%
   arrange(PSSM_CRED, AGE_GROUP_ROLLUP, CURRENT_REGION_PSSM_CODE_ROLLUP, LCP4_CD)
 
 # select desired columns
+# The exact column set/order 02b-2's append expects (02b-2 NA-pads the
+# columns absent here: TTRAIN, LCIP2_CRED).
 Labour_Supply_Distribution_Stat_Can <- Combined_Stat_Can %>%
   select(
     SURVEY,
@@ -512,6 +611,9 @@ Labour_Supply_Distribution_Stat_Can <- Combined_Stat_Can %>%
   )
 
 ## Save final table ----
+# overwrite=TRUE so re-running the script is idempotent (same workbook in,
+# same table out). 02b-2 reads this table with its guarded `_r`-preferring
+# read and applies the model-year relabel at that point.
 dbWriteTable(
   decimal_con,
   name = Id(schema = my_schema, table = "Labour_Supply_Distribution_Stat_Can_r"),
