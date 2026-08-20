@@ -47,11 +47,14 @@
 #   - t_current_region_pssm_codes / t_current_region_pssm_rollup_codes /
 #     t_noc_broad_categories: stable dbo lookups, loaded into the session by
 #     load-cohort-dacso.R ahead of this script in the runner chain.
-#   - labour_supply_distribution_stat_can: the 2021-Census benchmark, built by
-#     R/labour-supply-dists-census-data.R from the StatCan export
-#     (LAN data/statcan/stat-can-data-export-for-labour-supply-distributions.xlsx)
-#     into my_schema -- the only required table no cohort loader materializes,
-#     so this script reads it from the database directly.
+#   - labour_supply_distribution_stat_can: the 2021-Census benchmark, built
+#     ONLY by R/labour-supply-dists-census-data.R (from the StatCan export,
+#     LAN data/statcan/stat-can-data-export-for-labour-supply-distributions.xlsx).
+#     MANUAL PER-CYCLE PREREQUISITE: that script is NOT in the
+#     prep-for-fresh-run.R chain -- when the table is absent from the
+#     personal schema, run it BY HAND before this script; nothing else
+#     produces it. This script reads it from the personal schema with a
+#     guarded, `_r`-preferring read.
 #
 # OUTPUTS (written to the PERSONAL schema, my_schema, as <name>_r):
 #   - labour_supply_distribution / _no_tt / _lcp2 / _lcp2_no_tt: the four
