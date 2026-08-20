@@ -484,9 +484,8 @@ na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 ## reads). The sentinels only exist in the character case;
 ## Date columns pass through untouched.
 ## ----------------------------------------------------------
-clean_psi_birthdate <- function(x) {
-  if (!is.character(x)) return(x)
-  replace(x, x %in% c("", " ", "(Unspecified)"), NA_character_)
+tidy_replace <- function(x, values = c("", " ", "(Unspecified)"), replacement = NA) {
+  replace(x, x %in% values, replacement)
 }
 
 credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
