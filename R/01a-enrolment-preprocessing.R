@@ -33,7 +33,7 @@ log_info("==== 01a-enrolment-preprocessing.R START ====")
 ## -----------------------------------------------------------------------------------------------
 db_config <- config::get("decimal2025")
 my_schema <- config::get("myschema")
-
+shareschema <- config::get("shareschema")
 con <- dbConnect(
   odbc(),
   Driver = db_config$driver,
@@ -74,7 +74,7 @@ stp_enrolment <- dbGetQuery(
     PSI_VISA_STATUS,
     PSI_BIRTHDATE,
     LAST_SEEN_BIRTHDATE
-  FROM [STP_Enrolment_2024];"
+  FROM [{shareschema}].[STP_Enrolment_2024];"
   )
 )
 log_info(glue::glue(
@@ -109,13 +109,27 @@ stp_enrolment <- stp_enrolment |> mutate(ID = row_number())
 ## all queries in the file
 ## -------------------------------------------------------------------------------------------------
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## 2026-08-19: convert_date() made idempotent. The STP loaders
+## (convert_two_digit_year at load time) already expand two-digit
+## years, so dbo *_2024 raw arrives as YYYY-MM-DD. The previous
+## unconditional century-prefix turned those into "20YYYY-MM-DD",
+## which ymd() parsed to NA — wiping every date downstream
+## (birthdate cleaning reported 0 / 20,639,932 cleaned).
+## Values with nchar >= 10 now pass through unchanged.
+## ----------------------------------------------------------
+
 convert_date <- function(vec) {
   # Years 26-99 go to 19xx
   # Years 00-25 go to 20xx
+  # Already-expanded dates (YYYY-MM-DD, nchar >= 10) pass through
   yy <- as.numeric(substr(vec, 1, 2))
 
   century_prefix <- case_when(
     is.na(yy) ~ NA_character_,
+    nchar(vec) >= 10 ~ "",
     yy < 26 ~ "20",
     TRUE ~ "19"
   )

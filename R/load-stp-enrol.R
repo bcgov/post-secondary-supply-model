@@ -117,6 +117,30 @@ con <- dbConnect(
 # ---- Write to decimal ----
 
 # ---- Functions ----
+# The refreshed STP exports (2024 cycle) write dates with TWO-DIGIT years,
+# and enrolment dates span BOTH centuries (PSI_BIRTHDATE "69-08-09" = 1969
+# next to "02-09-03" = 2002). Left as-is, as.Date()'s default parses them as
+# years 0002-0025: SQL Server rejects those on insert (datetime range starts
+# 1753 -> error 22007) and downstream date logic silently misparses. Expand
+# to four-digit years at load -- single point, every consumer (01a/01c)
+# receives clean YYYY-MM-DD. Cutoff follows the convert_date convention in
+# 01a-enrolment-preprocessing.R (yy < 26 -> 20xx, else 19xx; bump with each
+# data cycle -- birthdates/program dates 26-99 are 19xx, recent ones 00-25
+# are 20xx). nchar == 8 guard keeps already-expanded values untouched, so
+# the fix is idempotent if applied twice. any_of() tolerates a part file
+# carrying a different column set.
+convert_two_digit_year <- function(x, cutoff = 26) {
+  out <- x
+  need <- !is.na(x) & x != "" & x != "(Unspecified)" & nchar(x) == 8
+  yy <- suppressWarnings(as.integer(substr(x[need], 1, 2)))
+  out[need] <- paste0(ifelse(!is.na(yy) & yy < cutoff, "20", "19"), x[need])
+  out
+}
+stp_date_cols <- c(
+  "PSI_BIRTHDATE", "LAST_SEEN_BIRTHDATE",
+  "PSI_MIN_START_DATE", "PSI_PROGRAM_EFFECTIVE_DATE"
+)
+
 write_to_decimal <- function(
   flnm,
   con,
@@ -140,11 +164,29 @@ write_to_decimal <- function(
     flnm,
     locale = locale(encoding = "latin1"),
     col_types = cols(.default = col_character())
+  ) %>%
+    mutate(across(any_of(stp_date_cols), convert_two_digit_year))
+  # sample computed outside glue -- glue parses {} contents as code and
+  # complex nested calls there have bitten us twice this cycle
+  sample_bd <- paste(
+    head(sort(data$PSI_BIRTHDATE[!is.na(data$PSI_BIRTHDATE)]), 2),
+    collapse = ", "
   )
+  fixed_cols <- paste(intersect(stp_date_cols, names(data)), collapse = ", ")
+  log_info(glue::glue(
+    "Expanded two-digit years in {fixed_cols}; sample birthdates: {sample_bd}"
+  ))
 
+  # Landing table in the SHARED schema (dbo) -- raw data's home per the repo
+  # schema convention, and where 01a reads STP_Enrolment_2024 from. The
+  # caller drops it once before the part-file loop; part 1 creates it
+  # (append = FALSE), parts 2-5 append into it.
   DBI::dbWriteTableArrow(
     con,
-    name = SQL(glue::glue('"{my_schema}"."STP_Enrolment_orig"')),
+    name = DBI::Id(
+      schema = config::get("shareschema"),
+      table = "STP_Enrolment_2024"
+    ),
     nanoarrow::as_nanoarrow_array_stream(data),
     append = append
   )
@@ -156,14 +198,28 @@ write_to_decimal <- function(
 
 
 log_info(glue::glue(
-  "Writing {length(fls)} file(s) to STP_Enrolment table | append = TRUE"
+  "Writing {length(fls)} file(s) to dbo.STP_Enrolment_2024 | drop-first, part 1 creates, parts append"
 ))
+# Drop the landing table once before the loop: each part APPENDS, so a
+# leftover table from a previous load would duplicate every row.
+enrolment_tbl <- DBI::Id(
+  schema = config::get("shareschema"),
+  table = "STP_Enrolment_2024"
+)
+if (DBI::dbExistsTable(con, enrolment_tbl)) {
+  DBI::dbRemoveTable(con, enrolment_tbl)
+  log_info("Dropped existing dbo.STP_Enrolment_2024 (drop-first reload)")
+}
 invisible(lapply(
-  fls,
-  write_to_decimal,
-  con = con,
-  schema = schema,
-  append = TRUE
+  seq_along(fls),
+  function(i) {
+    write_to_decimal(
+      fls[i],
+      con = con,
+      schema = schema,
+      append = i > 1
+    )
+  }
 ))
 
 

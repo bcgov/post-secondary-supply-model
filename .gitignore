@@ -31,5 +31,5 @@ scratch/
 .scratch/
 main.py
 BGS_Matching_STP_Cdtl_Check_MatchInstAwardYearOnly_ProgramCombos_orig.csv
-.gitignore
 .vscode/launch.json
+
