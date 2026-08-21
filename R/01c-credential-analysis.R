@@ -863,20 +863,6 @@ set.seed(42)
 ## ----------------------------------------------------------
 ## sample() gotcha: a length-1 numeric x with value >= 1 is read
 ## as "sample from 1:x", so sample(31, 1, prob = 1) asks for 31
-## probabilities and dies with "incorrect number of
-## probabilities". Age/gender groups where exactly one age has a
-## positive weight (rare category-gender combos after complete()
-## pads zero counts) hit this. Draw an index with sample.int()
-## (safe at length 1) and subset instead.
-## ----------------------------------------------------------
-sample_age <- function(ages, weights) {
-  if (length(ages) == 0L || length(weights) == 0L) {
-    return(sample(19:54, size = 1))
-  }
-
-  valid <- is.finite(ages) & is.finite(weights) & weights > 0
-
-  if (!any(valid)) {
     return(sample(19:54, size = 1))
   }
 
