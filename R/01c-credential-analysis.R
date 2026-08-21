@@ -360,13 +360,6 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
         PSI_GENDER
       ),
     by = c("EnrolmentID" = "ID")
-  ) |>
-  mutate(
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned == "1900-01-01",
-      NA,
-      psi_birthdate_cleaned
-    )
   )
 
 # slight correction needed to align with SQL
@@ -382,6 +375,13 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 ## ----------------------------------------------------------
 if (is.character(credential_supvars_enrolment$psi_birthdate_cleaned)) {
   credential_supvars_enrolment <- credential_supvars_enrolment |>
+    mutate(
+      psi_birthdate_cleaned = if_else(
+        psi_birthdate_cleaned == "1900-01-01",
+        NA,
+        psi_birthdate_cleaned
+      )
+    ) |>
     mutate(psi_birthdate_cleaned = na_if(psi_birthdate_cleaned, ""))
 }
 
@@ -406,7 +406,7 @@ if (is.character(credential_supvars_enrolment$psi_birthdate_cleaned)) {
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
-    (credential |>
+    credential |>
       filter(
         PSI_CREDENTIAL_CATEGORY %in%
           c(
@@ -417,14 +417,14 @@ stp_credential_record_type <-
           )
       ) |>
       mutate(DropCredCategory = "Yes") |>
-      select(ID, DropCredCategory)),
+      select(ID, DropCredCategory),
     by = "ID"
   )
 
 log_info(glue::glue(
   "02 Developmental Records: DropCredCategory flagged on {sum(!is.na(stp_credential_record_type$DropCredCategory))} records"
 ))
-
+#
 
 ## ---------------------------------------- 03 Miscellaneous -------------------------------------
 # WHAT: Flag credentials awarded on or after September 1 of the current model year
@@ -505,7 +505,7 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   distinct() |>
   mutate(
     # we should handle NA transformation when loading into R.
-    psi_birthdate_cleaned = clean_psi_birthdate(psi_birthdate_cleaned)
+    psi_birthdate_cleaned = tidy_replace(psi_birthdate_cleaned)
   ) |>
   mutate(
     psi_birthdate_cleaned_D = as.Date(psi_birthdate_cleaned) # we should be able to just cast this in the beginnning
@@ -839,15 +839,16 @@ log_info(glue::glue(
 age_weights <- credential_non_dup |>
   filter(
     !is.na(AGE_GROUP_AT_GRAD),
-    dplyr::between(AGE_AT_GRAD, 15L, 89L),
     HIGHEST_CRED_BY_DATE == "Yes"
   ) |>
   count(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned, AGE_AT_GRAD) |>
-  group_by(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   complete(
+    PSI_CREDENTIAL_CATEGORY,
+    psi_gender_cleaned,
     AGE_AT_GRAD = full_seq(AGE_AT_GRAD, 1),
     fill = list(n = 0)
   ) |>
+  group_by(PSI_CREDENTIAL_CATEGORY, psi_gender_cleaned) |>
   mutate(grp_ttl = sum(n, na.rm = TRUE)) |>
   mutate(prob = if_else(grp_ttl > 0, n / grp_ttl, 0)) |>
   summarise(
@@ -860,16 +861,6 @@ age_weights <- credential_non_dup |>
 set.seed(42)
 # verify that these results produce similar distributions, the differences in
 # sampling results may be considered insignificant
-## ----------------------------------------------------------
-## sample() gotcha: a length-1 numeric x with value >= 1 is read
-## as "sample from 1:x", so sample(31, 1, prob = 1) asks for 31
-    return(sample(19:54, size = 1))
-  }
-
-  idx <- which(valid)
-  ages[idx[sample.int(length(idx), size = 1, prob = weights[idx])]]
-}
-
 to_impute <- credential_non_dup |>
   filter(
     is.na(AGE_AT_GRAD),
@@ -888,7 +879,14 @@ to_impute <- credential_non_dup |>
 
 imputed_student_ages <- to_impute |>
   mutate(
-    IMPUTED_AGE_AT_GRAD = as.numeric(map2_dbl(ages, weights, sample_age))
+    IMPUTED_AGE_AT_GRAD = case_when(
+      !is.null(ages) ~ as.numeric(map2(
+        ages,
+        weights,
+        ~ sample(.x, size = 1, prob = .y)
+      )),
+      TRUE ~ sample(19:54, 1)
+    )
   ) |>
   select(-ages, -weights, -counts)
 
