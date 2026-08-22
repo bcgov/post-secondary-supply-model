@@ -360,24 +360,30 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
         PSI_GENDER
       ),
     by = c("EnrolmentID" = "ID")
-  ) |>
-  mutate(
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned == "1900-01-01",
-      NA,
-      psi_birthdate_cleaned
-    )
   )
 
 # slight correction needed to align with SQL
-credential_supvars_enrolment <- credential_supvars_enrolment |>
-  mutate(
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned == "",
-      NA_character_,
-      psi_birthdate_cleaned
-    )
-  )
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## 2026-08-19: made type-safe. With convert_date() now typed
+## (lubridate::ymd), psi_birthdate_cleaned arrives from 01a as
+## Date, where "" cannot occur — the character-era empty-string
+## cleanup errored (if_else cannot mix NA_character_ with Date).
+## The cleanup now applies only when the column is character
+## (older table lineages); Date columns pass through unchanged.
+## ----------------------------------------------------------
+if (is.character(credential_supvars_enrolment$psi_birthdate_cleaned)) {
+  credential_supvars_enrolment <- credential_supvars_enrolment |>
+    mutate(
+      psi_birthdate_cleaned = if_else(
+        psi_birthdate_cleaned == "1900-01-01",
+        NA,
+        psi_birthdate_cleaned
+      )
+    ) |>
+    mutate(psi_birthdate_cleaned = na_if(psi_birthdate_cleaned, ""))
+}
 
 
 ## ----------------------------02 Developmental Records-------------------------------------------
@@ -400,7 +406,7 @@ credential_supvars_enrolment <- credential_supvars_enrolment |>
 stp_credential_record_type <-
   stp_credential_record_type |>
   left_join(
-    (credential |>
+    credential |>
       filter(
         PSI_CREDENTIAL_CATEGORY %in%
           c(
@@ -411,14 +417,14 @@ stp_credential_record_type <-
           )
       ) |>
       mutate(DropCredCategory = "Yes") |>
-      select(ID, DropCredCategory)),
+      select(ID, DropCredCategory),
     by = "ID"
   )
 
 log_info(glue::glue(
   "02 Developmental Records: DropCredCategory flagged on {sum(!is.na(stp_credential_record_type$DropCredCategory))} records"
 ))
-
+#
 
 ## ---------------------------------------- 03 Miscellaneous -------------------------------------
 # WHAT: Flag credentials awarded on or after September 1 of the current model year
@@ -468,6 +474,27 @@ log_info("03 Gender Cleaning: complete")
 
 na_vals <- c("", " ", NA_character_, NA, "(Unspecified)")
 
+## ----------------------------------------------------------
+## Reasons for change, other notes
+## ----------------------------------------------------------
+## 2026-08-19: type-safe sentinel cleanup (same class as the
+## 01c:373 fix, commit c4c9ab3). psi_birthdate_cleaned can
+## arrive as Date (convert_date now typed via lubridate::ymd)
+## or as character (older table lineages / string-casting
+## reads). The sentinels only exist in the character case;
+## Date columns pass through untouched.
+## ----------------------------------------------------------
+tidy_replace <- function(
+  x,
+  values = c("", " ", "(Unspecified)"),
+  replacement = NA
+) {
+  if (!is.character(x)) {
+    return(x)
+  }
+  replace(x, x %in% values, replacement)
+}
+
 credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   select(
     ENCRYPTED_TRUE_PEN,
@@ -478,11 +505,7 @@ credential_supvars_birthdate_clean <- credential_supvars_enrolment |>
   distinct() |>
   mutate(
     # we should handle NA transformation when loading into R.
-    psi_birthdate_cleaned = if_else(
-      psi_birthdate_cleaned %in% na_vals,
-      NA_character_,
-      psi_birthdate_cleaned
-    )
+    psi_birthdate_cleaned = tidy_replace(psi_birthdate_cleaned)
   ) |>
   mutate(
     psi_birthdate_cleaned_D = as.Date(psi_birthdate_cleaned) # we should be able to just cast this in the beginnning
