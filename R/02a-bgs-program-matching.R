@@ -163,8 +163,8 @@ required_bgs_tables <- c(
   "INFOWARE_BGS_COHORT_INFO"
 )
 
-# CIP taxonomy lookups, in the analyst's own schema
-required_lookups_tables <- c(
+# CIP2021 taxonomy lookups, in the shared schema
+lookup_tables <- c(
   "INFOWARE_L_CIP_6DIGITS_CIP2021",
   "INFOWARE_L_CIP_4DIGITS_CIP2021",
   "INFOWARE_L_CIP_2DIGITS_CIP2021"
@@ -178,7 +178,7 @@ missing_bgs <- required_bgs_tables[
 ]
 missing_lookups <- required_lookups_tables[
   !map_lgl(
-    required_lookups_tables,
+    lookup_tables,
     ~ dbExistsTable(con, Id(schema = shareschema, table = .x))
   )
 ]
